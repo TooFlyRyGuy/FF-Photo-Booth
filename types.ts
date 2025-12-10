@@ -29,6 +29,8 @@ export interface Tenant {
   twilioAuthToken?: string;
   twilioPhoneNumber?: string;
   twilioEnabled?: boolean;
+  geminiApiKey?: string;
+  geminiEnabled?: boolean;
 }
 
 export interface Prompt {

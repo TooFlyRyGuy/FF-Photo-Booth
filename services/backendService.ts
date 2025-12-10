@@ -45,6 +45,8 @@ export const getTenant = async (): Promise<Tenant> => {
     twilioAuthToken: tenantData.twilio_auth_token || undefined,
     twilioPhoneNumber: tenantData.twilio_phone_number || undefined,
     twilioEnabled: tenantData.twilio_enabled || false,
+    geminiApiKey: tenantData.gemini_api_key || undefined,
+    geminiEnabled: tenantData.gemini_enabled || false,
     usage: {
       imagesUsed: limitsData.images_used,
       imagesLimit: limitsData.images_limit,
@@ -74,6 +76,12 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
   }
   if (updates.twilioEnabled !== undefined) {
     dbUpdates.twilio_enabled = updates.twilioEnabled;
+  }
+  if (updates.geminiApiKey !== undefined) {
+    dbUpdates.gemini_api_key = updates.geminiApiKey || null;
+  }
+  if (updates.geminiEnabled !== undefined) {
+    dbUpdates.gemini_enabled = updates.geminiEnabled;
   }
 
   if (Object.keys(dbUpdates).length === 0) {

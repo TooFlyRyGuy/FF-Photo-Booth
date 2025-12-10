@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tenant } from '../types';
-import { Save, Eye, EyeOff, Link2, MessageSquare, Check, X } from 'lucide-react';
+import { Save, Eye, EyeOff, Link2, MessageSquare, Check, X, Sparkles } from 'lucide-react';
 
 interface SettingsProps {
   tenant: Tenant;
@@ -18,6 +18,10 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
   const [twilioEnabled, setTwilioEnabled] = useState(tenant.twilioEnabled || false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
 
+  const [geminiApiKey, setGeminiApiKey] = useState(tenant.geminiApiKey || '');
+  const [geminiEnabled, setGeminiEnabled] = useState(tenant.geminiEnabled || false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -33,6 +37,8 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         twilioAuthToken: twilioToken,
         twilioPhoneNumber: twilioPhone,
         twilioEnabled,
+        geminiApiKey,
+        geminiEnabled,
       });
 
       setSaveSuccess(true);
@@ -191,6 +197,82 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
                 Twilio Console
               </a>
               . You'll need an active Twilio account with a phone number.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+        <div className="bg-slate-900/50 px-6 py-4 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <Sparkles className="text-amber-400" size={24} />
+            <div>
+              <h3 className="text-xl font-bold">Google Gemini Pro</h3>
+              <p className="text-slate-400 text-sm">Power AI image generation with Google Gemini Pro</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+            <input
+              type="checkbox"
+              checked={geminiEnabled}
+              onChange={(e) => setGeminiEnabled(e.target.checked)}
+              className="w-5 h-5 rounded accent-amber-500"
+              id="gemini-enabled"
+            />
+            <label htmlFor="gemini-enabled" className="flex-1 cursor-pointer">
+              <span className="font-medium">Enable Gemini Pro API</span>
+              <p className="text-sm text-slate-400">Use Google Gemini for AI image generation</p>
+            </label>
+            {geminiEnabled && <Check className="text-green-400" size={20} />}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">API Key</label>
+            <div className="relative">
+              <input
+                type={showGeminiKey ? 'text' : 'password'}
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value)}
+                placeholder="Enter your Gemini API key"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowGeminiKey(!showGeminiKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                {showGeminiKey ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Get your API key from{' '}
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-amber-400 hover:underline"
+              >
+                Google AI Studio
+              </a>
+            </p>
+          </div>
+
+          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <p className="text-sm text-amber-300">
+              <strong>Note:</strong> Gemini Pro provides advanced AI capabilities for generating high-quality images.
+              You can get started for free at{' '}
+              <a
+                href="https://ai.google.dev/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-amber-200"
+              >
+                Google AI for Developers
+              </a>
+              .
             </p>
           </div>
         </div>
