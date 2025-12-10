@@ -44,6 +44,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
   };
 
   const handleGeminiKeyChange = (value: string) => {
+    console.log('Gemini key changed:', { length: value.length, startsWithDot: value.startsWith('•') });
     setGeminiApiKey(value);
     setGeminiKeyChanged(true);
   };
@@ -82,6 +83,8 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         dropboxSecretChanged,
         twilioTokenChanged,
         geminiKeyChanged,
+        geminiApiKeyLength: geminiApiKey.length,
+        geminiApiKeyStartsWith: geminiApiKey.substring(0, 3),
       });
 
       await onSave(updates);
