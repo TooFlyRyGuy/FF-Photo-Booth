@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getTenant, getEvents, getPrompts, saveEvent, savePrompt } from '../services/backendService';
+import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updateTenantSettings } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Users, Settings, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink } from 'lucide-react';
+import Settings from './Settings';
 
 const mockChartData = [
   { name: 'Mon', images: 40 },
@@ -19,7 +20,7 @@ interface AdminProps {
   onLaunchKiosk: (event: Event) => void;
 }
 
-type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event';
+type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'settings';
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -58,6 +59,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
     }).catch(() => {
       alert(`Kiosk URL:\n${url}\n\n(Copy this link to share with guests)`);
     });
+  };
+
+  const handleSaveSettings = async (updates: Partial<Tenant>) => {
+    await updateTenantSettings(updates);
+    await loadData();
   };
 
   const handleCreateEvent = () => {
@@ -166,19 +172,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
-          <button 
+          <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-900 text-slate-400'}`}
           >
             <LayoutDashboard size={20} />
             Overview
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('events')}
             className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'events' || activeTab.includes('event') ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-900 text-slate-400'}`}
           >
             <Calendar size={20} />
             Events
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-900 text-slate-400'}`}
+          >
+            <SettingsIcon size={20} />
+            Settings
           </button>
         </nav>
 
@@ -429,6 +442,18 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                  </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* SETTINGS VIEW */}
+        {activeTab === 'settings' && tenant && (
+          <div className="space-y-6">
+            <header className="mb-8">
+              <h2 className="text-3xl font-bold">Integration Settings</h2>
+              <p className="text-slate-400 mt-2">Connect your accounts to unlock powerful features</p>
+            </header>
+
+            <Settings tenant={tenant} onSave={handleSaveSettings} />
           </div>
         )}
 

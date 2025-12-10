@@ -23,6 +23,12 @@ export interface Tenant {
     smsUsed: number;
     smsLimit: number;
   };
+  dropboxAccessToken?: string;
+  dropboxEnabled?: boolean;
+  twilioAccountSid?: string;
+  twilioAuthToken?: string;
+  twilioPhoneNumber?: string;
+  twilioEnabled?: boolean;
 }
 
 export interface Prompt {

@@ -39,6 +39,12 @@ export const getTenant = async (): Promise<Tenant> => {
     whiteLabel: tenantData.white_label_enabled,
     brandingLogo: tenantData.branding_logo_url || undefined,
     primaryColor: tenantData.primary_color || undefined,
+    dropboxAccessToken: tenantData.dropbox_access_token || undefined,
+    dropboxEnabled: tenantData.dropbox_enabled || false,
+    twilioAccountSid: tenantData.twilio_account_sid || undefined,
+    twilioAuthToken: tenantData.twilio_auth_token || undefined,
+    twilioPhoneNumber: tenantData.twilio_phone_number || undefined,
+    twilioEnabled: tenantData.twilio_enabled || false,
     usage: {
       imagesUsed: limitsData.images_used,
       imagesLimit: limitsData.images_limit,
@@ -46,6 +52,44 @@ export const getTenant = async (): Promise<Tenant> => {
       smsLimit: limitsData.sms_limit,
     }
   };
+};
+
+export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<void> => {
+  const dbUpdates: any = {};
+
+  if (updates.dropboxAccessToken !== undefined) {
+    dbUpdates.dropbox_access_token = updates.dropboxAccessToken || null;
+  }
+  if (updates.dropboxEnabled !== undefined) {
+    dbUpdates.dropbox_enabled = updates.dropboxEnabled;
+  }
+  if (updates.twilioAccountSid !== undefined) {
+    dbUpdates.twilio_account_sid = updates.twilioAccountSid || null;
+  }
+  if (updates.twilioAuthToken !== undefined) {
+    dbUpdates.twilio_auth_token = updates.twilioAuthToken || null;
+  }
+  if (updates.twilioPhoneNumber !== undefined) {
+    dbUpdates.twilio_phone_number = updates.twilioPhoneNumber || null;
+  }
+  if (updates.twilioEnabled !== undefined) {
+    dbUpdates.twilio_enabled = updates.twilioEnabled;
+  }
+
+  if (Object.keys(dbUpdates).length === 0) {
+    return;
+  }
+
+  dbUpdates.updated_at = new Date().toISOString();
+
+  const { error } = await supabase
+    .from('tenants')
+    .update(dbUpdates)
+    .eq('id', DEMO_TENANT_ID);
+
+  if (error) {
+    throw new Error(`Failed to update tenant settings: ${error.message}`);
+  }
 };
 
 export const getEvents = async (): Promise<Event[]> => {
