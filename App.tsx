@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminDashboard from './components/AdminDashboard';
 import KioskMode from './components/KioskMode';
 import { Event } from './types';
 import { Lock, User } from 'lucide-react';
+import { getEventByPasscode } from './services/backendService';
 
-type ViewState = 'landing' | 'login' | 'admin' | 'kiosk';
+type ViewState = 'landing' | 'login' | 'admin' | 'kiosk' | 'loading';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('landing');
@@ -28,13 +29,44 @@ const App: React.FC = () => {
   };
 
   const exitKiosk = () => {
-    const code = prompt("Enter Admin Passcode to Exit Kiosk:");
-    if (code === 'admin123') {
-      setView('admin');
-    } else {
-      alert("Access Denied");
-    }
+    window.location.href = '/';
   };
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const kioskPasscode = urlParams.get('kiosk');
+
+    if (kioskPasscode) {
+      setView('loading');
+      getEventByPasscode(kioskPasscode)
+        .then((event) => {
+          if (event) {
+            setActiveEvent(event);
+            setView('kiosk');
+          } else {
+            setError('Invalid event code');
+            setView('landing');
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load event:', err);
+          setError('Failed to load event');
+          setView('landing');
+        });
+    }
+  }, []);
+
+  // LOADING STATE
+  if (view === 'loading') {
+    return (
+      <div className="h-screen w-full bg-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-white text-xl">Loading Event...</p>
+        </div>
+      </div>
+    );
+  }
 
   // 1. KIOSK MODE
   if (view === 'kiosk' && activeEvent) {
