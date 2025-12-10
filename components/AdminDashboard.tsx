@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updateTenantSettings } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Users, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, BarChart3 } from 'lucide-react';
 import Settings from './Settings';
+import EventAnalytics from './EventAnalytics';
 
 const mockChartData = [
   { name: 'Mon', images: 40 },
@@ -20,17 +21,20 @@ interface AdminProps {
   onLaunchKiosk: (event: Event) => void;
 }
 
-type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'settings';
+type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings';
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  
+
   // Event Editor State
   const [editingEvent, setEditingEvent] = useState<Partial<Event>>({});
   const [availablePrompts, setAvailablePrompts] = useState<Prompt[]>([]);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
+
+  // Analytics State
+  const [analyticsEvent, setAnalyticsEvent] = useState<Event | null>(null);
   
   // New Prompt Builder State
   const [newPrompt, setNewPrompt] = useState<Partial<Prompt>>({
@@ -83,6 +87,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
   const handleEditEvent = (event: Event) => {
     setEditingEvent({ ...event });
     setActiveTab('edit_event');
+  };
+
+  const handleViewAnalytics = (event: Event) => {
+    setAnalyticsEvent(event);
+    setActiveTab('analytics');
   };
 
   const handleSaveEvent = async () => {
@@ -306,6 +315,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                   </div>
                   <div className="flex items-center gap-3">
                     <button
+                      onClick={() => handleViewAnalytics(event)}
+                      className="px-4 py-2 rounded-md border border-purple-600 text-purple-400 hover:bg-purple-600/10 text-sm font-medium flex items-center gap-2"
+                      title="View event analytics"
+                    >
+                      <BarChart3 size={16} /> Analytics
+                    </button>
+                    <button
                       onClick={() => handleEditEvent(event)}
                       className="px-4 py-2 rounded-md border border-slate-600 hover:bg-slate-700 text-sm"
                     >
@@ -442,6 +458,23 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                  </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ANALYTICS VIEW */}
+        {activeTab === 'analytics' && analyticsEvent && (
+          <div className="space-y-6">
+            <header className="flex items-center justify-between mb-8">
+              <div>
+                <button onClick={() => setActiveTab('events')} className="text-slate-400 hover:text-white flex items-center gap-2 text-sm mb-4">
+                  &larr; Back to Events
+                </button>
+                <h2 className="text-3xl font-bold">{analyticsEvent.name} Analytics</h2>
+                <p className="text-slate-400 mt-2">{analyticsEvent.city} • {analyticsEvent.date}</p>
+              </div>
+            </header>
+
+            <EventAnalytics eventId={analyticsEvent.id} eventName={analyticsEvent.name} />
           </div>
         )}
 

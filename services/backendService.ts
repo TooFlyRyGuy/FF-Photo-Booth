@@ -393,3 +393,61 @@ export const saveGeneratedImage = async (
 
   return data.id;
 };
+
+export interface EventAnalytics {
+  totalPhotos: number;
+  promptStats: Array<{
+    promptId: string;
+    promptName: string;
+    count: number;
+    percentage: number;
+  }>;
+}
+
+export const getEventAnalytics = async (eventId: string): Promise<EventAnalytics> => {
+  const { data: images, error } = await supabase
+    .from('generated_images')
+    .select(`
+      id,
+      prompt_id,
+      prompts (
+        id,
+        name
+      )
+    `)
+    .eq('event_id', eventId)
+    .eq('status', 'completed');
+
+  if (error) {
+    throw new Error(`Failed to fetch event analytics: ${error.message}`);
+  }
+
+  const totalPhotos = images?.length || 0;
+
+  const promptCounts = new Map<string, { name: string; count: number }>();
+
+  images?.forEach((img: any) => {
+    const promptId = img.prompt_id;
+    const promptName = img.prompts?.name || 'Unknown';
+
+    if (promptCounts.has(promptId)) {
+      promptCounts.get(promptId)!.count++;
+    } else {
+      promptCounts.set(promptId, { name: promptName, count: 1 });
+    }
+  });
+
+  const promptStats = Array.from(promptCounts.entries())
+    .map(([promptId, { name, count }]) => ({
+      promptId,
+      promptName: name,
+      count,
+      percentage: totalPhotos > 0 ? Math.round((count / totalPhotos) * 100) : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    totalPhotos,
+    promptStats,
+  };
+};
