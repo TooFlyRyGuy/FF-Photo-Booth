@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight } from 'lucide-react';
 import { Event, Prompt, GeneratedImage } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, uploadToDropbox } from '../services/backendService';
+import { sendSms, uploadToDropbox, saveGeneratedImage } from '../services/backendService';
 
 interface KioskProps {
   event: Event;
@@ -84,19 +84,29 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const handleGenerate = async () => {
     if (!capturedImage || !selectedPrompt) return;
     setView('processing');
-    
+
     try {
       // 1. Generate with Gemini
       const genImage = await generateBoothImage(capturedImage, selectedPrompt.promptText, event.name);
       setFinalImage(genImage);
-      
-      // 2. Background upload to Dropbox (Mock)
-      uploadToDropbox(genImage); 
-      
+
+      // 2. Save to database
+      await saveGeneratedImage(
+        event.id,
+        selectedPrompt.id,
+        event.tenantId,
+        capturedImage,
+        genImage,
+        'completed'
+      );
+
+      // 3. Background upload to Dropbox (Mock)
+      uploadToDropbox(genImage);
+
       setView('result');
     } catch (err: any) {
       setErrorMsg(err.message || "AI Generation Failed");
-      setView('camera'); // Go back to camera
+      setView('camera');
       startCamera();
     }
   };

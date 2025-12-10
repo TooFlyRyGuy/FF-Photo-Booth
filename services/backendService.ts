@@ -1,122 +1,300 @@
-import { Tenant, Event, Prompt, SubscriptionTier, GeneratedImage } from '../types';
+import { Tenant, Event, Prompt, SubscriptionTier } from '../types';
+import { supabase } from '../lib/supabase';
 
-// --- MOCK DATA ---
-
-let MOCK_PROMPTS: Prompt[] = [
-  {
-    id: 'p1',
-    name: 'Cyberpunk City',
-    description: 'Neon lights and futuristic armor',
-    category: 'Sci-Fi',
-    previewImage: 'https://picsum.photos/id/10/300/300',
-    promptText: 'A futuristic cyberpunk character with neon glowing armor, standing in a rain-slicked Tokyo street at night. Cinematic lighting.'
-  },
-  {
-    id: 'p2',
-    name: 'Renaissance Oil',
-    description: 'Classic oil painting style',
-    category: 'Artistic',
-    previewImage: 'https://picsum.photos/id/20/300/300',
-    promptText: 'An 18th-century oil painting of a noble, wearing velvet and gold, dramatic chiaroscuro lighting, museum quality.'
-  },
-  {
-    id: 'p3',
-    name: 'Retro 80s',
-    description: 'Synthwave aesthetic',
-    category: 'Retro',
-    previewImage: 'https://picsum.photos/id/30/300/300',
-    promptText: 'A retro 1980s synthwave style portrait, sunset gradient background, laser grid, cool sunglasses, digital noise.'
-  },
-  {
-    id: 'p4',
-    name: 'Pixar Style',
-    description: '3D Animated Character',
-    category: 'Fun',
-    previewImage: 'https://picsum.photos/id/40/300/300',
-    promptText: 'A cute 3D rendered character in the style of a modern animation studio, soft lighting, expressive features, vibrant colors.'
-  }
-];
-
-const CURRENT_TENANT: Tenant = {
-  id: 't_123',
-  name: 'Acme Event Agency',
-  tier: SubscriptionTier.PRO,
-  whiteLabel: true,
-  brandingLogo: 'https://via.placeholder.com/150x50?text=AGENCY+LOGO',
-  usage: {
-    imagesUsed: 1240,
-    imagesLimit: 5000,
-    smsUsed: 890,
-    smsLimit: 5000
-  }
-};
-
-let MOCK_EVENTS: Event[] = [
-  {
-    id: 'evt_1',
-    name: 'TechCrunch Disrupt Afterparty',
-    date: '2024-10-15',
-    city: 'San Francisco',
-    isActive: true,
-    passcode: '1234',
-    prompts: [MOCK_PROMPTS[0], MOCK_PROMPTS[3]],
-    tenantId: 't_123'
-  },
-  {
-    id: 'evt_2',
-    name: 'Sarah & Tom Wedding',
-    date: '2024-11-02',
-    city: 'Austin',
-    isActive: false,
-    passcode: 'LOVE',
-    prompts: [MOCK_PROMPTS[1], MOCK_PROMPTS[3]],
-    tenantId: 't_123'
-  }
-];
-
-// --- SERVICE METHODS ---
+const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 export const getTenant = async (): Promise<Tenant> => {
-  return new Promise(resolve => setTimeout(() => resolve(CURRENT_TENANT), 500));
+  const { data: tenantData, error: tenantError } = await supabase
+    .from('tenants')
+    .select('*')
+    .eq('id', DEMO_TENANT_ID)
+    .single();
+
+  if (tenantError) {
+    throw new Error(`Failed to fetch tenant: ${tenantError.message}`);
+  }
+
+  const { data: limitsData, error: limitsError } = await supabase
+    .from('subscription_limits')
+    .select('*')
+    .eq('tenant_id', DEMO_TENANT_ID)
+    .single();
+
+  if (limitsError) {
+    throw new Error(`Failed to fetch subscription limits: ${limitsError.message}`);
+  }
+
+  return {
+    id: tenantData.id,
+    name: tenantData.name,
+    tier: tenantData.tier as SubscriptionTier,
+    whiteLabel: tenantData.white_label_enabled,
+    brandingLogo: tenantData.branding_logo_url || undefined,
+    primaryColor: tenantData.primary_color || undefined,
+    usage: {
+      imagesUsed: limitsData.images_used,
+      imagesLimit: limitsData.images_limit,
+      smsUsed: limitsData.sms_used,
+      smsLimit: limitsData.sms_limit,
+    }
+  };
 };
 
 export const getEvents = async (): Promise<Event[]> => {
-  return new Promise(resolve => setTimeout(() => resolve([...MOCK_EVENTS]), 500));
+  const { data: eventsData, error: eventsError } = await supabase
+    .from('events')
+    .select(`
+      *,
+      event_prompts (
+        prompt_id,
+        prompts (*)
+      )
+    `)
+    .eq('tenant_id', DEMO_TENANT_ID)
+    .order('created_at', { ascending: false });
+
+  if (eventsError) {
+    throw new Error(`Failed to fetch events: ${eventsError.message}`);
+  }
+
+  return eventsData.map((event: any) => ({
+    id: event.id,
+    name: event.name,
+    date: event.event_date,
+    city: event.city,
+    isActive: event.is_active,
+    passcode: event.passcode,
+    tenantId: event.tenant_id,
+    prompts: event.event_prompts.map((ep: any) => ({
+      id: ep.prompts.id,
+      name: ep.prompts.name,
+      description: ep.prompts.description,
+      category: ep.prompts.category,
+      promptText: ep.prompts.prompt_text,
+      previewImage: ep.prompts.preview_image_url,
+      referenceImage: ep.prompts.reference_image_url,
+    }))
+  }));
 };
 
 export const getPrompts = async (): Promise<Prompt[]> => {
-  return new Promise(resolve => setTimeout(() => resolve([...MOCK_PROMPTS]), 200));
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('*')
+    .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID}`)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch prompts: ${error.message}`);
+  }
+
+  return data.map((prompt) => ({
+    id: prompt.id,
+    name: prompt.name,
+    description: prompt.description,
+    category: prompt.category,
+    promptText: prompt.prompt_text,
+    previewImage: prompt.preview_image_url,
+    referenceImage: prompt.reference_image_url,
+  }));
 };
 
 export const saveEvent = async (event: Event): Promise<Event> => {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      const existingIndex = MOCK_EVENTS.findIndex(e => e.id === event.id);
-      if (existingIndex >= 0) {
-        MOCK_EVENTS[existingIndex] = event;
-      } else {
-        MOCK_EVENTS.push(event);
+  const isNewEvent = !event.id || event.id.startsWith('evt_');
+
+  if (isNewEvent) {
+    const { data, error } = await supabase
+      .from('events')
+      .insert({
+        tenant_id: DEMO_TENANT_ID,
+        name: event.name,
+        city: event.city,
+        event_date: event.date,
+        passcode: event.passcode,
+        is_active: event.isActive,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create event: ${error.message}`);
+    }
+
+    if (event.prompts && event.prompts.length > 0) {
+      const eventPrompts = event.prompts.map((prompt, index) => ({
+        event_id: data.id,
+        prompt_id: prompt.id,
+        display_order: index,
+      }));
+
+      const { error: promptsError } = await supabase
+        .from('event_prompts')
+        .insert(eventPrompts);
+
+      if (promptsError) {
+        throw new Error(`Failed to link prompts: ${promptsError.message}`);
       }
-      resolve(event);
-    }, 500);
-  });
+    }
+
+    return { ...event, id: data.id };
+  } else {
+    const { data, error } = await supabase
+      .from('events')
+      .update({
+        name: event.name,
+        city: event.city,
+        event_date: event.date,
+        passcode: event.passcode,
+        is_active: event.isActive,
+      })
+      .eq('id', event.id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update event: ${error.message}`);
+    }
+
+    const { error: deleteError } = await supabase
+      .from('event_prompts')
+      .delete()
+      .eq('event_id', event.id);
+
+    if (deleteError) {
+      throw new Error(`Failed to clear prompts: ${deleteError.message}`);
+    }
+
+    if (event.prompts && event.prompts.length > 0) {
+      const eventPrompts = event.prompts.map((prompt, index) => ({
+        event_id: event.id,
+        prompt_id: prompt.id,
+        display_order: index,
+      }));
+
+      const { error: promptsError } = await supabase
+        .from('event_prompts')
+        .insert(eventPrompts);
+
+      if (promptsError) {
+        throw new Error(`Failed to link prompts: ${promptsError.message}`);
+      }
+    }
+
+    return event;
+  }
 };
 
 export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      MOCK_PROMPTS.push(prompt);
-      resolve(prompt);
-    }, 500);
-  });
+  const { data, error } = await supabase
+    .from('prompts')
+    .insert({
+      tenant_id: DEMO_TENANT_ID,
+      name: prompt.name,
+      description: prompt.description,
+      category: prompt.category,
+      prompt_text: prompt.promptText,
+      preview_image_url: prompt.previewImage,
+      reference_image_url: prompt.referenceImage,
+      is_active: true,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to save prompt: ${error.message}`);
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    category: data.category,
+    promptText: data.prompt_text,
+    previewImage: data.preview_image_url,
+    referenceImage: data.reference_image_url,
+  };
 };
 
 export const sendSms = async (phoneNumber: string, imageUrl: string): Promise<boolean> => {
-  console.log(`[MOCK TWILIO] Sending SMS to ${phoneNumber} with link ${imageUrl}`);
-  return new Promise(resolve => setTimeout(() => resolve(true), 1000));
+  console.log(`[SMS] Sending to ${phoneNumber}: ${imageUrl}`);
+  return true;
 };
 
 export const uploadToDropbox = async (imageBase64: string): Promise<string> => {
-  console.log(`[MOCK DROPBOX] Uploading image...`);
-  return new Promise(resolve => setTimeout(() => resolve("https://dropbox.com/mock-link-123"), 1000));
+  console.log(`[STORAGE] Uploading image to cloud storage...`);
+  return 'https://storage.example.com/mock-link-123';
+};
+
+export const getEventByPasscode = async (passcode: string): Promise<Event | null> => {
+  const { data: eventsData, error } = await supabase
+    .from('events')
+    .select(`
+      *,
+      event_prompts (
+        prompt_id,
+        display_order,
+        prompts (*)
+      )
+    `)
+    .eq('passcode', passcode)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch event: ${error.message}`);
+  }
+
+  if (!eventsData) {
+    return null;
+  }
+
+  return {
+    id: eventsData.id,
+    name: eventsData.name,
+    date: eventsData.event_date,
+    city: eventsData.city,
+    isActive: eventsData.is_active,
+    passcode: eventsData.passcode,
+    tenantId: eventsData.tenant_id,
+    prompts: eventsData.event_prompts
+      .sort((a: any, b: any) => a.display_order - b.display_order)
+      .map((ep: any) => ({
+        id: ep.prompts.id,
+        name: ep.prompts.name,
+        description: ep.prompts.description,
+        category: ep.prompts.category,
+        promptText: ep.prompts.prompt_text,
+        previewImage: ep.prompts.preview_image_url,
+        referenceImage: ep.prompts.reference_image_url,
+      }))
+  };
+};
+
+export const saveGeneratedImage = async (
+  eventId: string,
+  promptId: string,
+  tenantId: string,
+  originalUrl: string,
+  generatedUrl: string | null,
+  status: 'processing' | 'completed' | 'failed'
+): Promise<string> => {
+  const { data, error } = await supabase
+    .from('generated_images')
+    .insert({
+      event_id: eventId,
+      prompt_id: promptId,
+      tenant_id: tenantId,
+      original_image_url: originalUrl,
+      generated_image_url: generatedUrl,
+      status,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to save generated image: ${error.message}`);
+  }
+
+  return data.id;
 };
