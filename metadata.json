@@ -1,0 +1,8 @@
+{
+  "name": "Lumina Booth SaaS",
+  "description": "Enterprise-grade AI Photo Booth Platform with Multi-tenant SaaS architecture.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
