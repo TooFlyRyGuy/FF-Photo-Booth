@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tenant } from '../types';
-import { Save, Eye, EyeOff, Link2, MessageSquare, Check, X, Sparkles } from 'lucide-react';
+import { Save, Eye, EyeOff, Check, X, Sparkles } from 'lucide-react';
 
 interface SettingsProps {
   tenant: Tenant;
@@ -56,7 +56,13 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
         <div className="bg-slate-900/50 px-6 py-4 border-b border-slate-700">
           <div className="flex items-center gap-3">
-            <Link2 className="text-blue-400" size={24} />
+            <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
+              <path d="M12 9.6L24 16.8L12 24L0 16.8L12 9.6Z" fill="#0061FF"/>
+              <path d="M0 24L12 31.2L24 24L12 16.8L0 24Z" fill="#0061FF"/>
+              <path d="M12 31.2L24 38.4L36 31.2L24 24L12 31.2Z" fill="#0061FF"/>
+              <path d="M24 24L36 31.2L48 24L36 16.8L24 24Z" fill="#0061FF"/>
+              <path d="M24 16.8L36 9.6L48 16.8L36 24L24 16.8Z" fill="#0061FF"/>
+            </svg>
             <div>
               <h3 className="text-xl font-bold">Dropbox Integration</h3>
               <p className="text-slate-400 text-sm">Connect Dropbox to automatically backup all photos</p>
@@ -116,7 +122,13 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
         <div className="bg-slate-900/50 px-6 py-4 border-b border-slate-700">
           <div className="flex items-center gap-3">
-            <MessageSquare className="text-green-400" size={24} />
+            <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
+              <circle cx="24" cy="24" r="24" fill="#F22F46"/>
+              <circle cx="18" cy="18" r="3.5" fill="white"/>
+              <circle cx="30" cy="18" r="3.5" fill="white"/>
+              <circle cx="18" cy="30" r="3.5" fill="white"/>
+              <circle cx="30" cy="30" r="3.5" fill="white"/>
+            </svg>
             <div>
               <h3 className="text-xl font-bold">Twilio Integration</h3>
               <p className="text-slate-400 text-sm">Send photos via SMS to guests using Twilio</p>
