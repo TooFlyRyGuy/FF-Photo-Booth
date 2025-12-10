@@ -8,40 +8,77 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
+  const maskValue = (value: string | undefined) => {
+    return value && value.length > 0 ? '•'.repeat(20) : '';
+  };
+
   const [dropboxAppKey, setDropboxAppKey] = useState(tenant.dropboxAppKey || '');
-  const [dropboxAppSecret, setDropboxAppSecret] = useState(tenant.dropboxAppSecret || '');
+  const [dropboxAppSecret, setDropboxAppSecret] = useState(maskValue(tenant.dropboxAppSecret));
   const [dropboxEnabled, setDropboxEnabled] = useState(tenant.dropboxEnabled || false);
   const [showDropboxSecret, setShowDropboxSecret] = useState(false);
+  const [dropboxSecretChanged, setDropboxSecretChanged] = useState(false);
 
   const [twilioSid, setTwilioSid] = useState(tenant.twilioAccountSid || '');
-  const [twilioToken, setTwilioToken] = useState(tenant.twilioAuthToken || '');
+  const [twilioToken, setTwilioToken] = useState(maskValue(tenant.twilioAuthToken));
   const [twilioPhone, setTwilioPhone] = useState(tenant.twilioPhoneNumber || '');
   const [twilioEnabled, setTwilioEnabled] = useState(tenant.twilioEnabled || false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
+  const [twilioTokenChanged, setTwilioTokenChanged] = useState(false);
 
-  const [geminiApiKey, setGeminiApiKey] = useState(tenant.geminiApiKey || '');
+  const [geminiApiKey, setGeminiApiKey] = useState(maskValue(tenant.geminiApiKey));
   const [geminiEnabled, setGeminiEnabled] = useState(tenant.geminiEnabled || false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [geminiKeyChanged, setGeminiKeyChanged] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleDropboxSecretChange = (value: string) => {
+    setDropboxAppSecret(value);
+    setDropboxSecretChanged(true);
+  };
+
+  const handleTwilioTokenChange = (value: string) => {
+    setTwilioToken(value);
+    setTwilioTokenChanged(true);
+  };
+
+  const handleGeminiKeyChange = (value: string) => {
+    setGeminiApiKey(value);
+    setGeminiKeyChanged(true);
+  };
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
 
     try {
-      await onSave({
+      const updates: any = {
         dropboxAppKey,
-        dropboxAppSecret,
         dropboxEnabled,
         twilioAccountSid: twilioSid,
-        twilioAuthToken: twilioToken,
         twilioPhoneNumber: twilioPhone,
         twilioEnabled,
-        geminiApiKey,
         geminiEnabled,
-      });
+      };
+
+      if (dropboxSecretChanged) {
+        updates.dropboxAppSecret = dropboxAppSecret;
+      }
+
+      if (twilioTokenChanged) {
+        updates.twilioAuthToken = twilioToken;
+      }
+
+      if (geminiKeyChanged) {
+        updates.geminiApiKey = geminiApiKey;
+      }
+
+      await onSave(updates);
+
+      setDropboxSecretChanged(false);
+      setTwilioTokenChanged(false);
+      setGeminiKeyChanged(false);
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -105,7 +142,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
               <input
                 type={showDropboxSecret ? 'text' : 'password'}
                 value={dropboxAppSecret}
-                onChange={(e) => setDropboxAppSecret(e.target.value)}
+                onChange={(e) => handleDropboxSecretChange(e.target.value)}
                 placeholder="Enter your Dropbox app secret"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-500"
               />
@@ -118,15 +155,21 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              Create a Dropbox app and get your credentials from the{' '}
-              <a
-                href="https://www.dropbox.com/developers/apps"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:underline"
-              >
-                Dropbox App Console
-              </a>
+              {dropboxAppSecret.startsWith('•') ? (
+                <span className="text-green-400">✓ Secret is saved (hidden for security)</span>
+              ) : (
+                <>
+                  Create a Dropbox app and get your credentials from the{' '}
+                  <a
+                    href="https://www.dropbox.com/developers/apps"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline"
+                  >
+                    Dropbox App Console
+                  </a>
+                </>
+              )}
             </p>
           </div>
 
@@ -188,7 +231,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
               <input
                 type={showTwilioToken ? 'text' : 'password'}
                 value={twilioToken}
-                onChange={(e) => setTwilioToken(e.target.value)}
+                onChange={(e) => handleTwilioTokenChange(e.target.value)}
                 placeholder="Enter your Twilio auth token"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-500"
               />
@@ -200,6 +243,9 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
                 {showTwilioToken ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {twilioToken.startsWith('•') && (
+              <p className="text-xs text-green-400 mt-2">✓ Token is saved (hidden for security)</p>
+            )}
           </div>
 
           <div>
@@ -266,7 +312,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
               <input
                 type={showGeminiKey ? 'text' : 'password'}
                 value={geminiApiKey}
-                onChange={(e) => setGeminiApiKey(e.target.value)}
+                onChange={(e) => handleGeminiKeyChange(e.target.value)}
                 placeholder="Enter your Gemini API key"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-amber-500"
               />
@@ -279,15 +325,21 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              Get your API key from{' '}
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-amber-400 hover:underline"
-              >
-                Google AI Studio
-              </a>
+              {geminiApiKey.startsWith('•') ? (
+                <span className="text-green-400">✓ API key is saved (hidden for security)</span>
+              ) : (
+                <>
+                  Get your API key from{' '}
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-400 hover:underline"
+                  >
+                    Google AI Studio
+                  </a>
+                </>
+              )}
             </p>
           </div>
 
