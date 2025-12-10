@@ -75,9 +75,15 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
       alert("Please fill in the required fields (Name, Passcode)");
       return;
     }
-    await saveEvent(editingEvent as Event);
-    await loadData();
-    setActiveTab('events');
+
+    try {
+      await saveEvent(editingEvent as Event);
+      await loadData();
+      setActiveTab('events');
+    } catch (error: any) {
+      alert(`Failed to save event: ${error.message}`);
+      console.error('Save event error:', error);
+    }
   };
 
   const togglePromptSelection = (prompt: Prompt) => {
@@ -122,15 +128,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
       referenceImage: newPrompt.referenceImage
     };
 
-    await savePrompt(promptToSave);
-    await loadData(); // Refresh list
-    
-    // Auto-select the new prompt
+    const savedPrompt = await savePrompt(promptToSave);
+    await loadData();
+
     setEditingEvent(prev => ({
       ...prev,
-      prompts: [...(prev.prompts || []), promptToSave]
+      prompts: [...(prev.prompts || []), savedPrompt]
     }));
-    
+
     setIsPromptModalOpen(false);
     setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
   };
@@ -352,9 +357,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h3 className="text-lg font-bold">AI Experience Prompts</h3>
-                    <p className="text-sm text-slate-400">Select which styles are available for this event</p>
+                    <p className="text-sm text-slate-400">
+                      Select which styles are available for this event
+                      {editingEvent.prompts && editingEvent.prompts.length > 0 && (
+                        <span className="ml-2 text-blue-400 font-medium">
+                          ({editingEvent.prompts.length} selected)
+                        </span>
+                      )}
+                    </p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsPromptModalOpen(true)}
                     className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
                   >

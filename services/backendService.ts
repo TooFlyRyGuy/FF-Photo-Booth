@@ -134,18 +134,24 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     }
 
     if (event.prompts && event.prompts.length > 0) {
-      const eventPrompts = event.prompts.map((prompt, index) => ({
-        event_id: data.id,
-        prompt_id: prompt.id,
-        display_order: index,
-      }));
+      const validPrompts = event.prompts.filter(p =>
+        p.id && !p.id.startsWith('p_') && p.id.length > 20
+      );
 
-      const { error: promptsError } = await supabase
-        .from('event_prompts')
-        .insert(eventPrompts);
+      if (validPrompts.length > 0) {
+        const eventPrompts = validPrompts.map((prompt, index) => ({
+          event_id: data.id,
+          prompt_id: prompt.id,
+          display_order: index,
+        }));
 
-      if (promptsError) {
-        throw new Error(`Failed to link prompts: ${promptsError.message}`);
+        const { error: promptsError } = await supabase
+          .from('event_prompts')
+          .insert(eventPrompts);
+
+        if (promptsError) {
+          throw new Error(`Failed to link prompts: ${promptsError.message}`);
+        }
       }
     }
 
@@ -182,18 +188,24 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     }
 
     if (event.prompts && event.prompts.length > 0) {
-      const eventPrompts = event.prompts.map((prompt, index) => ({
-        event_id: event.id,
-        prompt_id: prompt.id,
-        display_order: index,
-      }));
+      const validPrompts = event.prompts.filter(p =>
+        p.id && !p.id.startsWith('p_') && p.id.length > 20
+      );
 
-      const { error: promptsError } = await supabase
-        .from('event_prompts')
-        .insert(eventPrompts);
+      if (validPrompts.length > 0) {
+        const eventPrompts = validPrompts.map((prompt, index) => ({
+          event_id: event.id,
+          prompt_id: prompt.id,
+          display_order: index,
+        }));
 
-      if (promptsError) {
-        throw new Error(`Failed to link prompts: ${promptsError.message}`);
+        const { error: promptsError } = await supabase
+          .from('event_prompts')
+          .insert(eventPrompts);
+
+        if (promptsError) {
+          throw new Error(`Failed to link prompts: ${promptsError.message}`);
+        }
       }
     }
 
