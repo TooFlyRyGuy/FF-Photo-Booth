@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight } from 'lucide-react';
 import { Event, Prompt, GeneratedImage, Tenant } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, uploadToDropbox, saveGeneratedImage, getTenantById } from '../services/backendService';
+import { sendSms, saveGeneratedImage, getTenantById } from '../services/backendService';
+import { uploadImageToDropbox } from '../services/dropboxService';
 
 interface KioskProps {
   event: Event;
@@ -99,7 +100,24 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setErrorMsg('');
 
     try {
-      // 1. Generate with Gemini
+      // 1. Upload original image to Dropbox
+      let originalUrl = capturedImage;
+      if (tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
+        try {
+          originalUrl = await uploadImageToDropbox({
+            tenantId: event.tenantId,
+            eventId: event.id,
+            eventName: event.name,
+            imageBase64: capturedImage,
+            imageType: 'original',
+            promptName: selectedPrompt.name,
+          });
+        } catch (dropboxErr) {
+          console.error('Dropbox upload failed for original:', dropboxErr);
+        }
+      }
+
+      // 2. Generate with Gemini
       const genImage = await generateBoothImage(
         capturedImage,
         selectedPrompt.promptText,
@@ -109,18 +127,32 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       );
       setFinalImage(genImage);
 
-      // 2. Save to database
+      // 3. Upload generated image to Dropbox
+      let generatedUrl = genImage;
+      if (tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
+        try {
+          generatedUrl = await uploadImageToDropbox({
+            tenantId: event.tenantId,
+            eventId: event.id,
+            eventName: event.name,
+            imageBase64: genImage,
+            imageType: 'generated',
+            promptName: selectedPrompt.name,
+          });
+        } catch (dropboxErr) {
+          console.error('Dropbox upload failed for generated:', dropboxErr);
+        }
+      }
+
+      // 4. Save URLs to database
       await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
         event.tenantId,
-        capturedImage,
-        genImage,
+        originalUrl,
+        generatedUrl,
         'completed'
       );
-
-      // 3. Background upload to Dropbox (Mock)
-      uploadToDropbox(genImage);
 
       setView('result');
     } catch (err: any) {

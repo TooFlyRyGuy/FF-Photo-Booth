@@ -8,9 +8,10 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
-  const [dropboxToken, setDropboxToken] = useState(tenant.dropboxAccessToken || '');
+  const [dropboxAppKey, setDropboxAppKey] = useState(tenant.dropboxAppKey || '');
+  const [dropboxAppSecret, setDropboxAppSecret] = useState(tenant.dropboxAppSecret || '');
   const [dropboxEnabled, setDropboxEnabled] = useState(tenant.dropboxEnabled || false);
-  const [showDropboxToken, setShowDropboxToken] = useState(false);
+  const [showDropboxSecret, setShowDropboxSecret] = useState(false);
 
   const [twilioSid, setTwilioSid] = useState(tenant.twilioAccountSid || '');
   const [twilioToken, setTwilioToken] = useState(tenant.twilioAuthToken || '');
@@ -31,7 +32,8 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
 
     try {
       await onSave({
-        dropboxAccessToken: dropboxToken,
+        dropboxAppKey,
+        dropboxAppSecret,
         dropboxEnabled,
         twilioAccountSid: twilioSid,
         twilioAuthToken: twilioToken,
@@ -87,25 +89,36 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Access Token</label>
+            <label className="block text-sm font-medium mb-2">App Key</label>
+            <input
+              type="text"
+              value={dropboxAppKey}
+              onChange={(e) => setDropboxAppKey(e.target.value)}
+              placeholder="Enter your Dropbox app key"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">App Secret</label>
             <div className="relative">
               <input
-                type={showDropboxToken ? 'text' : 'password'}
-                value={dropboxToken}
-                onChange={(e) => setDropboxToken(e.target.value)}
-                placeholder="Enter your Dropbox access token"
+                type={showDropboxSecret ? 'text' : 'password'}
+                value={dropboxAppSecret}
+                onChange={(e) => setDropboxAppSecret(e.target.value)}
+                placeholder="Enter your Dropbox app secret"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-500"
               />
               <button
                 type="button"
-                onClick={() => setShowDropboxToken(!showDropboxToken)}
+                onClick={() => setShowDropboxSecret(!showDropboxSecret)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
               >
-                {showDropboxToken ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showDropboxSecret ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              Get your access token from the{' '}
+              Create a Dropbox app and get your credentials from the{' '}
               <a
                 href="https://www.dropbox.com/developers/apps"
                 target="_blank"
@@ -114,6 +127,12 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
               >
                 Dropbox App Console
               </a>
+            </p>
+          </div>
+
+          <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <p className="text-sm text-blue-300">
+              <strong>Note:</strong> A new folder will be automatically created in your Dropbox for each event to organize all photos.
             </p>
           </div>
         </div>

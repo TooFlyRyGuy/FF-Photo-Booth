@@ -11,7 +11,8 @@ const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
     whiteLabel: tenantData.white_label_enabled,
     brandingLogo: tenantData.branding_logo_url || undefined,
     primaryColor: tenantData.primary_color || undefined,
-    dropboxAccessToken: tenantData.dropbox_access_token || undefined,
+    dropboxAppKey: tenantData.dropbox_app_key || undefined,
+    dropboxAppSecret: tenantData.dropbox_app_secret || undefined,
     dropboxEnabled: tenantData.dropbox_enabled || false,
     twilioAccountSid: tenantData.twilio_account_sid || undefined,
     twilioAuthToken: tenantData.twilio_auth_token || undefined,
@@ -67,8 +68,11 @@ export const getTenantById = async (tenantId: string): Promise<Tenant> => {
 export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<void> => {
   const dbUpdates: any = {};
 
-  if (updates.dropboxAccessToken !== undefined) {
-    dbUpdates.dropbox_access_token = updates.dropboxAccessToken || null;
+  if (updates.dropboxAppKey !== undefined) {
+    dbUpdates.dropbox_app_key = updates.dropboxAppKey || null;
+  }
+  if (updates.dropboxAppSecret !== undefined) {
+    dbUpdates.dropbox_app_secret = updates.dropboxAppSecret || null;
   }
   if (updates.dropboxEnabled !== undefined) {
     dbUpdates.dropbox_enabled = updates.dropboxEnabled;
@@ -311,11 +315,6 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
 export const sendSms = async (phoneNumber: string, imageUrl: string): Promise<boolean> => {
   console.log(`[SMS] Sending to ${phoneNumber}: ${imageUrl}`);
   return true;
-};
-
-export const uploadToDropbox = async (imageBase64: string): Promise<string> => {
-  console.log(`[STORAGE] Uploading image to cloud storage...`);
-  return 'https://storage.example.com/mock-link-123';
 };
 
 export const getEventByPasscode = async (passcode: string): Promise<Event | null> => {

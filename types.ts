@@ -23,7 +23,8 @@ export interface Tenant {
     smsUsed: number;
     smsLimit: number;
   };
-  dropboxAccessToken?: string;
+  dropboxAppKey?: string;
+  dropboxAppSecret?: string;
   dropboxEnabled?: boolean;
   twilioAccountSid?: string;
   twilioAuthToken?: string;
