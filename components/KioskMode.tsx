@@ -118,6 +118,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       }
 
       // 2. Generate with Gemini
+      console.log('🔑 Gemini API Key Check:', {
+        hasKey: !!tenant.geminiApiKey,
+        keyLength: tenant.geminiApiKey?.length,
+        keyPrefix: tenant.geminiApiKey?.substring(0, 5),
+        geminiEnabled: tenant.geminiEnabled,
+      });
+
       const genImage = await generateBoothImage(
         capturedImage,
         selectedPrompt.promptText,
@@ -188,6 +195,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     const loadTenant = async () => {
       try {
         const tenantData = await getTenantById(event.tenantId);
+        console.log('🏢 Tenant loaded:', {
+          hasGeminiKey: !!tenantData.geminiApiKey,
+          geminiKeyLength: tenantData.geminiApiKey?.length,
+          geminiEnabled: tenantData.geminiEnabled,
+        });
         setTenant(tenantData);
       } catch (err) {
         console.error('Failed to load tenant:', err);

@@ -48,6 +48,12 @@ export const getTenantById = async (tenantId: string): Promise<Tenant> => {
     throw new Error('Tenant not found');
   }
 
+  console.log('📊 Raw tenant data from DB:', {
+    hasGeminiKey: !!tenantData.gemini_api_key,
+    geminiKeyLength: tenantData.gemini_api_key?.length,
+    geminiEnabled: tenantData.gemini_enabled,
+  });
+
   const { data: limitsData, error: limitsError } = await supabase
     .from('subscription_limits')
     .select('*')
