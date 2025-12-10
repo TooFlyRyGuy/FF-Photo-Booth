@@ -97,8 +97,16 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
   }
 
   if (Object.keys(dbUpdates).length === 0) {
+    console.log('No settings to update');
     return;
   }
+
+  console.log('Updating tenant settings:', {
+    ...dbUpdates,
+    dropbox_app_secret: dbUpdates.dropbox_app_secret ? '[REDACTED]' : dbUpdates.dropbox_app_secret,
+    twilio_auth_token: dbUpdates.twilio_auth_token ? '[REDACTED]' : dbUpdates.twilio_auth_token,
+    gemini_api_key: dbUpdates.gemini_api_key ? '[REDACTED]' : dbUpdates.gemini_api_key,
+  });
 
   dbUpdates.updated_at = new Date().toISOString();
 
@@ -108,8 +116,11 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
     .eq('id', DEMO_TENANT_ID);
 
   if (error) {
+    console.error('Failed to update tenant settings:', error);
     throw new Error(`Failed to update tenant settings: ${error.message}`);
   }
+
+  console.log('Tenant settings updated successfully');
 };
 
 export const getEvents = async (): Promise<Event[]> => {

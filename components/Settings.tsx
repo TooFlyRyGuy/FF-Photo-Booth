@@ -74,6 +74,16 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         updates.geminiApiKey = geminiApiKey;
       }
 
+      console.log('Settings component saving:', {
+        ...updates,
+        dropboxAppSecret: updates.dropboxAppSecret ? '[REDACTED]' : undefined,
+        twilioAuthToken: updates.twilioAuthToken ? '[REDACTED]' : undefined,
+        geminiApiKey: updates.geminiApiKey ? '[REDACTED]' : undefined,
+        dropboxSecretChanged,
+        twilioTokenChanged,
+        geminiKeyChanged,
+      });
+
       await onSave(updates);
 
       setDropboxSecretChanged(false);
