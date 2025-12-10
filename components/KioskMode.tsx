@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight } from 'lucide-react';
-import { Event, Prompt, GeneratedImage } from '../types';
+import { Event, Prompt, GeneratedImage, Tenant } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, uploadToDropbox, saveGeneratedImage } from '../services/backendService';
+import { sendSms, uploadToDropbox, saveGeneratedImage, getTenantById } from '../services/backendService';
 
 interface KioskProps {
   event: Event;
@@ -19,7 +19,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -83,11 +84,29 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   // --- GENERATION LOGIC ---
   const handleGenerate = async () => {
     if (!capturedImage || !selectedPrompt) return;
+
+    if (!tenant) {
+      setErrorMsg('Configuration not loaded. Please try again.');
+      return;
+    }
+
+    if (!tenant.geminiEnabled || !tenant.geminiApiKey) {
+      setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
+      return;
+    }
+
     setView('processing');
+    setErrorMsg('');
 
     try {
       // 1. Generate with Gemini
-      const genImage = await generateBoothImage(capturedImage, selectedPrompt.promptText, event.name);
+      const genImage = await generateBoothImage(
+        capturedImage,
+        selectedPrompt.promptText,
+        event.name,
+        tenant.geminiApiKey,
+        selectedPrompt.referenceImage
+      );
       setFinalImage(genImage);
 
       // 2. Save to database
@@ -106,8 +125,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       setView('result');
     } catch (err: any) {
       setErrorMsg(err.message || "AI Generation Failed");
-      setView('camera');
-      startCamera();
+      setView('review');
     }
   };
 
@@ -132,6 +150,20 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setPhoneNumber('');
     stopCamera();
   };
+
+  // Fetch tenant data on mount
+  useEffect(() => {
+    const loadTenant = async () => {
+      try {
+        const tenantData = await getTenantById(event.tenantId);
+        setTenant(tenantData);
+      } catch (err) {
+        console.error('Failed to load tenant:', err);
+        setErrorMsg('Failed to load configuration. Please contact support.');
+      }
+    };
+    loadTenant();
+  }, [event.tenantId]);
 
   // Handle cleanup on unmount
   useEffect(() => {
@@ -239,11 +271,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       return (
           <div className="h-screen w-full bg-kiosk-bg flex flex-col items-center p-8">
               <h2 className="text-3xl text-white font-display mb-4">Look Good?</h2>
+              {errorMsg && (
+                <div className="w-full max-w-2xl mb-4 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-200 text-center">
+                  {errorMsg}
+                </div>
+              )}
               <div className="flex-1 w-full max-w-2xl bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800">
                 <img src={capturedImage || ''} className="w-full h-full object-contain" alt="captured" />
               </div>
               <div className="flex gap-6 mt-8">
-                  <button onClick={() => { setCapturedImage(null); setView('camera'); }} className="flex items-center gap-2 px-8 py-4 rounded-full bg-gray-800 text-white hover:bg-gray-700 font-bold text-lg">
+                  <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center gap-2 px-8 py-4 rounded-full bg-gray-800 text-white hover:bg-gray-700 font-bold text-lg">
                     <RefreshCw size={24} /> Retake
                   </button>
                   <button onClick={handleGenerate} className="flex items-center gap-2 px-8 py-4 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg hover:shadow-purple-500/50 transition-all">

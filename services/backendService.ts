@@ -3,35 +3,7 @@ import { supabase } from '../lib/supabase';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
-export const getTenant = async (): Promise<Tenant> => {
-  const { data: tenantData, error: tenantError } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('id', DEMO_TENANT_ID)
-    .maybeSingle();
-
-  if (tenantError) {
-    throw new Error(`Failed to fetch tenant: ${tenantError.message}`);
-  }
-
-  if (!tenantData) {
-    throw new Error('Demo tenant not found');
-  }
-
-  const { data: limitsData, error: limitsError } = await supabase
-    .from('subscription_limits')
-    .select('*')
-    .eq('tenant_id', DEMO_TENANT_ID)
-    .maybeSingle();
-
-  if (limitsError) {
-    throw new Error(`Failed to fetch subscription limits: ${limitsError.message}`);
-  }
-
-  if (!limitsData) {
-    throw new Error('Subscription limits not found');
-  }
-
+const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
   return {
     id: tenantData.id,
     name: tenantData.name,
@@ -54,6 +26,42 @@ export const getTenant = async (): Promise<Tenant> => {
       smsLimit: limitsData.sms_limit,
     }
   };
+};
+
+export const getTenant = async (): Promise<Tenant> => {
+  return getTenantById(DEMO_TENANT_ID);
+};
+
+export const getTenantById = async (tenantId: string): Promise<Tenant> => {
+  const { data: tenantData, error: tenantError } = await supabase
+    .from('tenants')
+    .select('*')
+    .eq('id', tenantId)
+    .maybeSingle();
+
+  if (tenantError) {
+    throw new Error(`Failed to fetch tenant: ${tenantError.message}`);
+  }
+
+  if (!tenantData) {
+    throw new Error('Tenant not found');
+  }
+
+  const { data: limitsData, error: limitsError } = await supabase
+    .from('subscription_limits')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (limitsError) {
+    throw new Error(`Failed to fetch subscription limits: ${limitsError.message}`);
+  }
+
+  if (!limitsData) {
+    throw new Error('Subscription limits not found');
+  }
+
+  return mapTenantFromDb(tenantData, limitsData);
 };
 
 export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<void> => {

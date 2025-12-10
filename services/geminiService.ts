@@ -1,20 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize the client. The API key is assumed to be in process.env.API_KEY
-// In a real deployment, this would be proxied through the backend to keep the key secret,
-// but for this frontend demo, we instantiate it here.
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
-
 export const generateBoothImage = async (
   imageBase64: string,
   promptTemplate: string,
   eventContext: string,
+  apiKey: string,
   referenceImageBase64?: string
 ): Promise<string> => {
-  if (!apiKey) {
-    throw new Error("API Key missing. Please provide a Gemini API Key.");
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error("Gemini API Key missing. Please configure it in Settings.");
   }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   // Sanitize base64 strings
   const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
