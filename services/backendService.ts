@@ -8,20 +8,28 @@ export const getTenant = async (): Promise<Tenant> => {
     .from('tenants')
     .select('*')
     .eq('id', DEMO_TENANT_ID)
-    .single();
+    .maybeSingle();
 
   if (tenantError) {
     throw new Error(`Failed to fetch tenant: ${tenantError.message}`);
+  }
+
+  if (!tenantData) {
+    throw new Error('Demo tenant not found');
   }
 
   const { data: limitsData, error: limitsError } = await supabase
     .from('subscription_limits')
     .select('*')
     .eq('tenant_id', DEMO_TENANT_ID)
-    .single();
+    .maybeSingle();
 
   if (limitsError) {
     throw new Error(`Failed to fetch subscription limits: ${limitsError.message}`);
+  }
+
+  if (!limitsData) {
+    throw new Error('Subscription limits not found');
   }
 
   return {
@@ -115,10 +123,14 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         is_active: event.isActive,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw new Error(`Failed to create event: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Failed to create event: No data returned');
     }
 
     if (event.prompts && event.prompts.length > 0) {
@@ -150,10 +162,14 @@ export const saveEvent = async (event: Event): Promise<Event> => {
       })
       .eq('id', event.id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw new Error(`Failed to update event: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Failed to update event: No data returned');
     }
 
     const { error: deleteError } = await supabase
@@ -199,10 +215,14 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
       is_active: true,
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to save prompt: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Failed to save prompt: No data returned');
   }
 
   return {
@@ -290,10 +310,14 @@ export const saveGeneratedImage = async (
       status,
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to save generated image: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Failed to save generated image: No data returned');
   }
 
   return data.id;
