@@ -14,9 +14,12 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
 
   const [dropboxAppKey, setDropboxAppKey] = useState(tenant.dropboxAppKey || '');
   const [dropboxAppSecret, setDropboxAppSecret] = useState(maskValue(tenant.dropboxAppSecret));
+  const [dropboxAccessToken, setDropboxAccessToken] = useState(maskValue(tenant.dropboxAccessToken));
   const [dropboxEnabled, setDropboxEnabled] = useState(tenant.dropboxEnabled || false);
   const [showDropboxSecret, setShowDropboxSecret] = useState(false);
+  const [showDropboxAccessToken, setShowDropboxAccessToken] = useState(false);
   const [dropboxSecretChanged, setDropboxSecretChanged] = useState(false);
+  const [dropboxAccessTokenChanged, setDropboxAccessTokenChanged] = useState(false);
 
   const [twilioSid, setTwilioSid] = useState(tenant.twilioAccountSid || '');
   const [twilioToken, setTwilioToken] = useState(maskValue(tenant.twilioAuthToken));
@@ -36,6 +39,11 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
   const handleDropboxSecretChange = (value: string) => {
     setDropboxAppSecret(value);
     setDropboxSecretChanged(true);
+  };
+
+  const handleDropboxAccessTokenChange = (value: string) => {
+    setDropboxAccessToken(value);
+    setDropboxAccessTokenChanged(true);
   };
 
   const handleTwilioTokenChange = (value: string) => {
@@ -74,6 +82,10 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         updates.dropboxAppSecret = dropboxAppSecret;
       }
 
+      if (dropboxAccessTokenChanged) {
+        updates.dropboxAccessToken = dropboxAccessToken;
+      }
+
       if (twilioTokenChanged) {
         updates.twilioAuthToken = twilioToken;
       }
@@ -89,9 +101,11 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
       console.log('Settings component saving:', {
         ...updates,
         dropboxAppSecret: updates.dropboxAppSecret ? '[REDACTED]' : undefined,
+        dropboxAccessToken: updates.dropboxAccessToken ? '[REDACTED]' : undefined,
         twilioAuthToken: updates.twilioAuthToken ? '[REDACTED]' : undefined,
         geminiApiKey: updates.geminiApiKey ? '[REDACTED]' : undefined,
         dropboxSecretChanged,
+        dropboxAccessTokenChanged,
         twilioTokenChanged,
         geminiKeyChanged,
         geminiApiKeyLength: geminiApiKey.length,
@@ -101,6 +115,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
       await onSave(updates);
 
       setDropboxSecretChanged(false);
+      setDropboxAccessTokenChanged(false);
       setTwilioTokenChanged(false);
       setGeminiKeyChanged(false);
 
@@ -193,6 +208,33 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
                     Dropbox App Console
                   </a>
                 </>
+              )}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Access Token</label>
+            <div className="relative">
+              <input
+                type={showDropboxAccessToken ? 'text' : 'password'}
+                value={dropboxAccessToken}
+                onChange={(e) => handleDropboxAccessTokenChange(e.target.value)}
+                placeholder="Enter your Dropbox access token"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowDropboxAccessToken(!showDropboxAccessToken)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                {showDropboxAccessToken ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              {dropboxAccessToken.startsWith('•') ? (
+                <span className="text-green-400">✓ Access token is saved (hidden for security)</span>
+              ) : (
+                'Generate an access token for your Dropbox app to enable file uploads'
               )}
             </p>
           </div>

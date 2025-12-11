@@ -13,6 +13,7 @@ const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
     primaryColor: tenantData.primary_color || undefined,
     dropboxAppKey: tenantData.dropbox_app_key || undefined,
     dropboxAppSecret: tenantData.dropbox_app_secret || undefined,
+    dropboxAccessToken: tenantData.dropbox_access_token || undefined,
     dropboxEnabled: tenantData.dropbox_enabled || false,
     twilioAccountSid: tenantData.twilio_account_sid || undefined,
     twilioAuthToken: tenantData.twilio_auth_token || undefined,
@@ -80,6 +81,9 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
   if (updates.dropboxAppSecret !== undefined) {
     dbUpdates.dropbox_app_secret = updates.dropboxAppSecret || null;
   }
+  if (updates.dropboxAccessToken !== undefined) {
+    dbUpdates.dropbox_access_token = updates.dropboxAccessToken || null;
+  }
   if (updates.dropboxEnabled !== undefined) {
     dbUpdates.dropbox_enabled = updates.dropboxEnabled;
   }
@@ -110,6 +114,7 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
   console.log('Updating tenant settings:', {
     ...dbUpdates,
     dropbox_app_secret: dbUpdates.dropbox_app_secret ? '[REDACTED]' : dbUpdates.dropbox_app_secret,
+    dropbox_access_token: dbUpdates.dropbox_access_token ? '[REDACTED]' : dbUpdates.dropbox_access_token,
     twilio_auth_token: dbUpdates.twilio_auth_token ? '[REDACTED]' : dbUpdates.twilio_auth_token,
     gemini_api_key: dbUpdates.gemini_api_key ? '[REDACTED]' : dbUpdates.gemini_api_key,
   });

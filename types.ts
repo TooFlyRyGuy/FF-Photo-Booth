@@ -25,6 +25,7 @@ export interface Tenant {
   };
   dropboxAppKey?: string;
   dropboxAppSecret?: string;
+  dropboxAccessToken?: string;
   dropboxEnabled?: boolean;
   twilioAccountSid?: string;
   twilioAuthToken?: string;
