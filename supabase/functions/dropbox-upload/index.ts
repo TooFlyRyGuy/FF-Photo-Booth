@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: tenant, error: tenantError } = await supabase
       .from('tenants')
-      .select('dropbox_access_token, dropbox_refresh_token, dropbox_token_expires_at, dropbox_enabled, dropbox_app_key, dropbox_app_secret')
+      .select('dropbox_access_token, dropbox_refresh_token, dropbox_token_expires_at, dropbox_enabled')
       .eq('id', tenantId)
       .maybeSingle();
 
@@ -49,13 +49,20 @@ Deno.serve(async (req: Request) => {
     if (tenant.dropbox_token_expires_at && tenant.dropbox_refresh_token) {
       const expiresAt = new Date(tenant.dropbox_token_expires_at);
       const now = new Date();
-      
+
       if (expiresAt <= now) {
+        const dropboxAppKey = Deno.env.get('DROPBOX_APP_KEY');
+        const dropboxAppSecret = Deno.env.get('DROPBOX_APP_SECRET');
+
+        if (!dropboxAppKey || !dropboxAppSecret) {
+          throw new Error('Dropbox app credentials not configured');
+        }
+
         accessToken = await refreshAccessToken(
           supabase,
           tenantId,
-          tenant.dropbox_app_key,
-          tenant.dropbox_app_secret,
+          dropboxAppKey,
+          dropboxAppSecret,
           tenant.dropbox_refresh_token
         );
       }

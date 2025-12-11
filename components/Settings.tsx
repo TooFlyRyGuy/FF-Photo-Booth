@@ -12,13 +12,9 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
     return value && value.length > 0 ? '•'.repeat(20) : '';
   };
 
-  const [dropboxAppKey, setDropboxAppKey] = useState(tenant.dropboxAppKey || '');
-  const [dropboxAppSecret, setDropboxAppSecret] = useState(maskValue(tenant.dropboxAppSecret));
-  const [dropboxEnabled, setDropboxEnabled] = useState(tenant.dropboxEnabled || false);
-  const [showDropboxSecret, setShowDropboxSecret] = useState(false);
-  const [dropboxSecretChanged, setDropboxSecretChanged] = useState(false);
   const [isConnectingDropbox, setIsConnectingDropbox] = useState(false);
   const [dropboxConnected, setDropboxConnected] = useState(!!tenant.dropboxAccessToken);
+  const [dropboxEnabled, setDropboxEnabled] = useState(tenant.dropboxEnabled || false);
 
   const [twilioSid, setTwilioSid] = useState(tenant.twilioAccountSid || '');
   const [twilioToken, setTwilioToken] = useState(maskValue(tenant.twilioAuthToken));
@@ -35,21 +31,11 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const handleDropboxSecretChange = (value: string) => {
-    setDropboxAppSecret(value);
-    setDropboxSecretChanged(true);
-  };
-
   const handleConnectDropbox = () => {
-    if (!dropboxAppKey || !dropboxAppSecret || dropboxAppSecret.startsWith('•')) {
-      alert('Please save your Dropbox App Key and App Secret first');
-      return;
-    }
-
     setIsConnectingDropbox(true);
 
     const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-callback`;
-    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${dropboxAppKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${tenant.id}&token_access_type=offline`;
+    const authUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-initiate?tenant_id=${tenant.id}`;
 
     const popup = window.open(authUrl, 'Dropbox OAuth', 'width=600,height=700');
 
@@ -117,17 +103,11 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
 
     try {
       const updates: any = {
-        dropboxAppKey,
-        dropboxEnabled,
         twilioAccountSid: twilioSid,
         twilioPhoneNumber: twilioPhone,
         twilioEnabled,
         geminiEnabled,
       };
-
-      if (dropboxSecretChanged) {
-        updates.dropboxAppSecret = dropboxAppSecret;
-      }
 
       if (twilioTokenChanged) {
         updates.twilioAuthToken = twilioToken;
@@ -143,12 +123,8 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
 
       console.log('Settings component saving:', {
         ...updates,
-        dropboxAppSecret: updates.dropboxAppSecret ? '[REDACTED]' : undefined,
-        dropboxAccessToken: updates.dropboxAccessToken ? '[REDACTED]' : undefined,
         twilioAuthToken: updates.twilioAuthToken ? '[REDACTED]' : undefined,
         geminiApiKey: updates.geminiApiKey ? '[REDACTED]' : undefined,
-        dropboxSecretChanged,
-        dropboxAccessTokenChanged,
         twilioTokenChanged,
         geminiKeyChanged,
         geminiApiKeyLength: geminiApiKey.length,
@@ -157,7 +133,6 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
 
       await onSave(updates);
 
-      setDropboxSecretChanged(false);
       setTwilioTokenChanged(false);
       setGeminiKeyChanged(false);
 
@@ -191,7 +166,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         </div>
 
         <div className="p-6 space-y-4">
-          {dropboxConnected && (
+          {dropboxConnected ? (
             <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Check className="text-green-400" size={24} />
@@ -207,78 +182,42 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
                 Disconnect
               </button>
             </div>
+          ) : (
+            <>
+              <div className="text-center py-8">
+                <p className="text-slate-300 mb-6">Connect your Dropbox account to automatically backup all event photos.</p>
+                <button
+                  onClick={handleConnectDropbox}
+                  disabled={isConnectingDropbox}
+                  className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 px-8 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors mx-auto"
+                >
+                  {isConnectingDropbox ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" viewBox="0 0 48 48" fill="currentColor">
+                        <path d="M12 9.6L24 16.8L12 24L0 16.8L12 9.6Z"/>
+                        <path d="M0 24L12 31.2L24 24L12 16.8L0 24Z"/>
+                        <path d="M12 31.2L24 38.4L36 31.2L24 24L12 31.2Z"/>
+                        <path d="M24 24L36 31.2L48 24L36 16.8L24 24Z"/>
+                        <path d="M24 16.8L36 9.6L48 16.8L36 24L24 16.8Z"/>
+                      </svg>
+                      Connect to Dropbox
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-sm text-blue-300">
+                  <strong>Simple Setup:</strong> Click the button above to log in with your Dropbox credentials. A folder will be automatically created for each event to organize all photos.
+                </p>
+              </div>
+            </>
           )}
-
-          <div>
-            <label className="block text-sm font-medium mb-2">App Key</label>
-            <input
-              type="text"
-              value={dropboxAppKey}
-              onChange={(e) => setDropboxAppKey(e.target.value)}
-              placeholder="Enter your Dropbox app key"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">App Secret</label>
-            <div className="relative">
-              <input
-                type={showDropboxSecret ? 'text' : 'password'}
-                value={dropboxAppSecret}
-                onChange={(e) => handleDropboxSecretChange(e.target.value)}
-                placeholder="Enter your Dropbox app secret"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowDropboxSecret(!showDropboxSecret)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-              >
-                {showDropboxSecret ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-            <p className="text-xs text-slate-500 mt-2">
-              {dropboxAppSecret.startsWith('•') ? (
-                <span className="text-green-400">✓ Secret is saved (hidden for security)</span>
-              ) : (
-                <>
-                  Create a Dropbox app and get your credentials from the{' '}
-                  <a
-                    href="https://www.dropbox.com/developers/apps"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline"
-                  >
-                    Dropbox App Console
-                  </a>
-                </>
-              )}
-            </p>
-          </div>
-
-          {!dropboxConnected && (
-            <button
-              onClick={handleConnectDropbox}
-              disabled={isConnectingDropbox || !dropboxAppKey || !dropboxAppSecret}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-            >
-              {isConnectingDropbox ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                'Connect to Dropbox'
-              )}
-            </button>
-          )}
-
-          <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <p className="text-sm text-blue-300">
-              <strong>Note:</strong> A new folder will be automatically created in your Dropbox for each event to organize all photos.
-            </p>
-          </div>
         </div>
       </div>
 

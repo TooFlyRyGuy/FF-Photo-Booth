@@ -35,21 +35,14 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const dropboxAppKey = Deno.env.get('DROPBOX_APP_KEY');
+    const dropboxAppSecret = Deno.env.get('DROPBOX_APP_SECRET');
 
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
-      .select('dropbox_app_key, dropbox_app_secret')
-      .eq('id', tenantId)
-      .maybeSingle();
-
-    if (tenantError || !tenant) {
-      throw new Error('Failed to fetch tenant');
-    }
-
-    if (!tenant.dropbox_app_key || !tenant.dropbox_app_secret) {
+    if (!dropboxAppKey || !dropboxAppSecret) {
       throw new Error('Dropbox app credentials not configured');
     }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const redirectUri = `${supabaseUrl}/functions/v1/dropbox-oauth-callback`;
 
@@ -61,8 +54,8 @@ Deno.serve(async (req: Request) => {
       body: new URLSearchParams({
         code,
         grant_type: 'authorization_code',
-        client_id: tenant.dropbox_app_key,
-        client_secret: tenant.dropbox_app_secret,
+        client_id: dropboxAppKey,
+        client_secret: dropboxAppSecret,
         redirect_uri: redirectUri,
       }),
     });
