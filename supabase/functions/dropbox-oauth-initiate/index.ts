@@ -1,3 +1,5 @@
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -20,19 +22,31 @@ Deno.serve(async (req: Request) => {
       throw new Error('Missing tenant_id parameter');
     }
 
-    const dropboxAppKey = Deno.env.get('DROPBOX_APP_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!dropboxAppKey) {
-      throw new Error('DROPBOX_APP_KEY not configured');
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase configuration not available');
     }
 
-    if (!supabaseUrl) {
-      throw new Error('SUPABASE_URL not configured');
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: tenant, error: tenantError } = await supabase
+      .from('tenants')
+      .select('dropbox_app_key, dropbox_app_secret')
+      .eq('id', tenantId)
+      .single();
+
+    if (tenantError || !tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    if (!tenant.dropbox_app_key || !tenant.dropbox_app_secret) {
+      throw new Error('Dropbox credentials not configured for this tenant');
     }
 
     const redirectUri = `${supabaseUrl}/functions/v1/dropbox-oauth-callback`;
-    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${dropboxAppKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${tenantId}&token_access_type=offline`;
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${tenant.dropbox_app_key}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${tenantId}&token_access_type=offline`;
 
     return new Response(null, {
       status: 302,
