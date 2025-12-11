@@ -225,6 +225,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     stopCamera();
   };
 
+  const handleDownload = () => {
+    if (!finalImage) return;
+
+    const link = document.createElement('a');
+    link.href = finalImage;
+    const filename = `${event.name.replace(/\s+/g, '_')}_${selectedPrompt?.name.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Fetch tenant data on mount
   useEffect(() => {
     const loadTenant = async () => {
@@ -396,8 +408,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     return (
       <div className="h-screen w-full bg-kiosk-bg flex flex-col lg:flex-row">
         {/* Image Side */}
-        <div className="lg:w-2/3 h-1/2 lg:h-full bg-black p-8 flex items-center justify-center">
+        <div className="lg:w-2/3 h-1/2 lg:h-full bg-black p-8 flex items-center justify-center relative">
           <img src={finalImage || ''} className="max-h-full max-w-full rounded-xl shadow-2xl border border-gray-800" alt="Final AI" />
+          <button
+            onClick={handleDownload}
+            className="absolute top-4 right-4 flex items-center gap-2 px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all shadow-lg hover:shadow-xl"
+          >
+            <Download size={20} />
+            Download
+          </button>
         </div>
 
         {/* Input Side */}
@@ -416,13 +435,29 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
              <>
                 <div>
                     <h2 className="text-4xl text-white font-display font-bold mb-2">Get Your Photo</h2>
-                    <p className="text-gray-400">Enter your number to receive the HD download link.</p>
+                    <p className="text-gray-400">Download now or receive via SMS.</p>
                 </div>
-                
+
+                <button
+                    onClick={handleDownload}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xl py-5 rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all flex items-center justify-center gap-3"
+                >
+                    <Download size={24} /> Download Now
+                </button>
+
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-700"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-4 bg-gray-900 text-gray-500">or send via SMS</span>
+                    </div>
+                </div>
+
                 <div className="space-y-4">
                     <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Phone Number</label>
-                    <input 
-                        type="tel" 
+                    <input
+                        type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="(555) 123-4567"
@@ -430,7 +465,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                     />
                 </div>
 
-                <button 
+                <button
                     onClick={handleSendSms}
                     disabled={isSending || phoneNumber.length < 3}
                     className="w-full bg-white text-black font-bold text-xl py-5 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
