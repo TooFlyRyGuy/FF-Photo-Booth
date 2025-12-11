@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updateTenantSettings } from '../services/backendService';
+import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updateTenantSettings, deleteEvent } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Users, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, BarChart3, Trash2 } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 
@@ -107,6 +107,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
     } catch (error: any) {
       alert(`Failed to save event: ${error.message}`);
       console.error('Save event error:', error);
+    }
+  };
+
+  const handleDeleteEvent = async (event: Event) => {
+    if (!confirm(`Are you sure you want to delete "${event.name}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteEvent(event.id);
+      await loadData();
+    } catch (error: any) {
+      alert(`Failed to delete event: ${error.message}`);
+      console.error('Delete event error:', error);
     }
   };
 
@@ -339,6 +353,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                       className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-sm font-medium shadow-lg shadow-blue-900/20"
                     >
                       Launch Kiosk
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEvent(event)}
+                      className="px-4 py-2 rounded-md border border-red-600 text-red-400 hover:bg-red-600/10 text-sm font-medium flex items-center gap-2"
+                      title="Delete event"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>

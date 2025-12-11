@@ -473,3 +473,14 @@ export const getEventAnalytics = async (eventId: string): Promise<EventAnalytics
     promptStats,
   };
 };
+
+export const deleteEvent = async (eventId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', eventId);
+
+  if (error) {
+    throw new Error(`Failed to delete event: ${error.message}`);
+  }
+};
