@@ -374,14 +374,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         <video ref={videoRef} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover transform -scale-x-100" />
         <canvas ref={canvasRef} className="hidden" />
 
-        <div className={`relative ${getAspectRatioClass()} max-h-[90vh] max-w-[90vw] border-4 border-white/50 shadow-[0_0_40px_rgba(255,255,255,0.3)] z-10`}>
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-blue-500/30 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-blue-500/30 to-transparent"></div>
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-blue-500/30 to-transparent"></div>
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-blue-500/30 to-transparent"></div>
-          </div>
-        </div>
+        <div className={`relative ${getAspectRatioClass()} max-h-[90vh] max-w-[90vw] border-4 border-white/50 shadow-[0_0_40px_rgba(255,255,255,0.3)] z-10 pointer-events-none`} />
 
         {countdown && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
