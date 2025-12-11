@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: tenant, error: tenantError } = await supabase
       .from('tenants')
-      .select('dropbox_app_key, dropbox_app_secret, dropbox_enabled')
+      .select('dropbox_access_token, dropbox_enabled')
       .eq('id', tenantId)
       .maybeSingle();
 
@@ -40,11 +40,11 @@ Deno.serve(async (req: Request) => {
       throw new Error('Failed to fetch tenant');
     }
 
-    if (!tenant.dropbox_enabled || !tenant.dropbox_app_key || !tenant.dropbox_app_secret) {
+    if (!tenant.dropbox_enabled || !tenant.dropbox_access_token) {
       throw new Error('Dropbox is not configured for this tenant');
     }
 
-    const accessToken = await getDropboxAccessToken(tenant.dropbox_app_key, tenant.dropbox_app_secret);
+    const accessToken = tenant.dropbox_access_token;
 
     const folderPath = `/events/${eventName.replace(/[^a-zA-Z0-9-_]/g, '_')}_${eventId.slice(0, 8)}`;
     await ensureFolderExists(accessToken, folderPath);
@@ -154,27 +154,6 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
-
-async function getDropboxAccessToken(appKey: string, appSecret: string): Promise<string> {
-  const authHeader = btoa(`${appKey}:${appSecret}`);
-  
-  const response = await fetch('https://api.dropbox.com/oauth2/token', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${authHeader}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: 'grant_type=client_credentials',
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to get Dropbox access token: ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.access_token;
-}
 
 async function ensureFolderExists(accessToken: string, folderPath: string): Promise<void> {
   const response = await fetch('https://api.dropboxapi.com/2/files/create_folder_v2', {
