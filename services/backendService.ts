@@ -159,6 +159,7 @@ export const getEvents = async (): Promise<Event[]> => {
     isActive: event.is_active,
     passcode: event.passcode,
     tenantId: event.tenant_id,
+    aspectRatio: event.aspect_ratio || 'square',
     prompts: event.event_prompts.map((ep: any) => ({
       id: ep.prompts.id,
       name: ep.prompts.name,
@@ -207,6 +208,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         event_date: event.date,
         passcode: event.passcode,
         is_active: event.isActive,
+        aspect_ratio: event.aspectRatio || 'square',
       })
       .select()
       .maybeSingle();
@@ -251,6 +253,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         event_date: event.date,
         passcode: event.passcode,
         is_active: event.isActive,
+        aspect_ratio: event.aspectRatio || 'square',
       })
       .eq('id', event.id)
       .select()
@@ -370,6 +373,7 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
     isActive: eventsData.is_active,
     passcode: eventsData.passcode,
     tenantId: eventsData.tenant_id,
+    aspectRatio: eventsData.aspect_ratio || 'square',
     prompts: eventsData.event_prompts
       .sort((a: any, b: any) => a.display_order - b.display_order)
       .map((ep: any) => ({

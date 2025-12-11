@@ -45,6 +45,8 @@ export interface Prompt {
   category: string;
 }
 
+export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9';
+
 export interface Event {
   id: string;
   name: string;
@@ -54,6 +56,7 @@ export interface Event {
   passcode: string;
   prompts: Prompt[];
   tenantId: string;
+  aspectRatio?: AspectRatio;
 }
 
 export interface GeneratedImage {

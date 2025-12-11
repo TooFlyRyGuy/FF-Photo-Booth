@@ -79,7 +79,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
       passcode: '',
       isActive: true,
       prompts: [],
-      tenantId: tenant?.id || ''
+      tenantId: tenant?.id || '',
+      aspectRatio: 'square'
     });
     setActiveTab('create_event');
   };
@@ -412,13 +413,40 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">Kiosk Passcode</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={editingEvent.passcode}
                     onChange={(e) => setEditingEvent({...editingEvent, passcode: e.target.value})}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
                     placeholder="e.g. 1234"
                   />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-400">Photo Aspect Ratio</label>
+                <div className="grid grid-cols-5 gap-3">
+                  {[
+                    { value: 'square', label: 'Square (1:1)', icon: '⬜' },
+                    { value: '3:4', label: 'Portrait (3:4)', icon: '📱' },
+                    { value: '4:3', label: 'Landscape (4:3)', icon: '🖼️' },
+                    { value: '9:16', label: 'Vertical (9:16)', icon: '📲' },
+                    { value: '16:9', label: 'Wide (16:9)', icon: '🎬' }
+                  ].map((ratio) => (
+                    <button
+                      key={ratio.value}
+                      type="button"
+                      onClick={() => setEditingEvent({...editingEvent, aspectRatio: ratio.value as any})}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        editingEvent.aspectRatio === ratio.value
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                          : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500'
+                      }`}
+                    >
+                      <div className="text-2xl mb-2">{ratio.icon}</div>
+                      <div className="text-xs font-medium">{ratio.label}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
 

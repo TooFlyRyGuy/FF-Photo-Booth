@@ -26,6 +26,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
 
+  const getAspectRatioDimensions = (ratio: string = 'square'): { width: number; height: number } => {
+    const baseSize = 1024;
+    switch (ratio) {
+      case 'square': return { width: baseSize, height: baseSize };
+      case '3:4': return { width: baseSize * 3 / 4, height: baseSize };
+      case '4:3': return { width: baseSize, height: baseSize * 3 / 4 };
+      case '9:16': return { width: baseSize * 9 / 16, height: baseSize };
+      case '16:9': return { width: baseSize, height: baseSize * 9 / 16 };
+      default: return { width: baseSize, height: baseSize };
+    }
+  };
+
   // --- CAMERA LOGIC ---
   const startCamera = useCallback(async () => {
     try {
@@ -66,14 +78,37 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
+
       if (ctx) {
-        // Mirror effect for natural feel
+        const targetDimensions = getAspectRatioDimensions(event.aspectRatio);
+        canvas.width = targetDimensions.width;
+        canvas.height = targetDimensions.height;
+
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const targetAspect = targetDimensions.width / targetDimensions.height;
+
+        let sourceX = 0;
+        let sourceY = 0;
+        let sourceWidth = video.videoWidth;
+        let sourceHeight = video.videoHeight;
+
+        if (videoAspect > targetAspect) {
+          sourceWidth = video.videoHeight * targetAspect;
+          sourceX = (video.videoWidth - sourceWidth) / 2;
+        } else {
+          sourceHeight = video.videoWidth / targetAspect;
+          sourceY = (video.videoHeight - sourceHeight) / 2;
+        }
+
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0);
+        ctx.drawImage(
+          video,
+          sourceX, sourceY, sourceWidth, sourceHeight,
+          0, 0, canvas.width, canvas.height
+        );
+
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         setCapturedImage(dataUrl);
         setView('review');
@@ -271,11 +306,32 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // 3. CAMERA & CAPTURE
   if (view === 'camera') {
+    const getAspectRatioClass = () => {
+      const ratio = event.aspectRatio || 'square';
+      switch (ratio) {
+        case 'square': return 'aspect-square';
+        case '3:4': return 'aspect-[3/4]';
+        case '4:3': return 'aspect-[4/3]';
+        case '9:16': return 'aspect-[9/16]';
+        case '16:9': return 'aspect-[16/9]';
+        default: return 'aspect-square';
+      }
+    };
+
     return (
-      <div className="h-screen w-full bg-black relative flex items-center justify-center">
-        <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover transform -scale-x-100" />
+      <div className="h-screen w-full bg-black relative flex items-center justify-center overflow-hidden">
+        <video ref={videoRef} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover transform -scale-x-100" />
         <canvas ref={canvasRef} className="hidden" />
-        
+
+        <div className={`relative ${getAspectRatioClass()} max-h-[90vh] max-w-[90vw] border-4 border-white/50 shadow-[0_0_40px_rgba(255,255,255,0.3)] z-10`}>
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-blue-500/30 to-transparent"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-blue-500/30 to-transparent"></div>
+            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-blue-500/30 to-transparent"></div>
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-blue-500/30 to-transparent"></div>
+          </div>
+        </div>
+
         {countdown && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
             <span className="text-[200px] font-bold text-white animate-ping">{countdown}</span>
@@ -286,8 +342,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
            <button onClick={() => setView('prompt-select')} className="bg-white/10 backdrop-blur text-white p-4 rounded-full hover:bg-white/20">
              Back
            </button>
-           <button 
-             onClick={takePhoto} 
+           <button
+             onClick={takePhoto}
              disabled={!!countdown}
              className="h-24 w-24 bg-white rounded-full border-8 border-gray-300 shadow-[0_0_30px_rgba(255,255,255,0.5)] active:scale-95 transition-transform"
            />
