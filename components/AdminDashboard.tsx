@@ -46,6 +46,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
     previewImage: '',
     referenceImage: ''
   });
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
 
   useEffect(() => {
     loadData();
@@ -571,29 +572,72 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                   </div>
                 )}
 
-                <h4 className="text-sm font-medium text-slate-400 mb-3">Available Prompts</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-slate-400">Available Prompts</h4>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-500">Filter:</label>
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 rounded px-3 py-1 text-xs text-slate-300"
+                    >
+                      <option value="All">All Categories</option>
+                      {Array.from(new Set(availablePrompts.map(p => p.category))).sort().map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {availablePrompts.map(prompt => {
-                    const isSelected = editingEvent.prompts?.some(p => p.id === prompt.id);
-                    return (
-                      <div
-                        key={prompt.id}
-                        onClick={() => togglePromptSelection(prompt)}
-                        className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-700 hover:border-slate-500'}`}
-                      >
-                        <img src={prompt.previewImage} alt={prompt.name} className="h-32 w-full object-cover" />
-                        <div className="p-3 bg-slate-900">
-                          <h4 className="font-bold text-sm truncate">{prompt.name}</h4>
-                          <p className="text-xs text-slate-500 truncate">{prompt.category}</p>
-                        </div>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded-full shadow-lg">
-                            <Check size={12} />
+                  {availablePrompts
+                    .filter(prompt => categoryFilter === 'All' || prompt.category === categoryFilter)
+                    .map(prompt => {
+                      const isSelected = editingEvent.prompts?.some(p => p.id === prompt.id);
+                      return (
+                        <div
+                          key={prompt.id}
+                          className={`relative rounded-lg overflow-hidden border-2 transition-all group ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-700 hover:border-slate-500'}`}
+                        >
+                          <div
+                            onClick={() => togglePromptSelection(prompt)}
+                            className="cursor-pointer"
+                          >
+                            <img src={prompt.previewImage} alt={prompt.name} className="h-32 w-full object-cover" />
+                            <div className="p-3 bg-slate-900">
+                              <h4 className="font-bold text-sm truncate">{prompt.name}</h4>
+                              <p className="text-xs text-slate-500 truncate">{prompt.category}</p>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded-full shadow-lg">
+                              <Check size={12} />
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 justify-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditPrompt(prompt);
+                              }}
+                              className="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-white"
+                              title="Edit prompt"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePrompt(prompt.id, prompt.name);
+                              }}
+                              className="p-1.5 bg-red-600 hover:bg-red-500 rounded text-white"
+                              title="Delete prompt"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
 
@@ -672,32 +716,45 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Prompt Name</label>
-                    <input 
+                    <label className="text-sm font-medium text-slate-400">Prompt Name *</label>
+                    <input
                       type="text"
                       value={newPrompt.name}
                       onChange={(e) => setNewPrompt({...newPrompt, name: e.target.value})}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                       placeholder="e.g. Neon Noir"
                     />
                   </div>
                   <div className="space-y-2">
-                     <label className="text-sm font-medium text-slate-400">Category</label>
-                     <input 
+                     <label className="text-sm font-medium text-slate-400">Category *</label>
+                     <input
                       type="text"
                       value={newPrompt.category}
                       onChange={(e) => setNewPrompt({...newPrompt, category: e.target.value})}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      placeholder="e.g. Artistic, Professional, Vintage"
                     />
+                    <p className="text-[10px] text-slate-500">Create custom categories or use existing ones</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">AI Prompt Text</label>
-                  <textarea 
+                  <label className="text-sm font-medium text-slate-400">Description (Optional)</label>
+                  <input
+                    type="text"
+                    value={newPrompt.description}
+                    onChange={(e) => setNewPrompt({...newPrompt, description: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    placeholder="e.g. Cyberpunk-inspired neon lighting"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-400">AI Prompt Text *</label>
+                  <textarea
                     value={newPrompt.promptText}
                     onChange={(e) => setNewPrompt({...newPrompt, promptText: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 h-24 resize-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 h-24 resize-none focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     placeholder="Describe the style, lighting, and environment..."
                   ></textarea>
                 </div>
@@ -706,24 +763,33 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                   {/* Preview Image Upload */}
                   <div className="space-y-2">
                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                       <ImageIcon size={16} /> Kiosk Thumbnail (Required)
+                       <ImageIcon size={16} /> Kiosk Thumbnail *
                      </label>
-                     <div className="relative group border-2 border-dashed border-slate-800 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-950 overflow-hidden hover:border-blue-500 transition-colors">
+                     <div className="relative group border-2 border-dashed border-slate-800 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-950 overflow-hidden hover:border-blue-500 transition-colors cursor-pointer">
                         {newPrompt.previewImage ? (
-                          <img src={newPrompt.previewImage} alt="Preview" className="w-full h-full object-cover" />
+                          <>
+                            <img src={newPrompt.previewImage} alt="Preview" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <div className="text-center">
+                                <Upload className="mx-auto mb-2 text-white" size={24} />
+                                <span className="text-xs text-white font-medium">Click to Replace Image</span>
+                              </div>
+                            </div>
+                          </>
                         ) : (
                           <div className="text-center p-4">
                             <Upload className="mx-auto mb-2 text-slate-600" size={24} />
                             <span className="text-xs text-slate-500">Click to Upload Thumbnail</span>
                           </div>
                         )}
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           onChange={(e) => handleImageUpload(e, 'previewImage')}
-                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                          className="absolute inset-0 opacity-0 cursor-pointer"
                         />
                      </div>
+                     <p className="text-[10px] text-slate-500">This image appears in the kiosk style selector</p>
                   </div>
 
                   {/* Reference Image Upload */}
@@ -731,23 +797,42 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
                        <ImageIcon size={16} /> AI Style Reference (Optional)
                      </label>
-                     <div className="relative group border-2 border-dashed border-slate-800 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-950 overflow-hidden hover:border-purple-500 transition-colors">
+                     <div className="relative group border-2 border-dashed border-slate-800 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-950 overflow-hidden hover:border-purple-500 transition-colors cursor-pointer">
                         {newPrompt.referenceImage ? (
-                          <img src={newPrompt.referenceImage} alt="Reference" className="w-full h-full object-cover" />
+                          <>
+                            <img src={newPrompt.referenceImage} alt="Reference" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <div className="text-center">
+                                <Upload className="mx-auto mb-2 text-white" size={24} />
+                                <span className="text-xs text-white font-medium">Click to Replace Image</span>
+                                {newPrompt.referenceImage && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setNewPrompt({...newPrompt, referenceImage: ''});
+                                    }}
+                                    className="mt-2 px-2 py-1 bg-red-600 hover:bg-red-500 rounded text-xs"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </>
                         ) : (
                           <div className="text-center p-4">
                             <Upload className="mx-auto mb-2 text-slate-600" size={24} />
                             <span className="text-xs text-slate-500">Click to Upload Style Ref</span>
                           </div>
                         )}
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           onChange={(e) => handleImageUpload(e, 'referenceImage')}
-                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                          className="absolute inset-0 opacity-0 cursor-pointer"
                         />
                      </div>
-                     <p className="text-[10px] text-slate-500">Upload an image that defines the visual style (colors, lighting) for the AI to mimic.</p>
+                     <p className="text-[10px] text-slate-500">Upload a sample photo that defines the visual style for the AI to mimic</p>
                   </div>
                 </div>
               </div>
