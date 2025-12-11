@@ -370,7 +370,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     };
 
     return (
-      <div className="h-screen w-full bg-black relative flex items-center justify-center overflow-hidden">
+      <div className="h-screen w-full bg-black relative flex items-center justify-center overflow-hidden cursor-none">
         <video ref={videoRef} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover transform -scale-x-100" />
         <canvas ref={canvasRef} className="hidden" />
 
