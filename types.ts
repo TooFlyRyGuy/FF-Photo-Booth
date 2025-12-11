@@ -64,6 +64,8 @@ export interface Event {
   primaryColor?: string;
   secondaryColor?: string;
   accentColor?: string;
+  hideLogo?: boolean;
+  hideEventName?: boolean;
 }
 
 export interface GeneratedImage {

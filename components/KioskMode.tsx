@@ -296,11 +296,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         <div className="absolute inset-0 opacity-40">
            <img src={backgroundImage} className="w-full h-full object-cover animate-pulse-fast" alt="Background" />
         </div>
-        {event.logoUrl && (
-          <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-20">
+
+        {event.logoUrl && !event.hideLogo && (
+          <div className="absolute top-8 left-8 z-20">
             <img src={event.logoUrl} alt={event.name} className="h-24 object-contain" />
           </div>
         )}
+
+        {!event.hideEventName && (
+          <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-20">
+            <h2 className="text-3xl font-bold text-white drop-shadow-lg">{event.name}</h2>
+          </div>
+        )}
+
         <div className="z-10 text-center space-y-6 animate-bounce">
           <h1
             className="text-8xl font-display font-bold text-transparent bg-clip-text"
@@ -312,7 +320,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           >
             TAP TO START
           </h1>
-          <p className="text-2xl text-white font-light tracking-[0.5em] uppercase">{event.name}</p>
+          <p className="text-2xl text-white font-light tracking-[0.5em] uppercase">AI Photo Experience</p>
         </div>
         <div className="absolute bottom-10 right-10 z-50">
            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-white/20 hover:text-white text-sm p-4">Exit Kiosk</button>
@@ -372,16 +380,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-blue-500/30 to-transparent"></div>
             <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-blue-500/30 to-transparent"></div>
             <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-blue-500/30 to-transparent"></div>
-          </div>
-
-          {event.logoUrl && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
-              <img src={event.logoUrl} alt={event.name} className="h-16 object-contain drop-shadow-lg" />
-            </div>
-          )}
-
-          <div className="absolute bottom-4 left-0 right-0 text-center z-20 pointer-events-none">
-            <h2 className="text-2xl font-bold text-white drop-shadow-lg">{event.name}</h2>
           </div>
         </div>
 

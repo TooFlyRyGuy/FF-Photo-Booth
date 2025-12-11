@@ -583,6 +583,30 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                     </div>
                   </div>
                 </div>
+
+                <div className="pt-6 space-y-4">
+                  <p className="text-sm font-medium text-slate-400">Visibility Options</p>
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.hideLogo || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, hideLogo: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-white">Hide Logo on Attract Screen</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.hideEventName || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, hideEventName: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-white">Hide Event Name on Attract Screen</span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
               {/* Prompt Selection Section */}

@@ -165,6 +165,8 @@ export const getEvents = async (): Promise<Event[]> => {
     primaryColor: event.primary_color,
     secondaryColor: event.secondary_color,
     accentColor: event.accent_color,
+    hideLogo: event.hide_logo || false,
+    hideEventName: event.hide_event_name || false,
     prompts: event.event_prompts.map((ep: any) => ({
       id: ep.prompts.id,
       name: ep.prompts.name,
@@ -219,6 +221,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         primary_color: event.primaryColor || null,
         secondary_color: event.secondaryColor || null,
         accent_color: event.accentColor || null,
+        hide_logo: event.hideLogo || false,
+        hide_event_name: event.hideEventName || false,
       })
       .select()
       .maybeSingle();
@@ -269,6 +273,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         primary_color: event.primaryColor || null,
         secondary_color: event.secondaryColor || null,
         accent_color: event.accentColor || null,
+        hide_logo: event.hideLogo || false,
+        hide_event_name: event.hideEventName || false,
       })
       .eq('id', event.id)
       .select()
@@ -465,6 +471,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
     primaryColor: eventsData.primary_color,
     secondaryColor: eventsData.secondary_color,
     accentColor: eventsData.accent_color,
+    hideLogo: eventsData.hide_logo || false,
+    hideEventName: eventsData.hide_event_name || false,
     prompts: eventsData.event_prompts
       .sort((a: any, b: any) => a.display_order - b.display_order)
       .map((ep: any) => ({
