@@ -304,7 +304,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         )}
 
         {!event.hideEventName && (
-          <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="absolute top-8 right-8 z-20">
             <h2 className="text-3xl font-bold text-white drop-shadow-lg">{event.name}</h2>
           </div>
         )}
