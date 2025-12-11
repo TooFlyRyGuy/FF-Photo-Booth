@@ -171,7 +171,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       const genImage = await generateBoothImage(
         capturedImage,
         selectedPrompt.promptText,
-        event.name,
         tenant.geminiApiKey,
         selectedPrompt.referenceImage,
         event.aspectRatio
@@ -488,13 +487,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         {/* Image Side */}
         <div className="lg:w-2/3 h-2/5 lg:h-full bg-black p-3 md:p-6 lg:p-8 flex items-center justify-center relative">
           <img src={finalImage || ''} className="max-h-full max-w-full rounded-lg md:rounded-xl shadow-2xl border border-gray-800" alt="Final AI" />
-          <button
-            onClick={handleDownload}
-            className="absolute top-2 right-2 md:top-4 md:right-4 flex items-center gap-1 md:gap-2 px-3 md:px-6 py-2 md:py-3 bg-white text-black font-bold text-sm md:text-base rounded-lg md:rounded-xl hover:bg-gray-200 active:bg-gray-200 transition-all shadow-lg hover:shadow-xl min-h-[44px]"
-          >
-            <Download size={16} className="md:w-5 md:h-5" />
-            <span className="hidden sm:inline">Download</span>
-          </button>
         </div>
 
         {/* Input Side */}

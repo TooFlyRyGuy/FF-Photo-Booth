@@ -4,7 +4,6 @@ import { AspectRatio } from '../types';
 export const generateBoothImage = async (
   imageBase64: string,
   promptTemplate: string,
-  eventContext: string,
   apiKey: string,
   referenceImageBase64?: string,
   aspectRatio?: AspectRatio
@@ -44,7 +43,6 @@ export const generateBoothImage = async (
     // Construct prompt
     let finalPrompt = `
       Transform the person in the first image into the following style: ${promptTemplate}.
-      Context: ${eventContext}.
       Maintain the person's facial features and identity strictly, but change the clothing, background, and artistic style to match the description.
       CRITICAL: The output image MUST be in ${aspectRatioSpec}. The composition must fit this exact aspect ratio.
       High quality, photorealistic or stylized as requested.
