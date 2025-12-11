@@ -171,16 +171,12 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (!sharedUrl) {
-      throw new Error('Failed to create publicly accessible shared link. Please ensure your Dropbox app has sharing.write permission.');
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
-        url: sharedUrl,
+        url: sharedUrl || null,
         path: uploadResult.path_display,
-        warning: sharingWarning || undefined,
+        warning: sharingWarning || (!sharedUrl ? 'File uploaded but public sharing is not available. Please enable sharing.write permission in your Dropbox app settings.' : undefined),
       }),
       {
         headers: {

@@ -11,9 +11,10 @@ interface UploadToDropboxParams {
 
 interface DropboxUploadResponse {
   success: boolean;
-  url?: string;
+  url?: string | null;
   path?: string;
   error?: string;
+  warning?: string;
 }
 
 export const uploadImageToDropbox = async (params: UploadToDropboxParams): Promise<string> => {
@@ -34,8 +35,16 @@ export const uploadImageToDropbox = async (params: UploadToDropboxParams): Promi
 
     const result: DropboxUploadResponse = await response.json();
 
-    if (!result.success || !result.url) {
+    if (!result.success) {
       throw new Error(result.error || 'Upload failed without error message');
+    }
+
+    if (result.warning) {
+      console.warn('Dropbox upload warning:', result.warning);
+    }
+
+    if (!result.url) {
+      throw new Error('File uploaded to Dropbox but no public URL available. Sharing permission may be missing.');
     }
 
     return result.url;

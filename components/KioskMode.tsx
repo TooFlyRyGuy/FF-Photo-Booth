@@ -530,7 +530,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                     {isSending ? 'Sending...' : <><Send size={24} /> Send SMS</>}
                 </button>
 
-                {generatedImageUrl && (
+                {generatedImageUrl && !generatedImageUrl.startsWith('data:') && generatedImageUrl.length < 500 && (
                   <div className="pt-8 border-t border-gray-800">
                       <div className="flex items-center gap-4 bg-gray-800 p-4 rounded-xl">
                           <div className="bg-white p-2 rounded-lg">
