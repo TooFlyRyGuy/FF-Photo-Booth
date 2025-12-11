@@ -50,6 +50,13 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
   };
 
   const handleSaveSettings = async () => {
+    console.log('🔍 DEBUG - Save clicked! State check:', {
+      geminiKeyChanged,
+      geminiApiKeyLength: geminiApiKey.length,
+      geminiApiKeyValue: geminiApiKey.substring(0, 10),
+      geminiEnabled,
+    });
+
     setIsSaving(true);
     setSaveSuccess(false);
 
@@ -71,8 +78,12 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         updates.twilioAuthToken = twilioToken;
       }
 
+      console.log('🔍 DEBUG - About to check geminiKeyChanged:', geminiKeyChanged);
       if (geminiKeyChanged) {
+        console.log('🔍 DEBUG - Adding geminiApiKey to updates!');
         updates.geminiApiKey = geminiApiKey;
+      } else {
+        console.log('🔍 DEBUG - NOT adding geminiApiKey (changed flag is false)');
       }
 
       console.log('Settings component saving:', {
