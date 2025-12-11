@@ -46,7 +46,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const redirectUri = `${supabaseUrl}/functions/v1/dropbox-oauth-callback`;
-    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${tenant.dropbox_app_key}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${tenantId}&token_access_type=offline`;
+    const scopes = [
+      'files.content.write',
+      'files.content.read',
+      'sharing.write',
+      'sharing.read'
+    ].join(' ');
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${tenant.dropbox_app_key}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${tenantId}&token_access_type=offline&scope=${encodeURIComponent(scopes)}`;
 
     return new Response(null, {
       status: 302,
