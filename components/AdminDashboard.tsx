@@ -479,8 +479,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
         )}
 
         {/* SETTINGS VIEW */}
-        {activeTab === 'settings' && tenant && (
-          <div className="space-y-6">
+        {tenant && (
+          <div className={`space-y-6 ${activeTab === 'settings' ? '' : 'hidden'}`}>
             <header className="mb-8">
               <h2 className="text-3xl font-bold">Integration Settings</h2>
               <p className="text-slate-400 mt-2">Connect your accounts to unlock powerful features</p>
