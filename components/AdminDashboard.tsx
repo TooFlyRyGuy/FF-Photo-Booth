@@ -502,6 +502,89 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                 </div>
               </div>
 
+              {/* Branding Customization Section */}
+              <div className="pt-8 border-t border-slate-700">
+                <h3 className="text-lg font-bold mb-4">Kiosk Branding</h3>
+                <p className="text-sm text-slate-400 mb-6">Customize the appearance of the kiosk for this event</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">Background Image URL</label>
+                    <input
+                      type="text"
+                      value={editingEvent.backgroundImageUrl || ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, backgroundImageUrl: e.target.value})}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      placeholder="https://example.com/background.jpg"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">Logo URL</label>
+                    <input
+                      type="text"
+                      value={editingEvent.logoUrl || ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, logoUrl: e.target.value})}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">Primary Color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={editingEvent.primaryColor || '#6366f1'}
+                        onChange={(e) => setEditingEvent({...editingEvent, primaryColor: e.target.value})}
+                        className="w-16 h-10 bg-slate-900 border border-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editingEvent.primaryColor || ''}
+                        onChange={(e) => setEditingEvent({...editingEvent, primaryColor: e.target.value})}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                        placeholder="#6366f1"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">Secondary Color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={editingEvent.secondaryColor || '#8b5cf6'}
+                        onChange={(e) => setEditingEvent({...editingEvent, secondaryColor: e.target.value})}
+                        className="w-16 h-10 bg-slate-900 border border-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editingEvent.secondaryColor || ''}
+                        onChange={(e) => setEditingEvent({...editingEvent, secondaryColor: e.target.value})}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                        placeholder="#8b5cf6"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">Accent Color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={editingEvent.accentColor || '#ec4899'}
+                        onChange={(e) => setEditingEvent({...editingEvent, accentColor: e.target.value})}
+                        className="w-16 h-10 bg-slate-900 border border-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editingEvent.accentColor || ''}
+                        onChange={(e) => setEditingEvent({...editingEvent, accentColor: e.target.value})}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                        placeholder="#ec4899"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Prompt Selection Section */}
               <div className="pt-8 border-t border-slate-700">
                 <div className="flex justify-between items-center mb-6">

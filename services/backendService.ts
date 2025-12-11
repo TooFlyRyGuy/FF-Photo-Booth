@@ -160,6 +160,11 @@ export const getEvents = async (): Promise<Event[]> => {
     passcode: event.passcode,
     tenantId: event.tenant_id,
     aspectRatio: event.aspect_ratio || 'square',
+    backgroundImageUrl: event.background_image_url,
+    logoUrl: event.logo_url,
+    primaryColor: event.primary_color,
+    secondaryColor: event.secondary_color,
+    accentColor: event.accent_color,
     prompts: event.event_prompts.map((ep: any) => ({
       id: ep.prompts.id,
       name: ep.prompts.name,
@@ -209,6 +214,11 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         passcode: event.passcode,
         is_active: event.isActive,
         aspect_ratio: event.aspectRatio || 'square',
+        background_image_url: event.backgroundImageUrl || null,
+        logo_url: event.logoUrl || null,
+        primary_color: event.primaryColor || null,
+        secondary_color: event.secondaryColor || null,
+        accent_color: event.accentColor || null,
       })
       .select()
       .maybeSingle();
@@ -254,6 +264,11 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         passcode: event.passcode,
         is_active: event.isActive,
         aspect_ratio: event.aspectRatio || 'square',
+        background_image_url: event.backgroundImageUrl || null,
+        logo_url: event.logoUrl || null,
+        primary_color: event.primaryColor || null,
+        secondary_color: event.secondaryColor || null,
+        accent_color: event.accentColor || null,
       })
       .eq('id', event.id)
       .select()
@@ -445,6 +460,11 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
     passcode: eventsData.passcode,
     tenantId: eventsData.tenant_id,
     aspectRatio: eventsData.aspect_ratio || 'square',
+    backgroundImageUrl: eventsData.background_image_url,
+    logoUrl: eventsData.logo_url,
+    primaryColor: eventsData.primary_color,
+    secondaryColor: eventsData.secondary_color,
+    accentColor: eventsData.accent_color,
     prompts: eventsData.event_prompts
       .sort((a: any, b: any) => a.display_order - b.display_order)
       .map((ep: any) => ({

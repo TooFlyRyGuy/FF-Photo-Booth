@@ -59,6 +59,11 @@ export interface Event {
   prompts: Prompt[];
   tenantId: string;
   aspectRatio?: AspectRatio;
+  backgroundImageUrl?: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
 }
 
 export interface GeneratedImage {

@@ -28,6 +28,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
 
+  const getBrandingColors = () => ({
+    primary: event.primaryColor || '#6366f1',
+    secondary: event.secondaryColor || '#8b5cf6',
+    accent: event.accentColor || '#ec4899',
+  });
+
   const getAspectRatioDimensions = (ratio: string = 'square'): { width: number; height: number } => {
     const baseSize = 1024;
     switch (ratio) {
@@ -279,19 +285,34 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // 1. ATTRACT SCREEN
   if (view === 'attract') {
+    const colors = getBrandingColors();
+    const backgroundImage = event.backgroundImageUrl || 'https://images.unsplash.com/photo-1535189043414-47a3c49a0bed?q=80&w=2670&auto=format&fit=crop';
+
     return (
-      <div 
+      <div
         onClick={() => setView('prompt-select')}
         className="h-screen w-full bg-black relative flex flex-col items-center justify-center cursor-pointer overflow-hidden"
       >
         <div className="absolute inset-0 opacity-40">
-           <img src="https://images.unsplash.com/photo-1535189043414-47a3c49a0bed?q=80&w=2670&auto=format&fit=crop" className="w-full h-full object-cover animate-pulse-fast" alt="Background" />
+           <img src={backgroundImage} className="w-full h-full object-cover animate-pulse-fast" alt="Background" />
         </div>
+        {event.logoUrl && (
+          <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-20">
+            <img src={event.logoUrl} alt={event.name} className="h-24 object-contain" />
+          </div>
+        )}
         <div className="z-10 text-center space-y-6 animate-bounce">
-          <h1 className="text-8xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 drop-shadow-[0_0_25px_rgba(168,85,247,0.5)]">
+          <h1
+            className="text-8xl font-display font-bold text-transparent bg-clip-text"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+            }}
+          >
             TAP TO START
           </h1>
-          <p className="text-2xl text-white font-light tracking-[0.5em] uppercase">AI Photo Experience</p>
+          <p className="text-2xl text-white font-light tracking-[0.5em] uppercase">{event.name}</p>
         </div>
         <div className="absolute bottom-10 right-10 z-50">
            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-white/20 hover:text-white text-sm p-4">Exit Kiosk</button>
@@ -327,6 +348,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // 3. CAMERA & CAPTURE
   if (view === 'camera') {
+    const colors = getBrandingColors();
     const getAspectRatioClass = () => {
       const ratio = event.aspectRatio || 'square';
       switch (ratio) {
@@ -351,6 +373,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-blue-500/30 to-transparent"></div>
             <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-blue-500/30 to-transparent"></div>
           </div>
+
+          {event.logoUrl && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+              <img src={event.logoUrl} alt={event.name} className="h-16 object-contain drop-shadow-lg" />
+            </div>
+          )}
+
+          <div className="absolute bottom-4 left-0 right-0 text-center z-20 pointer-events-none">
+            <h2 className="text-2xl font-bold text-white drop-shadow-lg">{event.name}</h2>
+          </div>
         </div>
 
         {countdown && (
@@ -366,7 +398,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
            <button
              onClick={takePhoto}
              disabled={!!countdown}
-             className="h-24 w-24 bg-white rounded-full border-8 border-gray-300 shadow-[0_0_30px_rgba(255,255,255,0.5)] active:scale-95 transition-transform"
+             className="h-24 w-24 rounded-full border-8 active:scale-95 transition-transform"
+             style={{
+               backgroundColor: 'white',
+               borderColor: colors.primary,
+               boxShadow: `0 0 30px ${colors.primary}80`,
+             }}
            />
         </div>
       </div>
@@ -375,10 +412,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // 4. PROCESSING (AI)
   if (view === 'processing') {
+    const colors = getBrandingColors();
     return (
       <div className="h-screen w-full bg-kiosk-bg flex flex-col items-center justify-center text-white space-y-8">
         <div className="relative h-48 w-48">
-          <div className="absolute inset-0 rounded-full border-4 border-t-kiosk-accent border-r-transparent border-b-purple-500 border-l-transparent animate-spin"></div>
+          <div
+            className="absolute inset-0 rounded-full border-4 animate-spin"
+            style={{
+              borderTopColor: colors.accent,
+              borderRightColor: 'transparent',
+              borderBottomColor: colors.primary,
+              borderLeftColor: 'transparent',
+            }}
+          />
           <img src={capturedImage || ''} className="absolute inset-2 rounded-full object-cover opacity-50 grayscale" alt="original" />
         </div>
         <h2 className="text-4xl font-display animate-pulse">Creating Magic...</h2>
@@ -389,6 +435,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // 5. REVIEW CAPTURE (Before Sending to AI)
   if (view === 'review') {
+      const colors = getBrandingColors();
       return (
           <div className="h-screen w-full bg-kiosk-bg flex flex-col items-center p-8">
               <h2 className="text-3xl text-white font-display mb-4">Look Good?</h2>
@@ -404,7 +451,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                   <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center gap-2 px-8 py-4 rounded-full bg-gray-800 text-white hover:bg-gray-700 font-bold text-lg">
                     <RefreshCw size={24} /> Retake
                   </button>
-                  <button onClick={handleGenerate} className="flex items-center gap-2 px-8 py-4 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg hover:shadow-purple-500/50 transition-all">
+                  <button
+                    onClick={handleGenerate}
+                    className="flex items-center gap-2 px-8 py-4 rounded-full text-white font-bold text-lg shadow-lg transition-all"
+                    style={{
+                      backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
+                      boxShadow: `0 10px 25px ${colors.accent}50`,
+                    }}
+                  >
                     Generate AI <ArrowRight size={24} />
                   </button>
               </div>
@@ -414,6 +468,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // 6. RESULT & DELIVERY
   if (view === 'result' || view === 'delivery') {
+    const colors = getBrandingColors();
     return (
       <div className="h-screen w-full bg-kiosk-bg flex flex-col lg:flex-row">
         {/* Image Side */}
@@ -430,7 +485,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
         {/* Input Side */}
         <div className="lg:w-1/3 h-1/2 lg:h-full bg-gray-900 p-12 flex flex-col justify-center space-y-8 relative">
-           
+
            {view === 'delivery' ? (
              <div className="text-center space-y-6">
                 <div className="h-24 w-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(34,197,94,0.5)]">
@@ -449,7 +504,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
                 <button
                     onClick={handleDownload}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xl py-5 rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all flex items-center justify-center gap-3"
+                    className="w-full text-white font-bold text-xl py-5 rounded-xl transition-all flex items-center justify-center gap-3"
+                    style={{
+                      backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
+                      boxShadow: `0 10px 25px ${colors.accent}50`,
+                    }}
                 >
                     <Download size={24} /> Download Now
                 </button>
