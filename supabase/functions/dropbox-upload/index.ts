@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: tenant, error: tenantError } = await supabase
       .from('tenants')
-      .select('dropbox_access_token, dropbox_enabled')
+      .select('dropbox_access_token, dropbox_refresh_token, dropbox_token_expires_at, dropbox_enabled, dropbox_app_key, dropbox_app_secret')
       .eq('id', tenantId)
       .maybeSingle();
 
@@ -44,7 +44,22 @@ Deno.serve(async (req: Request) => {
       throw new Error('Dropbox is not configured for this tenant');
     }
 
-    const accessToken = tenant.dropbox_access_token;
+    let accessToken = tenant.dropbox_access_token;
+
+    if (tenant.dropbox_token_expires_at && tenant.dropbox_refresh_token) {
+      const expiresAt = new Date(tenant.dropbox_token_expires_at);
+      const now = new Date();
+      
+      if (expiresAt <= now) {
+        accessToken = await refreshAccessToken(
+          supabase,
+          tenantId,
+          tenant.dropbox_app_key,
+          tenant.dropbox_app_secret,
+          tenant.dropbox_refresh_token
+        );
+      }
+    }
 
     const folderPath = `/events/${eventName.replace(/[^a-zA-Z0-9-_]/g, '_')}_${eventId.slice(0, 8)}`;
     await ensureFolderExists(accessToken, folderPath);
@@ -155,6 +170,46 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
+
+async function refreshAccessToken(
+  supabase: any,
+  tenantId: string,
+  appKey: string,
+  appSecret: string,
+  refreshToken: string
+): Promise<string> {
+  const tokenResponse = await fetch('https://api.dropboxapi.com/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: appKey,
+      client_secret: appSecret,
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    throw new Error(`Token refresh failed: ${errorText}`);
+  }
+
+  const tokenData = await tokenResponse.json();
+  const expiresAt = new Date();
+  expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in);
+
+  await supabase
+    .from('tenants')
+    .update({
+      dropbox_access_token: tokenData.access_token,
+      dropbox_token_expires_at: expiresAt.toISOString(),
+    })
+    .eq('id', tenantId);
+
+  return tokenData.access_token;
+}
 
 async function ensureFolderExists(accessToken: string, folderPath: string): Promise<void> {
   const response = await fetch('https://api.dropboxapi.com/2/files/create_folder_v2', {

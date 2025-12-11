@@ -14,12 +14,11 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
 
   const [dropboxAppKey, setDropboxAppKey] = useState(tenant.dropboxAppKey || '');
   const [dropboxAppSecret, setDropboxAppSecret] = useState(maskValue(tenant.dropboxAppSecret));
-  const [dropboxAccessToken, setDropboxAccessToken] = useState(maskValue(tenant.dropboxAccessToken));
   const [dropboxEnabled, setDropboxEnabled] = useState(tenant.dropboxEnabled || false);
   const [showDropboxSecret, setShowDropboxSecret] = useState(false);
-  const [showDropboxAccessToken, setShowDropboxAccessToken] = useState(false);
   const [dropboxSecretChanged, setDropboxSecretChanged] = useState(false);
-  const [dropboxAccessTokenChanged, setDropboxAccessTokenChanged] = useState(false);
+  const [isConnectingDropbox, setIsConnectingDropbox] = useState(false);
+  const [dropboxConnected, setDropboxConnected] = useState(!!tenant.dropboxAccessToken);
 
   const [twilioSid, setTwilioSid] = useState(tenant.twilioAccountSid || '');
   const [twilioToken, setTwilioToken] = useState(maskValue(tenant.twilioAuthToken));
@@ -41,9 +40,57 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
     setDropboxSecretChanged(true);
   };
 
-  const handleDropboxAccessTokenChange = (value: string) => {
-    setDropboxAccessToken(value);
-    setDropboxAccessTokenChanged(true);
+  const handleConnectDropbox = () => {
+    if (!dropboxAppKey || !dropboxAppSecret || dropboxAppSecret.startsWith('•')) {
+      alert('Please save your Dropbox App Key and App Secret first');
+      return;
+    }
+
+    setIsConnectingDropbox(true);
+
+    const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-callback`;
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${dropboxAppKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${tenant.id}&token_access_type=offline`;
+
+    const popup = window.open(authUrl, 'Dropbox OAuth', 'width=600,height=700');
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'dropbox-oauth-success') {
+        setDropboxConnected(true);
+        setDropboxEnabled(true);
+        setIsConnectingDropbox(false);
+        window.removeEventListener('message', handleMessage);
+        if (popup) popup.close();
+        alert('Successfully connected to Dropbox!');
+      } else if (event.data.type === 'dropbox-oauth-error') {
+        setIsConnectingDropbox(false);
+        window.removeEventListener('message', handleMessage);
+        if (popup) popup.close();
+        alert(`Failed to connect to Dropbox: ${event.data.error}`);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    const checkPopup = setInterval(() => {
+      if (popup && popup.closed) {
+        clearInterval(checkPopup);
+        setIsConnectingDropbox(false);
+        window.removeEventListener('message', handleMessage);
+      }
+    }, 1000);
+  };
+
+  const handleDisconnectDropbox = async () => {
+    if (confirm('Are you sure you want to disconnect Dropbox?')) {
+      await onSave({
+        dropboxAccessToken: null,
+        dropboxRefreshToken: null,
+        dropboxTokenExpiresAt: null,
+        dropboxEnabled: false,
+      });
+      setDropboxConnected(false);
+      setDropboxEnabled(false);
+    }
   };
 
   const handleTwilioTokenChange = (value: string) => {
@@ -82,10 +129,6 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         updates.dropboxAppSecret = dropboxAppSecret;
       }
 
-      if (dropboxAccessTokenChanged) {
-        updates.dropboxAccessToken = dropboxAccessToken;
-      }
-
       if (twilioTokenChanged) {
         updates.twilioAuthToken = twilioToken;
       }
@@ -115,7 +158,6 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
       await onSave(updates);
 
       setDropboxSecretChanged(false);
-      setDropboxAccessTokenChanged(false);
       setTwilioTokenChanged(false);
       setGeminiKeyChanged(false);
 
@@ -149,20 +191,23 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         </div>
 
         <div className="p-6 space-y-4">
-          <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-            <input
-              type="checkbox"
-              checked={dropboxEnabled}
-              onChange={(e) => setDropboxEnabled(e.target.checked)}
-              className="w-5 h-5 rounded accent-blue-500"
-              id="dropbox-enabled"
-            />
-            <label htmlFor="dropbox-enabled" className="flex-1 cursor-pointer">
-              <span className="font-medium">Enable Dropbox Sync</span>
-              <p className="text-sm text-slate-400">Automatically upload photos to your Dropbox</p>
-            </label>
-            {dropboxEnabled && <Check className="text-green-400" size={20} />}
-          </div>
+          {dropboxConnected && (
+            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Check className="text-green-400" size={24} />
+                <div>
+                  <p className="font-medium text-green-400">Connected to Dropbox</p>
+                  <p className="text-sm text-slate-400">Your photos will be automatically backed up</p>
+                </div>
+              </div>
+              <button
+                onClick={handleDisconnectDropbox}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-medium transition-colors"
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-2">App Key</label>
@@ -212,32 +257,22 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Access Token</label>
-            <div className="relative">
-              <input
-                type={showDropboxAccessToken ? 'text' : 'password'}
-                value={dropboxAccessToken}
-                onChange={(e) => handleDropboxAccessTokenChange(e.target.value)}
-                placeholder="Enter your Dropbox access token"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowDropboxAccessToken(!showDropboxAccessToken)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-              >
-                {showDropboxAccessToken ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-            <p className="text-xs text-slate-500 mt-2">
-              {dropboxAccessToken.startsWith('•') ? (
-                <span className="text-green-400">✓ Access token is saved (hidden for security)</span>
+          {!dropboxConnected && (
+            <button
+              onClick={handleConnectDropbox}
+              disabled={isConnectingDropbox || !dropboxAppKey || !dropboxAppSecret}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+            >
+              {isConnectingDropbox ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Connecting...
+                </>
               ) : (
-                'Generate an access token for your Dropbox app to enable file uploads'
+                'Connect to Dropbox'
               )}
-            </p>
-          </div>
+            </button>
+          )}
 
           <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
             <p className="text-sm text-blue-300">
