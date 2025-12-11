@@ -98,7 +98,13 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Dropbox upload failed: ${errorText}`);
     }
 
-    const uploadResult = await uploadResponse.json();
+    const uploadResultText = await uploadResponse.text();
+    let uploadResult;
+    try {
+      uploadResult = JSON.parse(uploadResultText);
+    } catch (e) {
+      throw new Error(`Failed to parse Dropbox upload response: ${uploadResultText.substring(0, 200)}`);
+    }
 
     const sharedLinkResponse = await fetch('https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings', {
       method: 'POST',
@@ -116,10 +122,22 @@ Deno.serve(async (req: Request) => {
 
     let sharedUrl = '';
     if (sharedLinkResponse.ok) {
-      const linkData = await sharedLinkResponse.json();
+      const linkText = await sharedLinkResponse.text();
+      let linkData;
+      try {
+        linkData = JSON.parse(linkText);
+      } catch (e) {
+        throw new Error(`Failed to parse shared link response: ${linkText.substring(0, 200)}`);
+      }
       sharedUrl = linkData.url.replace('?dl=0', '?raw=1');
     } else {
-      const errorData = await sharedLinkResponse.json();
+      const errorText = await sharedLinkResponse.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (e) {
+        throw new Error(`Failed to parse shared link error response: ${errorText.substring(0, 200)}`);
+      }
       if (errorData.error?.['.tag'] === 'shared_link_already_exists') {
         const existingLinksResponse = await fetch('https://api.dropboxapi.com/2/sharing/list_shared_links', {
           method: 'POST',
@@ -134,7 +152,13 @@ Deno.serve(async (req: Request) => {
         });
 
         if (existingLinksResponse.ok) {
-          const linksData = await existingLinksResponse.json();
+          const linksText = await existingLinksResponse.text();
+          let linksData;
+          try {
+            linksData = JSON.parse(linksText);
+          } catch (e) {
+            throw new Error(`Failed to parse existing links response: ${linksText.substring(0, 200)}`);
+          }
           if (linksData.links && linksData.links.length > 0) {
             sharedUrl = linksData.links[0].url.replace('?dl=0', '?raw=1');
           }
@@ -203,7 +227,13 @@ async function refreshAccessToken(
     throw new Error(`Token refresh failed: ${errorText}`);
   }
 
-  const tokenData = await tokenResponse.json();
+  const tokenText = await tokenResponse.text();
+  let tokenData;
+  try {
+    tokenData = JSON.parse(tokenText);
+  } catch (e) {
+    throw new Error(`Failed to parse token response: ${tokenText.substring(0, 200)}`);
+  }
   const expiresAt = new Date();
   expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in);
 
@@ -232,7 +262,13 @@ async function ensureFolderExists(accessToken: string, folderPath: string): Prom
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorText = await response.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch (e) {
+      throw new Error(`Failed to parse folder creation response: ${errorText.substring(0, 200)}`);
+    }
     if (errorData.error?.['.tag'] !== 'path' || errorData.error?.path?.['.tag'] !== 'conflict') {
       throw new Error(`Failed to create folder: ${JSON.stringify(errorData)}`);
     }
