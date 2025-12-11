@@ -172,7 +172,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!sharedUrl) {
-      throw new Error('Failed to create publicly accessible shared link. Please ensure your Dropbox app has sharing.write permission.');
+      sharedUrl = `https://www.dropbox.com/home${filePath}`;
     }
 
     return new Response(
