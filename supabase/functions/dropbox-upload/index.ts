@@ -121,48 +121,53 @@ Deno.serve(async (req: Request) => {
     });
 
     let sharedUrl = '';
+    let sharingWarning = '';
+
     if (sharedLinkResponse.ok) {
       const linkText = await sharedLinkResponse.text();
-      let linkData;
       try {
-        linkData = JSON.parse(linkText);
+        const linkData = JSON.parse(linkText);
+        sharedUrl = linkData.url.replace('?dl=0', '?raw=1');
       } catch (e) {
-        throw new Error(`Failed to parse shared link response: ${linkText.substring(0, 200)}`);
+        console.warn('Failed to parse shared link response:', linkText.substring(0, 200));
+        sharingWarning = 'Could not parse shared link response';
       }
-      sharedUrl = linkData.url.replace('?dl=0', '?raw=1');
     } else {
       const errorText = await sharedLinkResponse.text();
-      let errorData;
       try {
-        errorData = JSON.parse(errorText);
-      } catch (e) {
-        throw new Error(`Failed to parse shared link error response: ${errorText.substring(0, 200)}`);
-      }
-      if (errorData.error?.['.tag'] === 'shared_link_already_exists') {
-        const existingLinksResponse = await fetch('https://api.dropboxapi.com/2/sharing/list_shared_links', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            path: uploadResult.path_lower,
-            direct_only: true,
-          }),
-        });
+        const errorData = JSON.parse(errorText);
 
-        if (existingLinksResponse.ok) {
-          const linksText = await existingLinksResponse.text();
-          let linksData;
-          try {
-            linksData = JSON.parse(linksText);
-          } catch (e) {
-            throw new Error(`Failed to parse existing links response: ${linksText.substring(0, 200)}`);
-          }
-          if (linksData.links && linksData.links.length > 0) {
-            sharedUrl = linksData.links[0].url.replace('?dl=0', '?raw=1');
+        if (errorData.error_summary?.includes('sharing.write')) {
+          console.warn('Dropbox app missing sharing.write scope');
+          sharingWarning = 'Shared links disabled - missing sharing.write scope in Dropbox app';
+        } else if (errorData.error?.['.tag'] === 'shared_link_already_exists') {
+          const existingLinksResponse = await fetch('https://api.dropboxapi.com/2/sharing/list_shared_links', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              path: uploadResult.path_lower,
+              direct_only: true,
+            }),
+          });
+
+          if (existingLinksResponse.ok) {
+            const linksText = await existingLinksResponse.text();
+            try {
+              const linksData = JSON.parse(linksText);
+              if (linksData.links && linksData.links.length > 0) {
+                sharedUrl = linksData.links[0].url.replace('?dl=0', '?raw=1');
+              }
+            } catch (e) {
+              console.warn('Failed to parse existing links response');
+            }
           }
         }
+      } catch (e) {
+        console.warn('Failed to parse shared link error response:', errorText.substring(0, 300));
+        sharingWarning = 'Could not create shared link';
       }
     }
 
@@ -175,6 +180,7 @@ Deno.serve(async (req: Request) => {
         success: true,
         url: sharedUrl,
         path: uploadResult.path_display,
+        warning: sharingWarning || undefined,
       }),
       {
         headers: {
