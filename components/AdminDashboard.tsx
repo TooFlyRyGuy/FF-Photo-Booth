@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updateTenantSettings, deleteEvent } from '../services/backendService';
+import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Users, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, BarChart3, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, BarChart3, Trash2, Pencil } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 
@@ -35,15 +35,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
 
   // Analytics State
   const [analyticsEvent, setAnalyticsEvent] = useState<Event | null>(null);
-  
-  // New Prompt Builder State
+
+  // Prompt Builder State
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [newPrompt, setNewPrompt] = useState<Partial<Prompt>>({
     name: '',
     category: 'Custom',
     promptText: '',
     description: 'Custom generated style',
-    previewImage: '', // For kiosk display
-    referenceImage: '' // For AI reference
+    previewImage: '',
+    referenceImage: ''
   });
 
   useEffect(() => {
@@ -151,32 +152,82 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
     }
   };
 
+  const handleEditPrompt = (prompt: Prompt) => {
+    setEditingPromptId(prompt.id);
+    setNewPrompt({
+      name: prompt.name,
+      category: prompt.category,
+      promptText: prompt.promptText,
+      description: prompt.description,
+      previewImage: prompt.previewImage,
+      referenceImage: prompt.referenceImage
+    });
+    setIsPromptModalOpen(true);
+  };
+
+  const handleDeletePrompt = async (promptId: string, promptName: string) => {
+    if (!confirm(`Are you sure you want to delete "${promptName}"? This will remove it from all events.`)) {
+      return;
+    }
+
+    try {
+      await deletePrompt(promptId);
+      await loadData();
+
+      setEditingEvent(prev => ({
+        ...prev,
+        prompts: (prev.prompts || []).filter(p => p.id !== promptId)
+      }));
+    } catch (error: any) {
+      alert(`Failed to delete prompt: ${error.message}`);
+      console.error('Delete prompt error:', error);
+    }
+  };
+
   const handleSaveNewPrompt = async () => {
     if (!newPrompt.name || !newPrompt.promptText || !newPrompt.previewImage) {
       alert("Name, Prompt Text, and Preview Image are required.");
       return;
     }
 
-    const promptToSave: Prompt = {
-      id: `p_${Date.now()}`,
-      name: newPrompt.name!,
-      description: newPrompt.description || '',
-      category: newPrompt.category || 'Custom',
-      promptText: newPrompt.promptText!,
-      previewImage: newPrompt.previewImage!,
-      referenceImage: newPrompt.referenceImage
-    };
+    try {
+      if (editingPromptId) {
+        const updatedPrompt = await updatePrompt(editingPromptId, newPrompt);
+        await loadData();
 
-    const savedPrompt = await savePrompt(promptToSave);
-    await loadData();
+        setEditingEvent(prev => ({
+          ...prev,
+          prompts: (prev.prompts || []).map(p =>
+            p.id === editingPromptId ? updatedPrompt : p
+          )
+        }));
+      } else {
+        const promptToSave: Prompt = {
+          id: `p_${Date.now()}`,
+          name: newPrompt.name!,
+          description: newPrompt.description || '',
+          category: newPrompt.category || 'Custom',
+          promptText: newPrompt.promptText!,
+          previewImage: newPrompt.previewImage!,
+          referenceImage: newPrompt.referenceImage
+        };
 
-    setEditingEvent(prev => ({
-      ...prev,
-      prompts: [...(prev.prompts || []), savedPrompt]
-    }));
+        const savedPrompt = await savePrompt(promptToSave);
+        await loadData();
 
-    setIsPromptModalOpen(false);
-    setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
+        setEditingEvent(prev => ({
+          ...prev,
+          prompts: [...(prev.prompts || []), savedPrompt]
+        }));
+      }
+
+      setIsPromptModalOpen(false);
+      setEditingPromptId(null);
+      setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
+    } catch (error: any) {
+      alert(`Failed to save prompt: ${error.message}`);
+      console.error('Save prompt error:', error);
+    }
   };
 
   if (!tenant) return <div className="flex h-screen items-center justify-center text-white bg-slate-950">Loading Dashboard...</div>;
@@ -465,19 +516,68 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                     </p>
                   </div>
                   <button
-                    onClick={() => setIsPromptModalOpen(true)}
+                    onClick={() => {
+                      setEditingPromptId(null);
+                      setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
+                      setIsPromptModalOpen(true);
+                    }}
                     className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
                   >
                     <Zap size={16} /> Build Custom Prompt
                   </button>
                 </div>
 
+                {/* Selected Prompts with Edit/Delete */}
+                {editingEvent.prompts && editingEvent.prompts.length > 0 && (
+                  <div className="mb-6 space-y-3">
+                    <h4 className="text-sm font-medium text-slate-400">Selected Prompts for This Event</h4>
+                    <div className="grid gap-3">
+                      {editingEvent.prompts.map(prompt => (
+                        <div
+                          key={prompt.id}
+                          className="flex items-center gap-4 p-3 bg-slate-900/50 border border-blue-500/30 rounded-lg"
+                        >
+                          <img src={prompt.previewImage} alt={prompt.name} className="h-16 w-16 object-cover rounded" />
+                          <div className="flex-1">
+                            <h4 className="font-bold text-sm">{prompt.name}</h4>
+                            <p className="text-xs text-slate-500">{prompt.category}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditPrompt(prompt)}
+                              className="px-3 py-2 rounded-md border border-slate-600 hover:bg-slate-700 text-sm flex items-center gap-2"
+                              title="Edit prompt"
+                            >
+                              <Pencil size={14} /> Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeletePrompt(prompt.id, prompt.name)}
+                              className="px-3 py-2 rounded-md border border-red-600 text-red-400 hover:bg-red-600/10 text-sm flex items-center gap-2"
+                              title="Delete prompt"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => togglePromptSelection(prompt)}
+                              className="px-3 py-2 rounded-md border border-slate-600 hover:bg-slate-700 text-sm"
+                              title="Remove from event"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <h4 className="text-sm font-medium text-slate-400 mb-3">Available Prompts</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {availablePrompts.map(prompt => {
                     const isSelected = editingEvent.prompts?.some(p => p.id === prompt.id);
                     return (
-                      <div 
-                        key={prompt.id} 
+                      <div
+                        key={prompt.id}
                         onClick={() => togglePromptSelection(prompt)}
                         className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-700 hover:border-slate-500'}`}
                       >
@@ -545,10 +645,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
             <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
               <header className="p-6 border-b border-slate-800 flex justify-between items-center">
                 <h3 className="text-xl font-bold flex items-center gap-2">
-                  <Zap size={20} className="text-purple-500" /> 
-                  Custom Prompt Builder
+                  {editingPromptId ? (
+                    <>
+                      <Pencil size={20} className="text-blue-500" />
+                      Edit Prompt
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={20} className="text-purple-500" />
+                      Custom Prompt Builder
+                    </>
+                  )}
                 </h3>
-                <button onClick={() => setIsPromptModalOpen(false)} className="text-slate-400 hover:text-white">
+                <button
+                  onClick={() => {
+                    setIsPromptModalOpen(false);
+                    setEditingPromptId(null);
+                    setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
+                  }}
+                  className="text-slate-400 hover:text-white"
+                >
                   <X size={24} />
                 </button>
               </header>
@@ -637,17 +753,21 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
               </div>
 
               <div className="p-6 border-t border-slate-800 flex justify-end gap-3">
-                <button 
-                  onClick={() => setIsPromptModalOpen(false)}
+                <button
+                  onClick={() => {
+                    setIsPromptModalOpen(false);
+                    setEditingPromptId(null);
+                    setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
+                  }}
                   className="px-4 py-2 rounded-lg text-slate-400 hover:text-white"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleSaveNewPrompt}
-                  className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg font-bold"
+                  className={`${editingPromptId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'} text-white px-6 py-2 rounded-lg font-bold`}
                 >
-                  Create Prompt
+                  {editingPromptId ? 'Update Prompt' : 'Create Prompt'}
                 </button>
               </div>
             </div>

@@ -337,6 +337,53 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
   };
 };
 
+export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): Promise<Prompt> => {
+  const updates: any = {};
+
+  if (prompt.name !== undefined) updates.name = prompt.name;
+  if (prompt.description !== undefined) updates.description = prompt.description;
+  if (prompt.category !== undefined) updates.category = prompt.category;
+  if (prompt.promptText !== undefined) updates.prompt_text = prompt.promptText;
+  if (prompt.previewImage !== undefined) updates.preview_image_url = prompt.previewImage;
+  if (prompt.referenceImage !== undefined) updates.reference_image_url = prompt.referenceImage;
+
+  const { data, error } = await supabase
+    .from('prompts')
+    .update(updates)
+    .eq('id', promptId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to update prompt: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Failed to update prompt: No data returned');
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    category: data.category,
+    promptText: data.prompt_text,
+    previewImage: data.preview_image_url,
+    referenceImage: data.reference_image_url,
+  };
+};
+
+export const deletePrompt = async (promptId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('prompts')
+    .update({ is_active: false })
+    .eq('id', promptId);
+
+  if (error) {
+    throw new Error(`Failed to delete prompt: ${error.message}`);
+  }
+};
+
 export const sendSms = async (phoneNumber: string, imageUrl: string): Promise<boolean> => {
   console.log(`[SMS] Sending to ${phoneNumber}: ${imageUrl}`);
   return true;
