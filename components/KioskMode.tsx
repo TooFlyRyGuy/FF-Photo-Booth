@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, Tenant } from '../types';
 import { generateBoothImage } from '../services/geminiService';
 import { sendSms, saveGeneratedImage, getTenantById } from '../services/backendService';
@@ -17,6 +18,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [finalImage, setFinalImage] = useState<string | null>(null);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -196,6 +198,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         'completed'
       );
 
+      setGeneratedImageUrl(generatedUrl);
       setView('result');
     } catch (err: any) {
       setErrorMsg(err.message || "AI Generation Failed");
@@ -205,21 +208,27 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // --- SMS LOGIC ---
   const handleSendSms = async () => {
-    if (phoneNumber.length < 10) return;
+    if (phoneNumber.length < 10 || !generatedImageUrl) return;
     setIsSending(true);
-    await sendSms(phoneNumber, "https://lumina.booth/img/123"); // Mock URL
-    setIsSending(false);
-    setView('delivery');
-    setTimeout(() => {
-      // Reset kiosk after 5 seconds
-      resetKiosk();
-    }, 5000);
+    try {
+      await sendSms(event.tenantId, phoneNumber, generatedImageUrl);
+      setView('delivery');
+      setTimeout(() => {
+        resetKiosk();
+      }, 5000);
+    } catch (error) {
+      console.error('SMS send failed:', error);
+      setErrorMsg('Failed to send SMS. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const resetKiosk = () => {
     setView('attract');
     setCapturedImage(null);
     setFinalImage(null);
+    setGeneratedImageUrl(null);
     setSelectedPrompt(null);
     setPhoneNumber('');
     stopCamera();
@@ -473,24 +482,24 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                     {isSending ? 'Sending...' : <><Send size={24} /> Send SMS</>}
                 </button>
 
-                <div className="pt-8 border-t border-gray-800">
-                    <div className="flex items-center gap-4 bg-gray-800 p-4 rounded-xl">
-                        <div className="bg-white p-1 rounded-lg">
-                             {/* Mock QR Code */}
-                            <div className="w-16 h-16 bg-white flex items-center justify-center">
-                                <div className="grid grid-cols-3 gap-1 w-12 h-12">
-                                    <div className="bg-black col-span-2 row-span-2"></div>
-                                    <div className="bg-black"></div>
-                                    <div className="bg-black"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <p className="text-white font-bold">Scan for Instant Access</p>
-                            <p className="text-xs text-gray-500">No phone number required</p>
-                        </div>
-                    </div>
-                </div>
+                {generatedImageUrl && (
+                  <div className="pt-8 border-t border-gray-800">
+                      <div className="flex items-center gap-4 bg-gray-800 p-4 rounded-xl">
+                          <div className="bg-white p-2 rounded-lg">
+                              <QRCodeSVG
+                                value={generatedImageUrl}
+                                size={80}
+                                level="M"
+                                includeMargin={false}
+                              />
+                          </div>
+                          <div>
+                              <p className="text-white font-bold">Scan for Instant Access</p>
+                              <p className="text-xs text-gray-500">No phone number required</p>
+                          </div>
+                      </div>
+                  </div>
+                )}
 
                 <button onClick={resetKiosk} className="absolute bottom-8 left-0 right-0 text-center text-gray-600 hover:text-gray-400">
                     Skip & Start Over

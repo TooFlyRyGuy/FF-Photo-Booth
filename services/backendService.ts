@@ -384,9 +384,33 @@ export const deletePrompt = async (promptId: string): Promise<void> => {
   }
 };
 
-export const sendSms = async (phoneNumber: string, imageUrl: string): Promise<boolean> => {
-  console.log(`[SMS] Sending to ${phoneNumber}: ${imageUrl}`);
-  return true;
+export const sendSms = async (tenantId: string, phoneNumber: string, imageUrl: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/twilio-send-sms`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tenantId,
+        phoneNumber,
+        imageUrl,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to send SMS');
+    }
+
+    const result = await response.json();
+    console.log(`[SMS] Sent to ${phoneNumber}: ${result.messageSid}`);
+    return result.success;
+  } catch (error) {
+    console.error('[SMS] Error:', error);
+    throw error;
+  }
 };
 
 export const getEventByPasscode = async (passcode: string): Promise<Event | null> => {
