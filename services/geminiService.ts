@@ -1,11 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
+import { AspectRatio } from '../types';
 
 export const generateBoothImage = async (
   imageBase64: string,
   promptTemplate: string,
   eventContext: string,
   apiKey: string,
-  referenceImageBase64?: string
+  referenceImageBase64?: string,
+  aspectRatio?: AspectRatio
 ): Promise<string> => {
   if (!apiKey || apiKey.trim() === '') {
     throw new Error("Gemini API Key missing. Please configure it in Settings.");
@@ -17,14 +19,34 @@ export const generateBoothImage = async (
   const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
   const cleanRefBase64 = referenceImageBase64?.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
+  // Get aspect ratio specifications
+  const getAspectRatioSpec = (ratio?: AspectRatio): string => {
+    switch (ratio) {
+      case '3:4':
+        return 'portrait orientation with 3:4 aspect ratio (width 768px, height 1024px)';
+      case '4:3':
+        return 'landscape orientation with 4:3 aspect ratio (width 1024px, height 768px)';
+      case '9:16':
+        return 'portrait orientation with 9:16 aspect ratio (width 576px, height 1024px)';
+      case '16:9':
+        return 'landscape orientation with 16:9 aspect ratio (width 1024px, height 576px)';
+      case 'square':
+      default:
+        return 'square aspect ratio (1024px × 1024px)';
+    }
+  };
+
   try {
     const model = 'gemini-2.5-flash-image';
-    
+
+    const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
+
     // Construct prompt
     let finalPrompt = `
       Transform the person in the first image into the following style: ${promptTemplate}.
       Context: ${eventContext}.
       Maintain the person's facial features and identity strictly, but change the clothing, background, and artistic style to match the description.
+      CRITICAL: The output image MUST be in ${aspectRatioSpec}. The composition must fit this exact aspect ratio.
       High quality, photorealistic or stylized as requested.
     `;
 

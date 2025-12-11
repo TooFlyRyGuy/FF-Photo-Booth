@@ -173,7 +173,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         selectedPrompt.promptText,
         event.name,
         tenant.geminiApiKey,
-        selectedPrompt.referenceImage
+        selectedPrompt.referenceImage,
+        event.aspectRatio
       );
       setFinalImage(genImage);
 
