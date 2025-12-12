@@ -596,29 +596,29 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   if (view === 'review') {
       const colors = getBrandingColors();
       return (
-          <div className="h-screen w-full bg-kiosk-bg flex flex-col items-center p-4 md:p-8">
-              <h2 className="text-2xl md:text-3xl text-white font-display mb-3 md:mb-4">Look Good?</h2>
+          <div className="h-screen w-full bg-kiosk-bg flex flex-col items-center p-3 md:p-8 overflow-hidden">
+              <h2 className="text-xl md:text-3xl text-white font-display mb-2 md:mb-4 flex-shrink-0">Look Good?</h2>
               {errorMsg && (
-                <div className="w-full max-w-2xl mb-3 md:mb-4 p-3 md:p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-200 text-center text-sm md:text-base">
+                <div className="w-full max-w-2xl mb-2 md:mb-4 p-2 md:p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-200 text-center text-sm md:text-base flex-shrink-0">
                   {errorMsg}
                 </div>
               )}
-              <div className="flex-1 w-full max-w-2xl bg-black rounded-xl md:rounded-2xl overflow-hidden shadow-2xl border border-gray-800">
+              <div className="w-full max-w-2xl bg-black rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-gray-800 flex-shrink min-h-0" style={{ maxHeight: 'calc(100vh - 180px)' }}>
                 <img src={capturedImage || ''} className="w-full h-full object-contain" alt="captured" />
               </div>
-              <div className="flex gap-3 md:gap-6 mt-4 md:mt-8 w-full max-w-2xl">
-                  <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center justify-center gap-2 flex-1 px-4 md:px-8 py-3 md:py-4 rounded-full bg-gray-800 text-white hover:bg-gray-700 active:bg-gray-700 font-bold text-base md:text-lg min-h-[44px]">
-                    <RefreshCw size={20} className="md:w-6 md:h-6" /> Retake
+              <div className="flex gap-2 md:gap-6 mt-3 md:mt-8 w-full max-w-2xl flex-shrink-0">
+                  <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full bg-gray-800 text-white hover:bg-gray-700 active:bg-gray-700 font-bold text-sm md:text-lg min-h-[44px]">
+                    <RefreshCw size={18} className="md:w-6 md:h-6" /> Retake
                   </button>
                   <button
                     onClick={handleGenerate}
-                    className="flex items-center justify-center gap-2 flex-1 px-4 md:px-8 py-3 md:py-4 rounded-full text-white font-bold text-base md:text-lg shadow-lg transition-all min-h-[44px]"
+                    className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full text-white font-bold text-sm md:text-lg shadow-lg transition-all min-h-[44px]"
                     style={{
                       backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
                       boxShadow: `0 10px 25px ${colors.accent}50`,
                     }}
                   >
-                    Generate AI <ArrowRight size={20} className="md:w-6 md:h-6" />
+                    Generate AI <ArrowRight size={18} className="md:w-6 md:h-6" />
                   </button>
               </div>
           </div>
@@ -631,89 +631,89 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     return (
       <div className="h-screen w-full bg-kiosk-bg flex flex-col lg:flex-row overflow-hidden">
         {/* Image Side */}
-        <div className="lg:w-2/3 h-2/5 lg:h-full bg-black p-3 md:p-6 lg:p-8 flex items-center justify-center relative">
+        <div className="lg:w-2/3 h-[35vh] lg:h-full bg-black p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0">
           <img src={finalImage || ''} className="max-h-full max-w-full rounded-lg md:rounded-xl shadow-2xl border border-gray-800" alt="Final AI" />
         </div>
 
         {/* Input Side */}
-        <div className="lg:w-1/3 h-3/5 lg:h-full bg-gray-900 p-4 md:p-6 lg:p-12 flex flex-col justify-center space-y-4 md:space-y-6 lg:space-y-8 relative overflow-y-auto">
+        <div className="lg:w-1/3 flex-1 lg:h-full bg-gray-900 p-3 md:p-6 lg:p-12 flex flex-col justify-center space-y-3 md:space-y-6 lg:space-y-8 relative overflow-y-auto">
 
            {view === 'delivery' ? (
-             <div className="text-center space-y-4 md:space-y-6">
-                <div className="h-16 w-16 md:h-24 md:w-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-[0_0_20px_rgba(34,197,94,0.5)]">
-                    <Check size={32} className="md:w-12 md:h-12 text-white" />
+             <div className="text-center space-y-3 md:space-y-6">
+                <div className="h-12 w-12 md:h-24 md:w-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-[0_0_20px_rgba(34,197,94,0.5)]">
+                    <Check size={24} className="md:w-12 md:h-12 text-white" />
                 </div>
-                <h2 className="text-2xl md:text-4xl text-white font-bold">Sent!</h2>
+                <h2 className="text-xl md:text-4xl text-white font-bold">Sent!</h2>
                 <p className="text-sm md:text-base text-gray-400">Check your phone for the link.</p>
-                <p className="text-xs md:text-sm text-gray-500 mt-8 md:mt-12">Closing in 5 seconds...</p>
+                <p className="text-xs md:text-sm text-gray-500 mt-4 md:mt-12">Closing in 5 seconds...</p>
              </div>
            ) : (
              <>
                 <div>
-                    <h2 className="text-2xl md:text-3xl lg:text-4xl text-white font-display font-bold mb-1 md:mb-2">Get Your Photo</h2>
-                    <p className="text-sm md:text-base text-gray-400">Download now or receive via SMS.</p>
+                    <h2 className="text-xl md:text-3xl lg:text-4xl text-white font-display font-bold mb-1 md:mb-2">Get Your Photo</h2>
+                    <p className="text-xs md:text-base text-gray-400">Download now or receive via SMS.</p>
                 </div>
 
                 <button
                     onClick={handleDownload}
-                    className="w-full text-white font-bold text-base md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 min-h-[44px]"
+                    className="w-full text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 min-h-[44px]"
                     style={{
                       backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
                       boxShadow: `0 10px 25px ${colors.accent}50`,
                     }}
                 >
-                    <Download size={20} className="md:w-6 md:h-6" /> Download Now
+                    <Download size={18} className="md:w-6 md:h-6" /> Download Now
                 </button>
 
-                <div className="relative">
+                <div className="relative py-1">
                     <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-700"></div>
                     </div>
-                    <div className="relative flex justify-center text-xs md:text-sm">
-                        <span className="px-3 md:px-4 bg-gray-900 text-gray-500">or send via SMS</span>
+                    <div className="relative flex justify-center text-xs">
+                        <span className="px-2 md:px-4 bg-gray-900 text-gray-500">or send via SMS</span>
                     </div>
                 </div>
 
-                <div className="space-y-2 md:space-y-4">
-                    <label className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-wider">Phone Number</label>
+                <div className="space-y-1.5 md:space-y-4">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Phone Number</label>
                     <input
                         type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="(555) 123-4567"
-                        className="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-4 md:px-6 py-3 md:py-4 text-lg md:text-xl lg:text-2xl text-white focus:border-kiosk-accent focus:outline-none placeholder-gray-600 font-mono min-h-[44px]"
+                        className="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-white focus:border-kiosk-accent focus:outline-none placeholder-gray-600 font-mono min-h-[44px]"
                     />
                 </div>
 
                 <button
                     onClick={handleSendSms}
                     disabled={isSending || phoneNumber.length < 3}
-                    className="w-full bg-white text-black font-bold text-base md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-gray-200 active:bg-gray-200 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
+                    className="w-full bg-white text-black font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-gray-200 active:bg-gray-200 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                 >
-                    {isSending ? 'Sending...' : <><Send size={20} className="md:w-6 md:h-6" /> Send SMS</>}
+                    {isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
                 </button>
 
                 {generatedImageUrl && !generatedImageUrl.startsWith('data:') && generatedImageUrl.length < 500 && (
-                  <div className="pt-4 md:pt-8 border-t border-gray-800">
-                      <div className="flex items-center gap-3 md:gap-4 bg-gray-800 p-3 md:p-4 rounded-xl">
-                          <div className="bg-white p-1.5 md:p-2 rounded-lg flex-shrink-0">
+                  <div className="pt-2 md:pt-8 border-t border-gray-800">
+                      <div className="flex items-center gap-2 md:gap-4 bg-gray-800 p-2 md:p-4 rounded-xl">
+                          <div className="bg-white p-1 md:p-2 rounded-lg flex-shrink-0">
                               <QRCodeSVG
                                 value={generatedImageUrl}
-                                size={60}
+                                size={50}
                                 level="M"
                                 includeMargin={false}
                                 className="md:w-20 md:h-20"
                               />
                           </div>
                           <div>
-                              <p className="text-sm md:text-base text-white font-bold">Scan for Instant Access</p>
+                              <p className="text-xs md:text-base text-white font-bold">Scan for Instant Access</p>
                               <p className="text-xs text-gray-500">No phone number required</p>
                           </div>
                       </div>
                   </div>
                 )}
 
-                <button onClick={resetKiosk} className="text-center text-sm md:text-base text-gray-600 hover:text-gray-400 active:text-gray-400 py-2 mt-2">
+                <button onClick={resetKiosk} className="text-center text-xs md:text-base text-gray-600 hover:text-gray-400 active:text-gray-400 py-2">
                     Skip & Start Over
                 </button>
              </>
