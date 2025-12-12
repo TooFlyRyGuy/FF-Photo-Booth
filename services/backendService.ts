@@ -337,15 +337,17 @@ export const getEvents = async (): Promise<Event[]> => {
     hideEventName: event.hide_event_name || false,
     startDatetime: event.start_datetime,
     endDatetime: event.end_datetime,
-    prompts: event.event_prompts.map((ep: any) => ({
-      id: ep.prompts.id,
-      name: ep.prompts.name,
-      description: ep.prompts.description,
-      category: ep.prompts.category,
-      promptText: ep.prompts.prompt_text,
-      previewImage: ep.prompts.preview_image_url,
-      referenceImage: ep.prompts.reference_image_url,
-    }))
+    prompts: event.event_prompts
+      .filter((ep: any) => ep.prompts !== null)
+      .map((ep: any) => ({
+        id: ep.prompts.id,
+        name: ep.prompts.name,
+        description: ep.prompts.description,
+        category: ep.prompts.category,
+        promptText: ep.prompts.prompt_text,
+        previewImage: ep.prompts.preview_image_url,
+        referenceImage: ep.prompts.reference_image_url,
+      }))
   }));
 };
 
