@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tenant } from '../types';
 import { Save, Eye, EyeOff, Check, X, Sparkles } from 'lucide-react';
+import { getGlobalSettings, updateGlobalSettings } from '../services/backendService';
 
 interface SettingsProps {
   tenant: Tenant;
   onSave: (updates: Partial<Tenant>) => Promise<void>;
+  isAdmin?: boolean;
 }
 
-const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
+const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) => {
   const maskValue = (value: string | undefined) => {
     return value && value.length > 0 ? '•'.repeat(20) : '';
   };
@@ -23,13 +25,29 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
   const [showTwilioToken, setShowTwilioToken] = useState(false);
   const [twilioTokenChanged, setTwilioTokenChanged] = useState(false);
 
-  const [geminiApiKey, setGeminiApiKey] = useState(maskValue(tenant.geminiApiKey));
-  const [geminiEnabled, setGeminiEnabled] = useState(tenant.geminiEnabled || false);
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [geminiEnabled, setGeminiEnabled] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [geminiKeyChanged, setGeminiKeyChanged] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadGlobalSettings();
+    }
+  }, [isAdmin]);
+
+  const loadGlobalSettings = async () => {
+    try {
+      const settings = await getGlobalSettings();
+      setGeminiApiKey(maskValue(settings.gemini_api_key));
+      setGeminiEnabled(settings.gemini_enabled === 'true');
+    } catch (error) {
+      console.error('Failed to load global settings:', error);
+    }
+  };
 
   const handleConnectDropbox = () => {
     setIsConnectingDropbox(true);
@@ -91,47 +109,33 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
   };
 
   const handleSaveSettings = async () => {
-    console.log('🔍 DEBUG - Save clicked! State check:', {
-      geminiKeyChanged,
-      geminiApiKeyLength: geminiApiKey.length,
-      geminiApiKeyValue: geminiApiKey.substring(0, 10),
-      geminiEnabled,
-    });
-
     setIsSaving(true);
     setSaveSuccess(false);
 
     try {
-      const updates: any = {
+      const tenantUpdates: any = {
         twilioAccountSid: twilioSid,
         twilioPhoneNumber: twilioPhone,
         twilioEnabled,
-        geminiEnabled,
       };
 
       if (twilioTokenChanged) {
-        updates.twilioAuthToken = twilioToken;
+        tenantUpdates.twilioAuthToken = twilioToken;
       }
 
-      console.log('🔍 DEBUG - About to check geminiKeyChanged:', geminiKeyChanged);
-      if (geminiKeyChanged) {
-        console.log('🔍 DEBUG - Adding geminiApiKey to updates!');
-        updates.geminiApiKey = geminiApiKey;
-      } else {
-        console.log('🔍 DEBUG - NOT adding geminiApiKey (changed flag is false)');
+      await onSave(tenantUpdates);
+
+      if (isAdmin) {
+        const globalSettings: Record<string, string> = {
+          gemini_enabled: geminiEnabled ? 'true' : 'false',
+        };
+
+        if (geminiKeyChanged) {
+          globalSettings.gemini_api_key = geminiApiKey;
+        }
+
+        await updateGlobalSettings(globalSettings);
       }
-
-      console.log('Settings component saving:', {
-        ...updates,
-        twilioAuthToken: updates.twilioAuthToken ? '[REDACTED]' : undefined,
-        geminiApiKey: updates.geminiApiKey ? '[REDACTED]' : undefined,
-        twilioTokenChanged,
-        geminiKeyChanged,
-        geminiApiKeyLength: geminiApiKey.length,
-        geminiApiKeyStartsWith: geminiApiKey.substring(0, 3),
-      });
-
-      await onSave(updates);
 
       setTwilioTokenChanged(false);
       setGeminiKeyChanged(false);
@@ -319,18 +323,19 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
-        <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
-          <div className="flex items-center gap-3">
-            <Sparkles className="text-green-700" size={24} />
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">Google Gemini Pro</h3>
-              <p className="text-slate-600 text-sm">Power AI image generation with Google Gemini Pro</p>
+      {isAdmin && (
+        <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+          <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+            <div className="flex items-center gap-3">
+              <Sparkles className="text-green-700" size={24} />
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Google Gemini Pro</h3>
+                <p className="text-slate-600 text-sm">Global AI configuration for all users</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4">
           <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-300">
             <input
               type="checkbox"
@@ -399,7 +404,8 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
             </p>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-end gap-3">
         {saveSuccess && (

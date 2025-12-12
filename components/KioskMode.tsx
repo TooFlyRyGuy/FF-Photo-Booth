@@ -3,7 +3,7 @@ import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight } from
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, Tenant } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, saveGeneratedImage, getTenantById } from '../services/backendService';
+import { sendSms, saveGeneratedImage, getTenantById, getGlobalSetting } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 
 interface KioskProps {
@@ -155,15 +155,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       return;
     }
 
-    if (!tenant.geminiEnabled || !tenant.geminiApiKey) {
-      setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
-      return;
-    }
-
     setView('processing');
     setErrorMsg('');
 
     try {
+      const geminiEnabled = await getGlobalSetting('gemini_enabled');
+      const geminiApiKey = await getGlobalSetting('gemini_api_key');
+
+      if (geminiEnabled !== 'true' || !geminiApiKey) {
+        setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
+        setView('camera');
+        return;
+      }
+
       // 1. Upload original image to Dropbox
       let originalUrl = capturedImage;
       if (tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
@@ -183,16 +187,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       // 2. Generate with Gemini
       console.log('🔑 Gemini API Key Check:', {
-        hasKey: !!tenant.geminiApiKey,
-        keyLength: tenant.geminiApiKey?.length,
-        keyPrefix: tenant.geminiApiKey?.substring(0, 5),
-        geminiEnabled: tenant.geminiEnabled,
+        hasKey: !!geminiApiKey,
+        keyLength: geminiApiKey?.length,
+        keyPrefix: geminiApiKey?.substring(0, 5),
+        geminiEnabled,
       });
 
       const genImage = await generateBoothImage(
         capturedImage,
         selectedPrompt.promptText,
-        tenant.geminiApiKey,
+        geminiApiKey,
         selectedPrompt.referenceImage,
         event.aspectRatio
       );

@@ -197,6 +197,76 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
   console.log('Tenant settings updated successfully');
 };
 
+export const getGlobalSettings = async (): Promise<Record<string, string>> => {
+  const { data, error } = await supabase
+    .from('global_settings')
+    .select('setting_key, setting_value');
+
+  if (error) {
+    console.error('Failed to fetch global settings:', error);
+    throw new Error(`Failed to fetch global settings: ${error.message}`);
+  }
+
+  const settings: Record<string, string> = {};
+  data?.forEach((row) => {
+    if (row.setting_value) {
+      settings[row.setting_key] = row.setting_value;
+    }
+  });
+
+  return settings;
+};
+
+export const getGlobalSetting = async (key: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('global_settings')
+    .select('setting_value')
+    .eq('setting_key', key)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`Failed to fetch global setting ${key}:`, error);
+    return null;
+  }
+
+  return data?.setting_value || null;
+};
+
+export const updateGlobalSettings = async (settings: Record<string, string>): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('Must be authenticated to update global settings');
+  }
+
+  const { data: tenantData } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!tenantData) {
+    throw new Error('Must be an admin to update global settings');
+  }
+
+  for (const [key, value] of Object.entries(settings)) {
+    const { error } = await supabase
+      .from('global_settings')
+      .update({
+        setting_value: value,
+        updated_at: new Date().toISOString()
+      })
+      .eq('setting_key', key);
+
+    if (error) {
+      console.error(`Failed to update global setting ${key}:`, error);
+      throw new Error(`Failed to update global setting ${key}: ${error.message}`);
+    }
+  }
+
+  console.log('Global settings updated successfully');
+};
+
 export const getEvents = async (): Promise<Event[]> => {
   const tenantId = await getUserTenantId();
 
