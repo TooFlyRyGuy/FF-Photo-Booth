@@ -7,6 +7,7 @@ import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 interface AdminProps {
   onLogout: () => void;
@@ -15,6 +16,16 @@ interface AdminProps {
 }
 
 type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings';
+
+const mockChartData = [
+  { name: 'Mon', images: 12 },
+  { name: 'Tue', images: 24 },
+  { name: 'Wed', images: 18 },
+  { name: 'Thu', images: 32 },
+  { name: 'Fri', images: 28 },
+  { name: 'Sat', images: 45 },
+  { name: 'Sun', images: 38 }
+];
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
