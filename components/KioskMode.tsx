@@ -242,7 +242,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     if (phoneNumber.length < 10 || !generatedImageUrl) return;
     setIsSending(true);
     try {
-      await sendSms(event.tenantId, phoneNumber, generatedImageUrl);
+      await sendSms(event.tenantId, phoneNumber, generatedImageUrl, event.id);
       setView('delivery');
       setTimeout(() => {
         resetKiosk();

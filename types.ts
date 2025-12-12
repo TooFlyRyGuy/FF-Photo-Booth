@@ -68,6 +68,7 @@ export interface Event {
   hideEventName?: boolean;
   startDatetime?: string;
   endDatetime?: string;
+  smsMessage?: string;
 }
 
 export interface GeneratedImage {

@@ -10,6 +10,7 @@ interface SmsRequest {
   tenantId: string;
   phoneNumber: string;
   imageUrl: string;
+  eventId?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -25,7 +26,7 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { tenantId, phoneNumber, imageUrl }: SmsRequest = await req.json();
+    const { tenantId, phoneNumber, imageUrl, eventId }: SmsRequest = await req.json();
 
     const { data: tenant, error: tenantError } = await supabase
       .from('tenants')
@@ -41,9 +42,29 @@ Deno.serve(async (req: Request) => {
       throw new Error('Twilio is not configured for this tenant');
     }
 
-    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\D/g, '')}`;
+    let messageTemplate = "Here's your AI-generated photo from {event_name}! {image_url}";
+    let eventName = 'your event';
 
-    const messageBody = `Here's your AI-generated photo! ${imageUrl}`;
+    if (eventId) {
+      const { data: event } = await supabase
+        .from('events')
+        .select('name, sms_message')
+        .eq('id', eventId)
+        .maybeSingle();
+
+      if (event) {
+        eventName = event.name;
+        if (event.sms_message) {
+          messageTemplate = event.sms_message;
+        }
+      }
+    }
+
+    const messageBody = messageTemplate
+      .replace('{event_name}', eventName)
+      .replace('{image_url}', imageUrl);
+
+    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\D/g, '')}`;
 
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${tenant.twilio_account_sid}/Messages.json`;
 

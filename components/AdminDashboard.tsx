@@ -755,6 +755,27 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </div>
 
+              {/* SMS Message Customization */}
+              <div className="pt-8 border-t border-slate-300">
+                <h3 className="text-lg font-bold text-black mb-2">SMS Message Settings</h3>
+                <p className="text-sm text-slate-600 mb-4">
+                  Customize the text message sent when photos are delivered via SMS
+                </p>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">SMS Message Template</label>
+                  <textarea
+                    value={editingEvent.smsMessage || "Here's your AI-generated photo from {event_name}! {image_url}"}
+                    onChange={(e) => setEditingEvent({...editingEvent, smsMessage: e.target.value})}
+                    rows={3}
+                    placeholder="Here's your AI-generated photo from {event_name}! {image_url}"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none resize-none"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
+                  </p>
+                </div>
+              </div>
+
               {/* Prompt Selection Section */}
               <div className="pt-8 border-t border-slate-300">
                 <div className="flex justify-between items-center mb-6">

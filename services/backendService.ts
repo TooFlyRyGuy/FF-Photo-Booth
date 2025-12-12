@@ -551,7 +551,7 @@ export const deletePrompt = async (promptId: string): Promise<void> => {
   }
 };
 
-export const sendSms = async (tenantId: string, phoneNumber: string, imageUrl: string): Promise<boolean> => {
+export const sendSms = async (tenantId: string, phoneNumber: string, imageUrl: string, eventId?: string): Promise<boolean> => {
   try {
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/twilio-send-sms`, {
       method: 'POST',
@@ -563,6 +563,7 @@ export const sendSms = async (tenantId: string, phoneNumber: string, imageUrl: s
         tenantId,
         phoneNumber,
         imageUrl,
+        eventId,
       }),
     });
 
