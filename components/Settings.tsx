@@ -27,6 +27,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
 
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiEnabled, setGeminiEnabled] = useState(false);
+  const [geminiModel, setGeminiModel] = useState(tenant.geminiModel || 'gemini-3-pro-image-preview');
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [geminiKeyChanged, setGeminiKeyChanged] = useState(false);
 
@@ -117,6 +118,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
         twilioAccountSid: twilioSid,
         twilioPhoneNumber: twilioPhone,
         twilioEnabled,
+        geminiModel,
       };
 
       if (twilioTokenChanged) {
@@ -318,6 +320,44 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
                 Twilio Console
               </a>
               . You'll need an active Twilio account with a phone number.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+        <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+          <div className="flex items-center gap-3">
+            <Sparkles className="text-green-700" size={24} />
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">AI Model Configuration</h3>
+              <p className="text-slate-600 text-sm">Configure which Gemini model to use for image generation</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-900 mb-2">Gemini Model</label>
+            <select
+              value={geminiModel}
+              onChange={(e) => setGeminiModel(e.target.value)}
+              className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+            >
+              <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Preview)</option>
+              <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+              <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+            </select>
+            <p className="text-xs text-slate-600 mt-2">
+              Select which Gemini model to use for AI image generation. Different models offer different capabilities and performance characteristics.
+            </p>
+          </div>
+
+          <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
+            <p className="text-sm text-green-800">
+              <strong>Recommended:</strong> Gemini 3 Pro Image is optimized for high-quality image generation with advanced capabilities.
             </p>
           </div>
         </div>

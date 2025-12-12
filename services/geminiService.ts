@@ -7,7 +7,8 @@ export const generateBoothImage = async (
   promptTemplate: string,
   apiKey: string,
   referenceImageBase64?: string,
-  aspectRatio?: AspectRatio
+  aspectRatio?: AspectRatio,
+  modelName?: string
 ): Promise<string> => {
   if (!apiKey || apiKey.trim() === '') {
     throw new Error("Gemini API Key missing. Please configure it in Settings.");
@@ -37,7 +38,7 @@ export const generateBoothImage = async (
   };
 
   try {
-    const model = 'gemini-2.5-flash-image';
+    const model = modelName || 'gemini-3-pro-image-preview';
 
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
 

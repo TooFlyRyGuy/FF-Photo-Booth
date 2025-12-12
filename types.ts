@@ -35,6 +35,7 @@ export interface Tenant {
   twilioEnabled?: boolean;
   geminiApiKey?: string;
   geminiEnabled?: boolean;
+  geminiModel?: string;
 }
 
 export interface Prompt {

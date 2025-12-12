@@ -63,6 +63,7 @@ const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
     twilioEnabled: tenantData.twilio_enabled || false,
     geminiApiKey: tenantData.gemini_api_key || undefined,
     geminiEnabled: tenantData.gemini_enabled || false,
+    geminiModel: tenantData.gemini_model || 'gemini-3-pro-image-preview',
     usage: {
       imagesUsed: limitsData.images_used,
       imagesLimit: limitsData.images_limit,
@@ -174,6 +175,9 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
   }
   if (updates.geminiEnabled !== undefined) {
     dbUpdates.gemini_enabled = updates.geminiEnabled;
+  }
+  if (updates.geminiModel !== undefined) {
+    dbUpdates.gemini_model = updates.geminiModel || 'gemini-3-pro-image-preview';
   }
 
   if (Object.keys(dbUpdates).length === 0) {
