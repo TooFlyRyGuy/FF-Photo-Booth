@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache } from '../services/backendService';
+import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft } from 'lucide-react';
 import Settings from './Settings';
@@ -54,15 +54,31 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     loadUserProfile();
   }, [user]);
 
-  const loadData = () => {
-    getTenant()
-      .then(setTenant)
-      .catch((error) => {
-        console.error('Failed to load tenant:', error);
-        alert('Failed to load your account data. Please try refreshing the page. If the issue persists, contact support.');
+  const loadData = async () => {
+    clearTenantCache();
+    clearPromptsCache();
+
+    try {
+      const tenantData = await getTenant();
+      setTenant(tenantData);
+
+      const [eventsData, promptsData] = await Promise.all([
+        getEvents(),
+        getPrompts()
+      ]);
+
+      setEvents(eventsData);
+      setAvailablePrompts(promptsData);
+
+      console.log('Loaded data successfully:', {
+        tenant: tenantData.id,
+        events: eventsData.length,
+        prompts: promptsData.length
       });
-    getEvents().then(setEvents).catch(console.error);
-    getPrompts().then(setAvailablePrompts).catch(console.error);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      alert(`Failed to load your data: ${error instanceof Error ? error.message : 'Unknown error'}. Please try refreshing the page.`);
+    }
   };
 
   const loadDashboardData = async () => {
