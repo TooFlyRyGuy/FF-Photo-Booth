@@ -360,9 +360,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
 
     return (
-      <div className="h-screen w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-          <div className="w-full h-full bg-gradient-to-br" style={{ backgroundImage: `linear-gradient(to bottom right, ${colors.primary}, ${colors.accent})` }}></div>
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="w-full h-full bg-gradient-to-br from-green-700 to-green-800"></div>
         </div>
 
         {event.logoUrl && !event.hideLogo && (
@@ -373,22 +373,17 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
         <div className="z-10 text-center space-y-4 md:space-y-6 px-4 max-w-2xl">
           <h1
-            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-transparent bg-clip-text"
-            style={{
-              backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-            }}
+            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-green-800"
           >
             EVENT NOT STARTED
           </h1>
-          <p className="text-xl md:text-2xl lg:text-3xl text-white font-light">
+          <p className="text-xl md:text-2xl lg:text-3xl text-slate-900 font-light">
             This event has not started yet
           </p>
           {startDate && (
-            <div className="mt-8 p-6 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-              <p className="text-white text-lg md:text-xl mb-2">Event starts:</p>
-              <p className="text-2xl md:text-3xl font-bold text-white">
+            <div className="mt-8 p-6 bg-white backdrop-blur-sm rounded-xl border-2 border-slate-300">
+              <p className="text-slate-900 text-lg md:text-xl mb-2">Event starts:</p>
+              <p className="text-2xl md:text-3xl font-bold text-green-800">
                 {startDate.toLocaleString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -403,7 +398,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           )}
         </div>
         <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
-          <button onClick={onExit} className="text-white/20 hover:text-white text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+          <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
     );
@@ -414,9 +409,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     const endDate = event.endDatetime ? new Date(event.endDatetime) : null;
 
     return (
-      <div className="h-screen w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-          <div className="w-full h-full bg-gradient-to-br" style={{ backgroundImage: `linear-gradient(to bottom right, ${colors.primary}, ${colors.accent})` }}></div>
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="w-full h-full bg-gradient-to-br from-green-700 to-green-800"></div>
         </div>
 
         {event.logoUrl && !event.hideLogo && (
@@ -427,22 +422,17 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
         <div className="z-10 text-center space-y-4 md:space-y-6 px-4 max-w-2xl">
           <h1
-            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-transparent bg-clip-text"
-            style={{
-              backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-            }}
+            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-green-800"
           >
             EVENT HAS ENDED
           </h1>
-          <p className="text-xl md:text-2xl lg:text-3xl text-white font-light">
+          <p className="text-xl md:text-2xl lg:text-3xl text-slate-900 font-light">
             This event has concluded
           </p>
           {endDate && (
-            <div className="mt-8 p-6 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-              <p className="text-white text-lg md:text-xl mb-2">Event ended:</p>
-              <p className="text-2xl md:text-3xl font-bold text-white">
+            <div className="mt-8 p-6 bg-white backdrop-blur-sm rounded-xl border-2 border-slate-300">
+              <p className="text-slate-900 text-lg md:text-xl mb-2">Event ended:</p>
+              <p className="text-2xl md:text-3xl font-bold text-green-800">
                 {endDate.toLocaleString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -455,12 +445,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
               </p>
             </div>
           )}
-          <p className="text-lg text-white/80 mt-6">
+          <p className="text-lg text-slate-700 mt-6">
             Thank you for participating!
           </p>
         </div>
         <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
-          <button onClick={onExit} className="text-white/20 hover:text-white text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+          <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
     );
@@ -474,9 +464,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     return (
       <div
         onClick={() => setView('prompt-select')}
-        className="h-screen w-full bg-black relative flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+        className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center cursor-pointer overflow-hidden"
       >
-        <div className="absolute inset-0 opacity-40">
+        <div className="absolute inset-0 opacity-20">
            <img src={backgroundImage} className="w-full h-full object-cover animate-pulse-fast" alt="Background" />
         </div>
 
@@ -488,25 +478,20 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
         {!event.hideEventName && (
           <div className="absolute top-4 right-4 md:top-8 md:right-8 z-20">
-            <h2 className="text-lg md:text-3xl font-bold text-white drop-shadow-lg">{event.name}</h2>
+            <h2 className="text-lg md:text-3xl font-bold text-slate-900 drop-shadow-sm">{event.name}</h2>
           </div>
         )}
 
         <div className="z-10 text-center space-y-4 md:space-y-6 animate-bounce px-4">
           <h1
-            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-transparent bg-clip-text"
-            style={{
-              backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-            }}
+            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-green-800"
           >
             TAP TO START
           </h1>
-          <p className="text-base md:text-xl lg:text-2xl text-white font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
+          <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
         </div>
         <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
-           <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-white/20 hover:text-white text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+           <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
     );
@@ -515,14 +500,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   // 2. PROMPT SELECT
   if (view === 'prompt-select') {
     return (
-      <div className="h-screen w-full bg-kiosk-bg p-4 md:p-8 flex flex-col">
-        <h2 className="text-2xl md:text-4xl font-display text-white mb-4 md:mb-8 text-center">Choose Your Style</h2>
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 p-4 md:p-8 flex flex-col">
+        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-8 text-center">Choose Your Style</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 flex-1 overflow-auto no-scrollbar">
           {event.prompts.map(prompt => (
             <button
               key={prompt.id}
               onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
-              className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-transparent active:border-kiosk-accent hover:border-kiosk-accent transition-all transform active:scale-95 hover:scale-105 min-h-[150px]"
+              className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 active:border-green-700 hover:border-green-700 transition-all transform active:scale-95 hover:scale-105 min-h-[150px]"
             >
               <img src={prompt.previewImage} alt={prompt.name} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-3 md:p-6">
@@ -532,7 +517,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             </button>
           ))}
         </div>
-        <button onClick={() => setView('attract')} className="mt-4 md:mt-8 text-gray-500 self-center py-2 px-4">Cancel</button>
+        <button onClick={() => setView('attract')} className="mt-4 md:mt-8 text-slate-600 hover:text-slate-900 self-center py-2 px-4">Cancel</button>
       </div>
     );
   }
@@ -564,7 +549,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         )}
 
         <div className="absolute bottom-6 md:bottom-10 z-40 flex gap-4 md:gap-8 items-center">
-           <button onClick={() => setView('prompt-select')} className="bg-white/10 backdrop-blur text-white px-4 py-3 md:p-4 rounded-full hover:bg-white/20 text-sm md:text-base min-h-[44px]">
+           <button onClick={() => setView('prompt-select')} className="bg-white/90 backdrop-blur text-slate-900 px-4 py-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 text-sm md:text-base min-h-[44px] font-semibold">
              Back
            </button>
            <button
@@ -573,8 +558,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
              className="h-16 w-16 md:h-24 md:w-24 rounded-full border-4 md:border-8 active:scale-95 transition-transform"
              style={{
                backgroundColor: 'white',
-               borderColor: colors.primary,
-               boxShadow: `0 0 30px ${colors.primary}80`,
+               borderColor: '#15803d',
+               boxShadow: `0 0 30px rgba(21, 128, 61, 0.5)`,
              }}
            />
         </div>
@@ -586,21 +571,21 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   if (view === 'processing') {
     const colors = getBrandingColors();
     return (
-      <div className="h-screen w-full bg-kiosk-bg flex flex-col items-center justify-center text-white space-y-4 md:space-y-8 px-4">
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col items-center justify-center text-slate-900 space-y-4 md:space-y-8 px-4">
         <div className="relative h-32 w-32 md:h-48 md:w-48">
           <div
             className="absolute inset-0 rounded-full border-4 animate-spin"
             style={{
-              borderTopColor: colors.accent,
+              borderTopColor: '#15803d',
               borderRightColor: 'transparent',
-              borderBottomColor: colors.primary,
+              borderBottomColor: '#166534',
               borderLeftColor: 'transparent',
             }}
           />
           <img src={capturedImage || ''} className="absolute inset-2 rounded-full object-cover opacity-50 grayscale" alt="original" />
         </div>
-        <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center">Creating Magic...</h2>
-        <p className="text-sm md:text-base text-gray-400 text-center">Applying {selectedPrompt?.name} style</p>
+        <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center text-green-800">Creating Magic...</h2>
+        <p className="text-sm md:text-base text-slate-600 text-center">Applying {selectedPrompt?.name} style</p>
       </div>
     );
   }
@@ -609,26 +594,25 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   if (view === 'review') {
       const colors = getBrandingColors();
       return (
-          <div className="h-screen w-full bg-kiosk-bg flex flex-col items-center p-3 md:p-8 overflow-hidden">
-              <h2 className="text-xl md:text-3xl text-white font-display mb-2 md:mb-4 flex-shrink-0">Look Good?</h2>
+          <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col items-center p-3 md:p-8 overflow-hidden">
+              <h2 className="text-xl md:text-3xl text-slate-900 font-display mb-2 md:mb-4 flex-shrink-0">Look Good?</h2>
               {errorMsg && (
-                <div className="w-full max-w-2xl mb-2 md:mb-4 p-2 md:p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-200 text-center text-sm md:text-base flex-shrink-0">
+                <div className="w-full max-w-2xl mb-2 md:mb-4 p-2 md:p-4 bg-red-100 border-2 border-red-300 rounded-lg text-red-800 text-center text-sm md:text-base flex-shrink-0">
                   {errorMsg}
                 </div>
               )}
-              <div className="w-full max-w-2xl bg-black rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-gray-800 flex-shrink min-h-0" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+              <div className="w-full max-w-2xl bg-white rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-300 flex-shrink min-h-0" style={{ maxHeight: 'calc(100vh - 180px)' }}>
                 <img src={capturedImage || ''} className="w-full h-full object-contain" alt="captured" />
               </div>
               <div className="flex gap-2 md:gap-6 mt-3 md:mt-8 w-full max-w-2xl flex-shrink-0">
-                  <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full bg-gray-800 text-white hover:bg-gray-700 active:bg-gray-700 font-bold text-sm md:text-lg min-h-[44px]">
+                  <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-50 active:bg-slate-50 font-bold text-sm md:text-lg min-h-[44px]">
                     <RefreshCw size={18} className="md:w-6 md:h-6" /> Retake
                   </button>
                   <button
                     onClick={handleGenerate}
-                    className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full text-white font-bold text-sm md:text-lg shadow-lg transition-all min-h-[44px]"
+                    className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full text-white font-bold text-sm md:text-lg shadow-lg transition-all min-h-[44px] bg-green-700 hover:bg-green-800"
                     style={{
-                      backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
-                      boxShadow: `0 10px 25px ${colors.accent}50`,
+                      boxShadow: `0 10px 25px rgba(21, 128, 61, 0.3)`,
                     }}
                   >
                     Generate AI <ArrowRight size={18} className="md:w-6 md:h-6" />
@@ -642,46 +626,45 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   if (view === 'result' || view === 'delivery') {
     const colors = getBrandingColors();
     return (
-      <div className="h-screen w-full bg-kiosk-bg flex flex-col lg:flex-row overflow-hidden">
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
         {/* Image Side */}
-        <div className="lg:w-2/3 h-[35vh] lg:h-full bg-black p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0">
+        <div className="lg:w-2/3 h-[35vh] lg:h-full bg-white p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0">
           <img
             src={finalImage || ''}
-            className="max-h-full max-w-full rounded-lg md:rounded-xl shadow-2xl border border-gray-800 touch-auto select-auto"
+            className="max-h-full max-w-full rounded-lg md:rounded-xl shadow-2xl border-2 border-slate-300 touch-auto select-auto"
             alt="Final AI"
             style={{ WebkitUserSelect: 'auto', userSelect: 'auto', WebkitTouchCallout: 'default' }}
             onContextMenu={(e) => e.stopPropagation()}
           />
-          <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md pointer-events-none lg:hidden">
+          <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-slate-900/80 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md pointer-events-none lg:hidden">
             Long-press to save
           </div>
         </div>
 
         {/* Input Side */}
-        <div className="lg:w-1/3 flex-1 lg:h-full bg-gray-900 p-3 md:p-6 lg:p-12 flex flex-col justify-center space-y-3 md:space-y-6 lg:space-y-8 relative overflow-y-auto">
+        <div className="lg:w-1/3 flex-1 lg:h-full bg-white p-3 md:p-6 lg:p-12 flex flex-col justify-center space-y-3 md:space-y-6 lg:space-y-8 relative overflow-y-auto border-l-2 border-slate-300">
 
            {view === 'delivery' ? (
              <div className="text-center space-y-3 md:space-y-6">
-                <div className="h-12 w-12 md:h-24 md:w-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-[0_0_20px_rgba(34,197,94,0.5)]">
+                <div className="h-12 w-12 md:h-24 md:w-24 bg-green-700 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-lg shadow-green-700/50">
                     <Check size={24} className="md:w-12 md:h-12 text-white" />
                 </div>
-                <h2 className="text-xl md:text-4xl text-white font-bold">Sent!</h2>
-                <p className="text-sm md:text-base text-gray-400">Check your phone for the link.</p>
-                <p className="text-xs md:text-sm text-gray-500 mt-4 md:mt-12">Closing in 5 seconds...</p>
+                <h2 className="text-xl md:text-4xl text-slate-900 font-bold">Sent!</h2>
+                <p className="text-sm md:text-base text-slate-600">Check your phone for the link.</p>
+                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-12">Closing in 5 seconds...</p>
              </div>
            ) : (
              <>
                 <div>
-                    <h2 className="text-xl md:text-3xl lg:text-4xl text-white font-display font-bold mb-1 md:mb-2">Get Your Photo</h2>
-                    <p className="text-xs md:text-base text-gray-400">Download now or receive via SMS.</p>
+                    <h2 className="text-xl md:text-3xl lg:text-4xl text-slate-900 font-display font-bold mb-1 md:mb-2">Get Your Photo</h2>
+                    <p className="text-xs md:text-base text-slate-600">Download now or receive via SMS.</p>
                 </div>
 
                 <button
                     onClick={handleDownload}
-                    className="w-full text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 min-h-[44px]"
+                    className="w-full text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 min-h-[44px] bg-green-700 hover:bg-green-800"
                     style={{
-                      backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
-                      boxShadow: `0 10px 25px ${colors.accent}50`,
+                      boxShadow: `0 10px 25px rgba(21, 128, 61, 0.3)`,
                     }}
                 >
                     <Download size={18} className="md:w-6 md:h-6" /> Download Now
@@ -689,36 +672,36 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
                 <div className="relative py-1">
                     <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-700"></div>
+                        <div className="w-full border-t border-slate-300"></div>
                     </div>
                     <div className="relative flex justify-center text-xs">
-                        <span className="px-2 md:px-4 bg-gray-900 text-gray-500">or send via SMS</span>
+                        <span className="px-2 md:px-4 bg-white text-slate-500">or send via SMS</span>
                     </div>
                 </div>
 
                 <div className="space-y-1.5 md:space-y-4">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Phone Number</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Phone Number</label>
                     <input
                         type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="(555) 123-4567"
-                        className="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-white focus:border-kiosk-accent focus:outline-none placeholder-gray-600 font-mono min-h-[44px]"
+                        className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:border-green-700 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
                     />
                 </div>
 
                 <button
                     onClick={handleSendSms}
                     disabled={isSending || phoneNumber.length < 3}
-                    className="w-full bg-white text-black font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-gray-200 active:bg-gray-200 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
+                    className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                 >
                     {isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
                 </button>
 
                 {generatedImageUrl && !generatedImageUrl.startsWith('data:') && generatedImageUrl.length < 500 && (
-                  <div className="pt-2 md:pt-8 border-t border-gray-800">
-                      <div className="flex items-center gap-2 md:gap-4 bg-gray-800 p-2 md:p-4 rounded-xl">
-                          <div className="bg-white p-1 md:p-2 rounded-lg flex-shrink-0">
+                  <div className="pt-2 md:pt-8 border-t border-slate-300">
+                      <div className="flex items-center gap-2 md:gap-4 bg-slate-50 p-2 md:p-4 rounded-xl border-2 border-slate-300">
+                          <div className="bg-white p-1 md:p-2 rounded-lg flex-shrink-0 border border-slate-300">
                               <QRCodeSVG
                                 value={generatedImageUrl}
                                 size={50}
@@ -728,14 +711,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                               />
                           </div>
                           <div>
-                              <p className="text-xs md:text-base text-white font-bold">Scan for Instant Access</p>
-                              <p className="text-xs text-gray-500">No phone number required</p>
+                              <p className="text-xs md:text-base text-slate-900 font-bold">Scan for Instant Access</p>
+                              <p className="text-xs text-slate-600">No phone number required</p>
                           </div>
                       </div>
                   </div>
                 )}
 
-                <button onClick={resetKiosk} className="text-center text-xs md:text-base text-gray-600 hover:text-gray-400 active:text-gray-400 py-2">
+                <button onClick={resetKiosk} className="text-center text-xs md:text-base text-slate-600 hover:text-slate-900 active:text-slate-900 py-2">
                     Skip & Start Over
                 </button>
              </>

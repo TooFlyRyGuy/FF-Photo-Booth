@@ -148,36 +148,36 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-        <div className="bg-slate-900/50 px-6 py-4 border-b border-slate-700">
+      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+        <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
           <div className="flex items-center gap-3">
             <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
-              <path d="M12 9.6L24 16.8L12 24L0 16.8L12 9.6Z" fill="#0061FF"/>
-              <path d="M0 24L12 31.2L24 24L12 16.8L0 24Z" fill="#0061FF"/>
-              <path d="M12 31.2L24 38.4L36 31.2L24 24L12 31.2Z" fill="#0061FF"/>
-              <path d="M24 24L36 31.2L48 24L36 16.8L24 24Z" fill="#0061FF"/>
-              <path d="M24 16.8L36 9.6L48 16.8L36 24L24 16.8Z" fill="#0061FF"/>
+              <path d="M12 9.6L24 16.8L12 24L0 16.8L12 9.6Z" fill="#15803d"/>
+              <path d="M0 24L12 31.2L24 24L12 16.8L0 24Z" fill="#15803d"/>
+              <path d="M12 31.2L24 38.4L36 31.2L24 24L12 31.2Z" fill="#15803d"/>
+              <path d="M24 24L36 31.2L48 24L36 16.8L24 24Z" fill="#15803d"/>
+              <path d="M24 16.8L36 9.6L48 16.8L36 24L24 16.8Z" fill="#15803d"/>
             </svg>
             <div>
-              <h3 className="text-xl font-bold">Dropbox Integration</h3>
-              <p className="text-slate-400 text-sm">Connect Dropbox to automatically backup all photos</p>
+              <h3 className="text-xl font-bold text-slate-900">Dropbox Integration</h3>
+              <p className="text-slate-600 text-sm">Connect Dropbox to automatically backup all photos</p>
             </div>
           </div>
         </div>
 
         <div className="p-6 space-y-4">
           {dropboxConnected ? (
-            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center justify-between">
+            <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Check className="text-green-400" size={24} />
+                <Check className="text-green-700" size={24} />
                 <div>
-                  <p className="font-medium text-green-400">Connected to Dropbox</p>
-                  <p className="text-sm text-slate-400">Your photos will be automatically backed up</p>
+                  <p className="font-medium text-green-800">Connected to Dropbox</p>
+                  <p className="text-sm text-slate-600">Your photos will be automatically backed up</p>
                 </div>
               </div>
               <button
                 onClick={handleDisconnectDropbox}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-medium transition-colors"
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 Disconnect
               </button>
@@ -185,11 +185,11 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
           ) : (
             <>
               <div className="text-center py-8">
-                <p className="text-slate-300 mb-6">Connect your Dropbox account to automatically backup all event photos.</p>
+                <p className="text-slate-700 mb-6">Connect your Dropbox account to automatically backup all event photos.</p>
                 <button
                   onClick={handleConnectDropbox}
                   disabled={isConnectingDropbox}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 px-8 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors mx-auto"
+                  className="bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:text-slate-500 text-white px-8 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors mx-auto"
                 >
                   {isConnectingDropbox ? (
                     <>
@@ -211,8 +211,8 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
                 </button>
               </div>
 
-              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-sm text-blue-300">
+              <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
+                <p className="text-sm text-green-800">
                   <strong>Simple Setup:</strong> Click the button above to log in with your Dropbox credentials. A folder will be automatically created for each event to organize all photos.
                 </p>
               </div>
@@ -221,8 +221,8 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         </div>
       </div>
 
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-        <div className="bg-slate-900/50 px-6 py-4 border-b border-slate-700">
+      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+        <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
           <div className="flex items-center gap-3">
             <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
               <circle cx="24" cy="24" r="24" fill="#F22F46"/>
@@ -232,84 +232,84 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
               <circle cx="30" cy="30" r="3.5" fill="white"/>
             </svg>
             <div>
-              <h3 className="text-xl font-bold">Twilio Integration</h3>
-              <p className="text-slate-400 text-sm">Send photos via SMS to guests using Twilio</p>
+              <h3 className="text-xl font-bold text-slate-900">Twilio Integration</h3>
+              <p className="text-slate-600 text-sm">Send photos via SMS to guests using Twilio</p>
             </div>
           </div>
         </div>
 
         <div className="p-6 space-y-4">
-          <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-300">
             <input
               type="checkbox"
               checked={twilioEnabled}
               onChange={(e) => setTwilioEnabled(e.target.checked)}
-              className="w-5 h-5 rounded accent-green-500"
+              className="w-5 h-5 rounded accent-green-700"
               id="twilio-enabled"
             />
             <label htmlFor="twilio-enabled" className="flex-1 cursor-pointer">
-              <span className="font-medium">Enable SMS Delivery</span>
-              <p className="text-sm text-slate-400">Allow guests to receive photos via text message</p>
+              <span className="font-medium text-slate-900">Enable SMS Delivery</span>
+              <p className="text-sm text-slate-600">Allow guests to receive photos via text message</p>
             </label>
-            {twilioEnabled && <Check className="text-green-400" size={20} />}
+            {twilioEnabled && <Check className="text-green-700" size={20} />}
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Account SID</label>
+            <label className="block text-sm font-medium text-slate-900 mb-2">Account SID</label>
             <input
               type="text"
               value={twilioSid}
               onChange={(e) => setTwilioSid(e.target.value)}
               placeholder="AC..."
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:border-green-500"
+              className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Auth Token</label>
+            <label className="block text-sm font-medium text-slate-900 mb-2">Auth Token</label>
             <div className="relative">
               <input
                 type={showTwilioToken ? 'text' : 'password'}
                 value={twilioToken}
                 onChange={(e) => handleTwilioTokenChange(e.target.value)}
                 placeholder="Enter your Twilio auth token"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-500"
+                className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
               />
               <button
                 type="button"
                 onClick={() => setShowTwilioToken(!showTwilioToken)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
               >
                 {showTwilioToken ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {twilioToken.startsWith('•') && (
-              <p className="text-xs text-green-400 mt-2">✓ Token is saved (hidden for security)</p>
+              <p className="text-xs text-green-700 mt-2">✓ Token is saved (hidden for security)</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Phone Number</label>
+            <label className="block text-sm font-medium text-slate-900 mb-2">Phone Number</label>
             <input
               type="tel"
               value={twilioPhone}
               onChange={(e) => setTwilioPhone(e.target.value)}
               placeholder="+1234567890"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:outline-none focus:border-green-500"
+              className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
             />
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-slate-600 mt-2">
               Use E.164 format (e.g., +12125551234)
             </p>
           </div>
 
-          <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <p className="text-sm text-blue-300">
+          <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
+            <p className="text-sm text-green-800">
               <strong>Note:</strong> Get your credentials from the{' '}
               <a
                 href="https://console.twilio.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-blue-200"
+                className="underline hover:text-green-700"
               >
                 Twilio Console
               </a>
@@ -319,54 +319,54 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         </div>
       </div>
 
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-        <div className="bg-slate-900/50 px-6 py-4 border-b border-slate-700">
+      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+        <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
           <div className="flex items-center gap-3">
-            <Sparkles className="text-amber-400" size={24} />
+            <Sparkles className="text-green-700" size={24} />
             <div>
-              <h3 className="text-xl font-bold">Google Gemini Pro</h3>
-              <p className="text-slate-400 text-sm">Power AI image generation with Google Gemini Pro</p>
+              <h3 className="text-xl font-bold text-slate-900">Google Gemini Pro</h3>
+              <p className="text-slate-600 text-sm">Power AI image generation with Google Gemini Pro</p>
             </div>
           </div>
         </div>
 
         <div className="p-6 space-y-4">
-          <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-300">
             <input
               type="checkbox"
               checked={geminiEnabled}
               onChange={(e) => setGeminiEnabled(e.target.checked)}
-              className="w-5 h-5 rounded accent-amber-500"
+              className="w-5 h-5 rounded accent-green-700"
               id="gemini-enabled"
             />
             <label htmlFor="gemini-enabled" className="flex-1 cursor-pointer">
-              <span className="font-medium">Enable Gemini Pro API</span>
-              <p className="text-sm text-slate-400">Use Google Gemini for AI image generation</p>
+              <span className="font-medium text-slate-900">Enable Gemini Pro API</span>
+              <p className="text-sm text-slate-600">Use Google Gemini for AI image generation</p>
             </label>
-            {geminiEnabled && <Check className="text-green-400" size={20} />}
+            {geminiEnabled && <Check className="text-green-700" size={20} />}
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">API Key</label>
+            <label className="block text-sm font-medium text-slate-900 mb-2">API Key</label>
             <div className="relative">
               <input
                 type={showGeminiKey ? 'text' : 'password'}
                 value={geminiApiKey}
                 onChange={(e) => handleGeminiKeyChange(e.target.value)}
                 placeholder="Enter your Gemini API key"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-amber-500"
+                className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
               />
               <button
                 type="button"
                 onClick={() => setShowGeminiKey(!showGeminiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
               >
                 {showGeminiKey ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-slate-600 mt-2">
               {geminiApiKey.startsWith('•') ? (
-                <span className="text-green-400">✓ API key is saved (hidden for security)</span>
+                <span className="text-green-700">✓ API key is saved (hidden for security)</span>
               ) : (
                 <>
                   Get your API key from{' '}
@@ -374,7 +374,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
                     href="https://aistudio.google.com/app/apikey"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-amber-400 hover:underline"
+                    className="text-green-700 hover:underline"
                   >
                     Google AI Studio
                   </a>
@@ -383,15 +383,15 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
             </p>
           </div>
 
-          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <p className="text-sm text-amber-300">
+          <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
+            <p className="text-sm text-green-800">
               <strong>Note:</strong> Gemini Pro provides advanced AI capabilities for generating high-quality images.
               You can get started for free at{' '}
               <a
                 href="https://ai.google.dev/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-amber-200"
+                className="underline hover:text-green-700"
               >
                 Google AI for Developers
               </a>
@@ -403,7 +403,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
 
       <div className="flex items-center justify-end gap-3">
         {saveSuccess && (
-          <div className="flex items-center gap-2 text-green-400 animate-fade-in">
+          <div className="flex items-center gap-2 text-green-700 animate-fade-in">
             <Check size={18} />
             <span className="text-sm font-medium">Settings saved successfully</span>
           </div>
@@ -411,7 +411,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave }) => {
         <button
           onClick={handleSaveSettings}
           disabled={isSaving}
-          className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+          className="bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
         >
           {isSaving ? (
             <>

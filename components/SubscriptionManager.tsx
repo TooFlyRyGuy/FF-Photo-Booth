@@ -80,13 +80,13 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   const getTierIcon = (tierId: string) => {
     switch (tierId) {
       case 'free':
-        return <Zap size={24} className="text-slate-400" />;
+        return <Zap size={24} className="text-slate-500" />;
       case 'starter':
-        return <CreditCard size={24} className="text-blue-400" />;
+        return <CreditCard size={24} className="text-green-700" />;
       case 'professional':
-        return <Crown size={24} className="text-purple-400" />;
+        return <Crown size={24} className="text-green-800" />;
       case 'enterprise':
-        return <Crown size={24} className="text-yellow-400" />;
+        return <Crown size={24} className="text-green-900" />;
       default:
         return <Zap size={24} />;
     }
@@ -95,15 +95,15 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   const getTierColor = (tierId: string) => {
     switch (tierId) {
       case 'free':
-        return 'border-slate-700';
+        return 'border-slate-300';
       case 'starter':
-        return 'border-blue-500';
+        return 'border-green-700/30';
       case 'professional':
-        return 'border-purple-500';
+        return 'border-green-700/30';
       case 'enterprise':
-        return 'border-yellow-500';
+        return 'border-green-700/30';
       default:
-        return 'border-slate-700';
+        return 'border-slate-300';
     }
   };
 
@@ -113,24 +113,24 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className="text-slate-900 text-xl">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b-2 border-slate-300 sticky top-0 bg-white z-10">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-white">Choose Your Plan</h2>
-              <p className="text-slate-400 mt-1">Select the perfect plan for your needs</p>
+              <h2 className="text-2xl font-bold text-slate-900">Choose Your Plan</h2>
+              <p className="text-slate-600 mt-1">Select the perfect plan for your needs</p>
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white text-2xl"
+              className="text-slate-600 hover:text-slate-900 text-2xl"
             >
               ×
             </button>
@@ -141,8 +141,8 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
               onClick={() => setBillingCycle('monthly')}
               className={`px-6 py-2 rounded-lg font-medium transition-all ${
                 billingCycle === 'monthly'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-green-700 hover:bg-green-800 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900'
               }`}
             >
               Monthly
@@ -151,12 +151,12 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
               onClick={() => setBillingCycle('yearly')}
               className={`px-6 py-2 rounded-lg font-medium transition-all ${
                 billingCycle === 'yearly'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-green-700 hover:bg-green-800 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900'
               }`}
             >
               Yearly
-              <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+              <span className="ml-2 text-xs bg-green-700/20 text-green-800 px-2 py-0.5 rounded-full">
                 Save 15%
               </span>
             </button>
@@ -164,17 +164,17 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
         </div>
 
         <div className="p-6">
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6 flex items-start gap-3">
-            <AlertCircle size={20} className="text-yellow-500 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-yellow-200">
+          <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-slate-900">
               <p className="font-medium mb-1">Payment Setup Required</p>
-              <p className="text-yellow-300/80">
+              <p className="text-slate-700">
                 To enable subscriptions, configure Stripe by visiting{' '}
                 <a
                   href="https://bolt.new/setup/stripe"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline hover:text-yellow-200"
+                  className="underline hover:text-green-800"
                 >
                   the setup guide
                 </a>
@@ -190,27 +190,27 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
               return (
                 <div
                   key={tier.id}
-                  className={`bg-slate-800 border-2 ${getTierColor(tier.id)} rounded-xl p-6 flex flex-col ${
-                    isCurrentTier ? 'ring-2 ring-blue-500/50' : ''
+                  className={`bg-white border-2 ${getTierColor(tier.id)} rounded-xl p-6 flex flex-col ${
+                    isCurrentTier ? 'ring-2 ring-green-700/50' : ''
                   }`}
                 >
                   <div className="flex items-center justify-between mb-4">
                     {getTierIcon(tier.id)}
                     {isCurrentTier && (
-                      <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">
+                      <span className="text-xs bg-green-700/20 text-green-800 px-2 py-1 rounded-full">
                         Current Plan
                       </span>
                     )}
                   </div>
 
-                  <h3 className="text-xl font-bold text-white mb-2">{tier.name}</h3>
-                  <p className="text-slate-400 text-sm mb-4 flex-grow">{tier.description}</p>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">{tier.name}</h3>
+                  <p className="text-slate-600 text-sm mb-4 flex-grow">{tier.description}</p>
 
                   <div className="mb-6">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-white">{formatPrice(price)}</span>
+                      <span className="text-3xl font-bold text-slate-900">{formatPrice(price)}</span>
                       {price > 0 && (
-                        <span className="text-slate-400 text-sm">
+                        <span className="text-slate-600 text-sm">
                           /{billingCycle === 'monthly' ? 'mo' : 'yr'}
                         </span>
                       )}
@@ -223,33 +223,33 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                   </div>
 
                   <ul className="space-y-3 mb-6">
-                    <li className="flex items-start gap-2 text-sm text-slate-300">
-                      <Check size={16} className="text-green-400 flex-shrink-0 mt-0.5" />
+                    <li className="flex items-start gap-2 text-sm text-slate-700">
+                      <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
                       {tier.images_limit === 999999 ? 'Unlimited' : tier.images_limit} images/month
                     </li>
-                    <li className="flex items-start gap-2 text-sm text-slate-300">
-                      <Check size={16} className="text-green-400 flex-shrink-0 mt-0.5" />
+                    <li className="flex items-start gap-2 text-sm text-slate-700">
+                      <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
                       {tier.sms_limit === 999999 ? 'Unlimited' : tier.sms_limit} SMS/month
                     </li>
-                    <li className="flex items-start gap-2 text-sm text-slate-300">
-                      <Check size={16} className="text-green-400 flex-shrink-0 mt-0.5" />
+                    <li className="flex items-start gap-2 text-sm text-slate-700">
+                      <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
                       {tier.events_limit === 999 ? 'Unlimited' : tier.events_limit} active events
                     </li>
                     {tier.custom_branding && (
-                      <li className="flex items-start gap-2 text-sm text-slate-300">
-                        <Check size={16} className="text-green-400 flex-shrink-0 mt-0.5" />
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
                         Custom branding
                       </li>
                     )}
                     {tier.analytics && (
-                      <li className="flex items-start gap-2 text-sm text-slate-300">
-                        <Check size={16} className="text-green-400 flex-shrink-0 mt-0.5" />
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
                         Advanced analytics
                       </li>
                     )}
                     {tier.priority_support && (
-                      <li className="flex items-start gap-2 text-sm text-slate-300">
-                        <Check size={16} className="text-green-400 flex-shrink-0 mt-0.5" />
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
                         Priority support
                       </li>
                     )}
@@ -260,8 +260,8 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                     disabled={isCurrentTier}
                     className={`w-full py-3 rounded-lg font-medium transition-all ${
                       isCurrentTier
-                        ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-500 text-white'
+                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                        : 'bg-green-700 hover:bg-green-800 text-white'
                     }`}
                   >
                     {isCurrentTier ? 'Current Plan' : tier.id === 'free' ? 'Get Started' : 'Upgrade'}

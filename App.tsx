@@ -109,10 +109,10 @@ const App: React.FC = () => {
   // LOADING STATE
   if (view === 'loading') {
     return (
-      <div className="h-screen w-full bg-slate-950 flex items-center justify-center">
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-white text-xl">Loading Event...</p>
+          <div className="w-16 h-16 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-slate-900 text-xl">Loading Event...</p>
         </div>
       </div>
     );

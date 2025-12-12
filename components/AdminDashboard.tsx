@@ -239,22 +239,22 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
-  if (!tenant) return <div className="flex h-screen items-center justify-center text-white bg-slate-950">Loading Dashboard...</div>;
+  if (!tenant) return <div className="flex h-screen items-center justify-center text-slate-900 bg-slate-100">Loading Dashboard...</div>;
 
   const usagePercent = (tenant.usage.imagesUsed / tenant.usage.imagesLimit) * 100;
 
   return (
-    <div className="flex h-screen bg-slate-900 text-slate-100 font-sans">
+    <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col">
+      <aside className="w-64 bg-white border-r border-slate-300 flex flex-col">
         <div className="p-6">
-          <h1 className="text-2xl font-bold tracking-tighter text-blue-500 flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tighter text-green-700 flex items-center gap-2">
             <Camera size={24} />
             Fun Frame AI
           </h1>
           {userProfile && (
             <div className="mt-3 text-xs">
-              <p className="text-slate-400 truncate">{userProfile.email}</p>
+              <p className="text-slate-600 truncate">{userProfile.email}</p>
               <p className="text-slate-500 mt-1 uppercase tracking-widest">
                 {userProfile.subscription_tier || tenant.tier} PLAN
               </p>
@@ -265,45 +265,45 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         <nav className="flex-1 px-4 space-y-2">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-900 text-slate-400'}`}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
           >
             <LayoutDashboard size={20} />
             Overview
           </button>
           <button
             onClick={() => setActiveTab('events')}
-            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'events' || activeTab.includes('event') ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-900 text-slate-400'}`}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'events' || activeTab.includes('event') ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
           >
             <Calendar size={20} />
             Events
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-900 text-slate-400'}`}
+            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
           >
             <SettingsIcon size={20} />
             Settings
           </button>
         </nav>
 
-        <div className="p-4 border-t border-slate-800 space-y-4">
+        <div className="p-4 border-t border-slate-300 space-y-4">
           <div>
-            <div className="flex justify-between text-xs text-slate-400 mb-1">
+            <div className="flex justify-between text-xs text-slate-600 mb-1">
               <span>Credits</span>
               <span>{tenant.usage.imagesUsed} / {tenant.usage.imagesLimit}</span>
             </div>
-            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500" style={{ width: `${usagePercent}%` }}></div>
+            <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-full bg-green-700" style={{ width: `${usagePercent}%` }}></div>
             </div>
           </div>
           <button
             onClick={() => setShowSubscriptionModal(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg text-sm font-medium transition-all"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white rounded-lg text-sm font-medium transition-all"
           >
             <CreditCard size={16} />
             Manage Plan
           </button>
-          <button onClick={onLogout} className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300">
+          <button onClick={onLogout} className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700">
             <LogOut size={16} /> Sign Out
           </button>
         </div>
@@ -316,10 +316,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <header className="flex justify-between items-center mb-8">
-              <h2 className="text-3xl font-bold">Dashboard</h2>
-              <button 
+              <h2 className="text-3xl font-bold text-black">Dashboard</h2>
+              <button
                 onClick={handleCreateEvent}
-                className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2"
+                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2"
               >
                 <Plus size={16} /> New Event
               </button>
@@ -327,48 +327,48 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-slate-400 text-sm">Total Images</p>
-                    <h3 className="text-3xl font-bold mt-1">{tenant.usage.imagesUsed}</h3>
+                    <p className="text-slate-600 text-sm">Total Images</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">{tenant.usage.imagesUsed}</h3>
                   </div>
-                  <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg"><Camera size={20}/></div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg"><Camera size={20}/></div>
                 </div>
               </div>
-              <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-slate-400 text-sm">SMS Delivered</p>
-                    <h3 className="text-3xl font-bold mt-1">{tenant.usage.smsUsed}</h3>
+                    <p className="text-slate-600 text-sm">SMS Delivered</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">{tenant.usage.smsUsed}</h3>
                   </div>
-                  <div className="p-2 bg-green-500/20 text-green-400 rounded-lg"><MessageSquare size={20}/></div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg"><MessageSquare size={20}/></div>
                 </div>
               </div>
-              <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-slate-400 text-sm">Est. Revenue</p>
-                    <h3 className="text-3xl font-bold mt-1">$1,240</h3>
+                    <p className="text-slate-600 text-sm">Est. Revenue</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">$1,240</h3>
                   </div>
-                  <div className="p-2 bg-yellow-500/20 text-yellow-400 rounded-lg"><Zap size={20}/></div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg"><Zap size={20}/></div>
                 </div>
               </div>
             </div>
 
             {/* Chart */}
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 h-80">
-              <h3 className="text-lg font-semibold mb-4">Generation Activity</h3>
+            <div className="bg-white p-6 rounded-xl border-2 border-slate-300 h-80">
+              <h3 className="text-lg font-semibold mb-4 text-black">Generation Activity</h3>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={mockChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }}
-                    itemStyle={{ color: '#f8fafc' }}
+                  <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
+                  <XAxis dataKey="name" stroke="#475569" />
+                  <YAxis stroke="#475569" />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1' }}
+                    itemStyle={{ color: '#0f172a' }}
                   />
-                  <Bar dataKey="images" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="images" fill="#15803d" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -379,10 +379,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {activeTab === 'events' && (
           <div className="space-y-6">
              <header className="flex justify-between items-center mb-8">
-              <h2 className="text-3xl font-bold">Your Events</h2>
-              <button 
+              <h2 className="text-3xl font-bold text-black">Your Events</h2>
+              <button
                 onClick={handleCreateEvent}
-                className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2"
+                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2"
               >
                 <Plus size={16} /> Create Event
               </button>
@@ -390,13 +390,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
             <div className="grid gap-4">
               {events.map(event => (
-                <div key={event.id} className="bg-slate-800 p-6 rounded-xl border border-slate-700 flex justify-between items-center group hover:border-blue-500/50 transition-colors">
+                <div key={event.id} className="bg-white p-6 rounded-xl border-2 border-slate-300 flex justify-between items-center group hover:border-green-700/50 transition-colors">
                   <div>
-                    <h3 className="text-xl font-bold flex items-center gap-2">
+                    <h3 className="text-xl font-bold flex items-center gap-2 text-black">
                       {event.name}
-                      {event.isActive && <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">Active</span>}
+                      {event.isActive && <span className="text-xs bg-green-700/20 text-green-800 px-2 py-0.5 rounded-full">Active</span>}
                     </h3>
-                    <p className="text-slate-400 text-sm mt-1">{event.city} • {event.date}</p>
+                    <p className="text-slate-600 text-sm mt-1">{event.city} • {event.date}</p>
                     <p className="text-slate-500 text-xs mt-1 flex items-center gap-2">
                       <ExternalLink size={12} />
                       <span className="font-mono">/?kiosk={event.passcode}</span>
@@ -405,33 +405,33 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => handleViewAnalytics(event)}
-                      className="px-4 py-2 rounded-md border border-purple-600 text-purple-400 hover:bg-purple-600/10 text-sm font-medium flex items-center gap-2"
+                      className="px-4 py-2 rounded-md border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium flex items-center gap-2"
                       title="View event analytics"
                     >
                       <BarChart3 size={16} /> Analytics
                     </button>
                     <button
                       onClick={() => handleEditEvent(event)}
-                      className="px-4 py-2 rounded-md border border-slate-600 hover:bg-slate-700 text-sm"
+                      className="px-4 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => copyKioskLink(event)}
-                      className="px-4 py-2 rounded-md border border-blue-600 text-blue-400 hover:bg-blue-600/10 text-sm font-medium flex items-center gap-2"
+                      className="px-4 py-2 rounded-md border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium flex items-center gap-2"
                       title="Copy shareable kiosk link"
                     >
                       <Link2 size={16} /> Copy Link
                     </button>
                     <button
                       onClick={() => onLaunchKiosk(event)}
-                      className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-sm font-medium shadow-lg shadow-blue-900/20"
+                      className="px-4 py-2 rounded-md bg-green-700 hover:bg-green-800 text-white text-sm font-medium shadow-lg shadow-green-900/20"
                     >
                       Launch Kiosk
                     </button>
                     <button
                       onClick={() => handleDeleteEvent(event)}
-                      className="px-4 py-2 rounded-md border border-red-600 text-red-400 hover:bg-red-600/10 text-sm font-medium flex items-center gap-2"
+                      className="px-4 py-2 rounded-md border-2 border-red-600 text-red-600 hover:bg-red-600/10 text-sm font-medium flex items-center gap-2"
                       title="Delete event"
                     >
                       <Trash2 size={16} />
@@ -447,78 +447,78 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {(activeTab === 'create_event' || activeTab === 'edit_event') && (
           <div className="space-y-6 max-w-4xl mx-auto">
             <header className="flex justify-between items-center mb-4">
-              <button onClick={() => setActiveTab('events')} className="text-slate-400 hover:text-white flex items-center gap-2 text-sm">
+              <button onClick={() => setActiveTab('events')} className="text-slate-600 hover:text-black flex items-center gap-2 text-sm">
                 &larr; Back to Events
               </button>
-              <h2 className="text-2xl font-bold">{activeTab === 'create_event' ? 'Create New Event' : 'Edit Event'}</h2>
+              <h2 className="text-2xl font-bold text-black">{activeTab === 'create_event' ? 'Create New Event' : 'Edit Event'}</h2>
             </header>
 
-            <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 space-y-6">
+            <div className="bg-white p-8 rounded-xl border-2 border-slate-300 space-y-6">
               {/* Event Details Form */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">Event Name</label>
+                  <label className="text-sm font-medium text-slate-700">Event Name</label>
                   <input
                     type="text"
                     value={editingEvent.name}
                     onChange={(e) => setEditingEvent({...editingEvent, name: e.target.value})}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                     placeholder="e.g. Summer Gala 2024"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">City / Venue</label>
+                  <label className="text-sm font-medium text-slate-700">City / Venue</label>
                   <input
                     type="text"
                     value={editingEvent.city}
                     onChange={(e) => setEditingEvent({...editingEvent, city: e.target.value})}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                     placeholder="e.g. New York, NY"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">Event Date</label>
+                  <label className="text-sm font-medium text-slate-700">Event Date</label>
                   <input
                     type="date"
                     value={editingEvent.date}
                     onChange={(e) => setEditingEvent({...editingEvent, date: e.target.value})}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">Kiosk Passcode</label>
+                  <label className="text-sm font-medium text-slate-700">Kiosk Passcode</label>
                   <input
                     type="text"
                     value={editingEvent.passcode}
                     onChange={(e) => setEditingEvent({...editingEvent, passcode: e.target.value})}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
                     placeholder="e.g. 1234"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">Start Date & Time (Optional)</label>
+                  <label className="text-sm font-medium text-slate-700">Start Date & Time (Optional)</label>
                   <input
                     type="datetime-local"
                     value={editingEvent.startDatetime ? new Date(editingEvent.startDatetime).toISOString().slice(0, 16) : ''}
                     onChange={(e) => setEditingEvent({...editingEvent, startDatetime: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                   />
                   <p className="text-xs text-slate-500">Kiosk will be locked before this time</p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">End Date & Time (Optional)</label>
+                  <label className="text-sm font-medium text-slate-700">End Date & Time (Optional)</label>
                   <input
                     type="datetime-local"
                     value={editingEvent.endDatetime ? new Date(editingEvent.endDatetime).toISOString().slice(0, 16) : ''}
                     onChange={(e) => setEditingEvent({...editingEvent, endDatetime: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                   />
                   <p className="text-xs text-slate-500">Kiosk will be locked after this time</p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-400">Photo Aspect Ratio</label>
+                <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
                 <div className="grid grid-cols-5 gap-3">
                   {[
                     { value: 'square', label: 'Square (1:1)', icon: '⬜' },
@@ -533,8 +533,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       onClick={() => setEditingEvent({...editingEvent, aspectRatio: ratio.value as any})}
                       className={`p-4 rounded-lg border-2 transition-all ${
                         editingEvent.aspectRatio === ratio.value
-                          ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                          : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500'
+                          ? 'border-green-700 bg-green-700/10 text-green-800'
+                          : 'border-slate-300 bg-slate-50 text-slate-600 hover:border-slate-400'
                       }`}
                     >
                       <div className="text-2xl mb-2">{ratio.icon}</div>
@@ -545,81 +545,81 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </div>
 
               {/* Branding Customization Section */}
-              <div className="pt-8 border-t border-slate-700">
-                <h3 className="text-lg font-bold mb-4">Kiosk Branding</h3>
-                <p className="text-sm text-slate-400 mb-6">Customize the appearance of the kiosk for this event</p>
+              <div className="pt-8 border-t border-slate-300">
+                <h3 className="text-lg font-bold mb-4 text-black">Kiosk Branding</h3>
+                <p className="text-sm text-slate-600 mb-6">Customize the appearance of the kiosk for this event</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Background Image URL</label>
+                    <label className="text-sm font-medium text-slate-700">Background Image URL</label>
                     <input
                       type="text"
                       value={editingEvent.backgroundImageUrl || ''}
                       onChange={(e) => setEditingEvent({...editingEvent, backgroundImageUrl: e.target.value})}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                       placeholder="https://example.com/background.jpg"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Logo URL</label>
+                    <label className="text-sm font-medium text-slate-700">Logo URL</label>
                     <input
                       type="text"
                       value={editingEvent.logoUrl || ''}
                       onChange={(e) => setEditingEvent({...editingEvent, logoUrl: e.target.value})}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                       placeholder="https://example.com/logo.png"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Primary Color</label>
+                    <label className="text-sm font-medium text-slate-700">Primary Color</label>
                     <div className="flex gap-2">
                       <input
                         type="color"
                         value={editingEvent.primaryColor || '#6366f1'}
                         onChange={(e) => setEditingEvent({...editingEvent, primaryColor: e.target.value})}
-                        className="w-16 h-10 bg-slate-900 border border-slate-700 rounded-lg cursor-pointer"
+                        className="w-16 h-10 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-pointer"
                       />
                       <input
                         type="text"
                         value={editingEvent.primaryColor || ''}
                         onChange={(e) => setEditingEvent({...editingEvent, primaryColor: e.target.value})}
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                        className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
                         placeholder="#6366f1"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Secondary Color</label>
+                    <label className="text-sm font-medium text-slate-700">Secondary Color</label>
                     <div className="flex gap-2">
                       <input
                         type="color"
                         value={editingEvent.secondaryColor || '#8b5cf6'}
                         onChange={(e) => setEditingEvent({...editingEvent, secondaryColor: e.target.value})}
-                        className="w-16 h-10 bg-slate-900 border border-slate-700 rounded-lg cursor-pointer"
+                        className="w-16 h-10 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-pointer"
                       />
                       <input
                         type="text"
                         value={editingEvent.secondaryColor || ''}
                         onChange={(e) => setEditingEvent({...editingEvent, secondaryColor: e.target.value})}
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                        className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
                         placeholder="#8b5cf6"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Accent Color</label>
+                    <label className="text-sm font-medium text-slate-700">Accent Color</label>
                     <div className="flex gap-2">
                       <input
                         type="color"
                         value={editingEvent.accentColor || '#ec4899'}
                         onChange={(e) => setEditingEvent({...editingEvent, accentColor: e.target.value})}
-                        className="w-16 h-10 bg-slate-900 border border-slate-700 rounded-lg cursor-pointer"
+                        className="w-16 h-10 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-pointer"
                       />
                       <input
                         type="text"
                         value={editingEvent.accentColor || ''}
                         onChange={(e) => setEditingEvent({...editingEvent, accentColor: e.target.value})}
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                        className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
                         placeholder="#ec4899"
                       />
                     </div>
@@ -627,39 +627,39 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
 
                 <div className="pt-6 space-y-4">
-                  <p className="text-sm font-medium text-slate-400">Visibility Options</p>
+                  <p className="text-sm font-medium text-slate-700">Visibility Options</p>
                   <div className="flex gap-6">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingEvent.hideLogo || false}
                         onChange={(e) => setEditingEvent({...editingEvent, hideLogo: e.target.checked})}
-                        className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
                       />
-                      <span className="text-white">Hide Logo on Attract Screen</span>
+                      <span className="text-black">Hide Logo on Attract Screen</span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingEvent.hideEventName || false}
                         onChange={(e) => setEditingEvent({...editingEvent, hideEventName: e.target.checked})}
-                        className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
                       />
-                      <span className="text-white">Hide Event Name on Attract Screen</span>
+                      <span className="text-black">Hide Event Name on Attract Screen</span>
                     </label>
                   </div>
                 </div>
               </div>
 
               {/* Prompt Selection Section */}
-              <div className="pt-8 border-t border-slate-700">
+              <div className="pt-8 border-t border-slate-300">
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h3 className="text-lg font-bold">AI Experience Prompts</h3>
-                    <p className="text-sm text-slate-400">
+                    <h3 className="text-lg font-bold text-black">AI Experience Prompts</h3>
+                    <p className="text-sm text-slate-600">
                       Select which styles are available for this event
                       {editingEvent.prompts && editingEvent.prompts.length > 0 && (
-                        <span className="ml-2 text-blue-400 font-medium">
+                        <span className="ml-2 text-green-800 font-medium">
                           ({editingEvent.prompts.length} selected)
                         </span>
                       )}
@@ -671,7 +671,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
                       setIsPromptModalOpen(true);
                     }}
-                    className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+                    className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
                   >
                     <Zap size={16} /> Build Custom Prompt
                   </button>
@@ -680,36 +680,36 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 {/* Selected Prompts with Edit/Delete */}
                 {editingEvent.prompts && editingEvent.prompts.length > 0 && (
                   <div className="mb-6 space-y-3">
-                    <h4 className="text-sm font-medium text-slate-400">Selected Prompts for This Event</h4>
+                    <h4 className="text-sm font-medium text-slate-700">Selected Prompts for This Event</h4>
                     <div className="grid gap-3">
                       {editingEvent.prompts.map(prompt => (
                         <div
                           key={prompt.id}
-                          className="flex items-center gap-4 p-3 bg-slate-900/50 border border-blue-500/30 rounded-lg"
+                          className="flex items-center gap-4 p-3 bg-slate-50 border-2 border-green-700/30 rounded-lg"
                         >
                           <img src={prompt.previewImage} alt={prompt.name} className="h-16 w-16 object-cover rounded" />
                           <div className="flex-1">
-                            <h4 className="font-bold text-sm">{prompt.name}</h4>
+                            <h4 className="font-bold text-sm text-black">{prompt.name}</h4>
                             <p className="text-xs text-slate-500">{prompt.category}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleEditPrompt(prompt)}
-                              className="px-3 py-2 rounded-md border border-slate-600 hover:bg-slate-700 text-sm flex items-center gap-2"
+                              className="px-3 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm flex items-center gap-2"
                               title="Edit prompt"
                             >
                               <Pencil size={14} /> Edit
                             </button>
                             <button
                               onClick={() => handleDeletePrompt(prompt.id, prompt.name)}
-                              className="px-3 py-2 rounded-md border border-red-600 text-red-400 hover:bg-red-600/10 text-sm flex items-center gap-2"
+                              className="px-3 py-2 rounded-md border-2 border-red-600 text-red-600 hover:bg-red-600/10 text-sm flex items-center gap-2"
                               title="Delete prompt"
                             >
                               <Trash2 size={14} />
                             </button>
                             <button
                               onClick={() => togglePromptSelection(prompt)}
-                              className="px-3 py-2 rounded-md border border-slate-600 hover:bg-slate-700 text-sm"
+                              className="px-3 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm"
                               title="Remove from event"
                             >
                               <X size={14} />
@@ -722,13 +722,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 )}
 
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-medium text-slate-400">Available Prompts</h4>
+                  <h4 className="text-sm font-medium text-slate-700">Available Prompts</h4>
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-slate-500">Filter:</label>
                     <select
                       value={categoryFilter}
                       onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="bg-slate-900 border border-slate-700 rounded px-3 py-1 text-xs text-slate-300"
+                      className="bg-slate-50 border-2 border-slate-300 rounded px-3 py-1 text-xs text-slate-900"
                     >
                       <option value="All">All Categories</option>
                       {Array.from(new Set(availablePrompts.map(p => p.category))).sort().map(cat => (
@@ -745,20 +745,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       return (
                         <div
                           key={prompt.id}
-                          className={`relative rounded-lg overflow-hidden border-2 transition-all group ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-700 hover:border-slate-500'}`}
+                          className={`relative rounded-lg overflow-hidden border-2 transition-all group ${isSelected ? 'border-green-700 ring-2 ring-green-700/20' : 'border-slate-300 hover:border-slate-400'}`}
                         >
                           <div
                             onClick={() => togglePromptSelection(prompt)}
                             className="cursor-pointer"
                           >
                             <img src={prompt.previewImage} alt={prompt.name} className="h-32 w-full object-cover" />
-                            <div className="p-3 bg-slate-900">
-                              <h4 className="font-bold text-sm truncate">{prompt.name}</h4>
+                            <div className="p-3 bg-slate-50">
+                              <h4 className="font-bold text-sm truncate text-black">{prompt.name}</h4>
                               <p className="text-xs text-slate-500 truncate">{prompt.category}</p>
                             </div>
                           </div>
                           {isSelected && (
-                            <div className="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded-full shadow-lg">
+                            <div className="absolute top-2 right-2 bg-green-700 text-white p-1 rounded-full shadow-lg">
                               <Check size={12} />
                             </div>
                           )}
@@ -791,10 +791,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end pt-6 border-t border-slate-700">
-                 <button 
+              <div className="flex justify-end pt-6 border-t border-slate-300">
+                 <button
                   onClick={handleSaveEvent}
-                  className="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2"
+                  className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2"
                  >
                    <Save size={20} /> Save Event
                  </button>
@@ -808,11 +808,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           <div className="space-y-6">
             <header className="flex items-center justify-between mb-8">
               <div>
-                <button onClick={() => setActiveTab('events')} className="text-slate-400 hover:text-white flex items-center gap-2 text-sm mb-4">
+                <button onClick={() => setActiveTab('events')} className="text-slate-600 hover:text-black flex items-center gap-2 text-sm mb-4">
                   &larr; Back to Events
                 </button>
-                <h2 className="text-3xl font-bold">{analyticsEvent.name} Analytics</h2>
-                <p className="text-slate-400 mt-2">{analyticsEvent.city} • {analyticsEvent.date}</p>
+                <h2 className="text-3xl font-bold text-black">{analyticsEvent.name} Analytics</h2>
+                <p className="text-slate-600 mt-2">{analyticsEvent.city} • {analyticsEvent.date}</p>
               </div>
             </header>
 
@@ -824,8 +824,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {tenant && (
           <div className={`space-y-6 ${activeTab === 'settings' ? '' : 'hidden'}`}>
             <header className="mb-8">
-              <h2 className="text-3xl font-bold">Integration Settings</h2>
-              <p className="text-slate-400 mt-2">Connect your accounts to unlock powerful features</p>
+              <h2 className="text-3xl font-bold text-black">Integration Settings</h2>
+              <p className="text-slate-600 mt-2">Connect your accounts to unlock powerful features</p>
             </header>
 
             <Settings tenant={tenant} onSave={handleSaveSettings} />
@@ -835,17 +835,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {/* PROMPT BUILDER MODAL */}
         {isPromptModalOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
-              <header className="p-6 border-b border-slate-800 flex justify-between items-center">
-                <h3 className="text-xl font-bold flex items-center gap-2">
+            <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+              <header className="p-6 border-b-2 border-slate-300 flex justify-between items-center">
+                <h3 className="text-xl font-bold flex items-center gap-2 text-black">
                   {editingPromptId ? (
                     <>
-                      <Pencil size={20} className="text-blue-500" />
+                      <Pencil size={20} className="text-green-700" />
                       Edit Prompt
                     </>
                   ) : (
                     <>
-                      <Zap size={20} className="text-purple-500" />
+                      <Zap size={20} className="text-green-800" />
                       Custom Prompt Builder
                     </>
                   )}
@@ -856,31 +856,31 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     setEditingPromptId(null);
                     setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
                   }}
-                  className="text-slate-400 hover:text-white"
+                  className="text-slate-600 hover:text-black"
                 >
                   <X size={24} />
                 </button>
               </header>
-              
+
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Prompt Name *</label>
+                    <label className="text-sm font-medium text-slate-700">Prompt Name *</label>
                     <input
                       type="text"
                       value={newPrompt.name}
                       onChange={(e) => setNewPrompt({...newPrompt, name: e.target.value})}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                       placeholder="e.g. Neon Noir"
                     />
                   </div>
                   <div className="space-y-2">
-                     <label className="text-sm font-medium text-slate-400">Category *</label>
+                     <label className="text-sm font-medium text-slate-700">Category *</label>
                      <input
                       type="text"
                       value={newPrompt.category}
                       onChange={(e) => setNewPrompt({...newPrompt, category: e.target.value})}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                       placeholder="e.g. Artistic, Professional, Vintage"
                     />
                     <p className="text-[10px] text-slate-500">Create custom categories or use existing ones</p>
@@ -888,22 +888,22 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">Description (Optional)</label>
+                  <label className="text-sm font-medium text-slate-700">Description (Optional)</label>
                   <input
                     type="text"
                     value={newPrompt.description}
                     onChange={(e) => setNewPrompt({...newPrompt, description: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                     placeholder="e.g. Cyberpunk-inspired neon lighting"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">AI Prompt Text *</label>
+                  <label className="text-sm font-medium text-slate-700">AI Prompt Text *</label>
                   <textarea
                     value={newPrompt.promptText}
                     onChange={(e) => setNewPrompt({...newPrompt, promptText: e.target.value})}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 h-24 resize-none focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-3 h-24 resize-none text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                     placeholder="Describe the style, lighting, and environment..."
                   ></textarea>
                 </div>
@@ -911,10 +911,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Preview Image Upload */}
                   <div className="space-y-2">
-                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                        <ImageIcon size={16} /> Kiosk Thumbnail *
                      </label>
-                     <div className="relative group border-2 border-dashed border-slate-800 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-950 overflow-hidden hover:border-blue-500 transition-colors cursor-pointer">
+                     <div className="relative group border-2 border-dashed border-slate-300 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-50 overflow-hidden hover:border-green-700 transition-colors cursor-pointer">
                         {newPrompt.previewImage ? (
                           <>
                             <img src={newPrompt.previewImage} alt="Preview" className="w-full h-full object-cover" />
@@ -927,7 +927,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                           </>
                         ) : (
                           <div className="text-center p-4">
-                            <Upload className="mx-auto mb-2 text-slate-600" size={24} />
+                            <Upload className="mx-auto mb-2 text-slate-400" size={24} />
                             <span className="text-xs text-slate-500">Click to Upload Thumbnail</span>
                           </div>
                         )}
@@ -943,10 +943,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
                   {/* Reference Image Upload */}
                   <div className="space-y-2">
-                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                        <ImageIcon size={16} /> AI Style Reference (Optional)
                      </label>
-                     <div className="relative group border-2 border-dashed border-slate-800 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-950 overflow-hidden hover:border-purple-500 transition-colors cursor-pointer">
+                     <div className="relative group border-2 border-dashed border-slate-300 rounded-xl h-40 flex flex-col items-center justify-center bg-slate-50 overflow-hidden hover:border-green-700 transition-colors cursor-pointer">
                         {newPrompt.referenceImage ? (
                           <>
                             <img src={newPrompt.referenceImage} alt="Reference" className="w-full h-full object-cover" />
@@ -960,7 +960,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                                       e.stopPropagation();
                                       setNewPrompt({...newPrompt, referenceImage: ''});
                                     }}
-                                    className="mt-2 px-2 py-1 bg-red-600 hover:bg-red-500 rounded text-xs"
+                                    className="mt-2 px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
                                   >
                                     Remove
                                   </button>
@@ -970,7 +970,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                           </>
                         ) : (
                           <div className="text-center p-4">
-                            <Upload className="mx-auto mb-2 text-slate-600" size={24} />
+                            <Upload className="mx-auto mb-2 text-slate-400" size={24} />
                             <span className="text-xs text-slate-500">Click to Upload Style Ref</span>
                           </div>
                         )}
@@ -986,20 +986,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </div>
 
-              <div className="p-6 border-t border-slate-800 flex justify-end gap-3">
+              <div className="p-6 border-t-2 border-slate-300 flex justify-end gap-3">
                 <button
                   onClick={() => {
                     setIsPromptModalOpen(false);
                     setEditingPromptId(null);
                     setNewPrompt({ name: '', category: 'Custom', promptText: '', description: '', previewImage: '', referenceImage: '' });
                   }}
-                  className="px-4 py-2 rounded-lg text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-lg text-slate-600 hover:text-black"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveNewPrompt}
-                  className={`${editingPromptId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'} text-white px-6 py-2 rounded-lg font-bold`}
+                  className="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-lg font-bold"
                 >
                   {editingPromptId ? 'Update Prompt' : 'Create Prompt'}
                 </button>

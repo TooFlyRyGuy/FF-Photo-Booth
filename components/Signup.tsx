@@ -74,15 +74,15 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl text-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white border-2 border-slate-300 rounded-2xl p-8 shadow-2xl text-center">
           <div className="flex justify-center mb-6">
-            <div className="p-4 bg-green-500/10 rounded-full text-green-500 border border-green-500/20">
+            <div className="p-4 bg-green-700/10 rounded-full text-green-800 border border-green-700/20">
               <Check size={48} />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Account Created!</h2>
-          <p className="text-slate-400 mb-4">
+          <h2 className="text-2xl font-bold text-black mb-2">Account Created!</h2>
+          <p className="text-slate-600 mb-4">
             Welcome to Fun Frame AI Booth! Your account has been created successfully.
           </p>
           <p className="text-slate-500 text-sm">Redirecting to your dashboard...</p>
@@ -92,31 +92,31 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white border-2 border-slate-300 rounded-2xl p-8 shadow-2xl">
         <div className="flex justify-center mb-6">
           <img src="/smaller700x200_logo.png" alt="Fun Frame Photo" className="h-12" />
         </div>
 
         <div className="flex justify-center mb-6">
-          <div className="p-4 bg-green-500/10 rounded-full text-green-500 border border-green-500/20">
+          <div className="p-4 bg-green-700/10 rounded-full text-green-800 border border-green-700/20">
             <UserIcon size={32} />
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-white text-center mb-2">Create Account</h2>
-        <p className="text-slate-400 text-center mb-8">Get started with Fun Frame AI Booth</p>
+        <h2 className="text-2xl font-bold text-black text-center mb-2">Create Account</h2>
+        <p className="text-slate-600 text-center mb-8">Get started with Fun Frame AI Booth</p>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
-            <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-red-400 text-sm">{error}</p>
+          <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg flex items-start gap-3">
+            <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-red-600 text-sm">{error}</p>
           </div>
         )}
 
         <form onSubmit={handleEmailSignup} className="space-y-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Full Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
             <div className="relative">
               <UserIcon size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
@@ -124,14 +124,14 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="John Doe"
-                className="w-full bg-slate-800 border border-slate-700 text-white pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                className="w-full bg-slate-50 border-2 border-slate-300 text-slate-900 pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-green-700 focus:outline-none"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
             <div className="relative">
               <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
@@ -139,14 +139,14 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full bg-slate-800 border border-slate-700 text-white pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                className="w-full bg-slate-50 border-2 border-slate-300 text-slate-900 pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-green-700 focus:outline-none"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Password</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
             <div className="relative">
               <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
@@ -154,7 +154,7 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-800 border border-slate-700 text-white pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                className="w-full bg-slate-50 border-2 border-slate-300 text-slate-900 pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-green-700 focus:outline-none"
                 required
                 minLength={6}
               />
@@ -165,7 +165,7 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-green-500/20 hover:shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-green-700/25 hover:shadow-green-700/40 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>
@@ -173,35 +173,35 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
 
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-700"></div>
+            <div className="w-full border-t border-slate-300"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-slate-900 text-slate-500">Or continue with</span>
+            <span className="px-2 bg-white text-slate-500">Or continue with</span>
           </div>
         </div>
 
         <button
           onClick={handleGoogleSignup}
           disabled={loading}
-          className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-slate-50 hover:bg-slate-100 border-2 border-slate-300 text-slate-900 font-medium py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Chrome size={20} />
           Google
         </button>
 
         <div className="mt-6 text-center space-y-2">
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-600 text-sm">
             Already have an account?{' '}
             <button
               onClick={onSwitchToLogin}
-              className="text-blue-400 hover:text-blue-300 font-medium"
+              className="text-green-700 hover:text-green-800 font-medium"
             >
               Sign In
             </button>
           </p>
           <button
             onClick={onBackToLanding}
-            className="text-slate-500 hover:text-slate-300 text-sm"
+            className="text-slate-500 hover:text-slate-700 text-sm"
           >
             Back to Home
           </button>
