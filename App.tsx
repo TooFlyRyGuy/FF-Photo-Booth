@@ -5,7 +5,7 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import { Event } from './types';
 import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
-import { getEventByPasscode } from './services/backendService';
+import { getEventByPasscode, clearTenantCache } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -28,6 +28,7 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    clearTenantCache();
     setUser(null);
     setView('landing');
   };

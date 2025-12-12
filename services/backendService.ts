@@ -3,6 +3,39 @@ import { supabase } from '../lib/supabase';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
+let cachedTenantId: string | null = null;
+let cacheTimestamp: number | null = null;
+const CACHE_TTL = 60000;
+
+const getUserTenantId = async (): Promise<string> => {
+  if (cachedTenantId && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_TTL) {
+    return cachedTenantId;
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    const { data: tenantData } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (tenantData) {
+      cachedTenantId = tenantData.id;
+      cacheTimestamp = Date.now();
+      return tenantData.id;
+    }
+  }
+
+  return DEMO_TENANT_ID;
+};
+
+export const clearTenantCache = () => {
+  cachedTenantId = null;
+  cacheTimestamp = null;
+};
+
 const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
   return {
     id: tenantData.id,
@@ -35,7 +68,7 @@ export const getTenant = async (): Promise<Tenant> => {
 
   if (user) {
     let retries = 0;
-    const maxRetries = 5;
+    const maxRetries = 3;
 
     while (retries < maxRetries) {
       const { data: tenantData } = await supabase
@@ -49,7 +82,7 @@ export const getTenant = async (): Promise<Tenant> => {
       }
 
       if (retries < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
         retries++;
       } else {
         break;
@@ -149,20 +182,7 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
 
   dbUpdates.updated_at = new Date().toISOString();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  let tenantId = DEMO_TENANT_ID;
-
-  if (user) {
-    const { data: tenantData } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (tenantData) {
-      tenantId = tenantData.id;
-    }
-  }
+  const tenantId = await getUserTenantId();
 
   const { error } = await supabase
     .from('tenants')
@@ -178,20 +198,7 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
 };
 
 export const getEvents = async (): Promise<Event[]> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  let tenantId = DEMO_TENANT_ID;
-
-  if (user) {
-    const { data: tenantData } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (tenantData) {
-      tenantId = tenantData.id;
-    }
-  }
+  const tenantId = await getUserTenantId();
 
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
@@ -240,10 +247,12 @@ export const getEvents = async (): Promise<Event[]> => {
 };
 
 export const getPrompts = async (): Promise<Prompt[]> => {
+  const tenantId = await getUserTenantId();
+
   const { data, error } = await supabase
     .from('prompts')
     .select('*')
-    .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID}`)
+    .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
@@ -264,12 +273,13 @@ export const getPrompts = async (): Promise<Prompt[]> => {
 
 export const saveEvent = async (event: Event): Promise<Event> => {
   const isNewEvent = !event.id || event.id.startsWith('evt_');
+  const tenantId = await getUserTenantId();
 
   if (isNewEvent) {
     const { data, error } = await supabase
       .from('events')
       .insert({
-        tenant_id: DEMO_TENANT_ID,
+        tenant_id: tenantId,
         name: event.name,
         city: event.city,
         event_date: event.date,
@@ -388,10 +398,12 @@ export const saveEvent = async (event: Event): Promise<Event> => {
 };
 
 export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
+  const tenantId = await getUserTenantId();
+
   const { data, error } = await supabase
     .from('prompts')
     .insert({
-      tenant_id: DEMO_TENANT_ID,
+      tenant_id: tenantId,
       name: prompt.name,
       description: prompt.description,
       category: prompt.category,

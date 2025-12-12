@@ -7,7 +7,7 @@ import LoginPage from './components/Auth/LoginPage';
 import SignupPage from './components/Auth/SignupPage';
 import SuccessPage from './components/SuccessPage';
 import { Event } from './types';
-import { getEventByPasscode } from './services/backendService';
+import { getEventByPasscode, clearTenantCache } from './services/backendService';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -48,6 +48,7 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    clearTenantCache();
     setUser(null);
     setAuthMode('login');
   };
