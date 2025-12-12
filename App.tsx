@@ -94,10 +94,18 @@ const App: React.FC = () => {
       (async () => {
         if (session?.user) {
           setUser(session.user);
-          setView('admin');
+          const urlParams = new URLSearchParams(window.location.search);
+          const kioskPasscode = urlParams.get('kiosk');
+          if (!kioskPasscode) {
+            setView('admin');
+          }
         } else {
           setUser(null);
-          setView('landing');
+          const urlParams = new URLSearchParams(window.location.search);
+          const kioskPasscode = urlParams.get('kiosk');
+          if (!kioskPasscode && view !== 'kiosk') {
+            setView('landing');
+          }
         }
       })();
     });
