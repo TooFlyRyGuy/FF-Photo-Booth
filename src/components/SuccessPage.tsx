@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CheckCircle, ArrowRight, Camera } from 'lucide-react';
+import { CircleCheck as CheckCircle, ArrowRight, Camera } from 'lucide-react';
 
 interface SuccessPageProps {
   onContinue: () => void;

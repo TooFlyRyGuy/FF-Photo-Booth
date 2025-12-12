@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Camera, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { Camera, Mail, Lock, ArrowRight, CircleAlert as AlertCircle } from 'lucide-react';
 
 interface LoginPageProps {
   onSuccess: () => void;

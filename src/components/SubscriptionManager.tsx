@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CreditCard, Check, Loader2, Crown, Zap, Star } from 'lucide-react';
+import { X, CreditCard, Check, Loader as Loader2, Crown, Zap, Star } from 'lucide-react';
 import { stripeProducts, formatPrice, getProductByPriceId } from '../stripe-config';
 import { supabase } from '../lib/supabase';
 
