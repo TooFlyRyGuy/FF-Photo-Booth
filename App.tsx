@@ -92,20 +92,19 @@ const App: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const kioskPasscode = urlParams.get('kiosk');
+
+        if (kioskPasscode) {
+          return;
+        }
+
         if (session?.user) {
           setUser(session.user);
-          const urlParams = new URLSearchParams(window.location.search);
-          const kioskPasscode = urlParams.get('kiosk');
-          if (!kioskPasscode) {
-            setView('admin');
-          }
+          setView('admin');
         } else {
           setUser(null);
-          const urlParams = new URLSearchParams(window.location.search);
-          const kioskPasscode = urlParams.get('kiosk');
-          if (!kioskPasscode && view !== 'kiosk') {
-            setView('landing');
-          }
+          setView('landing');
         }
       })();
     });
