@@ -107,18 +107,26 @@ export const getTenant = async (): Promise<Tenant> => {
 };
 
 export const getTenantById = async (tenantId: string): Promise<Tenant> => {
+  console.log('🔍 getTenantById called with:', tenantId);
+
   const { data: tenantData, error: tenantError } = await supabase
     .from('tenants')
     .select('*')
     .eq('id', tenantId)
     .maybeSingle();
 
+  console.log('🔍 Tenant query result:', {
+    found: !!tenantData,
+    error: tenantError?.message,
+    tenantId: tenantData?.id
+  });
+
   if (tenantError) {
     throw new Error(`Failed to fetch tenant: ${tenantError.message}`);
   }
 
   if (!tenantData) {
-    throw new Error('Tenant not found');
+    throw new Error(`Tenant not found for ID: ${tenantId}`);
   }
 
   console.log('📊 Raw tenant data from DB:', {
@@ -133,15 +141,23 @@ export const getTenantById = async (tenantId: string): Promise<Tenant> => {
     .eq('tenant_id', tenantId)
     .maybeSingle();
 
+  console.log('🔍 Subscription limits query result:', {
+    found: !!limitsData,
+    error: limitsError?.message,
+    limitsId: limitsData?.id
+  });
+
   if (limitsError) {
     throw new Error(`Failed to fetch subscription limits: ${limitsError.message}`);
   }
 
   if (!limitsData) {
-    throw new Error('Subscription limits not found');
+    throw new Error(`Subscription limits not found for tenant: ${tenantId}`);
   }
 
-  return mapTenantFromDb(tenantData, limitsData);
+  const tenant = mapTenantFromDb(tenantData, limitsData);
+  console.log('✅ Successfully mapped tenant:', tenant.id);
+  return tenant;
 };
 
 export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<void> => {

@@ -49,17 +49,21 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
 
   useEffect(() => {
-    loadData();
-    loadDashboardData();
-    loadUserProfile();
-  }, [user]);
+    if (user) {
+      clearTenantCache();
+      clearPromptsCache();
+      loadData();
+      loadDashboardData();
+      loadUserProfile();
+    }
+  }, [user?.id]);
 
   const loadData = async () => {
-    clearTenantCache();
-    clearPromptsCache();
-
     try {
       const tenantData = await getTenant();
+      if (!tenantData) {
+        throw new Error('Unable to load tenant data');
+      }
       setTenant(tenantData);
 
       const [eventsData, promptsData] = await Promise.all([
@@ -67,17 +71,18 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         getPrompts()
       ]);
 
-      setEvents(eventsData);
-      setAvailablePrompts(promptsData);
+      setEvents(eventsData || []);
+      setAvailablePrompts(promptsData || []);
 
       console.log('Loaded data successfully:', {
-        tenant: tenantData.id,
-        events: eventsData.length,
-        prompts: promptsData.length
+        tenantId: tenantData?.id || 'unknown',
+        events: (eventsData || []).length,
+        prompts: (promptsData || []).length
       });
     } catch (error) {
       console.error('Failed to load data:', error);
-      alert(`Failed to load your data: ${error instanceof Error ? error.message : 'Unknown error'}. Please try refreshing the page.`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to load your data: ${errorMessage}. Please try logging out and back in.`);
     }
   };
 
