@@ -436,8 +436,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">Event Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={editingEvent.name}
                     onChange={(e) => setEditingEvent({...editingEvent, name: e.target.value})}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -446,8 +446,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">City / Venue</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={editingEvent.city}
                     onChange={(e) => setEditingEvent({...editingEvent, city: e.target.value})}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -456,8 +456,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">Event Date</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={editingEvent.date}
                     onChange={(e) => setEditingEvent({...editingEvent, date: e.target.value})}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -472,6 +472,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
                     placeholder="e.g. 1234"
                   />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-400">Start Date & Time (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={editingEvent.startDatetime ? new Date(editingEvent.startDatetime).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => setEditingEvent({...editingEvent, startDatetime: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <p className="text-xs text-slate-500">Kiosk will be locked before this time</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-400">End Date & Time (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={editingEvent.endDatetime ? new Date(editingEvent.endDatetime).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => setEditingEvent({...editingEvent, endDatetime: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <p className="text-xs text-slate-500">Kiosk will be locked after this time</p>
                 </div>
               </div>
 

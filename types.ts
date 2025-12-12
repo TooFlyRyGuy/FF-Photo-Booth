@@ -66,6 +66,8 @@ export interface Event {
   accentColor?: string;
   hideLogo?: boolean;
   hideEventName?: boolean;
+  startDatetime?: string;
+  endDatetime?: string;
 }
 
 export interface GeneratedImage {

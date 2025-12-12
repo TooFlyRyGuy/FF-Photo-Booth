@@ -23,10 +23,31 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  const checkEventTimeStatus = useCallback(() => {
+    const now = new Date();
+
+    if (event.startDatetime) {
+      const startTime = new Date(event.startDatetime);
+      if (now < startTime) {
+        return 'before';
+      }
+    }
+
+    if (event.endDatetime) {
+      const endTime = new Date(event.endDatetime);
+      if (now > endTime) {
+        return 'after';
+      }
+    }
+
+    return 'active';
+  }, [event.startDatetime, event.endDatetime]);
 
   const getBrandingColors = () => ({
     primary: event.primaryColor || '#6366f1',
@@ -276,6 +297,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     }
   };
 
+  // Check event time status on mount and periodically
+  useEffect(() => {
+    const updateStatus = () => {
+      const status = checkEventTimeStatus();
+      setEventTimeStatus(status);
+    };
+
+    updateStatus();
+    const interval = setInterval(updateStatus, 60000);
+
+    return () => clearInterval(interval);
+  }, [checkEventTimeStatus]);
+
   // Fetch tenant data on mount
   useEffect(() => {
     const loadTenant = async () => {
@@ -306,6 +340,118 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   }, [view, startCamera]);
 
   // --- RENDER VIEWS ---
+
+  // EVENT TIME RESTRICTION SCREENS
+  if (eventTimeStatus === 'before') {
+    const colors = getBrandingColors();
+    const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
+
+    return (
+      <div className="h-screen w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="w-full h-full bg-gradient-to-br" style={{ backgroundImage: `linear-gradient(to bottom right, ${colors.primary}, ${colors.accent})` }}></div>
+        </div>
+
+        {event.logoUrl && !event.hideLogo && (
+          <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+            <img src={event.logoUrl} alt={event.name} className="h-12 md:h-24 object-contain" />
+          </div>
+        )}
+
+        <div className="z-10 text-center space-y-4 md:space-y-6 px-4 max-w-2xl">
+          <h1
+            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-transparent bg-clip-text"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+            }}
+          >
+            EVENT NOT STARTED
+          </h1>
+          <p className="text-xl md:text-2xl lg:text-3xl text-white font-light">
+            This event has not started yet
+          </p>
+          {startDate && (
+            <div className="mt-8 p-6 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+              <p className="text-white text-lg md:text-xl mb-2">Event starts:</p>
+              <p className="text-2xl md:text-3xl font-bold text-white">
+                {startDate.toLocaleString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+          <button onClick={onExit} className="text-white/20 hover:text-white text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (eventTimeStatus === 'after') {
+    const colors = getBrandingColors();
+    const endDate = event.endDatetime ? new Date(event.endDatetime) : null;
+
+    return (
+      <div className="h-screen w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="w-full h-full bg-gradient-to-br" style={{ backgroundImage: `linear-gradient(to bottom right, ${colors.primary}, ${colors.accent})` }}></div>
+        </div>
+
+        {event.logoUrl && !event.hideLogo && (
+          <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+            <img src={event.logoUrl} alt={event.name} className="h-12 md:h-24 object-contain" />
+          </div>
+        )}
+
+        <div className="z-10 text-center space-y-4 md:space-y-6 px-4 max-w-2xl">
+          <h1
+            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-transparent bg-clip-text"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${colors.primary}, ${colors.accent})`,
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+            }}
+          >
+            EVENT HAS ENDED
+          </h1>
+          <p className="text-xl md:text-2xl lg:text-3xl text-white font-light">
+            This event has concluded
+          </p>
+          {endDate && (
+            <div className="mt-8 p-6 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+              <p className="text-white text-lg md:text-xl mb-2">Event ended:</p>
+              <p className="text-2xl md:text-3xl font-bold text-white">
+                {endDate.toLocaleString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </p>
+            </div>
+          )}
+          <p className="text-lg text-white/80 mt-6">
+            Thank you for participating!
+          </p>
+        </div>
+        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+          <button onClick={onExit} className="text-white/20 hover:text-white text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+        </div>
+      </div>
+    );
+  }
 
   // 1. ATTRACT SCREEN
   if (view === 'attract') {
