@@ -974,7 +974,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               <p className="text-slate-600 mt-2">Connect your accounts to unlock powerful features</p>
             </header>
 
-            <Settings tenant={tenant} onSave={handleSaveSettings} isAdmin={true} />
+            <Settings tenant={tenant} onSave={handleSaveSettings} isAdmin={userProfile?.subscription_tier === 'ADMIN'} />
           </div>
         )}
 
