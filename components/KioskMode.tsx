@@ -548,7 +548,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </div>
         )}
 
-        <div className="absolute bottom-4 left-0 right-0 z-40 flex justify-center gap-4 md:gap-8 items-center pb-safe" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <div className="fixed bottom-20 md:bottom-24 left-0 right-0 z-40 flex justify-center gap-4 md:gap-8 items-center px-4">
            <button onClick={() => setView('prompt-select')} className="bg-white/90 backdrop-blur text-slate-900 px-4 py-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 text-sm md:text-base min-h-[44px] font-semibold">
              Back
            </button>
