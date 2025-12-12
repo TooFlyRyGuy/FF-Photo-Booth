@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -25,6 +25,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ totalImages: 0, totalSms: 0, totalEvents: 0, activeEvents: 0 });
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Event Editor State
   const [editingEvent, setEditingEvent] = useState<Partial<Event>>({});
@@ -267,14 +269,50 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-white border-2 border-slate-300 rounded-lg flex items-center justify-center text-slate-600 hover:text-green-700 hover:border-green-700 transition-colors shadow-lg"
+      >
+        <Menu size={20} />
+      </button>
+
+      {/* Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-300 flex flex-col">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold tracking-tighter text-green-700 flex items-center gap-2">
+      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-slate-300 flex flex-col transition-all duration-300 ease-in-out relative
+        md:relative fixed inset-y-0 left-0 z-40
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        {/* Toggle Button - Desktop Only */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="hidden md:flex absolute -right-3 top-6 z-10 w-6 h-6 bg-white border-2 border-slate-300 rounded-full items-center justify-center text-slate-600 hover:text-green-700 hover:border-green-700 transition-colors shadow-sm"
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {sidebarCollapsed ? <Menu size={14} /> : <ChevronLeft size={14} />}
+        </button>
+
+        {/* Close Button - Mobile Only */}
+        <button
+          onClick={() => setMobileMenuOpen(false)}
+          className="md:hidden absolute right-4 top-4 z-10 w-8 h-8 flex items-center justify-center text-slate-600 hover:text-green-700 transition-colors"
+        >
+          <X size={20} />
+        </button>
+
+        <div className={`p-6 ${sidebarCollapsed ? 'px-2' : ''}`}>
+          <h1 className={`text-2xl font-bold tracking-tighter text-green-700 flex items-center gap-2 ${sidebarCollapsed ? 'justify-center' : ''}`}>
             <Camera size={24} />
-            Fun Frame AI
+            {!sidebarCollapsed && 'Fun Frame AI'}
           </h1>
-          {userProfile && (
+          {userProfile && !sidebarCollapsed && (
             <div className="mt-3 text-xs">
               <p className="text-slate-600 truncate">{userProfile.email}</p>
               <p className="text-slate-500 mt-1 uppercase tracking-widest">
@@ -284,55 +322,90 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           )}
         </div>
 
-        <nav className="flex-1 px-4 space-y-2">
+        <nav className={`flex-1 ${sidebarCollapsed ? 'px-2' : 'px-4'} space-y-2`}>
           <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            onClick={() => {
+              setActiveTab('dashboard');
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            title={sidebarCollapsed ? 'Overview' : ''}
           >
             <LayoutDashboard size={20} />
-            Overview
+            {!sidebarCollapsed && 'Overview'}
           </button>
           <button
-            onClick={() => setActiveTab('events')}
-            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'events' || activeTab.includes('event') ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            onClick={() => {
+              setActiveTab('events');
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'events' || activeTab.includes('event') ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            title={sidebarCollapsed ? 'Events' : ''}
           >
             <Calendar size={20} />
-            Events
+            {!sidebarCollapsed && 'Events'}
           </button>
           <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            onClick={() => {
+              setActiveTab('settings');
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            title={sidebarCollapsed ? 'Settings' : ''}
           >
             <SettingsIcon size={20} />
-            Settings
+            {!sidebarCollapsed && 'Settings'}
           </button>
         </nav>
 
-        <div className="p-4 border-t border-slate-300 space-y-4">
-          <div>
-            <div className="flex justify-between text-xs text-slate-600 mb-1">
-              <span>Credits</span>
-              <span>{tenant.usage.imagesUsed} / {tenant.usage.imagesLimit}</span>
+        <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
+          {!sidebarCollapsed && (
+            <div>
+              <div className="flex justify-between text-xs text-slate-600 mb-1">
+                <span>Credits</span>
+                <span>{tenant.usage.imagesUsed} / {tenant.usage.imagesLimit}</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-green-700" style={{ width: `${usagePercent}%` }}></div>
+              </div>
             </div>
-            <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-              <div className="h-full bg-green-700" style={{ width: `${usagePercent}%` }}></div>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowSubscriptionModal(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white rounded-lg text-sm font-medium transition-all"
-          >
-            <CreditCard size={16} />
-            Manage Plan
-          </button>
-          <button onClick={onLogout} className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700">
-            <LogOut size={16} /> Sign Out
-          </button>
+          )}
+          {!sidebarCollapsed ? (
+            <>
+              <button
+                onClick={() => setShowSubscriptionModal(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white rounded-lg text-sm font-medium transition-all"
+              >
+                <CreditCard size={16} />
+                Manage Plan
+              </button>
+              <button onClick={onLogout} className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700">
+                <LogOut size={16} /> Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowSubscriptionModal(true)}
+                className="w-full flex items-center justify-center p-3 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white rounded-lg transition-all"
+                title="Manage Plan"
+              >
+                <CreditCard size={16} />
+              </button>
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center justify-center p-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Sign Out"
+              >
+                <LogOut size={16} />
+              </button>
+            </>
+          )}
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto p-8 relative">
+      <main className="flex-1 overflow-auto p-8 md:p-8 p-4 pt-16 md:pt-8 relative">
         
         {/* DASHBOARD VIEW */}
         {activeTab === 'dashboard' && (
