@@ -34,54 +34,35 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const kioskPasscode = urlParams.get('kiosk');
+    const isKioskMode = !!kioskPasscode;
+
     const initializeAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
 
-      if (session?.user) {
-        setUser(session.user);
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const kioskPasscode = urlParams.get('kiosk');
-
-        if (kioskPasscode) {
-          try {
-            const event = await getEventByPasscode(kioskPasscode);
-            if (event) {
-              setActiveEvent(event);
-              setView('kiosk');
-            } else {
-              setError('Invalid event code');
-              setView('admin');
-            }
-          } catch (err) {
-            console.error('Failed to load event:', err);
-            setError('Failed to load event');
-            setView('admin');
+      if (kioskPasscode) {
+        try {
+          const event = await getEventByPasscode(kioskPasscode);
+          if (event) {
+            setActiveEvent(event);
+            setView('kiosk');
+          } else {
+            setError('Invalid event code');
+            setView(session?.user ? 'admin' : 'landing');
           }
-        } else {
-          setView('admin');
+        } catch (err) {
+          console.error('Failed to load event:', err);
+          setError('Failed to load event');
+          setView(session?.user ? 'admin' : 'landing');
+        }
+        if (session?.user) {
+          setUser(session.user);
         }
       } else {
-        const urlParams = new URLSearchParams(window.location.search);
-        const kioskPasscode = urlParams.get('kiosk');
-
-        if (kioskPasscode) {
-          setView('loading');
-          getEventByPasscode(kioskPasscode)
-            .then((event) => {
-              if (event) {
-                setActiveEvent(event);
-                setView('kiosk');
-              } else {
-                setError('Invalid event code');
-                setView('landing');
-              }
-            })
-            .catch((err) => {
-              console.error('Failed to load event:', err);
-              setError('Failed to load event');
-              setView('landing');
-            });
+        if (session?.user) {
+          setUser(session.user);
+          setView('admin');
         } else {
           setView('landing');
         }
@@ -91,22 +72,20 @@ const App: React.FC = () => {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const kioskPasscode = urlParams.get('kiosk');
-
-        if (kioskPasscode) {
-          return;
-        }
-
+      if (isKioskMode) {
         if (session?.user) {
           setUser(session.user);
-          setView('admin');
-        } else {
-          setUser(null);
-          setView('landing');
         }
-      })();
+        return;
+      }
+
+      if (session?.user) {
+        setUser(session.user);
+        setView('admin');
+      } else {
+        setUser(null);
+        setView('landing');
+      }
     });
 
     return () => {
