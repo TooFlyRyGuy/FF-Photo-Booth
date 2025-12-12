@@ -250,7 +250,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         <div className="p-6">
           <h1 className="text-2xl font-bold tracking-tighter text-blue-500 flex items-center gap-2">
             <Camera size={24} />
-            Lumina
+            Fun Frame AI
           </h1>
           {userProfile && (
             <div className="mt-3 text-xs">

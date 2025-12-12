@@ -83,7 +83,7 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Account Created!</h2>
           <p className="text-slate-400 mb-4">
-            Welcome to Lumina Booth! Your account has been created successfully.
+            Welcome to Fun Frame AI Booth! Your account has been created successfully.
           </p>
           <p className="text-slate-500 text-sm">Redirecting to your dashboard...</p>
         </div>
@@ -105,7 +105,7 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
         </div>
 
         <h2 className="text-2xl font-bold text-white text-center mb-2">Create Account</h2>
-        <p className="text-slate-400 text-center mb-8">Get started with Lumina Booth</p>
+        <p className="text-slate-400 text-center mb-8">Get started with Fun Frame AI Booth</p>
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">

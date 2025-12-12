@@ -1,4 +1,4 @@
-# Lumina AI Photo Booth - Database Documentation
+# Fun Frame AI Booth - Database Documentation
 
 ## Overview
 

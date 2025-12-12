@@ -1,6 +1,6 @@
 # Authentication and Payment Setup Guide
 
-This guide will walk you through setting up Google OAuth authentication and Stripe payments for your Lumina Booth application.
+This guide will walk you through setting up Google OAuth authentication and Stripe payments for your Fun Frame AI Booth application.
 
 ## Google OAuth Setup
 
