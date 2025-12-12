@@ -268,7 +268,28 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+    if (isMobile && navigator.share && navigator.canShare) {
+      try {
+        const response = await fetch(finalImage);
+        const blob = await response.blob();
+        const file = new File([blob], filename, { type: 'image/jpeg' });
+
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'My AI Photo',
+            text: 'Check out my AI-generated photo!',
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('Web Share failed:', error);
+      }
+    }
+
     if (isMobile) {
+      window.open(finalImage, '_blank');
+    } else {
       try {
         const response = await fetch(finalImage);
         const blob = await response.blob();
@@ -277,23 +298,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
-        link.target = '_blank';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
         window.URL.revokeObjectURL(url);
       } catch (error) {
-        console.error('Download failed, opening in new tab:', error);
+        console.error('Download failed:', error);
         window.open(finalImage, '_blank');
       }
-    } else {
-      const link = document.createElement('a');
-      link.href = finalImage;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
     }
   };
 
@@ -632,7 +645,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       <div className="h-screen w-full bg-kiosk-bg flex flex-col lg:flex-row overflow-hidden">
         {/* Image Side */}
         <div className="lg:w-2/3 h-[35vh] lg:h-full bg-black p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0">
-          <img src={finalImage || ''} className="max-h-full max-w-full rounded-lg md:rounded-xl shadow-2xl border border-gray-800" alt="Final AI" />
+          <img
+            src={finalImage || ''}
+            className="max-h-full max-w-full rounded-lg md:rounded-xl shadow-2xl border border-gray-800 touch-auto select-auto"
+            alt="Final AI"
+            style={{ WebkitUserSelect: 'auto', userSelect: 'auto', WebkitTouchCallout: 'default' }}
+            onContextMenu={(e) => e.stopPropagation()}
+          />
+          <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md pointer-events-none lg:hidden">
+            Long-press to save
+          </div>
         </div>
 
         {/* Input Side */}
