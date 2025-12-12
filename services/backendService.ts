@@ -7,6 +7,10 @@ let cachedTenantId: string | null = null;
 let cacheTimestamp: number | null = null;
 const CACHE_TTL = 60000;
 
+let cachedPrompts: Prompt[] | null = null;
+let promptsCacheTimestamp: number | null = null;
+const PROMPTS_CACHE_TTL = 300000;
+
 const getUserTenantId = async (): Promise<string> => {
   if (cachedTenantId && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_TTL) {
     return cachedTenantId;
@@ -34,6 +38,11 @@ const getUserTenantId = async (): Promise<string> => {
 export const clearTenantCache = () => {
   cachedTenantId = null;
   cacheTimestamp = null;
+};
+
+export const clearPromptsCache = () => {
+  cachedPrompts = null;
+  promptsCacheTimestamp = null;
 };
 
 const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
@@ -316,7 +325,11 @@ export const getEvents = async (): Promise<Event[]> => {
   }));
 };
 
-export const getPrompts = async (): Promise<Prompt[]> => {
+export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> => {
+  if (!skipCache && cachedPrompts && promptsCacheTimestamp && Date.now() - promptsCacheTimestamp < PROMPTS_CACHE_TTL) {
+    return cachedPrompts;
+  }
+
   const tenantId = await getUserTenantId();
 
   const { data, error } = await supabase
@@ -330,7 +343,7 @@ export const getPrompts = async (): Promise<Prompt[]> => {
     throw new Error(`Failed to fetch prompts: ${error.message}`);
   }
 
-  return data.map((prompt) => ({
+  const prompts = data.map((prompt) => ({
     id: prompt.id,
     name: prompt.name,
     description: prompt.description,
@@ -339,6 +352,11 @@ export const getPrompts = async (): Promise<Prompt[]> => {
     previewImage: prompt.preview_image_url,
     referenceImage: prompt.reference_image_url,
   }));
+
+  cachedPrompts = prompts;
+  promptsCacheTimestamp = Date.now();
+
+  return prompts;
 };
 
 export const saveEvent = async (event: Event): Promise<Event> => {
@@ -493,6 +511,8 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
     throw new Error('Failed to save prompt: No data returned');
   }
 
+  clearPromptsCache();
+
   return {
     id: data.id,
     name: data.name,
@@ -529,6 +549,8 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
     throw new Error('Failed to update prompt: No data returned');
   }
 
+  clearPromptsCache();
+
   return {
     id: data.id,
     name: data.name,
@@ -549,6 +571,8 @@ export const deletePrompt = async (promptId: string): Promise<void> => {
   if (error) {
     throw new Error(`Failed to delete prompt: ${error.message}`);
   }
+
+  clearPromptsCache();
 };
 
 export const sendSms = async (tenantId: string, phoneNumber: string, imageUrl: string, eventId?: string): Promise<boolean> => {
@@ -745,35 +769,23 @@ export interface DashboardStats {
 }
 
 export const getDashboardStats = async (): Promise<DashboardStats> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  let tenantId = DEMO_TENANT_ID;
+  const tenantId = await getUserTenantId();
 
-  if (user) {
-    const { data: tenantData } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
+  const [eventsResult, imagesResult] = await Promise.all([
+    supabase
+      .from('events')
+      .select('id, is_active', { count: 'exact', head: false })
+      .eq('tenant_id', tenantId),
+    supabase
+      .from('generated_images')
+      .select('id', { count: 'exact', head: false })
+      .eq('tenant_id', tenantId)
+      .eq('status', 'completed')
+  ]);
 
-    if (tenantData) {
-      tenantId = tenantData.id;
-    }
-  }
-
-  const { data: eventsData } = await supabase
-    .from('events')
-    .select('id, is_active')
-    .eq('tenant_id', tenantId);
-
-  const { data: imagesData } = await supabase
-    .from('generated_images')
-    .select('id, status')
-    .eq('tenant_id', tenantId)
-    .eq('status', 'completed');
-
-  const totalImages = imagesData?.length || 0;
-  const totalEvents = eventsData?.length || 0;
-  const activeEvents = eventsData?.filter(e => e.is_active).length || 0;
+  const totalImages = imagesResult.data?.length || 0;
+  const totalEvents = eventsResult.data?.length || 0;
+  const activeEvents = eventsResult.data?.filter(e => e.is_active).length || 0;
 
   return {
     totalImages,
@@ -789,20 +801,7 @@ export interface ChartDataPoint {
 }
 
 export const getDashboardChartData = async (): Promise<ChartDataPoint[]> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  let tenantId = DEMO_TENANT_ID;
-
-  if (user) {
-    const { data: tenantData } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (tenantData) {
-      tenantId = tenantData.id;
-    }
-  }
+  const tenantId = await getUserTenantId();
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
