@@ -1,32 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import React, { useState, useEffect } from 'react';
 import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Users, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, BarChart3, Trash2, Pencil } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, BarChart3, Trash2, Pencil, CreditCard } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
-
-const mockChartData = [
-  { name: 'Mon', images: 40 },
-  { name: 'Tue', images: 30 },
-  { name: 'Wed', images: 20 },
-  { name: 'Thu', images: 27 },
-  { name: 'Fri', images: 189 },
-  { name: 'Sat', images: 239 },
-  { name: 'Sun', images: 34 },
-];
+import SubscriptionManager from './SubscriptionManager';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 
 interface AdminProps {
   onLogout: () => void;
   onLaunchKiosk: (event: Event) => void;
+  user: User | null;
 }
 
 type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings';
 
-const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
+const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   // Event Editor State
   const [editingEvent, setEditingEvent] = useState<Partial<Event>>({});
@@ -50,12 +45,25 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
 
   useEffect(() => {
     loadData();
-  }, []);
+    loadUserProfile();
+  }, [user]);
 
   const loadData = () => {
     getTenant().then(setTenant);
     getEvents().then(setEvents);
     getPrompts().then(setAvailablePrompts);
+  };
+
+  const loadUserProfile = async () => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    setUserProfile(data);
   };
 
   const copyKioskLink = (event: Event) => {
@@ -244,7 +252,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
             <Camera size={24} />
             Lumina
           </h1>
-          <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest">{tenant.tier} PLAN</p>
+          {userProfile && (
+            <div className="mt-3 text-xs">
+              <p className="text-slate-400 truncate">{userProfile.email}</p>
+              <p className="text-slate-500 mt-1 uppercase tracking-widest">
+                {userProfile.subscription_tier || tenant.tier} PLAN
+              </p>
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
@@ -271,8 +286,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
           </button>
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
-          <div className="mb-4">
+        <div className="p-4 border-t border-slate-800 space-y-4">
+          <div>
             <div className="flex justify-between text-xs text-slate-400 mb-1">
               <span>Credits</span>
               <span>{tenant.usage.imagesUsed} / {tenant.usage.imagesLimit}</span>
@@ -281,6 +296,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
               <div className="h-full bg-blue-500" style={{ width: `${usagePercent}%` }}></div>
             </div>
           </div>
+          <button
+            onClick={() => setShowSubscriptionModal(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg text-sm font-medium transition-all"
+          >
+            <CreditCard size={16} />
+            Manage Plan
+          </button>
           <button onClick={onLogout} className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300">
             <LogOut size={16} /> Sign Out
           </button>
@@ -987,6 +1009,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk }) => {
         )}
 
       </main>
+
+      {/* Subscription Manager Modal */}
+      {showSubscriptionModal && (
+        <SubscriptionManager onClose={() => setShowSubscriptionModal(false)} />
+      )}
     </div>
   );
 };

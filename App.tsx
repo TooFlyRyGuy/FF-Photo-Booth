@@ -1,27 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import AdminDashboard from './components/AdminDashboard';
 import KioskMode from './components/KioskMode';
+import Login from './components/Login';
+import Signup from './components/Signup';
 import { Event } from './types';
-import { Lock, User, Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
+import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
 import { getEventByPasscode } from './services/backendService';
+import { supabase } from './lib/supabase';
+import { User } from '@supabase/supabase-js';
 
-type ViewState = 'landing' | 'login' | 'admin' | 'kiosk' | 'loading';
+type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'loading';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<ViewState>('landing');
+  const [view, setView] = useState<ViewState>('loading');
   const [activeEvent, setActiveEvent] = useState<Event | null>(null);
-  const [passcode, setPasscode] = useState('');
+  const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState('');
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passcode === 'admin123') {
-      setView('admin');
-      setError('');
-    } else {
-      setError('Invalid Passcode');
-    }
-  };
 
   const launchKiosk = (event: Event) => {
     setActiveEvent(event);
@@ -32,28 +26,84 @@ const App: React.FC = () => {
     window.location.href = '/';
   };
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const kioskPasscode = urlParams.get('kiosk');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setView('landing');
+  };
 
-    if (kioskPasscode) {
-      setView('loading');
-      getEventByPasscode(kioskPasscode)
-        .then((event) => {
-          if (event) {
-            setActiveEvent(event);
-            setView('kiosk');
-          } else {
-            setError('Invalid event code');
-            setView('landing');
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        setUser(session.user);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const kioskPasscode = urlParams.get('kiosk');
+
+        if (kioskPasscode) {
+          try {
+            const event = await getEventByPasscode(kioskPasscode);
+            if (event) {
+              setActiveEvent(event);
+              setView('kiosk');
+            } else {
+              setError('Invalid event code');
+              setView('admin');
+            }
+          } catch (err) {
+            console.error('Failed to load event:', err);
+            setError('Failed to load event');
+            setView('admin');
           }
-        })
-        .catch((err) => {
-          console.error('Failed to load event:', err);
-          setError('Failed to load event');
+        } else {
+          setView('admin');
+        }
+      } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        const kioskPasscode = urlParams.get('kiosk');
+
+        if (kioskPasscode) {
+          setView('loading');
+          getEventByPasscode(kioskPasscode)
+            .then((event) => {
+              if (event) {
+                setActiveEvent(event);
+                setView('kiosk');
+              } else {
+                setError('Invalid event code');
+                setView('landing');
+              }
+            })
+            .catch((err) => {
+              console.error('Failed to load event:', err);
+              setError('Failed to load event');
+              setView('landing');
+            });
+        } else {
           setView('landing');
-        });
-    }
+        }
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      (async () => {
+        if (session?.user) {
+          setUser(session.user);
+          setView('admin');
+        } else {
+          setUser(null);
+          setView('landing');
+        }
+      })();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // LOADING STATE
@@ -75,43 +125,28 @@ const App: React.FC = () => {
 
   // 2. ADMIN MODE
   if (view === 'admin') {
-    return <AdminDashboard onLogout={() => setView('landing')} onLaunchKiosk={launchKiosk} />;
+    return <AdminDashboard onLogout={handleLogout} onLaunchKiosk={launchKiosk} user={user} />;
   }
 
   // 3. LOGIN MODE
   if (view === 'login') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
-          <div className="flex justify-center mb-6">
-            <img src="/smaller700x200_logo.png" alt="Fun Frame Photo" className="h-12" />
-          </div>
-          <div className="flex justify-center mb-6">
-            <div className="p-4 bg-green-500/10 rounded-full text-green-500 border border-green-500/20">
-              <Lock size={32} />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-white text-center mb-2">Admin Access</h2>
-          <p className="text-slate-400 text-center mb-8">Enter your secure dashboard passcode</p>
+      <Login
+        onSuccess={() => setView('admin')}
+        onSwitchToSignup={() => setView('signup')}
+        onBackToLanding={() => setView('landing')}
+      />
+    );
+  }
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Passcode"
-                className="w-full bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-              />
-            </div>
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-green-500/20 hover:shadow-green-500/30">
-              Unlock Dashboard
-            </button>
-          </form>
-          <button onClick={() => setView('landing')} className="w-full mt-4 text-slate-500 hover:text-slate-300 text-sm">Cancel</button>
-        </div>
-      </div>
+  // 4. SIGNUP MODE
+  if (view === 'signup') {
+    return (
+      <Signup
+        onSuccess={() => setView('admin')}
+        onSwitchToLogin={() => setView('login')}
+        onBackToLanding={() => setView('landing')}
+      />
     );
   }
 
@@ -129,12 +164,20 @@ const App: React.FC = () => {
         <div className="flex items-center">
           <img src="/smaller700x200_logo.png" alt="Fun Frame Photo" className="h-12 lg:h-16" />
         </div>
-        <button
-          onClick={() => setView('login')}
-          className="flex items-center gap-2 bg-green-700/10 hover:bg-green-700/20 border border-green-700/30 text-green-800 px-5 py-2.5 rounded-full text-sm font-medium transition-all hover:scale-105"
-        >
-          <User size={16} /> Admin Login
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setView('login')}
+            className="text-slate-700 hover:text-slate-900 text-sm font-medium transition-all"
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => setView('signup')}
+            className="bg-green-700 hover:bg-green-800 text-white px-5 py-2.5 rounded-full text-sm font-medium transition-all hover:scale-105"
+          >
+            Get Started
+          </button>
+        </div>
       </nav>
 
       {/* Hero */}
@@ -199,18 +242,18 @@ const App: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <button
-                onClick={() => setView('login')}
+                onClick={() => setView('signup')}
                 className="group px-8 py-4 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white rounded-xl font-bold shadow-lg shadow-green-700/25 transition-all hover:scale-105 hover:shadow-green-700/40 flex items-center justify-center gap-2"
               >
-                Get Started
+                Get Started Free
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </button>
-              <a
-                href="mailto:info@funframephoto.com"
+              <button
+                onClick={() => setView('login')}
                 className="px-8 py-4 bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-900 rounded-xl font-bold transition-all hover:scale-105 flex items-center justify-center gap-2"
               >
-                Contact Us
-              </a>
+                Sign In
+              </button>
             </div>
           </div>
 
