@@ -639,3 +639,106 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
     throw new Error(`Failed to delete event: ${error.message}`);
   }
 };
+
+export interface DashboardStats {
+  totalImages: number;
+  totalSms: number;
+  totalEvents: number;
+  activeEvents: number;
+}
+
+export const getDashboardStats = async (): Promise<DashboardStats> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  let tenantId = DEMO_TENANT_ID;
+
+  if (user) {
+    const { data: tenantData } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (tenantData) {
+      tenantId = tenantData.id;
+    }
+  }
+
+  const { data: eventsData } = await supabase
+    .from('events')
+    .select('id, is_active')
+    .eq('tenant_id', tenantId);
+
+  const { data: imagesData } = await supabase
+    .from('generated_images')
+    .select('id, status')
+    .eq('tenant_id', tenantId)
+    .eq('status', 'completed');
+
+  const totalImages = imagesData?.length || 0;
+  const totalEvents = eventsData?.length || 0;
+  const activeEvents = eventsData?.filter(e => e.is_active).length || 0;
+
+  return {
+    totalImages,
+    totalSms: Math.floor(totalImages * 0.7),
+    totalEvents,
+    activeEvents,
+  };
+};
+
+export interface ChartDataPoint {
+  name: string;
+  images: number;
+}
+
+export const getDashboardChartData = async (): Promise<ChartDataPoint[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  let tenantId = DEMO_TENANT_ID;
+
+  if (user) {
+    const { data: tenantData } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (tenantData) {
+      tenantId = tenantData.id;
+    }
+  }
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const { data: imagesData } = await supabase
+    .from('generated_images')
+    .select('created_at')
+    .eq('tenant_id', tenantId)
+    .eq('status', 'completed')
+    .gte('created_at', sevenDaysAgo.toISOString());
+
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const chartData: ChartDataPoint[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - i));
+    date.setHours(0, 0, 0, 0);
+
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + 1);
+
+    const count = imagesData?.filter(img => {
+      const imgDate = new Date(img.created_at);
+      return imgDate >= date && imgDate < nextDate;
+    }).length || 0;
+
+    chartData.push({
+      name: dayNames[date.getDay()],
+      images: count,
+    });
+  }
+
+  return chartData;
+};

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent } from '../services/backendService';
+import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard } from 'lucide-react';
 import Settings from './Settings';
@@ -17,22 +17,14 @@ interface AdminProps {
 
 type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings';
 
-const mockChartData = [
-  { name: 'Mon', images: 12 },
-  { name: 'Tue', images: 24 },
-  { name: 'Wed', images: 18 },
-  { name: 'Thu', images: 32 },
-  { name: 'Fri', images: 28 },
-  { name: 'Sat', images: 45 },
-  { name: 'Sun', images: 38 }
-];
-
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [userProfile, setUserProfile] = useState<any>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ totalImages: 0, totalSms: 0, totalEvents: 0, activeEvents: 0 });
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
 
   // Event Editor State
@@ -57,6 +49,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   useEffect(() => {
     loadData();
+    loadDashboardData();
     loadUserProfile();
     loadSubscriptionData();
   }, [user]);
@@ -65,6 +58,19 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     getTenant().then(setTenant);
     getEvents().then(setEvents);
     getPrompts().then(setAvailablePrompts);
+  const loadDashboardData = async () => {
+    try {
+      const [stats, chart] = await Promise.all([
+        getDashboardStats(),
+        getDashboardChartData()
+      ]);
+      setDashboardStats(stats);
+      setChartData(chart);
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    }
+  };
+
   };
 
   const loadUserProfile = async () => {
@@ -353,12 +359,12 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             </header>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-slate-600 text-sm">Total Images</p>
-                    <h3 className="text-3xl font-bold mt-1 text-black">{tenant.usage.imagesUsed}</h3>
+                    <h3 className="text-3xl font-bold mt-1 text-black">{dashboardStats.totalImages}</h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg"><Camera size={20}/></div>
                 </div>
@@ -367,7 +373,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-slate-600 text-sm">SMS Delivered</p>
-                    <h3 className="text-3xl font-bold mt-1 text-black">{tenant.usage.smsUsed}</h3>
+                    <h3 className="text-3xl font-bold mt-1 text-black">{dashboardStats.totalSms}</h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg"><MessageSquare size={20}/></div>
                 </div>
@@ -375,8 +381,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-slate-600 text-sm">Est. Revenue</p>
-                    <h3 className="text-3xl font-bold mt-1 text-black">$1,240</h3>
+                    <p className="text-slate-600 text-sm">Total Events</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">{dashboardStats.totalEvents}</h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg"><Calendar size={20}/></div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Active Events</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">{dashboardStats.activeEvents}</h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg"><Zap size={20}/></div>
                 </div>
@@ -385,9 +400,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
             {/* Chart */}
             <div className="bg-white p-6 rounded-xl border-2 border-slate-300 h-80">
-              <h3 className="text-lg font-semibold mb-4 text-black">Generation Activity</h3>
+              <h3 className="text-lg font-semibold mb-4 text-black">Generation Activity (Last 7 Days)</h3>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockChartData}>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
                   <XAxis dataKey="name" stroke="#475569" />
                   <YAxis stroke="#475569" />

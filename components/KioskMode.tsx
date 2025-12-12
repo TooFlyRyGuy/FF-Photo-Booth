@@ -538,7 +538,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     };
 
     return (
-      <div className="h-screen w-full bg-black relative flex items-center justify-center overflow-hidden">
+      <div className="h-screen w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
         <video ref={videoRef} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover transform -scale-x-100" />
         <canvas ref={canvasRef} className="hidden" />
 
@@ -548,7 +548,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </div>
         )}
 
-        <div className="absolute bottom-6 md:bottom-10 z-40 flex gap-4 md:gap-8 items-center">
+        <div className="absolute bottom-4 left-0 right-0 z-40 flex justify-center gap-4 md:gap-8 items-center pb-safe" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
            <button onClick={() => setView('prompt-select')} className="bg-white/90 backdrop-blur text-slate-900 px-4 py-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 text-sm md:text-base min-h-[44px] font-semibold">
              Back
            </button>
