@@ -31,6 +31,20 @@ const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
 };
 
 export const getTenant = async (): Promise<Tenant> => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    const { data: tenantData } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (tenantData) {
+      return getTenantById(tenantData.id);
+    }
+  }
+
   return getTenantById(DEMO_TENANT_ID);
 };
 
@@ -121,10 +135,25 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
 
   dbUpdates.updated_at = new Date().toISOString();
 
+  const { data: { user } } = await supabase.auth.getUser();
+  let tenantId = DEMO_TENANT_ID;
+
+  if (user) {
+    const { data: tenantData } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (tenantData) {
+      tenantId = tenantData.id;
+    }
+  }
+
   const { error } = await supabase
     .from('tenants')
     .update(dbUpdates)
-    .eq('id', DEMO_TENANT_ID);
+    .eq('id', tenantId);
 
   if (error) {
     console.error('Failed to update tenant settings:', error);
@@ -135,6 +164,21 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
 };
 
 export const getEvents = async (): Promise<Event[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  let tenantId = DEMO_TENANT_ID;
+
+  if (user) {
+    const { data: tenantData } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (tenantData) {
+      tenantId = tenantData.id;
+    }
+  }
+
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
     .select(`
@@ -144,7 +188,7 @@ export const getEvents = async (): Promise<Event[]> => {
         prompts (*)
       )
     `)
-    .eq('tenant_id', DEMO_TENANT_ID)
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
   if (eventsError) {
