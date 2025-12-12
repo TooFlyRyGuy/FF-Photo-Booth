@@ -25,7 +25,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ totalImages: 0, totalSms: 0, totalEvents: 0, activeEvents: 0 });
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [subscriptionData, setSubscriptionData] = useState<any>(null);
 
   // Event Editor State
   const [editingEvent, setEditingEvent] = useState<Partial<Event>>({});
@@ -51,13 +50,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     loadData();
     loadDashboardData();
     loadUserProfile();
-    loadSubscriptionData();
   }, [user]);
 
   const loadData = () => {
     getTenant().then(setTenant);
     getEvents().then(setEvents);
     getPrompts().then(setAvailablePrompts);
+  };
+
   const loadDashboardData = async () => {
     try {
       const [stats, chart] = await Promise.all([
@@ -71,8 +71,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
-  };
-
   const loadUserProfile = async () => {
     if (!user) return;
 
@@ -83,17 +81,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       .maybeSingle();
 
     setUserProfile(data);
-  };
-
-  const loadSubscriptionData = async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('stripe_user_subscriptions')
-      .select('subscription_status, price_id')
-      .maybeSingle();
-
-    setSubscriptionData(data);
   };
 
   const copyKioskLink = (event: Event) => {
@@ -286,10 +273,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             <div className="mt-3 text-xs">
               <p className="text-slate-600 truncate">{userProfile.email}</p>
               <p className="text-slate-500 mt-1 uppercase tracking-widest">
-                {subscriptionData?.subscription_status === 'active' ? 
-                  getProductByPriceId(subscriptionData.price_id)?.name || 'ACTIVE PLAN' : 
-                  'FREE PLAN'
-                }
+                {userProfile.subscription_tier?.toUpperCase() || 'FREE'} PLAN
               </p>
             </div>
           )}
