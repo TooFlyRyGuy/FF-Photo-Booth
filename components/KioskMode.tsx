@@ -53,6 +53,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     primary: event.primaryColor || '#6366f1',
     secondary: event.secondaryColor || '#8b5cf6',
     accent: event.accentColor || '#ec4899',
+    background: event.backgroundColor || '#f8fafc',
   });
 
   const getAspectRatioDimensions = (ratio: string = 'square'): { width: number; height: number } => {
@@ -379,7 +380,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
         <div className="z-10 text-center space-y-4 md:space-y-6 px-4 max-w-2xl">
           <h1
-            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-green-800"
+            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold"
+            style={{ color: colors.secondary }}
           >
             EVENT NOT STARTED
           </h1>
@@ -389,7 +391,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           {startDate && (
             <div className="mt-8 p-6 bg-white backdrop-blur-sm rounded-xl border-2 border-slate-300">
               <p className="text-slate-900 text-lg md:text-xl mb-2">Event starts:</p>
-              <p className="text-2xl md:text-3xl font-bold text-green-800">
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.primary }}>
                 {startDate.toLocaleString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -428,7 +430,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
         <div className="z-10 text-center space-y-4 md:space-y-6 px-4 max-w-2xl">
           <h1
-            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-green-800"
+            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold"
+            style={{ color: colors.secondary }}
           >
             EVENT HAS ENDED
           </h1>
@@ -438,7 +441,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           {endDate && (
             <div className="mt-8 p-6 bg-white backdrop-blur-sm rounded-xl border-2 border-slate-300">
               <p className="text-slate-900 text-lg md:text-xl mb-2">Event ended:</p>
-              <p className="text-2xl md:text-3xl font-bold text-green-800">
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.primary }}>
                 {endDate.toLocaleString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
@@ -490,7 +493,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
         <div className="z-10 text-center space-y-4 md:space-y-6 animate-bounce px-4">
           <h1
-            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold text-green-800"
+            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold"
+            style={{ color: colors.secondary }}
           >
             TAP TO START
           </h1>
@@ -513,7 +517,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             <button
               key={prompt.id}
               onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
-              className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 active:border-green-700 hover:border-green-700 transition-all transform active:scale-95 hover:scale-105 min-h-[150px]"
+              className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 min-h-[150px]"
+              style={{
+                borderColor: '#cbd5e1',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = getBrandingColors().accent}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
             >
               <img src={prompt.previewImage} alt={prompt.name} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-3 md:p-6">
@@ -564,8 +573,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
              className="h-16 w-16 md:h-24 md:w-24 rounded-full border-4 md:border-8 active:scale-95 transition-transform"
              style={{
                backgroundColor: 'white',
-               borderColor: '#15803d',
-               boxShadow: `0 0 30px rgba(21, 128, 61, 0.5)`,
+               borderColor: colors.primary,
+               boxShadow: `0 0 30px ${colors.primary}80`,
              }}
            />
         </div>
@@ -582,15 +591,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           <div
             className="absolute inset-0 rounded-full border-4 animate-spin"
             style={{
-              borderTopColor: '#15803d',
+              borderTopColor: colors.primary,
               borderRightColor: 'transparent',
-              borderBottomColor: '#166534',
+              borderBottomColor: colors.accent,
               borderLeftColor: 'transparent',
             }}
           />
           <img src={capturedImage || ''} className="absolute inset-2 rounded-full object-cover opacity-50 grayscale" alt="original" />
         </div>
-        <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center text-green-800">Creating Magic...</h2>
+        <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>Creating Magic...</h2>
         <p className="text-sm md:text-base text-slate-600 text-center">Applying {selectedPrompt?.name} style</p>
       </div>
     );
@@ -616,10 +625,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                   </button>
                   <button
                     onClick={handleGenerate}
-                    className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full text-white font-bold text-sm md:text-lg shadow-lg transition-all min-h-[44px] bg-green-700 hover:bg-green-800"
+                    className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full text-white font-bold text-sm md:text-lg shadow-lg transition-all min-h-[44px]"
                     style={{
-                      boxShadow: `0 10px 25px rgba(21, 128, 61, 0.3)`,
+                      backgroundColor: colors.primary,
+                      boxShadow: `0 10px 25px ${colors.primary}50`,
                     }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                   >
                     Generate AI <ArrowRight size={18} className="md:w-6 md:h-6" />
                   </button>
@@ -652,7 +664,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
            {view === 'delivery' ? (
              <div className="text-center space-y-3 md:space-y-6">
-                <div className="h-12 w-12 md:h-24 md:w-24 bg-green-700 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-lg shadow-green-700/50">
+                <div
+                  className="h-12 w-12 md:h-24 md:w-24 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-lg"
+                  style={{
+                    backgroundColor: colors.primary,
+                    boxShadow: `0 10px 30px ${colors.primary}50`,
+                  }}
+                >
                     <Check size={24} className="md:w-12 md:h-12 text-white" />
                 </div>
                 <h2 className="text-xl md:text-4xl text-slate-900 font-bold">Sent!</h2>
@@ -668,10 +686,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
                 <button
                     onClick={handleDownload}
-                    className="w-full text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 min-h-[44px] bg-green-700 hover:bg-green-800"
+                    className="w-full text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 min-h-[44px]"
                     style={{
-                      boxShadow: `0 10px 25px rgba(21, 128, 61, 0.3)`,
+                      backgroundColor: colors.primary,
+                      boxShadow: `0 10px 25px ${colors.primary}50`,
                     }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
                     <Download size={18} className="md:w-6 md:h-6" /> Download Now
                 </button>
@@ -692,7 +713,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="(555) 123-4567"
-                        className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:border-green-700 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
+                        className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
+                        style={{
+                          borderColor: phoneNumber ? colors.accent : undefined,
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+                        onBlur={(e) => {
+                          if (!phoneNumber) e.currentTarget.style.borderColor = '';
+                        }}
                     />
                 </div>
 
