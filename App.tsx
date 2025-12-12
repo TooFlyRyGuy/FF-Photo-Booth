@@ -38,21 +38,29 @@ const App: React.FC = () => {
     const kioskPasscode = urlParams.get('kiosk');
     const isKioskMode = !!kioskPasscode;
 
+    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'isKioskMode:', isKioskMode);
+
     const initializeAuth = async () => {
+      console.log('[App] Starting initializeAuth');
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[App] Session state:', session?.user ? 'logged in' : 'logged out');
 
       if (kioskPasscode) {
+        console.log('[App] Kiosk mode detected - loading event');
         try {
           const event = await getEventByPasscode(kioskPasscode);
+          console.log('[App] Event loaded:', event?.name || 'null');
           if (event) {
             setActiveEvent(event);
             setView('kiosk');
+            console.log('[App] View set to kiosk');
           } else {
+            console.log('[App] No event found');
             setError('Invalid event code');
             setView(session?.user ? 'admin' : 'landing');
           }
         } catch (err) {
-          console.error('Failed to load event:', err);
+          console.error('[App] Error loading event:', err);
           setError('Failed to load event');
           setView(session?.user ? 'admin' : 'landing');
         }
@@ -60,6 +68,7 @@ const App: React.FC = () => {
           setUser(session.user);
         }
       } else {
+        console.log('[App] No kiosk mode - normal flow');
         if (session?.user) {
           setUser(session.user);
           setView('admin');
@@ -71,20 +80,26 @@ const App: React.FC = () => {
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[App] onAuthStateChange fired - event:', event, 'session:', session?.user ? 'logged in' : 'logged out', 'isKioskMode:', isKioskMode);
+
       if (isKioskMode) {
+        console.log('[App] In kiosk mode - ignoring auth change');
         if (session?.user) {
           setUser(session.user);
         }
         return;
       }
 
+      console.log('[App] Not in kiosk mode - processing auth change');
       if (session?.user) {
         setUser(session.user);
         setView('admin');
+        console.log('[App] View set to admin');
       } else {
         setUser(null);
         setView('landing');
+        console.log('[App] View set to landing');
       }
     });
 
