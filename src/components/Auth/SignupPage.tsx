@@ -22,7 +22,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onSwitchToLogin }) =
     setSuccess('');
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -35,10 +35,17 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onSwitchToLogin }) =
       if (error) {
         setError(error.message);
       } else {
-        setSuccess('Account created successfully! You can now sign in.');
-        setTimeout(() => {
-          onSuccess();
-        }, 2000);
+        if (data.session) {
+          setSuccess('Account created! Setting up your account...');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          setSuccess('Account created successfully! You can now sign in.');
+          setTimeout(() => {
+            onSuccess();
+          }, 2000);
+        }
       }
     } catch (err: any) {
       setError('An unexpected error occurred');

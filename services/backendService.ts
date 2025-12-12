@@ -34,15 +34,29 @@ export const getTenant = async (): Promise<Tenant> => {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
-    const { data: tenantData } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    let retries = 0;
+    const maxRetries = 5;
 
-    if (tenantData) {
-      return getTenantById(tenantData.id);
+    while (retries < maxRetries) {
+      const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (tenantData) {
+        return getTenantById(tenantData.id);
+      }
+
+      if (retries < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        retries++;
+      } else {
+        break;
+      }
     }
+
+    throw new Error('Your account is still being set up. Please refresh the page in a few seconds.');
   }
 
   return getTenantById(DEMO_TENANT_ID);

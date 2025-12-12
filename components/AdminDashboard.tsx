@@ -53,9 +53,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   }, [user]);
 
   const loadData = () => {
-    getTenant().then(setTenant);
-    getEvents().then(setEvents);
-    getPrompts().then(setAvailablePrompts);
+    getTenant()
+      .then(setTenant)
+      .catch((error) => {
+        console.error('Failed to load tenant:', error);
+        alert('Failed to load your account data. Please try refreshing the page. If the issue persists, contact support.');
+      });
+    getEvents().then(setEvents).catch(console.error);
+    getPrompts().then(setAvailablePrompts).catch(console.error);
   };
 
   const loadDashboardData = async () => {

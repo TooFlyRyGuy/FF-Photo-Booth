@@ -42,9 +42,15 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
 
       if (data.user) {
         setSuccess(true);
-        setTimeout(() => {
-          onSuccess();
-        }, 2000);
+        if (data.session) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          setTimeout(() => {
+            onSuccess();
+          }, 2000);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
