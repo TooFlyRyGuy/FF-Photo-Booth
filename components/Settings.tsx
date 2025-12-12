@@ -28,6 +28,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiEnabled, setGeminiEnabled] = useState(false);
   const [geminiModel, setGeminiModel] = useState(tenant.geminiModel || 'gemini-3-pro-image-preview');
+  const [geminiResolution, setGeminiResolution] = useState<'1K' | '2K' | '4K'>(tenant.geminiResolution || '1K');
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [geminiKeyChanged, setGeminiKeyChanged] = useState(false);
 
@@ -119,6 +120,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
         twilioPhoneNumber: twilioPhone,
         twilioEnabled,
         geminiModel,
+        geminiResolution,
       };
 
       if (twilioTokenChanged) {
@@ -355,9 +357,25 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
             </p>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-slate-900 mb-2">Image Resolution</label>
+            <select
+              value={geminiResolution}
+              onChange={(e) => setGeminiResolution(e.target.value as '1K' | '2K' | '4K')}
+              className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+            >
+              <option value="1K">1K (Standard - Fastest)</option>
+              <option value="2K">2K (High Quality)</option>
+              <option value="4K">4K (Ultra Quality - Slowest)</option>
+            </select>
+            <p className="text-xs text-slate-600 mt-2">
+              Higher resolutions provide better image quality but may take longer to generate and use more API credits.
+            </p>
+          </div>
+
           <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
             <p className="text-sm text-green-800">
-              <strong>Recommended:</strong> Gemini 3 Pro Image is optimized for high-quality image generation with advanced capabilities.
+              <strong>Recommended:</strong> Gemini 3 Pro Image is optimized for high-quality image generation with advanced capabilities. Use 1K resolution for optimal performance and cost efficiency.
             </p>
           </div>
         </div>

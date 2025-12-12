@@ -8,7 +8,8 @@ export const generateBoothImage = async (
   apiKey: string,
   referenceImageBase64?: string,
   aspectRatio?: AspectRatio,
-  modelName?: string
+  modelName?: string,
+  resolution?: '1K' | '2K' | '4K'
 ): Promise<string> => {
   if (!apiKey || apiKey.trim() === '') {
     throw new Error("Gemini API Key missing. Please configure it in Settings.");
@@ -20,7 +21,24 @@ export const generateBoothImage = async (
   const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
   const cleanRefBase64 = referenceImageBase64?.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
-  // Get aspect ratio specifications
+  // Map AspectRatio to Gemini API format
+  const mapAspectRatioToGemini = (ratio?: AspectRatio): string => {
+    switch (ratio) {
+      case '3:4':
+        return '3:4';
+      case '4:3':
+        return '4:3';
+      case '9:16':
+        return '9:16';
+      case '16:9':
+        return '16:9';
+      case 'square':
+      default:
+        return '1:1';
+    }
+  };
+
+  // Get aspect ratio specifications for prompt (descriptive text)
   const getAspectRatioSpec = (ratio?: AspectRatio): string => {
     switch (ratio) {
       case '3:4':
@@ -39,6 +57,8 @@ export const generateBoothImage = async (
 
   try {
     const model = modelName || 'gemini-3-pro-image-preview';
+    const geminiAspectRatio = mapAspectRatioToGemini(aspectRatio);
+    const geminiResolution = resolution || '1K';
 
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
 
@@ -78,7 +98,8 @@ export const generateBoothImage = async (
         parts: parts
       },
       config: {
-        // We do not set responseMimeType for image generation models like nano banana
+        aspectRatio: geminiAspectRatio,
+        resolution: geminiResolution
       }
     });
 

@@ -36,6 +36,7 @@ export interface Tenant {
   geminiApiKey?: string;
   geminiEnabled?: boolean;
   geminiModel?: string;
+  geminiResolution?: '1K' | '2K' | '4K';
 }
 
 export interface Prompt {
