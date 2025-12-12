@@ -33,6 +33,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [userProfile, setUserProfile] = useState<any>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
 
   // Event Editor State
   const [editingEvent, setEditingEvent] = useState<Partial<Event>>({});
@@ -57,6 +58,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   useEffect(() => {
     loadData();
     loadUserProfile();
+    loadSubscriptionData();
   }, [user]);
 
   const loadData = () => {
@@ -75,6 +77,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       .maybeSingle();
 
     setUserProfile(data);
+  };
+
+  const loadSubscriptionData = async () => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('stripe_user_subscriptions')
+      .select('subscription_status, price_id')
+      .maybeSingle();
+
+    setSubscriptionData(data);
   };
 
   const copyKioskLink = (event: Event) => {
@@ -267,7 +280,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             <div className="mt-3 text-xs">
               <p className="text-slate-600 truncate">{userProfile.email}</p>
               <p className="text-slate-500 mt-1 uppercase tracking-widest">
-                {userProfile.subscription_tier || tenant.tier} PLAN
+                {subscriptionData?.subscription_status === 'active' ? 
+                  getProductByPriceId(subscriptionData.price_id)?.name || 'ACTIVE PLAN' : 
+                  'FREE PLAN'
+                }
               </p>
             </div>
           )}
