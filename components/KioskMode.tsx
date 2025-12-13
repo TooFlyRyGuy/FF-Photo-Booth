@@ -243,7 +243,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   // --- SMS LOGIC ---
   const handleSendSms = async () => {
     if (phoneNumber.length < 10 || !generatedImageUrl) return;
+
+    // Check if the URL is a data URL (base64) - cannot be sent via SMS
+    if (generatedImageUrl.startsWith('data:')) {
+      setErrorMsg('SMS unavailable: Image hosting is not configured. Please download the image instead.');
+      return;
+    }
+
     setIsSending(true);
+    setErrorMsg('');
     try {
       await sendSms(event.tenantId, phoneNumber, generatedImageUrl, event.id);
       setView('delivery');
@@ -681,8 +689,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
              <>
                 <div>
                     <h2 className="text-xl md:text-3xl lg:text-4xl text-slate-900 font-display font-bold mb-1 md:mb-2">Get Your Photo</h2>
-                    <p className="text-xs md:text-base text-slate-600">Download now or receive via SMS.</p>
+                    <p className="text-xs md:text-base text-slate-600">
+                      {generatedImageUrl?.startsWith('data:') ? 'Download now (SMS unavailable)' : 'Download now or receive via SMS.'}
+                    </p>
                 </div>
+
+                {errorMsg && (
+                  <div className="w-full p-2 md:p-3 bg-red-100 border-2 border-red-300 rounded-lg text-red-800 text-center text-xs md:text-sm">
+                    {errorMsg}
+                  </div>
+                )}
 
                 <button
                     onClick={handleDownload}
@@ -697,40 +713,44 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                     <Download size={18} className="md:w-6 md:h-6" /> Download Now
                 </button>
 
-                <div className="relative py-1">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-300"></div>
+                {!generatedImageUrl?.startsWith('data:') && (
+                  <>
+                    <div className="relative py-1">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-slate-300"></div>
+                        </div>
+                        <div className="relative flex justify-center text-xs">
+                            <span className="px-2 md:px-4 bg-white text-slate-500">or send via SMS</span>
+                        </div>
                     </div>
-                    <div className="relative flex justify-center text-xs">
-                        <span className="px-2 md:px-4 bg-white text-slate-500">or send via SMS</span>
+
+                    <div className="space-y-1.5 md:space-y-4">
+                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Phone Number</label>
+                        <input
+                            type="tel"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            placeholder="(555) 123-4567"
+                            className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
+                            style={{
+                              borderColor: phoneNumber ? colors.accent : undefined,
+                            }}
+                            onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+                            onBlur={(e) => {
+                              if (!phoneNumber) e.currentTarget.style.borderColor = '';
+                            }}
+                        />
                     </div>
-                </div>
 
-                <div className="space-y-1.5 md:space-y-4">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Phone Number</label>
-                    <input
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="(555) 123-4567"
-                        className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
-                        style={{
-                          borderColor: phoneNumber ? colors.accent : undefined,
-                        }}
-                        onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
-                        onBlur={(e) => {
-                          if (!phoneNumber) e.currentTarget.style.borderColor = '';
-                        }}
-                    />
-                </div>
-
-                <button
-                    onClick={handleSendSms}
-                    disabled={isSending || phoneNumber.length < 3}
-                    className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
-                >
-                    {isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
-                </button>
+                    <button
+                        onClick={handleSendSms}
+                        disabled={isSending || phoneNumber.length < 3}
+                        className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
+                    >
+                        {isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
+                    </button>
+                  </>
+                )}
 
                 {generatedImageUrl && !generatedImageUrl.startsWith('data:') && generatedImageUrl.length < 500 && (
                   <div className="pt-2 md:pt-8 border-t border-slate-300">
