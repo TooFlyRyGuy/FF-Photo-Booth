@@ -46,25 +46,29 @@ Deno.serve(async (req: Request) => {
 
     let accessToken = tenant.dropbox_access_token;
 
-    if (tenant.dropbox_token_expires_at && tenant.dropbox_refresh_token) {
-      const expiresAt = new Date(tenant.dropbox_token_expires_at);
-      const now = new Date();
+    if (tenant.dropbox_refresh_token) {
+      const dropboxAppKey = Deno.env.get('DROPBOX_APP_KEY');
+      const dropboxAppSecret = Deno.env.get('DROPBOX_APP_SECRET');
 
-      if (expiresAt <= now) {
-        const dropboxAppKey = Deno.env.get('DROPBOX_APP_KEY');
-        const dropboxAppSecret = Deno.env.get('DROPBOX_APP_SECRET');
+      if (!dropboxAppKey || !dropboxAppSecret) {
+        throw new Error('Dropbox app credentials not configured');
+      }
 
-        if (!dropboxAppKey || !dropboxAppSecret) {
-          throw new Error('Dropbox app credentials not configured');
+      const shouldRefresh = !tenant.dropbox_token_expires_at || 
+        new Date(tenant.dropbox_token_expires_at) <= new Date(Date.now() + 5 * 60 * 1000);
+
+      if (shouldRefresh) {
+        try {
+          accessToken = await refreshAccessToken(
+            supabase,
+            tenantId,
+            dropboxAppKey,
+            dropboxAppSecret,
+            tenant.dropbox_refresh_token
+          );
+        } catch (error) {
+          console.error('Token refresh failed, will attempt with existing token:', error);
         }
-
-        accessToken = await refreshAccessToken(
-          supabase,
-          tenantId,
-          dropboxAppKey,
-          dropboxAppSecret,
-          tenant.dropbox_refresh_token
-        );
       }
     }
 
