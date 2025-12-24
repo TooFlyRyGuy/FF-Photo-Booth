@@ -243,12 +243,18 @@ async function refreshAccessToken(
   const expiresAt = new Date();
   expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in);
 
+  const updateData: any = {
+    dropbox_access_token: tokenData.access_token,
+    dropbox_token_expires_at: expiresAt.toISOString(),
+  };
+
+  if (tokenData.refresh_token) {
+    updateData.dropbox_refresh_token = tokenData.refresh_token;
+  }
+
   await supabase
     .from('tenants')
-    .update({
-      dropbox_access_token: tokenData.access_token,
-      dropbox_token_expires_at: expiresAt.toISOString(),
-    })
+    .update(updateData)
     .eq('id', tenantId);
 
   return tokenData.access_token;
