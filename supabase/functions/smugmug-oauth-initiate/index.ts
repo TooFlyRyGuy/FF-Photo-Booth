@@ -68,12 +68,15 @@ Deno.serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const callbackUrl = url.searchParams.get('callback_url') || `${url.origin}/smugmug-callback`;
+    const appOrigin = url.searchParams.get('app_origin') || url.origin;
+
+    const callbackWithState = `${callbackUrl}?state=${encodeURIComponent(appOrigin)}`;
 
     const nonce = generateNonce();
     const timestamp = generateTimestamp();
 
     const oauthParams: Record<string, string> = {
-      oauth_callback: callbackUrl,
+      oauth_callback: callbackWithState,
       oauth_consumer_key: SMUGMUG_API_KEY,
       oauth_nonce: nonce,
       oauth_signature_method: 'HMAC-SHA1',

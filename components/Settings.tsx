@@ -48,6 +48,23 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
     }
   }, [isAdmin]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const smugmugAuth = params.get('smugmug_auth');
+
+    if (smugmugAuth === 'success') {
+      loadGlobalSettings();
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    } else if (smugmugAuth === 'error') {
+      const errorMessage = params.get('message') || 'Failed to connect to SmugMug';
+      alert(`SmugMug connection failed: ${errorMessage}`);
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      setIsConnectingSmugMug(false);
+    }
+  }, []);
+
   const loadGlobalSettings = async () => {
     try {
       const settings = await getGlobalSettings();
@@ -121,8 +138,9 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
     setIsConnectingSmugMug(true);
 
     try {
+      const appOrigin = window.location.origin;
       const callbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-oauth-callback`;
-      const initiateUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-oauth-initiate?callback_url=${encodeURIComponent(callbackUrl)}`;
+      const initiateUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-oauth-initiate?callback_url=${encodeURIComponent(callbackUrl)}&app_origin=${encodeURIComponent(appOrigin)}`;
 
       console.log('🔵 SmugMug OAuth - Initiating with URL:', initiateUrl);
 

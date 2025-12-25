@@ -187,13 +187,13 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', settings.id);
 
-    const redirectUrl = url.searchParams.get('state') || '/';
-    return Response.redirect(`${url.origin}${redirectUrl}?smugmug_auth=success`, 302);
+    const appOrigin = url.searchParams.get('state') || url.origin;
+    return Response.redirect(`${appOrigin}?smugmug_auth=success`, 302);
   } catch (error: any) {
     console.error('SmugMug OAuth callback error:', error);
-    
+
     const url = new URL(req.url);
-    const redirectUrl = url.searchParams.get('state') || '/';
-    return Response.redirect(`${url.origin}${redirectUrl}?smugmug_auth=error&message=${encodeURIComponent(error.message)}`, 302);
+    const appOrigin = url.searchParams.get('state') || url.origin;
+    return Response.redirect(`${appOrigin}?smugmug_auth=error&message=${encodeURIComponent(error.message)}`, 302);
   }
 });
