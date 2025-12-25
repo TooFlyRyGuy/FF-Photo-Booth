@@ -45,6 +45,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   const [testGeneratedImage, setTestGeneratedImage] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
+  const [displayLimit, setDisplayLimit] = useState(10);
 
   useEffect(() => {
     loadPrompts();
@@ -52,6 +53,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
   useEffect(() => {
     filterPrompts();
+    setDisplayLimit(10);
   }, [prompts, selectedTags, selectedCategory, searchQuery]);
 
   const loadPrompts = async () => {
@@ -61,7 +63,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         .from('prompts')
         .select('*')
         .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-        .order('created_at', { ascending: false });
+        .order('usage_count', { ascending: false });
 
       if (error) throw error;
 
@@ -327,6 +329,13 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setTestGeneratedImage('');
     setGenerationError('');
   };
+
+  const handleLoadMore = () => {
+    setDisplayLimit(prev => prev + 10);
+  };
+
+  const displayedPrompts = filteredPrompts.slice(0, displayLimit);
+  const hasMorePrompts = filteredPrompts.length > displayLimit;
 
   if (editingPrompt) {
     return (
@@ -654,8 +663,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {filteredPrompts.map(prompt => (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {displayedPrompts.map(prompt => (
                 <div
                   key={prompt.id}
                   className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden hover:shadow-lg transition-all"
@@ -730,8 +740,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+
+              {hasMorePrompts && (
+                <div className="flex justify-center mt-8">
+                  <button
+                    onClick={handleLoadMore}
+                    className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center gap-2 transition-colors"
+                  >
+                    Load More
+                    <span className="text-sm font-normal">({filteredPrompts.length - displayLimit} remaining)</span>
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
