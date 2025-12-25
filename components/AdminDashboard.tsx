@@ -411,23 +411,23 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto p-8 md:p-8 p-4 pt-16 md:pt-8 relative">
+      <main className="flex-1 overflow-auto p-4 pt-16 md:p-8 md:pt-8 relative">
         
         {/* DASHBOARD VIEW */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <header className="flex justify-between items-center mb-8">
+            <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <h2 className="text-3xl font-bold text-black">Dashboard</h2>
               <button
                 onClick={handleCreateEvent}
-                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2"
+                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2 whitespace-nowrap"
               >
                 <Plus size={16} /> New Event
               </button>
             </header>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
                 <div className="flex justify-between items-start">
                   <div>
@@ -488,11 +488,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {/* EVENTS LIST VIEW */}
         {activeTab === 'events' && (
           <div className="space-y-6">
-             <header className="flex justify-between items-center mb-8">
+             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <h2 className="text-3xl font-bold text-black">Your Events</h2>
               <button
                 onClick={handleCreateEvent}
-                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2"
+                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2 whitespace-nowrap"
               >
                 <Plus size={16} /> Create Event
               </button>
@@ -556,8 +556,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {/* CREATE / EDIT EVENT VIEW */}
         {(activeTab === 'create_event' || activeTab === 'edit_event') && (
           <div className="space-y-6 max-w-4xl mx-auto">
-            <header className="flex justify-between items-center mb-4">
-              <button onClick={() => setActiveTab('events')} className="text-slate-600 hover:text-black flex items-center gap-2 text-sm">
+            <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <button onClick={() => setActiveTab('events')} className="text-slate-600 hover:text-black flex items-center gap-2 text-sm whitespace-nowrap">
                 &larr; Back to Events
               </button>
               <h2 className="text-2xl font-bold text-black">{activeTab === 'create_event' ? 'Create New Event' : 'Edit Event'}</h2>
