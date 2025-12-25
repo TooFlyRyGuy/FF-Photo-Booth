@@ -111,14 +111,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToSignup }) =>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              Don't have an account?{' '}
-              <button
-                onClick={onSwitchToSignup}
-                className="text-green-700 hover:text-green-800 font-medium"
-              >
-                Sign up
-              </button>
+            <p className="text-gray-600 text-sm">
+              New user registration is temporarily disabled.
             </p>
           </div>
         </div>
