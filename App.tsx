@@ -355,7 +355,7 @@ const App: React.FC = () => {
       <div className="relative z-10 border-t border-slate-300 mt-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
           <div className="text-center text-slate-500 text-sm">
-            <p>© 2024 Fun Frame Photo. Photo Booths & Event Photography.</p>
+            <p>© 2025 Fun Frame Photo. Photo Booths & Event Photography.</p>
           </div>
         </div>
       </div>

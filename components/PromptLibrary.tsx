@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock } from 'lucide-react';
 
 interface Prompt {
   id: string;
@@ -18,9 +18,12 @@ interface Prompt {
 interface PromptLibraryProps {
   tenantId: string;
   onClose: () => void;
+  eventId?: string | null;
+  selectedPrompts?: Prompt[];
+  onPromptsSelected?: (prompts: Prompt[]) => void;
 }
 
-const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose }) => {
+const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventId, selectedPrompts = [], onPromptsSelected }) => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [filteredPrompts, setFilteredPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +32,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [eventModePrompts, setEventModePrompts] = useState<Prompt[]>(selectedPrompts);
+  const [isPublic, setIsPublic] = useState(false);
 
   useEffect(() => {
     loadPrompts();
@@ -125,6 +130,28 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose }) => {
   const handleEdit = (prompt: Prompt) => {
     setEditingPrompt({ ...prompt });
     setIsCreating(false);
+    setIsPublic(prompt.tenantId === null);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditingPrompt(prev => prev ? { ...prev, [field]: reader.result as string } : null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const togglePromptForEvent = (prompt: Prompt) => {
+    if (!eventId) return;
+    const exists = eventModePrompts.find(p => p.id === prompt.id);
+    if (exists) {
+      setEventModePrompts(eventModePrompts.filter(p => p.id !== prompt.id));
+    } else {
+      setEventModePrompts([...eventModePrompts, prompt]);
+    }
   };
 
   const handleSave = async () => {
@@ -133,13 +160,13 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose }) => {
     try {
       if (isCreating) {
         const { error } = await supabase.from('prompts').insert({
-          tenant_id: tenantId,
+          tenant_id: isPublic ? null : tenantId,
           name: editingPrompt.name,
           description: editingPrompt.description,
           category: editingPrompt.category,
           prompt_text: editingPrompt.promptText,
-          preview_image_url: editingPrompt.previewImage,
-          reference_image_url: editingPrompt.referenceImage,
+          preview_image_url: editingPrompt.previewImage || null,
+          reference_image_url: editingPrompt.referenceImage || null,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
         });
@@ -149,12 +176,13 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose }) => {
         const { error } = await supabase
           .from('prompts')
           .update({
+            tenant_id: isPublic ? null : tenantId,
             name: editingPrompt.name,
             description: editingPrompt.description,
             category: editingPrompt.category,
             prompt_text: editingPrompt.promptText,
-            preview_image_url: editingPrompt.previewImage,
-            reference_image_url: editingPrompt.referenceImage,
+            preview_image_url: editingPrompt.previewImage || null,
+            reference_image_url: editingPrompt.referenceImage || null,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
           })
