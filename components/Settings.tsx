@@ -122,18 +122,32 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
 
     try {
       const callbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-oauth-callback`;
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-oauth-initiate?callback_url=${encodeURIComponent(callbackUrl)}`
-      );
+      const initiateUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-oauth-initiate?callback_url=${encodeURIComponent(callbackUrl)}`;
+
+      console.log('🔵 SmugMug OAuth - Initiating with URL:', initiateUrl);
+
+      const response = await fetch(initiateUrl);
+
+      console.log('🔵 SmugMug OAuth - Response status:', response.status);
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔴 SmugMug OAuth - Error response:', errorText);
         throw new Error('Failed to initiate SmugMug OAuth');
       }
 
-      const { authorizeUrl } = await response.json();
-      window.location.href = authorizeUrl;
+      const responseData = await response.json();
+      console.log('🔵 SmugMug OAuth - Response data:', responseData);
+
+      if (!responseData.authorizeUrl) {
+        console.error('🔴 SmugMug OAuth - No authorizeUrl in response');
+        throw new Error('No authorization URL received');
+      }
+
+      console.log('🔵 SmugMug OAuth - Redirecting to:', responseData.authorizeUrl);
+      window.location.href = responseData.authorizeUrl;
     } catch (error) {
-      console.error('SmugMug OAuth error:', error);
+      console.error('🔴 SmugMug OAuth error:', error);
       alert('Failed to connect to SmugMug. Please try again.');
       setIsConnectingSmugMug(false);
     }
