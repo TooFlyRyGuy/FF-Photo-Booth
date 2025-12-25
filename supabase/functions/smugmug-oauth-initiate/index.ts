@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
       .from('global_settings')
       .update({
         smugmug_oauth_token: requestToken,
-        smugmug_oauth_token_secret: requestTokenSecret,
+        smugmug_request_token_secret: requestTokenSecret,
         smugmug_connection_status: 'authorizing',
       })
       .eq('id', settings.id);

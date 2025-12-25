@@ -79,15 +79,15 @@ Deno.serve(async (req: Request) => {
 
     const { data: settings } = await supabase
       .from('global_settings')
-      .select('id, smugmug_oauth_token_secret')
+      .select('id, smugmug_request_token_secret')
       .limit(1)
       .maybeSingle();
 
-    if (!settings?.smugmug_oauth_token_secret) {
+    if (!settings?.smugmug_request_token_secret) {
       throw new Error('Request token secret not found in database');
     }
 
-    const requestTokenSecret = settings.smugmug_oauth_token_secret;
+    const requestTokenSecret = settings.smugmug_request_token_secret;
 
     const nonce = generateNonce();
     const timestamp = generateTimestamp();
@@ -181,6 +181,7 @@ Deno.serve(async (req: Request) => {
       .update({
         smugmug_oauth_token: accessToken,
         smugmug_oauth_token_secret: accessTokenSecret,
+        smugmug_request_token_secret: null,
         smugmug_user_nickname: userNickname,
         smugmug_connection_status: 'connected',
         smugmug_last_auth_date: new Date().toISOString(),
