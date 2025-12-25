@@ -332,20 +332,20 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     return (
       <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-          <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center sticky top-0 bg-white z-10">
-            <h2 className="text-2xl font-bold text-slate-900">
+          <div className="p-4 md:p-6 border-b-2 border-slate-300 flex justify-between items-center sticky top-0 bg-white z-10">
+            <h2 className="text-xl md:text-2xl font-bold text-slate-900">
               {isCreating ? 'Create New Prompt' : 'Edit Prompt'}
             </h2>
             <button
               onClick={() => { setEditingPrompt(null); setIsCreating(false); }}
-              className="text-slate-600 hover:text-slate-900 text-2xl"
+              className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
             >
               ×
             </button>
           </div>
 
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-2 gap-6">
+          <div className="p-4 md:p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-bold text-slate-900 mb-2">Prompt Name *</label>
                 <input
@@ -391,7 +391,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
                   <ImageIcon size={16} />
@@ -500,7 +500,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
             <div className="space-y-3">
               <label className="block text-sm font-bold text-slate-900">Visibility</label>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <label className="flex items-center gap-3 cursor-pointer p-4 border-2 rounded-lg transition-all hover:border-green-700 flex-1"
                   style={{ borderColor: !isPublic ? '#15803d' : '#cbd5e1' }}>
                   <input
@@ -508,7 +508,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                     name="visibility"
                     checked={!isPublic}
                     onChange={() => setIsPublic(false)}
-                    className="w-5 h-5 text-green-700"
+                    className="w-5 h-5 text-green-700 flex-shrink-0"
                   />
                   <div>
                     <div className="flex items-center gap-2 font-medium text-slate-900">
@@ -525,7 +525,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                     name="visibility"
                     checked={isPublic}
                     onChange={() => setIsPublic(true)}
-                    className="w-5 h-5 text-green-700"
+                    className="w-5 h-5 text-green-700 flex-shrink-0"
                   />
                   <div>
                     <div className="flex items-center gap-2 font-medium text-slate-900">
@@ -538,7 +538,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 onClick={handleSave}
                 disabled={!editingPrompt.name || !editingPrompt.promptText || !editingPrompt.previewImage}
@@ -549,7 +549,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
               </button>
               <button
                 onClick={() => { setEditingPrompt(null); setIsCreating(false); }}
-                className="px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+                className="sm:px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
               >
                 Cancel
               </button>
@@ -563,52 +563,55 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center flex-shrink-0">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">
+        <div className="p-4 md:p-6 border-b-2 border-slate-300 flex justify-between items-start gap-4 flex-shrink-0">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl md:text-2xl font-bold text-slate-900 truncate">
               {eventId ? 'Browse Prompt Library' : 'Prompt Library'}
             </h2>
-            <p className="text-slate-600 mt-1">
+            <p className="text-sm md:text-base text-slate-600 mt-1">
               {eventId ? 'Select prompts to add to your event' : 'Manage AI prompts for your events'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-600 hover:text-slate-900 text-2xl"
+            className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
           >
             ×
           </button>
         </div>
 
-        <div className="p-6 space-y-4 flex-shrink-0 border-b-2 border-slate-300">
-          <div className="flex gap-4">
+        <div className="p-4 md:p-6 space-y-4 flex-shrink-0 border-b-2 border-slate-300">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search prompts by name, description, or category..."
+                placeholder="Search prompts..."
                 className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
               />
             </div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900 font-medium"
-            >
-              <option value="">All Categories</option>
-              {allCategories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-            <button
-              onClick={handleCreateNew}
-              className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center gap-2"
-            >
-              <Plus size={18} />
-              New Prompt
-            </button>
+            <div className="flex gap-3">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="flex-1 sm:flex-none px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900 font-medium"
+              >
+                <option value="">All Categories</option>
+                {allCategories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleCreateNew}
+                className="px-4 sm:px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center gap-2 whitespace-nowrap"
+              >
+                <Plus size={18} />
+                <span className="hidden sm:inline">New Prompt</span>
+                <span className="sm:hidden">New</span>
+              </button>
+            </div>
           </div>
 
           {allTags.length > 0 && (
@@ -634,7 +637,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {loading ? (
             <div className="text-center py-12">
               <div className="w-12 h-12 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -651,7 +654,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {filteredPrompts.map(prompt => (
                 <div
                   key={prompt.id}
@@ -687,7 +690,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                     <div className="text-xs text-slate-500 mb-3">
                       Used {prompt.usageCount} times
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {eventId && onAddToEvent ? (
                         <button
                           onClick={() => {
@@ -703,21 +706,22 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                         <>
                           <button
                             onClick={() => handleEdit(prompt)}
-                            className="flex-1 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium text-sm flex items-center justify-center gap-1"
+                            className="flex-1 min-w-[100px] py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium text-sm flex items-center justify-center gap-1"
                           >
                             <Edit2 size={14} />
-                            Edit
+                            <span className="hidden sm:inline">Edit</span>
                           </button>
                           <button
                             onClick={() => handleTestPrompt(prompt)}
-                            className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg font-medium text-sm"
+                            className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg font-medium text-sm"
                             title="Test this prompt"
                           >
                             <Sparkles size={14} />
                           </button>
                           <button
                             onClick={() => handleDelete(prompt.id)}
-                            className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-medium text-sm"
+                            className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-medium text-sm"
+                            title="Delete prompt"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -736,23 +740,23 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       {testingPrompt && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center sticky top-0 bg-white z-10">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                  <Sparkles className="text-green-700" size={24} />
-                  Test Prompt: {testingPrompt.name}
+            <div className="p-4 md:p-6 border-b-2 border-slate-300 flex justify-between items-start gap-4 sticky top-0 bg-white z-10">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg md:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <Sparkles className="text-green-700 flex-shrink-0" size={20} />
+                  <span className="truncate">Test: {testingPrompt.name}</span>
                 </h2>
-                <p className="text-slate-600 mt-1">Upload images to test this AI prompt</p>
+                <p className="text-sm md:text-base text-slate-600 mt-1">Upload images to test this AI prompt</p>
               </div>
               <button
                 onClick={closeTestModal}
-                className="text-slate-600 hover:text-slate-900 text-2xl"
+                className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 md:p-6 space-y-6">
               <div className="bg-slate-50 p-4 rounded-lg border-2 border-slate-300">
                 <h3 className="font-bold text-slate-900 mb-2">AI Prompt Text:</h3>
                 <p className="text-sm text-slate-700 font-mono whitespace-pre-wrap">{testingPrompt.promptText}</p>
@@ -866,7 +870,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 </div>
               )}
 
-              <div className="flex gap-3 pt-4 border-t border-slate-300">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-300">
                 <button
                   onClick={handleRunTest}
                   disabled={!testSourceImage || isGenerating}
@@ -886,7 +890,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 </button>
                 <button
                   onClick={closeTestModal}
-                  className="px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+                  className="sm:px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
                 >
                   Close
                 </button>
