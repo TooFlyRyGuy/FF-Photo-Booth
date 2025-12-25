@@ -13,6 +13,7 @@ interface Prompt {
   tags: string[];
   isActive: boolean;
   usageCount: number;
+  tenantId?: string | null;
 }
 
 interface PromptLibraryProps {
@@ -29,6 +30,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   const [loading, setLoading] = useState(true);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [allCategories, setAllCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -41,7 +44,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
   useEffect(() => {
     filterPrompts();
-  }, [prompts, selectedTags, searchQuery]);
+  }, [prompts, selectedTags, selectedCategory, searchQuery]);
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -65,10 +68,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         tags: p.tags || [],
         isActive: p.is_active,
         usageCount: p.usage_count || 0,
+        tenantId: p.tenant_id,
       }));
 
       setPrompts(mappedPrompts);
       extractAllTags(mappedPrompts);
+      extractAllCategories(mappedPrompts);
     } catch (error) {
       console.error('Error loading prompts:', error);
     } finally {
@@ -84,8 +89,20 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setAllTags(Array.from(tagSet).sort());
   };
 
+  const extractAllCategories = (promptList: Prompt[]) => {
+    const categorySet = new Set<string>();
+    promptList.forEach(prompt => {
+      if (prompt.category) categorySet.add(prompt.category);
+    });
+    setAllCategories(Array.from(categorySet).sort());
+  };
+
   const filterPrompts = () => {
     let filtered = prompts;
+
+    if (selectedCategory) {
+      filtered = filtered.filter(prompt => prompt.category === selectedCategory);
+    }
 
     if (selectedTags.length > 0) {
       filtered = filtered.filter(prompt =>
@@ -125,6 +142,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       usageCount: 0,
     });
     setIsCreating(true);
+    setIsPublic(false);
   };
 
   const handleEdit = (prompt: Prompt) => {
@@ -293,25 +311,59 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Preview Image URL</label>
-              <input
-                type="url"
-                value={editingPrompt.previewImage}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, previewImage: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                placeholder="https://example.com/preview.jpg"
-              />
+              <label className="block text-sm font-bold text-slate-900 mb-2">Preview Image</label>
+              <div className="space-y-3">
+                <input
+                  type="url"
+                  value={editingPrompt.previewImage}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, previewImage: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="https://example.com/preview.jpg or upload below"
+                />
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium text-sm">
+                    <Upload size={16} />
+                    Upload Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, 'previewImage')}
+                      className="hidden"
+                    />
+                  </label>
+                  {editingPrompt.previewImage && (
+                    <img src={editingPrompt.previewImage} alt="Preview" className="h-16 w-16 object-cover rounded border-2 border-slate-300" />
+                  )}
+                </div>
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Reference Image URL (Optional)</label>
-              <input
-                type="url"
-                value={editingPrompt.referenceImage || ''}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, referenceImage: e.target.value || null })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                placeholder="https://example.com/reference.jpg"
-              />
+              <label className="block text-sm font-bold text-slate-900 mb-2">Reference Image (Optional)</label>
+              <div className="space-y-3">
+                <input
+                  type="url"
+                  value={editingPrompt.referenceImage || ''}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, referenceImage: e.target.value || null })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="https://example.com/reference.jpg or upload below"
+                />
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium text-sm">
+                    <Upload size={16} />
+                    Upload Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, 'referenceImage')}
+                      className="hidden"
+                    />
+                  </label>
+                  {editingPrompt.referenceImage && (
+                    <img src={editingPrompt.referenceImage} alt="Reference" className="h-16 w-16 object-cover rounded border-2 border-slate-300" />
+                  )}
+                </div>
+              </div>
             </div>
 
             <div>
@@ -345,14 +397,44 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={editingPrompt.isActive}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, isActive: e.target.checked })}
-                className="w-5 h-5"
-              />
-              <label className="text-sm font-medium text-slate-900">Active (visible in events)</label>
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-slate-900">Visibility</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-3 cursor-pointer p-4 border-2 rounded-lg transition-all hover:border-green-700 flex-1"
+                  style={{ borderColor: !isPublic ? '#15803d' : '#cbd5e1' }}>
+                  <input
+                    type="radio"
+                    name="visibility"
+                    checked={!isPublic}
+                    onChange={() => setIsPublic(false)}
+                    className="w-5 h-5 text-green-700"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2 font-medium text-slate-900">
+                      <Lock size={16} />
+                      Private
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">Only available to you</p>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer p-4 border-2 rounded-lg transition-all hover:border-green-700 flex-1"
+                  style={{ borderColor: isPublic ? '#15803d' : '#cbd5e1' }}>
+                  <input
+                    type="radio"
+                    name="visibility"
+                    checked={isPublic}
+                    onChange={() => setIsPublic(true)}
+                    className="w-5 h-5 text-green-700"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2 font-medium text-slate-900">
+                      <Globe size={16} />
+                      Public
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">Available to all users</p>
+                  </div>
+                </label>
+              </div>
             </div>
 
             <div className="flex gap-3 pt-4">
@@ -405,6 +487,16 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
               />
             </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900 font-medium"
+            >
+              <option value="">All Categories</option>
+              {allCategories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
             <button
               onClick={handleCreateNew}
               className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center gap-2"
@@ -448,7 +540,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
               <ImageIcon className="mx-auto mb-4 text-slate-400" size={48} />
               <p className="text-slate-600 text-lg">No prompts found</p>
               <p className="text-slate-500 text-sm mt-2">
-                {searchQuery || selectedTags.length > 0
+                {searchQuery || selectedTags.length > 0 || selectedCategory
                   ? 'Try adjusting your filters'
                   : 'Create your first prompt to get started'}
               </p>
