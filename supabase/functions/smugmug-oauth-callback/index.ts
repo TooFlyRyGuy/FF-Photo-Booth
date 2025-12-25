@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.87.1";
 
 const SMUGMUG_API_KEY = "zBR2TRq5bCzc42Zz6nzwwWDmSzSFdcZJ";
 const SMUGMUG_API_SECRET = "sxbDQsfD9pd7kTXfh7M5pLwLQbfVQG2zXfswptp2jHDTzS4NMc98g4S6v7N5sSrC";
-const SMUGMUG_ACCESS_TOKEN_URL = "https://secure.smugmug.com/services/oauth/1.0a/getAccessToken";
+const SMUGMUG_ACCESS_TOKEN_URL = "https://api.smugmug.com/services/oauth/1.0a/getAccessToken";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
