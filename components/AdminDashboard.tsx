@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -38,6 +38,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   // Prompt Library State
   const [showPromptLibrary, setShowPromptLibrary] = useState(false);
   const [promptLibraryEventContext, setPromptLibraryEventContext] = useState<string | null>(null);
+
+  // Drag and Drop State
+  const [draggedPromptIndex, setDraggedPromptIndex] = useState<number | null>(null);
+
+  // Inline Prompt Editing State
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
+  const [editingPromptData, setEditingPromptData] = useState<Partial<Prompt> | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -179,18 +186,76 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     setEditingEvent({ ...editingEvent, prompts: newPrompts });
   };
 
-  const movePromptUp = (index: number) => {
-    if (index === 0 || !editingEvent.prompts) return;
-    const newPrompts = [...editingEvent.prompts];
-    [newPrompts[index - 1], newPrompts[index]] = [newPrompts[index], newPrompts[index - 1]];
-    setEditingEvent({ ...editingEvent, prompts: newPrompts });
+  const handleDragStart = (index: number) => {
+    setDraggedPromptIndex(index);
   };
 
-  const movePromptDown = (index: number) => {
-    if (!editingEvent.prompts || index === editingEvent.prompts.length - 1) return;
-    const newPrompts = [...editingEvent.prompts];
-    [newPrompts[index], newPrompts[index + 1]] = [newPrompts[index + 1], newPrompts[index]];
-    setEditingEvent({ ...editingEvent, prompts: newPrompts });
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedPromptIndex === null || draggedPromptIndex === index) return;
+
+    const prompts = [...(editingEvent.prompts || [])];
+    const draggedItem = prompts[draggedPromptIndex];
+    prompts.splice(draggedPromptIndex, 1);
+    prompts.splice(index, 0, draggedItem);
+
+    setEditingEvent({ ...editingEvent, prompts });
+    setDraggedPromptIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPromptIndex(null);
+  };
+
+  const handleStartEditingPrompt = (prompt: Prompt) => {
+    setEditingPromptId(prompt.id);
+    setEditingPromptData({ ...prompt });
+  };
+
+  const handleSavePromptEdit = async () => {
+    if (!editingPromptData || !editingPromptId) return;
+
+    try {
+      await updatePrompt(editingPromptId, editingPromptData);
+
+      const updatedPrompts = (editingEvent.prompts || []).map(p =>
+        p.id === editingPromptId ? { ...p, ...editingPromptData } : p
+      );
+
+      setEditingEvent({ ...editingEvent, prompts: updatedPrompts });
+      setEditingPromptId(null);
+      setEditingPromptData(null);
+    } catch (error) {
+      alert('Failed to save prompt changes');
+      console.error('Error saving prompt:', error);
+    }
+  };
+
+  const handleCancelPromptEdit = () => {
+    setEditingPromptId(null);
+    setEditingPromptData(null);
+  };
+
+  const handleAddNewPrompt = async () => {
+    const newPrompt: Partial<Prompt> = {
+      id: `prompt_${Date.now()}`,
+      name: 'New Prompt',
+      description: 'Add a description',
+      promptText: 'Add your AI prompt text here',
+      category: 'Custom',
+      previewImage: 'https://via.placeholder.com/400x300?text=Add+Preview+Image',
+    };
+
+    try {
+      const savedPrompt = await savePrompt(newPrompt as Prompt);
+      const currentPrompts = editingEvent.prompts || [];
+      setEditingEvent({ ...editingEvent, prompts: [...currentPrompts, savedPrompt] });
+      setEditingPromptId(savedPrompt.id);
+      setEditingPromptData(savedPrompt);
+    } catch (error) {
+      alert('Failed to create new prompt');
+      console.error('Error creating prompt:', error);
+    }
   };
 
   if (!tenant) return <div className="flex h-screen items-center justify-center text-slate-900 bg-slate-100">Loading Dashboard...</div>;
@@ -723,7 +788,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <h3 className="text-lg font-bold text-black">AI Experience Prompts</h3>
                     <p className="text-sm text-slate-600">
-                      Select which styles are available for this event
+                      Drag to reorder, click to edit
                       {editingEvent.prompts && editingEvent.prompts.length > 0 && (
                         <span className="ml-2 text-green-800 font-medium">
                           ({editingEvent.prompts.length} selected)
@@ -731,74 +796,168 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       )}
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setPromptLibraryEventContext(editingEvent.id || null);
-                      setShowPromptLibrary(true);
-                    }}
-                    className="bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-lg text-sm font-bold flex items-center gap-2"
-                  >
-                    <BookImage size={18} /> Open Prompt Library
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddNewPrompt}
+                      className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+                    >
+                      <Plus size={16} /> New Prompt
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPromptLibraryEventContext(editingEvent.id || null);
+                        setShowPromptLibrary(true);
+                      }}
+                      className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+                    >
+                      <BookImage size={16} /> Library
+                    </button>
+                  </div>
                 </div>
 
-                {/* Selected Prompts with Reorder */}
+                {/* Selected Prompts with Drag and Drop */}
                 {editingEvent.prompts && editingEvent.prompts.length > 0 ? (
                   <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-slate-700">Selected Prompts (in order shown to users)</h4>
                     <div className="grid gap-3">
                       {editingEvent.prompts.map((prompt, index) => (
-                        <div
-                          key={prompt.id}
-                          className="flex items-center gap-4 p-3 bg-slate-50 border-2 border-green-700/30 rounded-lg"
-                        >
-                          <div className="flex flex-col gap-1">
-                            <button
-                              onClick={() => movePromptUp(index)}
-                              disabled={index === 0}
-                              className="p-1 hover:bg-slate-200 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Move up"
-                            >
-                              <ArrowUp size={16} />
-                            </button>
-                            <button
-                              onClick={() => movePromptDown(index)}
-                              disabled={index === editingEvent.prompts!.length - 1}
-                              className="p-1 hover:bg-slate-200 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Move down"
-                            >
-                              <ArrowDown size={16} />
-                            </button>
-                          </div>
-                          <img src={prompt.previewImage} alt={prompt.name} className="h-16 w-16 object-cover rounded" />
-                          <div className="flex-1">
-                            <h4 className="font-bold text-sm text-black">{prompt.name}</h4>
-                            <p className="text-xs text-slate-500">{prompt.description || prompt.category}</p>
-                          </div>
-                          <button
-                            onClick={() => togglePromptSelection(prompt)}
-                            className="px-3 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm"
-                            title="Remove from event"
+                        editingPromptId === prompt.id ? (
+                          <div
+                            key={prompt.id}
+                            className="p-4 bg-white border-2 border-green-700 rounded-lg space-y-4"
                           >
-                            <X size={14} />
-                          </button>
-                        </div>
+                            <div className="flex justify-between items-center mb-2">
+                              <h4 className="text-md font-bold text-black">Edit Prompt</h4>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleSavePromptEdit}
+                                  className="px-3 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-md text-sm font-medium flex items-center gap-1"
+                                >
+                                  <Save size={14} /> Save
+                                </button>
+                                <button
+                                  onClick={handleCancelPromptEdit}
+                                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-md text-sm font-medium"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Name</label>
+                                <input
+                                  type="text"
+                                  value={editingPromptData?.name || ''}
+                                  onChange={(e) => setEditingPromptData({ ...editingPromptData, name: e.target.value })}
+                                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Category</label>
+                                <input
+                                  type="text"
+                                  value={editingPromptData?.category || ''}
+                                  onChange={(e) => setEditingPromptData({ ...editingPromptData, category: e.target.value })}
+                                  className="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={editingPromptData?.description || ''}
+                                onChange={(e) => setEditingPromptData({ ...editingPromptData, description: e.target.value })}
+                                className="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">AI Prompt Text</label>
+                              <textarea
+                                value={editingPromptData?.promptText || ''}
+                                onChange={(e) => setEditingPromptData({ ...editingPromptData, promptText: e.target.value })}
+                                rows={3}
+                                className="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Preview Image URL</label>
+                              <input
+                                type="text"
+                                value={editingPromptData?.previewImage || ''}
+                                onChange={(e) => setEditingPromptData({ ...editingPromptData, previewImage: e.target.value })}
+                                className="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none"
+                              />
+                            </div>
+                            {editingPromptData?.previewImage && (
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Preview</label>
+                                <img src={editingPromptData.previewImage} alt="Preview" className="h-32 w-32 object-cover rounded border-2 border-slate-300" />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div
+                            key={prompt.id}
+                            draggable
+                            onDragStart={() => handleDragStart(index)}
+                            onDragOver={(e) => handleDragOver(e, index)}
+                            onDragEnd={handleDragEnd}
+                            className={`flex items-center gap-4 p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all ${
+                              draggedPromptIndex === index ? 'opacity-50' : ''
+                            }`}
+                          >
+                            <div
+                              className="p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing"
+                              title="Drag to reorder"
+                            >
+                              <GripVertical size={20} />
+                            </div>
+                            <img src={prompt.previewImage} alt={prompt.name} className="h-16 w-16 object-cover rounded" />
+                            <div className="flex-1">
+                              <h4 className="font-bold text-sm text-black">{prompt.name}</h4>
+                              <p className="text-xs text-slate-500">{prompt.description || prompt.category}</p>
+                            </div>
+                            <button
+                              onClick={() => handleStartEditingPrompt(prompt)}
+                              className="px-3 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm flex items-center gap-1"
+                              title="Edit prompt"
+                            >
+                              <Pencil size={14} /> Edit
+                            </button>
+                            <button
+                              onClick={() => togglePromptSelection(prompt)}
+                              className="px-3 py-2 rounded-md border-2 border-red-300 text-red-700 hover:bg-red-50 text-sm"
+                              title="Remove from event"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )
                       ))}
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-8 bg-slate-50 rounded-lg border-2 border-slate-300">
                     <ImageIcon size={48} className="mx-auto text-slate-400 mb-3" />
-                    <p className="text-slate-600 mb-4">No prompts selected for this event</p>
-                    <button
-                      onClick={() => {
-                        setPromptLibraryEventContext(editingEvent.id || null);
-                        setShowPromptLibrary(true);
-                      }}
-                      className="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2"
-                    >
-                      <BookImage size={16} /> Select Prompts
-                    </button>
+                    <p className="text-slate-600 mb-4">No prompts added to this event</p>
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={handleAddNewPrompt}
+                        className="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2"
+                      >
+                        <Plus size={16} /> Create New Prompt
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPromptLibraryEventContext(editingEvent.id || null);
+                          setShowPromptLibrary(true);
+                        }}
+                        className="bg-slate-700 hover:bg-slate-800 text-white px-6 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2"
+                      >
+                        <BookImage size={16} /> Browse Library
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
