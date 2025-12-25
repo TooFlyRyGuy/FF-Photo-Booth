@@ -22,9 +22,10 @@ interface PromptLibraryProps {
   eventId?: string | null;
   selectedPrompts?: Prompt[];
   onPromptsSelected?: (prompts: Prompt[]) => void;
+  onAddToEvent?: (prompt: Prompt) => void;
 }
 
-const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventId, selectedPrompts = [], onPromptsSelected }) => {
+const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventId, selectedPrompts = [], onPromptsSelected, onAddToEvent }) => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [filteredPrompts, setFilteredPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,35 +269,39 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           </div>
 
           <div className="p-6 space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Name</label>
-              <input
-                type="text"
-                value={editingPrompt.name}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, name: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                placeholder="e.g., Vintage Portrait"
-              />
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Prompt Name *</label>
+                <input
+                  type="text"
+                  value={editingPrompt.name}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, name: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="Candy Cane Christmas"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Category *</label>
+                <input
+                  type="text"
+                  value={editingPrompt.category}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="Holiday"
+                />
+                <p className="text-xs text-slate-500 mt-1">Create custom categories or use existing ones</p>
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Description</label>
-              <textarea
+              <label className="block text-sm font-bold text-slate-900 mb-2">Description (Optional)</label>
+              <input
+                type="text"
                 value={editingPrompt.description}
                 onChange={(e) => setEditingPrompt({ ...editingPrompt, description: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 min-h-[80px]"
-                placeholder="Brief description shown in kiosk"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Category</label>
-              <input
-                type="text"
-                value={editingPrompt.category}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
                 className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                placeholder="e.g., Portrait, Landscape, Fun"
+                placeholder="Candycane portrait Studio"
               />
             </div>
 
@@ -310,20 +315,33 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Preview Image</label>
-              <div className="space-y-3">
-                <input
-                  type="url"
-                  value={editingPrompt.previewImage}
-                  onChange={(e) => setEditingPrompt({ ...editingPrompt, previewImage: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  placeholder="https://example.com/preview.jpg or upload below"
-                />
-                <div className="flex items-center gap-3">
-                  <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium text-sm">
-                    <Upload size={16} />
-                    Upload Image
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <ImageIcon size={16} />
+                  Kiosk Thumbnail *
+                </label>
+                {editingPrompt.previewImage ? (
+                  <div className="relative">
+                    <img
+                      src={editingPrompt.previewImage}
+                      alt="Kiosk Thumbnail"
+                      className="w-full aspect-video object-cover rounded-lg border-2 border-slate-300"
+                    />
+                    <button
+                      onClick={() => setEditingPrompt({ ...editingPrompt, previewImage: '' })}
+                      className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                      title="Remove image"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer block">
+                    <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                      <Upload size={32} className="text-slate-400 mb-2" />
+                      <span className="text-sm text-slate-600">Click to Upload</span>
+                    </div>
                     <input
                       type="file"
                       accept="image/*"
@@ -331,27 +349,36 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                       className="hidden"
                     />
                   </label>
-                  {editingPrompt.previewImage && (
-                    <img src={editingPrompt.previewImage} alt="Preview" className="h-16 w-16 object-cover rounded border-2 border-slate-300" />
-                  )}
-                </div>
+                )}
+                <p className="text-xs text-slate-500 mt-2">This image appears in the kiosk style selector</p>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Reference Image (Optional)</label>
-              <div className="space-y-3">
-                <input
-                  type="url"
-                  value={editingPrompt.referenceImage || ''}
-                  onChange={(e) => setEditingPrompt({ ...editingPrompt, referenceImage: e.target.value || null })}
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  placeholder="https://example.com/reference.jpg or upload below"
-                />
-                <div className="flex items-center gap-3">
-                  <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium text-sm">
-                    <Upload size={16} />
-                    Upload Image
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <ImageIcon size={16} />
+                  AI Style Reference (Optional)
+                </label>
+                {editingPrompt.referenceImage ? (
+                  <div className="relative">
+                    <img
+                      src={editingPrompt.referenceImage}
+                      alt="AI Style Reference"
+                      className="w-full aspect-video object-cover rounded-lg border-2 border-slate-300"
+                    />
+                    <button
+                      onClick={() => setEditingPrompt({ ...editingPrompt, referenceImage: null })}
+                      className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                      title="Remove image"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer block">
+                    <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                      <Upload size={32} className="text-slate-400 mb-2" />
+                      <span className="text-sm text-slate-600">Click to Upload Style Ref</span>
+                    </div>
                     <input
                       type="file"
                       accept="image/*"
@@ -359,10 +386,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                       className="hidden"
                     />
                   </label>
-                  {editingPrompt.referenceImage && (
-                    <img src={editingPrompt.referenceImage} alt="Reference" className="h-16 w-16 object-cover rounded border-2 border-slate-300" />
-                  )}
-                </div>
+                )}
+                <p className="text-xs text-slate-500 mt-2">Upload a sample photo that defines the visual style for the AI to mimic</p>
               </div>
             </div>
 
@@ -444,7 +469,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 className="flex-1 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center justify-center gap-2"
               >
                 <Save size={18} />
-                Save Prompt
+                {isCreating ? 'Create Prompt' : 'Update Prompt'}
               </button>
               <button
                 onClick={() => { setEditingPrompt(null); setIsCreating(false); }}
@@ -464,8 +489,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
         <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center flex-shrink-0">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Prompt Library</h2>
-            <p className="text-slate-600 mt-1">Manage AI prompts for your events</p>
+            <h2 className="text-2xl font-bold text-slate-900">
+              {eventId ? 'Browse Prompt Library' : 'Prompt Library'}
+            </h2>
+            <p className="text-slate-600 mt-1">
+              {eventId ? 'Select prompts to add to your event' : 'Manage AI prompts for your events'}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -583,19 +612,34 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                       Used {prompt.usageCount} times
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(prompt)}
-                        className="flex-1 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium text-sm flex items-center justify-center gap-1"
-                      >
-                        <Edit2 size={14} />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(prompt.id)}
-                        className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-medium text-sm"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {eventId && onAddToEvent ? (
+                        <button
+                          onClick={() => {
+                            onAddToEvent(prompt);
+                            onClose();
+                          }}
+                          className="flex-1 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-1"
+                        >
+                          <Plus size={14} />
+                          Add to Event
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleEdit(prompt)}
+                            className="flex-1 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium text-sm flex items-center justify-center gap-1"
+                          >
+                            <Edit2 size={14} />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(prompt.id)}
+                            className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-medium text-sm"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
