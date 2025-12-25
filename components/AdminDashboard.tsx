@@ -682,6 +682,21 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">
+                      Overlay Image URL (Transparent PNG)
+                    </label>
+                    <input
+                      type="text"
+                      value={editingEvent.overlayImageUrl || ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, overlayImageUrl: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                      placeholder="https://example.com/overlay.png"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Applied on top of generated images. Should match the event's aspect ratio ({editingEvent.aspectRatio || 'square'})
+                    </p>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Primary Color</label>
                     <div className="flex gap-2">
                       <input

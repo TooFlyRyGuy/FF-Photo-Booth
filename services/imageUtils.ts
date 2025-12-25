@@ -77,3 +77,58 @@ export const resizeImageToAspectRatio = async (
     img.src = imageBase64;
   });
 };
+
+export const applyOverlayToImage = async (
+  baseImageBase64: string,
+  overlayImageUrl: string
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const baseImg = new Image();
+    const overlayImg = new Image();
+
+    let baseLoaded = false;
+    let overlayLoaded = false;
+
+    const checkBothLoaded = () => {
+      if (baseLoaded && overlayLoaded) {
+        const canvas = document.createElement('canvas');
+        canvas.width = baseImg.width;
+        canvas.height = baseImg.height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        ctx.drawImage(baseImg, 0, 0);
+        ctx.drawImage(overlayImg, 0, 0, baseImg.width, baseImg.height);
+
+        const compositedBase64 = canvas.toDataURL('image/png', 1.0);
+        resolve(compositedBase64);
+      }
+    };
+
+    baseImg.onload = () => {
+      baseLoaded = true;
+      checkBothLoaded();
+    };
+
+    baseImg.onerror = () => {
+      reject(new Error('Failed to load base image for overlay'));
+    };
+
+    overlayImg.onload = () => {
+      overlayLoaded = true;
+      checkBothLoaded();
+    };
+
+    overlayImg.onerror = () => {
+      reject(new Error('Failed to load overlay image'));
+    };
+
+    overlayImg.crossOrigin = 'anonymous';
+    baseImg.src = baseImageBase64;
+    overlayImg.src = overlayImageUrl;
+  });
+};

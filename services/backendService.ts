@@ -330,6 +330,7 @@ export const getEvents = async (): Promise<Event[]> => {
     aspectRatio: event.aspect_ratio || 'square',
     backgroundImageUrl: event.background_image_url,
     logoUrl: event.logo_url,
+    overlayImageUrl: event.overlay_image_url,
     primaryColor: event.primary_color,
     secondaryColor: event.secondary_color,
     accentColor: event.accent_color,
@@ -337,6 +338,7 @@ export const getEvents = async (): Promise<Event[]> => {
     hideEventName: event.hide_event_name || false,
     startDatetime: event.start_datetime,
     endDatetime: event.end_datetime,
+    smsMessage: event.sms_message,
     prompts: event.event_prompts
       .filter((ep: any) => ep.prompts !== null)
       .map((ep: any) => ({
@@ -402,6 +404,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         aspect_ratio: event.aspectRatio || 'square',
         background_image_url: event.backgroundImageUrl || null,
         logo_url: event.logoUrl || null,
+        overlay_image_url: event.overlayImageUrl || null,
         primary_color: event.primaryColor || null,
         secondary_color: event.secondaryColor || null,
         accent_color: event.accentColor || null,
@@ -409,6 +412,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         hide_event_name: event.hideEventName || false,
         start_datetime: event.startDatetime || null,
         end_datetime: event.endDatetime || null,
+        sms_message: event.smsMessage || null,
       })
       .select()
       .maybeSingle();
@@ -456,6 +460,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         aspect_ratio: event.aspectRatio || 'square',
         background_image_url: event.backgroundImageUrl || null,
         logo_url: event.logoUrl || null,
+        overlay_image_url: event.overlayImageUrl || null,
         primary_color: event.primaryColor || null,
         secondary_color: event.secondaryColor || null,
         accent_color: event.accentColor || null,
@@ -463,6 +468,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         hide_event_name: event.hideEventName || false,
         start_datetime: event.startDatetime || null,
         end_datetime: event.endDatetime || null,
+        sms_message: event.smsMessage || null,
       })
       .eq('id', event.id)
       .select()

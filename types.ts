@@ -63,6 +63,7 @@ export interface Event {
   aspectRatio?: AspectRatio;
   backgroundImageUrl?: string;
   logoUrl?: string;
+  overlayImageUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
   accentColor?: string;

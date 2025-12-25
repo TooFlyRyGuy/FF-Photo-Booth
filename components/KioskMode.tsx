@@ -5,6 +5,7 @@ import { Event, Prompt, GeneratedImage, Tenant } from '../types';
 import { generateBoothImage } from '../services/geminiService';
 import { sendSms, saveGeneratedImage, getTenantById, getGlobalSetting } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
+import { applyOverlayToImage } from '../services/imageUtils';
 
 interface KioskProps {
   event: Event;
@@ -194,7 +195,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         geminiEnabled,
       });
 
-      const genImage = await generateBoothImage(
+      let genImage = await generateBoothImage(
         capturedImage,
         selectedPrompt.promptText,
         geminiApiKey,
@@ -203,6 +204,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         tenant.geminiModel,
         tenant.geminiResolution
       );
+
+      if (event.overlayImageUrl) {
+        try {
+          genImage = await applyOverlayToImage(genImage, event.overlayImageUrl);
+        } catch (overlayErr) {
+          console.error('Failed to apply overlay:', overlayErr);
+        }
+      }
+
       setFinalImage(genImage);
 
       // 3. Upload generated image to Dropbox
