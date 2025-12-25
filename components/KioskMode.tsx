@@ -566,7 +566,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         <canvas ref={canvasRef} className="hidden" />
 
         {countdown && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-50">
             <span className="text-[200px] font-bold text-white animate-ping">{countdown}</span>
           </div>
         )}
