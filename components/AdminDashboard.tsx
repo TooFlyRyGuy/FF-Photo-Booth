@@ -281,8 +281,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       )}
 
       {/* Sidebar */}
-      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-slate-300 flex flex-col transition-all duration-300 ease-in-out relative
-        md:relative fixed inset-y-0 left-0 z-40
+      <aside className={`w-64 bg-white border-r border-slate-300 flex flex-col transition-all duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-40
+        md:relative ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         {/* Toggle Button - Desktop Only */}
