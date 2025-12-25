@@ -59,13 +59,16 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
 
     const popup = window.open(authUrl, 'Dropbox OAuth', 'width=600,height=700');
 
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data.type === 'dropbox-oauth-success') {
-        setDropboxConnected(true);
-        setDropboxEnabled(true);
         setIsConnectingDropbox(false);
         window.removeEventListener('message', handleMessage);
         if (popup) popup.close();
+
+        await onSave({});
+
+        setDropboxConnected(true);
+        setDropboxEnabled(true);
         alert('Successfully connected to Dropbox!');
       } else if (event.data.type === 'dropbox-oauth-error') {
         setIsConnectingDropbox(false);
