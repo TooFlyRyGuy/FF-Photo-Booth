@@ -62,8 +62,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
       console.log('Loaded data successfully:', {
         tenantId: tenantData?.id || 'unknown',
-        events: (eventsData || []).length,
-        prompts: (promptsData || []).length
+        events: (eventsData || []).length
       });
     } catch (error) {
       console.error('Failed to load data:', error);
