@@ -120,6 +120,16 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const { data: settings } = await supabase
+      .from('global_settings')
+      .select('id')
+      .limit(1)
+      .maybeSingle();
+
+    if (!settings) {
+      throw new Error('Global settings not found');
+    }
+
     await supabase
       .from('global_settings')
       .update({
@@ -127,7 +137,7 @@ Deno.serve(async (req: Request) => {
         smugmug_oauth_token_secret: requestTokenSecret,
         smugmug_connection_status: 'authorizing',
       })
-      .eq('id', '00000000-0000-0000-0000-000000000001');
+      .eq('id', settings.id);
 
     const authorizeUrl = `${SMUGMUG_AUTHORIZE_URL}?oauth_token=${requestToken}&Access=Full&Permissions=Modify`;
 

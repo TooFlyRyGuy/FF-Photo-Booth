@@ -79,8 +79,8 @@ Deno.serve(async (req: Request) => {
 
     const { data: settings } = await supabase
       .from('global_settings')
-      .select('smugmug_oauth_token_secret')
-      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .select('id, smugmug_oauth_token_secret')
+      .limit(1)
       .maybeSingle();
 
     if (!settings?.smugmug_oauth_token_secret) {
@@ -138,9 +138,34 @@ Deno.serve(async (req: Request) => {
       throw new Error('Failed to get access token from SmugMug');
     }
 
+    const userNonce = generateNonce();
+    const userTimestamp = generateTimestamp();
+    const userOauthParams: Record<string, string> = {
+      oauth_consumer_key: SMUGMUG_API_KEY,
+      oauth_nonce: userNonce,
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: userTimestamp,
+      oauth_token: accessToken,
+      oauth_version: '1.0',
+    };
+
+    const userSignature = await generateSignature(
+      'GET',
+      'https://api.smugmug.com/api/v2!authuser',
+      userOauthParams,
+      SMUGMUG_API_SECRET,
+      accessTokenSecret
+    );
+
+    userOauthParams.oauth_signature = userSignature;
+
+    const userAuthHeader = 'OAuth ' + Object.keys(userOauthParams)
+      .map(key => `${key}="${encodeURIComponent(userOauthParams[key])}"`)
+      .join(', ');
+
     const userResponse = await fetch('https://api.smugmug.com/api/v2!authuser', {
       headers: {
-        'Authorization': `OAuth oauth_consumer_key="${SMUGMUG_API_KEY}", oauth_token="${accessToken}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${generateTimestamp()}", oauth_nonce="${generateNonce()}", oauth_version="1.0", oauth_signature="${await generateSignature('GET', 'https://api.smugmug.com/api/v2!authuser', {oauth_consumer_key: SMUGMUG_API_KEY, oauth_token: accessToken, oauth_signature_method: 'HMAC-SHA1', oauth_timestamp: generateTimestamp(), oauth_nonce: generateNonce(), oauth_version: '1.0'}, SMUGMUG_API_SECRET, accessTokenSecret)}"`,
+        'Authorization': userAuthHeader,
         'Accept': 'application/json',
       },
     });
@@ -160,7 +185,7 @@ Deno.serve(async (req: Request) => {
         smugmug_connection_status: 'connected',
         smugmug_last_auth_date: new Date().toISOString(),
       })
-      .eq('id', '00000000-0000-0000-0000-000000000001');
+      .eq('id', settings.id);
 
     const redirectUrl = url.searchParams.get('state') || '/';
     return Response.redirect(`${url.origin}${redirectUrl}?smugmug_auth=success`, 302);

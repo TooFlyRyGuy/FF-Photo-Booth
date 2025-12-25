@@ -224,8 +224,8 @@ Deno.serve(async (req: Request) => {
 
     const { data: settings } = await supabase
       .from('global_settings')
-      .select('smugmug_oauth_token, smugmug_oauth_token_secret, smugmug_connection_status')
-      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .select('id, smugmug_oauth_token, smugmug_oauth_token_secret, smugmug_connection_status')
+      .limit(1)
       .maybeSingle();
 
     if (!settings?.smugmug_oauth_token || !settings?.smugmug_oauth_token_secret) {
@@ -290,10 +290,18 @@ Deno.serve(async (req: Request) => {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      await supabase
+      const { data: settings } = await supabase
         .from('global_settings')
-        .update({ smugmug_connection_status: 'needs_attention' })
-        .eq('id', '00000000-0000-0000-0000-000000000001');
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+
+      if (settings) {
+        await supabase
+          .from('global_settings')
+          .update({ smugmug_connection_status: 'needs_attention' })
+          .eq('id', settings.id);
+      }
     }
 
     return new Response(
