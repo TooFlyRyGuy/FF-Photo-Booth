@@ -187,13 +187,68 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', settings.id);
 
-    const appOrigin = url.searchParams.get('state') || url.origin;
-    return Response.redirect(`${appOrigin}?smugmug_auth=success`, 302);
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>SmugMug Connected</title>
+        </head>
+        <body>
+          <h2>SmugMug Connected Successfully!</h2>
+          <p>This window will close automatically...</p>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'smugmug-oauth-success' }, '*');
+              setTimeout(() => window.close(), 1000);
+            } else {
+              document.body.innerHTML = '<h2>Success!</h2><p>You can close this window now.</p>';
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/html',
+      },
+    });
   } catch (error: any) {
     console.error('SmugMug OAuth callback error:', error);
 
-    const url = new URL(req.url);
-    const appOrigin = url.searchParams.get('state') || url.origin;
-    return Response.redirect(`${appOrigin}?smugmug_auth=error&message=${encodeURIComponent(error.message)}`, 302);
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>SmugMug Connection Failed</title>
+        </head>
+        <body>
+          <h2>Failed to Connect to SmugMug</h2>
+          <p>${error.message}</p>
+          <p>This window will close automatically...</p>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'smugmug-oauth-error',
+                error: ${JSON.stringify(error.message)}
+              }, '*');
+              setTimeout(() => window.close(), 2000);
+            } else {
+              document.body.innerHTML += '<p>You can close this window now.</p>';
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/html',
+      },
+    });
   }
 });

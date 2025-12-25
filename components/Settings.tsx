@@ -49,19 +49,8 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
   }, [isAdmin]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const smugmugAuth = params.get('smugmug_auth');
-
-    if (smugmugAuth === 'success') {
+    if (isAdmin) {
       loadGlobalSettings();
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-    } else if (smugmugAuth === 'error') {
-      const errorMessage = params.get('message') || 'Failed to connect to SmugMug';
-      alert(`SmugMug connection failed: ${errorMessage}`);
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-      setIsConnectingSmugMug(false);
     }
   }, []);
 
@@ -162,8 +151,35 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
         throw new Error('No authorization URL received');
       }
 
-      console.log('🔵 SmugMug OAuth - Redirecting to:', responseData.authorizeUrl);
-      window.location.href = responseData.authorizeUrl;
+      console.log('🔵 SmugMug OAuth - Opening popup to:', responseData.authorizeUrl);
+
+      const popup = window.open(responseData.authorizeUrl, 'SmugMug OAuth', 'width=800,height=700');
+
+      const handleMessage = async (event: MessageEvent) => {
+        if (event.data.type === 'smugmug-oauth-success') {
+          setIsConnectingSmugMug(false);
+          window.removeEventListener('message', handleMessage);
+          if (popup) popup.close();
+
+          await loadGlobalSettings();
+          alert('Successfully connected to SmugMug!');
+        } else if (event.data.type === 'smugmug-oauth-error') {
+          setIsConnectingSmugMug(false);
+          window.removeEventListener('message', handleMessage);
+          if (popup) popup.close();
+          alert(`Failed to connect to SmugMug: ${event.data.error}`);
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      const checkPopup = setInterval(() => {
+        if (popup && popup.closed) {
+          clearInterval(checkPopup);
+          setIsConnectingSmugMug(false);
+          window.removeEventListener('message', handleMessage);
+        }
+      }, 1000);
     } catch (error) {
       console.error('🔴 SmugMug OAuth error:', error);
       alert('Failed to connect to SmugMug. Please try again.');
