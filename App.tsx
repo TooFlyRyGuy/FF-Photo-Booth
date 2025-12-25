@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [activeEvent, setActiveEvent] = useState<Event | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState('');
+  const [eventCode, setEventCode] = useState('');
 
   const launchKiosk = (event: Event) => {
     setActiveEvent(event);
@@ -24,6 +25,26 @@ const App: React.FC = () => {
 
   const exitKiosk = () => {
     window.location.href = '/';
+  };
+
+  const handleEventCodeLaunch = async () => {
+    if (!eventCode.trim()) {
+      setError('Please enter an event code');
+      return;
+    }
+
+    setError('');
+    try {
+      const event = await getEventByPasscode(eventCode.trim());
+      if (event) {
+        launchKiosk(event);
+      } else {
+        setError('Invalid event code. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error loading event:', err);
+      setError('Failed to load event. Please try again.');
+    }
   };
 
   const handleLogout = async () => {
@@ -184,6 +205,42 @@ const App: React.FC = () => {
 
       {/* Hero */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 py-12 lg:py-24">
+        {/* Event Code Launcher */}
+        <div className="mb-12 max-w-2xl mx-auto">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl p-6 shadow-lg">
+            <div className="text-center mb-4">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Launch Kiosk Mode</h3>
+              <p className="text-sm text-slate-600">Enter your event code to start the photo booth experience</p>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border-2 border-red-300 rounded-lg text-red-800 text-center text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={eventCode}
+                onChange={(e) => setEventCode(e.target.value.toUpperCase())}
+                onKeyPress={(e) => e.key === 'Enter' && handleEventCodeLaunch()}
+                placeholder="ENTER EVENT CODE"
+                className="flex-1 px-4 py-3 border-2 border-slate-300 rounded-xl text-center text-lg font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-700 uppercase"
+                maxLength={20}
+              />
+              <button
+                onClick={handleEventCodeLaunch}
+                disabled={!eventCode.trim()}
+                className="px-8 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-all flex items-center gap-2"
+              >
+                Launch
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Content */}
           <div className="space-y-8">

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
+import PromptLibrary from './PromptLibrary';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -15,7 +16,7 @@ interface AdminProps {
   user: User | null;
 }
 
-type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts';
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -35,6 +36,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   // Analytics State
   const [analyticsEvent, setAnalyticsEvent] = useState<Event | null>(null);
+
+  // Prompt Library State
+  const [showPromptLibrary, setShowPromptLibrary] = useState(false);
 
   // Prompt Builder State
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
@@ -183,14 +187,28 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const togglePromptSelection = (prompt: Prompt) => {
     const currentPrompts = editingEvent.prompts || [];
     const exists = currentPrompts.find(p => p.id === prompt.id);
-    
+
     let newPrompts;
     if (exists) {
       newPrompts = currentPrompts.filter(p => p.id !== prompt.id);
     } else {
       newPrompts = [...currentPrompts, prompt];
     }
-    
+
+    setEditingEvent({ ...editingEvent, prompts: newPrompts });
+  };
+
+  const movePromptUp = (index: number) => {
+    if (index === 0 || !editingEvent.prompts) return;
+    const newPrompts = [...editingEvent.prompts];
+    [newPrompts[index - 1], newPrompts[index]] = [newPrompts[index], newPrompts[index - 1]];
+    setEditingEvent({ ...editingEvent, prompts: newPrompts });
+  };
+
+  const movePromptDown = (index: number) => {
+    if (!editingEvent.prompts || index === editingEvent.prompts.length - 1) return;
+    const newPrompts = [...editingEvent.prompts];
+    [newPrompts[index], newPrompts[index + 1]] = [newPrompts[index + 1], newPrompts[index]];
     setEditingEvent({ ...editingEvent, prompts: newPrompts });
   };
 
@@ -365,6 +383,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           >
             <Calendar size={20} />
             {!sidebarCollapsed && 'Events'}
+          </button>
+          <button
+            onClick={() => {
+              setShowPromptLibrary(true);
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors hover:bg-slate-100 text-slate-600`}
+            title={sidebarCollapsed ? 'Prompt Library' : ''}
+          >
+            <BookImage size={20} />
+            {!sidebarCollapsed && 'Prompt Library'}
           </button>
           <button
             onClick={() => {
@@ -823,16 +852,34 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </button>
                 </div>
 
-                {/* Selected Prompts with Edit/Delete */}
+                {/* Selected Prompts with Edit/Delete/Reorder */}
                 {editingEvent.prompts && editingEvent.prompts.length > 0 && (
                   <div className="mb-6 space-y-3">
-                    <h4 className="text-sm font-medium text-slate-700">Selected Prompts for This Event</h4>
+                    <h4 className="text-sm font-medium text-slate-700">Selected Prompts for This Event (Drag to Reorder)</h4>
                     <div className="grid gap-3">
-                      {editingEvent.prompts.map(prompt => (
+                      {editingEvent.prompts.map((prompt, index) => (
                         <div
                           key={prompt.id}
                           className="flex items-center gap-4 p-3 bg-slate-50 border-2 border-green-700/30 rounded-lg"
                         >
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => movePromptUp(index)}
+                              disabled={index === 0}
+                              className="p-1 hover:bg-slate-200 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move up"
+                            >
+                              <ArrowUp size={16} />
+                            </button>
+                            <button
+                              onClick={() => movePromptDown(index)}
+                              disabled={index === editingEvent.prompts!.length - 1}
+                              className="p-1 hover:bg-slate-200 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move down"
+                            >
+                              <ArrowDown size={16} />
+                            </button>
+                          </div>
                           <img src={prompt.previewImage} alt={prompt.name} className="h-16 w-16 object-cover rounded" />
                           <div className="flex-1">
                             <h4 className="font-bold text-sm text-black">{prompt.name}</h4>
@@ -1159,6 +1206,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       {/* Subscription Manager Modal */}
       {showSubscriptionModal && (
         <SubscriptionManager onClose={() => setShowSubscriptionModal(false)} />
+      )}
+
+      {/* Prompt Library Modal */}
+      {showPromptLibrary && tenant && (
+        <PromptLibrary
+          tenantId={tenant.id}
+          onClose={() => {
+            setShowPromptLibrary(false);
+            loadData();
+          }}
+        />
       )}
     </div>
   );

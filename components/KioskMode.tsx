@@ -535,7 +535,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
               <img src={prompt.previewImage} alt={prompt.name} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-3 md:p-6">
                 <h3 className="text-base md:text-2xl text-white font-bold">{prompt.name}</h3>
-                <p className="text-gray-300 text-xs md:text-sm">{prompt.category}</p>
+                <p className="text-gray-300 text-xs md:text-sm">{prompt.description}</p>
               </div>
             </button>
           ))}
