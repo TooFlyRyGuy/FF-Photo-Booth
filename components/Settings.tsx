@@ -18,6 +18,13 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
   const [dropboxConnected, setDropboxConnected] = useState(!!tenant.dropboxAccessToken);
   const [dropboxEnabled, setDropboxEnabled] = useState(tenant.dropboxEnabled || false);
 
+  const [isConnectingSmugMug, setIsConnectingSmugMug] = useState(false);
+  const [smugMugConnected, setSmugMugConnected] = useState(false);
+  const [smugMugUserNickname, setSmugMugUserNickname] = useState('');
+  const [smugMugConnectionStatus, setSmugMugConnectionStatus] = useState('disconnected');
+  const [smugMugDefaultVisibility, setSmugMugDefaultVisibility] = useState('private');
+  const [useSmugMugForSMS, setUseSmugMugForSMS] = useState(true);
+
   const [twilioSid, setTwilioSid] = useState(tenant.twilioAccountSid || '');
   const [twilioToken, setTwilioToken] = useState(maskValue(tenant.twilioAuthToken));
   const [twilioPhone, setTwilioPhone] = useState(tenant.twilioPhoneNumber || '');
@@ -46,6 +53,14 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
       const settings = await getGlobalSettings();
       setGeminiApiKey(maskValue(settings.gemini_api_key));
       setGeminiEnabled(settings.gemini_enabled === 'true');
+
+      if (settings.smugmug_connection_status) {
+        setSmugMugConnectionStatus(settings.smugmug_connection_status);
+        setSmugMugConnected(settings.smugmug_connection_status === 'connected');
+        setSmugMugUserNickname(settings.smugmug_user_nickname || '');
+        setSmugMugDefaultVisibility(settings.smugmug_default_visibility || 'private');
+        setUseSmugMugForSMS(settings.use_smugmug_for_sms !== false);
+      }
     } catch (error) {
       console.error('Failed to load global settings:', error);
     }
@@ -102,6 +117,47 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
     }
   };
 
+  const handleConnectSmugMug = async () => {
+    setIsConnectingSmugMug(true);
+
+    try {
+      const callbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-oauth-callback`;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-oauth-initiate?callback_url=${encodeURIComponent(callbackUrl)}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to initiate SmugMug OAuth');
+      }
+
+      const { authorizeUrl } = await response.json();
+      window.location.href = authorizeUrl;
+    } catch (error) {
+      console.error('SmugMug OAuth error:', error);
+      alert('Failed to connect to SmugMug. Please try again.');
+      setIsConnectingSmugMug(false);
+    }
+  };
+
+  const handleDisconnectSmugMug = async () => {
+    if (confirm('Are you sure you want to disconnect SmugMug?')) {
+      try {
+        await updateGlobalSettings({
+          smugmug_oauth_token: null,
+          smugmug_oauth_token_secret: null,
+          smugmug_user_nickname: null,
+          smugmug_connection_status: 'disconnected',
+        });
+        setSmugMugConnected(false);
+        setSmugMugConnectionStatus('disconnected');
+        setSmugMugUserNickname('');
+      } catch (error) {
+        console.error('Failed to disconnect SmugMug:', error);
+        alert('Failed to disconnect SmugMug. Please try again.');
+      }
+    }
+  };
+
   const handleTwilioTokenChange = (value: string) => {
     setTwilioToken(value);
     setTwilioTokenChanged(true);
@@ -133,8 +189,10 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
       await onSave(tenantUpdates);
 
       if (isAdmin) {
-        const globalSettings: Record<string, string> = {
+        const globalSettings: Record<string, any> = {
           gemini_enabled: geminiEnabled ? 'true' : 'false',
+          smugmug_default_visibility: smugMugDefaultVisibility,
+          use_smugmug_for_sms: useSmugMugForSMS,
         };
 
         if (geminiKeyChanged) {
@@ -231,6 +289,131 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
           )}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+          <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+            <div className="flex items-center gap-3">
+              <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
+                <path d="M24 4L44 14V34L24 44L4 34V14L24 4Z" fill="#0066CC"/>
+                <path d="M24 14L34 19V29L24 34L14 29V19L24 14Z" fill="white"/>
+              </svg>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">SmugMug Integration</h3>
+                <p className="text-slate-600 text-sm">Connect SmugMug for photo galleries and SMS delivery</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-4">
+            {smugMugConnected ? (
+              <div className={`p-4 rounded-lg border-2 flex items-center justify-between ${
+                smugMugConnectionStatus === 'connected'
+                  ? 'bg-green-50 border-green-700/30'
+                  : 'bg-yellow-50 border-yellow-700/30'
+              }`}>
+                <div className="flex items-center gap-3">
+                  {smugMugConnectionStatus === 'connected' ? (
+                    <Check className="text-green-700" size={24} />
+                  ) : (
+                    <X className="text-yellow-700" size={24} />
+                  )}
+                  <div>
+                    <p className={`font-medium ${
+                      smugMugConnectionStatus === 'connected' ? 'text-green-800' : 'text-yellow-800'
+                    }`}>
+                      {smugMugConnectionStatus === 'connected' ? 'Connected to SmugMug' : 'Needs Attention'}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {smugMugUserNickname && `Account: ${smugMugUserNickname}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleConnectSmugMug}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Reauthorize
+                  </button>
+                  <button
+                    onClick={handleDisconnectSmugMug}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-center py-8">
+                  <p className="text-slate-700 mb-6">Connect your SmugMug account to automatically create galleries and share photos with guests.</p>
+                  <button
+                    onClick={handleConnectSmugMug}
+                    disabled={isConnectingSmugMug}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-8 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors mx-auto"
+                  >
+                    {isConnectingSmugMug ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" viewBox="0 0 48 48" fill="currentColor">
+                          <path d="M24 4L44 14V34L24 44L4 34V14L24 4Z"/>
+                          <path d="M24 14L34 19V29L24 34L14 29V19L24 14Z" fill="#0066CC"/>
+                        </svg>
+                        Connect to SmugMug
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="p-4 bg-blue-50 border-2 border-blue-700/30 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Simple Setup:</strong> Click the button above to authorize with your SmugMug account. The connection will remain active indefinitely, and galleries will be created automatically for each event.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {smugMugConnected && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">Default Gallery Visibility</label>
+                  <select
+                    value={smugMugDefaultVisibility}
+                    onChange={(e) => setSmugMugDefaultVisibility(e.target.value)}
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  >
+                    <option value="private">Private (Link-Only)</option>
+                    <option value="public">Public</option>
+                  </select>
+                  <p className="text-xs text-slate-600 mt-2">
+                    Private galleries are not searchable or publicly listed, accessible only via direct URL.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={useSmugMugForSMS}
+                    onChange={(e) => setUseSmugMugForSMS(e.target.checked)}
+                    className="w-5 h-5 rounded accent-green-700"
+                    id="smugmug-sms-enabled"
+                  />
+                  <label htmlFor="smugmug-sms-enabled" className="flex-1 cursor-pointer">
+                    <span className="font-medium text-slate-900">Use SmugMug links for SMS delivery</span>
+                    <p className="text-sm text-slate-600">Send gallery links instead of Dropbox links via text message</p>
+                  </label>
+                  {useSmugMugForSMS && <Check className="text-green-700" size={20} />}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
         <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
