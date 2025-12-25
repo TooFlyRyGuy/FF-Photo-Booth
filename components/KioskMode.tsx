@@ -605,7 +605,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
               borderLeftColor: 'transparent',
             }}
           />
-          <img src={capturedImage || ''} className="absolute inset-2 rounded-full object-cover opacity-50 grayscale" alt="original" />
+          <div className="absolute inset-2 rounded-full overflow-hidden">
+            <img
+              src={capturedImage || ''}
+              className="w-full h-full object-cover opacity-50 grayscale"
+              alt="original"
+            />
+          </div>
         </div>
         <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>Creating Magic...</h2>
         <p className="text-sm md:text-base text-slate-600 text-center">Applying {selectedPrompt?.name} style</p>
