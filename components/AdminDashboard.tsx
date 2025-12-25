@@ -142,6 +142,28 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     setActiveTab('analytics');
   };
 
+  const handleEventImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'backgroundImageUrl' | 'logoUrl' | 'overlayImageUrl') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditingEvent({ ...editingEvent, [field]: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePromptImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditingPromptData({ ...editingPromptData, [field]: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveEvent = async () => {
     if (!editingEvent.name || !editingEvent.passcode) {
       alert("Please fill in the required fields (Name, Passcode)");
@@ -662,35 +684,131 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Background Image URL</label>
-                    <input
-                      type="text"
-                      value={editingEvent.backgroundImageUrl || ''}
-                      onChange={(e) => setEditingEvent({...editingEvent, backgroundImageUrl: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                      placeholder="https://example.com/background.jpg"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Logo URL</label>
-                    <input
-                      type="text"
-                      value={editingEvent.logoUrl || ''}
-                      onChange={(e) => setEditingEvent({...editingEvent, logoUrl: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                      placeholder="https://example.com/logo.png"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">
-                      Overlay Image URL (Transparent PNG)
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <ImageIcon size={16} />
+                      Background Image
                     </label>
+                    {editingEvent.backgroundImageUrl && (editingEvent.backgroundImageUrl.startsWith('data:') || editingEvent.backgroundImageUrl.startsWith('http')) ? (
+                      <div className="relative">
+                        <img
+                          src={editingEvent.backgroundImageUrl}
+                          alt="Background"
+                          className="w-full h-32 object-cover rounded-lg border-2 border-slate-300"
+                        />
+                        <button
+                          onClick={() => setEditingEvent({...editingEvent, backgroundImageUrl: ''})}
+                          className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                          title="Remove image"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer block">
+                        <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                          <Upload size={32} className="text-slate-400 mb-2" />
+                          <span className="text-sm text-slate-600">Click to Upload</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleEventImageUpload(e, 'backgroundImageUrl')}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
                     <input
                       type="text"
-                      value={editingEvent.overlayImageUrl || ''}
+                      value={!editingEvent.backgroundImageUrl?.startsWith('data:') ? (editingEvent.backgroundImageUrl || '') : ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, backgroundImageUrl: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      placeholder="Or enter URL: https://example.com/background.jpg"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <ImageIcon size={16} />
+                      Logo Image
+                    </label>
+                    {editingEvent.logoUrl && (editingEvent.logoUrl.startsWith('data:') || editingEvent.logoUrl.startsWith('http')) ? (
+                      <div className="relative">
+                        <img
+                          src={editingEvent.logoUrl}
+                          alt="Logo"
+                          className="w-full h-32 object-contain rounded-lg border-2 border-slate-300 bg-slate-50"
+                        />
+                        <button
+                          onClick={() => setEditingEvent({...editingEvent, logoUrl: ''})}
+                          className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                          title="Remove image"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer block">
+                        <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                          <Upload size={32} className="text-slate-400 mb-2" />
+                          <span className="text-sm text-slate-600">Click to Upload</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleEventImageUpload(e, 'logoUrl')}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    <input
+                      type="text"
+                      value={!editingEvent.logoUrl?.startsWith('data:') ? (editingEvent.logoUrl || '') : ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, logoUrl: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      placeholder="Or enter URL: https://example.com/logo.png"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <ImageIcon size={16} />
+                      Overlay Image (Transparent PNG)
+                    </label>
+                    {editingEvent.overlayImageUrl && (editingEvent.overlayImageUrl.startsWith('data:') || editingEvent.overlayImageUrl.startsWith('http')) ? (
+                      <div className="relative">
+                        <img
+                          src={editingEvent.overlayImageUrl}
+                          alt="Overlay"
+                          className="w-full h-32 object-contain rounded-lg border-2 border-slate-300 bg-slate-50"
+                        />
+                        <button
+                          onClick={() => setEditingEvent({...editingEvent, overlayImageUrl: ''})}
+                          className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                          title="Remove image"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer block">
+                        <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                          <Upload size={32} className="text-slate-400 mb-2" />
+                          <span className="text-sm text-slate-600">Click to Upload</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleEventImageUpload(e, 'overlayImageUrl')}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    <input
+                      type="text"
+                      value={!editingEvent.overlayImageUrl?.startsWith('data:') ? (editingEvent.overlayImageUrl || '') : ''}
                       onChange={(e) => setEditingEvent({...editingEvent, overlayImageUrl: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                      placeholder="https://example.com/overlay.png"
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      placeholder="Or enter URL: https://example.com/overlay.png"
                     />
                     <p className="text-xs text-slate-500">
                       Applied on top of generated images. Should match the event's aspect ratio ({editingEvent.aspectRatio || 'square'})
@@ -896,21 +1014,93 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                                 className="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
                               />
                             </div>
-                            <div>
-                              <label className="block text-xs font-medium text-slate-700 mb-1">Preview Image URL</label>
-                              <input
-                                type="text"
-                                value={editingPromptData?.previewImage || ''}
-                                onChange={(e) => setEditingPromptData({ ...editingPromptData, previewImage: e.target.value })}
-                                className="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none"
-                              />
-                            </div>
-                            {editingPromptData?.previewImage && (
+                            <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-xs font-medium text-slate-700 mb-1">Preview</label>
-                                <img src={editingPromptData.previewImage} alt="Preview" className="h-32 w-32 object-cover rounded border-2 border-slate-300" />
+                                <label className="block text-xs font-medium text-slate-700 mb-2 flex items-center gap-1">
+                                  <ImageIcon size={14} />
+                                  Kiosk Thumbnail
+                                </label>
+                                {editingPromptData?.previewImage && (editingPromptData.previewImage.startsWith('data:') || editingPromptData.previewImage.startsWith('http')) ? (
+                                  <div className="relative">
+                                    <img
+                                      src={editingPromptData.previewImage}
+                                      alt="Preview"
+                                      className="w-full h-24 object-cover rounded border-2 border-slate-300"
+                                    />
+                                    <button
+                                      onClick={() => setEditingPromptData({ ...editingPromptData, previewImage: '' })}
+                                      className="absolute top-1 right-1 p-1 bg-red-600 hover:bg-red-700 text-white rounded shadow-lg"
+                                      title="Remove image"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <label className="cursor-pointer block">
+                                    <div className="w-full h-24 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                                      <Upload size={20} className="text-slate-400 mb-1" />
+                                      <span className="text-xs text-slate-600">Upload</span>
+                                    </div>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handlePromptImageUpload(e, 'previewImage')}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                )}
+                                <input
+                                  type="text"
+                                  value={!editingPromptData?.previewImage?.startsWith('data:') ? (editingPromptData?.previewImage || '') : ''}
+                                  onChange={(e) => setEditingPromptData({ ...editingPromptData, previewImage: e.target.value })}
+                                  className="w-full mt-2 px-2 py-1.5 border-2 border-slate-300 rounded text-xs focus:ring-2 focus:ring-green-700 focus:outline-none"
+                                  placeholder="Or enter URL"
+                                />
                               </div>
-                            )}
+
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-2 flex items-center gap-1">
+                                  <ImageIcon size={14} />
+                                  AI Style Reference
+                                </label>
+                                {editingPromptData?.referenceImage && (editingPromptData.referenceImage.startsWith('data:') || editingPromptData.referenceImage.startsWith('http')) ? (
+                                  <div className="relative">
+                                    <img
+                                      src={editingPromptData.referenceImage}
+                                      alt="Reference"
+                                      className="w-full h-24 object-cover rounded border-2 border-slate-300"
+                                    />
+                                    <button
+                                      onClick={() => setEditingPromptData({ ...editingPromptData, referenceImage: '' })}
+                                      className="absolute top-1 right-1 p-1 bg-red-600 hover:bg-red-700 text-white rounded shadow-lg"
+                                      title="Remove image"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <label className="cursor-pointer block">
+                                    <div className="w-full h-24 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                                      <Upload size={20} className="text-slate-400 mb-1" />
+                                      <span className="text-xs text-slate-600">Upload</span>
+                                    </div>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handlePromptImageUpload(e, 'referenceImage')}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                )}
+                                <input
+                                  type="text"
+                                  value={!editingPromptData?.referenceImage?.startsWith('data:') ? (editingPromptData?.referenceImage || '') : ''}
+                                  onChange={(e) => setEditingPromptData({ ...editingPromptData, referenceImage: e.target.value })}
+                                  className="w-full mt-2 px-2 py-1.5 border-2 border-slate-300 rounded text-xs focus:ring-2 focus:ring-green-700 focus:outline-none"
+                                  placeholder="Or enter URL"
+                                />
+                              </div>
+                            </div>
                           </div>
                         ) : (
                           <div
