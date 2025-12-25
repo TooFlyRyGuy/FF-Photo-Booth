@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
+import { generateBoothImage } from '../services/geminiService';
 
 interface Prompt {
   id: string;
@@ -38,6 +39,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   const [isCreating, setIsCreating] = useState(false);
   const [eventModePrompts, setEventModePrompts] = useState<Prompt[]>(selectedPrompts);
   const [isPublic, setIsPublic] = useState(false);
+  const [testingPrompt, setTestingPrompt] = useState<Prompt | null>(null);
+  const [testSourceImage, setTestSourceImage] = useState<string>('');
+  const [testReferenceImage, setTestReferenceImage] = useState<string>('');
+  const [testGeneratedImage, setTestGeneratedImage] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string>('');
 
   useEffect(() => {
     loadPrompts();
@@ -250,6 +257,75 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       ...editingPrompt,
       tags: editingPrompt.tags.filter(t => t !== tag),
     });
+  };
+
+  const handleTestPrompt = (prompt: Prompt) => {
+    setTestingPrompt(prompt);
+    setTestSourceImage('');
+    setTestReferenceImage('');
+    setTestGeneratedImage('');
+    setGenerationError('');
+  };
+
+  const handleTestImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'source' | 'reference') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (field === 'source') {
+          setTestSourceImage(reader.result as string);
+        } else {
+          setTestReferenceImage(reader.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRunTest = async () => {
+    if (!testingPrompt || !testSourceImage) return;
+
+    setIsGenerating(true);
+    setGenerationError('');
+    setTestGeneratedImage('');
+
+    try {
+      const { data: settings } = await supabase
+        .from('global_settings')
+        .select('gemini_api_key, gemini_model_name, gemini_resolution')
+        .maybeSingle();
+
+      if (!settings?.gemini_api_key) {
+        throw new Error('Gemini API key not configured. Please add it in Settings.');
+      }
+
+      const referenceImage = testReferenceImage || testingPrompt.referenceImage || undefined;
+
+      const generatedImage = await generateBoothImage(
+        testSourceImage,
+        testingPrompt.promptText,
+        settings.gemini_api_key,
+        referenceImage,
+        'square',
+        settings.gemini_model_name || 'gemini-3-pro-image-preview',
+        settings.gemini_resolution || '1K'
+      );
+
+      setTestGeneratedImage(generatedImage);
+    } catch (error: any) {
+      console.error('Test generation error:', error);
+      setGenerationError(error.message || 'Failed to generate image');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const closeTestModal = () => {
+    setTestingPrompt(null);
+    setTestSourceImage('');
+    setTestReferenceImage('');
+    setTestGeneratedImage('');
+    setGenerationError('');
   };
 
   if (editingPrompt) {
@@ -633,6 +709,13 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                             Edit
                           </button>
                           <button
+                            onClick={() => handleTestPrompt(prompt)}
+                            className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg font-medium text-sm"
+                            title="Test this prompt"
+                          >
+                            <Sparkles size={14} />
+                          </button>
+                          <button
                             onClick={() => handleDelete(prompt.id)}
                             className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-medium text-sm"
                           >
@@ -648,6 +731,170 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           )}
         </div>
       </div>
+
+      {/* Test Prompt Modal */}
+      {testingPrompt && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <Sparkles className="text-green-700" size={24} />
+                  Test Prompt: {testingPrompt.name}
+                </h2>
+                <p className="text-slate-600 mt-1">Upload images to test this AI prompt</p>
+              </div>
+              <button
+                onClick={closeTestModal}
+                className="text-slate-600 hover:text-slate-900 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="bg-slate-50 p-4 rounded-lg border-2 border-slate-300">
+                <h3 className="font-bold text-slate-900 mb-2">AI Prompt Text:</h3>
+                <p className="text-sm text-slate-700 font-mono whitespace-pre-wrap">{testingPrompt.promptText}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <Upload size={16} />
+                    Source Photo *
+                  </label>
+                  {testSourceImage ? (
+                    <div className="relative">
+                      <img
+                        src={testSourceImage}
+                        alt="Source"
+                        className="w-full aspect-square object-cover rounded-lg border-2 border-slate-300"
+                      />
+                      <button
+                        onClick={() => setTestSourceImage('')}
+                        className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                        title="Remove image"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer block">
+                      <div className="w-full aspect-square border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                        <Upload size={48} className="text-slate-400 mb-2" />
+                        <span className="text-sm text-slate-600">Upload a person photo</span>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleTestImageUpload(e, 'source')}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                  <p className="text-xs text-slate-500 mt-2">This is the person photo to transform</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <ImageIcon size={16} />
+                    Reference Image (Optional)
+                  </label>
+                  {testReferenceImage || testingPrompt.referenceImage ? (
+                    <div className="relative">
+                      <img
+                        src={testReferenceImage || testingPrompt.referenceImage || ''}
+                        alt="Reference"
+                        className="w-full aspect-square object-cover rounded-lg border-2 border-slate-300"
+                      />
+                      {testReferenceImage && (
+                        <button
+                          onClick={() => setTestReferenceImage('')}
+                          className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                          title="Remove image"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                      {!testReferenceImage && testingPrompt.referenceImage && (
+                        <div className="absolute bottom-2 left-2 bg-slate-900/75 text-white text-xs px-2 py-1 rounded">
+                          Prompt's default reference
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer block">
+                      <div className="w-full aspect-square border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                        <Upload size={48} className="text-slate-400 mb-2" />
+                        <span className="text-sm text-slate-600">Upload style reference</span>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleTestImageUpload(e, 'reference')}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                  <p className="text-xs text-slate-500 mt-2">
+                    {testingPrompt.referenceImage && !testReferenceImage
+                      ? 'Using prompt\'s default reference or upload a new one'
+                      : 'Optional: Upload a style reference image'}
+                  </p>
+                </div>
+              </div>
+
+              {testGeneratedImage && (
+                <div className="border-2 border-green-700 rounded-lg p-4 bg-green-50">
+                  <h3 className="font-bold text-green-900 mb-3 flex items-center gap-2">
+                    <Check size={18} />
+                    Generated Result
+                  </h3>
+                  <img
+                    src={testGeneratedImage}
+                    alt="Generated"
+                    className="w-full max-w-md mx-auto rounded-lg shadow-lg"
+                  />
+                </div>
+              )}
+
+              {generationError && (
+                <div className="border-2 border-red-600 rounded-lg p-4 bg-red-50">
+                  <h3 className="font-bold text-red-900 mb-2">Error</h3>
+                  <p className="text-sm text-red-800">{generationError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4 border-t border-slate-300">
+                <button
+                  onClick={handleRunTest}
+                  disabled={!testSourceImage || isGenerating}
+                  className="flex-1 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={18} />
+                      Generate Test Image
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={closeTestModal}
+                  className="px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
