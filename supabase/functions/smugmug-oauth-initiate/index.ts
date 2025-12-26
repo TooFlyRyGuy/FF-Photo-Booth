@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.87.1";
 
-const SMUGMUG_API_KEY = "zBR2TRq5bCzc42Zz6nzwwWDmSzSFdcZJ";
-const SMUGMUG_API_SECRET = "sxbDQsfD9pd7kTXfh7M5pLwLQbfVQG2zXfswptp2jHDTzS4NMc98g4S6v7N5sSrC";
+const SMUGMUG_API_KEY = Deno.env.get('SMUGMUG_API_KEY')!;
+const SMUGMUG_API_SECRET = Deno.env.get('SMUGMUG_API_SECRET')!;
 const SMUGMUG_REQUEST_TOKEN_URL = "https://secure.smugmug.com/services/oauth/1.0a/getRequestToken";
 const SMUGMUG_AUTHORIZE_URL = "https://secure.smugmug.com/services/oauth/1.0a/authorize";
 
