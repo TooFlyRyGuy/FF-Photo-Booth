@@ -100,6 +100,10 @@ Deno.serve(async (req: Request) => {
     const appOrigin = settings.smugmug_user_nickname || url.origin;
 
     console.log('=== CALLBACK DEBUG ===');
+    console.log('oauthToken:', oauthToken);
+    console.log('oauthVerifier:', oauthVerifier);
+    console.log('requestTokenSecret from DB:', requestTokenSecret);
+    console.log('requestTokenSecret length:', requestTokenSecret.length);
     console.log('appOrigin from DB:', settings.smugmug_user_nickname);
     console.log('url.origin:', url.origin);
     console.log('final appOrigin:', appOrigin);
@@ -117,6 +121,16 @@ Deno.serve(async (req: Request) => {
       oauth_version: '1.0',
     };
 
+    const sortedParamsDebug = Object.keys(oauthParams)
+      .sort()
+      .map(key => `${percentEncode(key)}=${percentEncode(oauthParams[key])}`)
+      .join('&');
+    const ourSBS = `GET&${percentEncode(SMUGMUG_ACCESS_TOKEN_URL)}&${percentEncode(sortedParamsDebug)}`;
+    console.log('=== OUR SIGNATURE BASE STRING ===');
+    console.log(ourSBS);
+    console.log('=== SIGNING KEY ===');
+    console.log(`${percentEncode(SMUGMUG_API_SECRET)}&${percentEncode(requestTokenSecret)}`);
+
     const signature = await generateSignature(
       'GET',
       SMUGMUG_ACCESS_TOKEN_URL,
@@ -126,6 +140,8 @@ Deno.serve(async (req: Request) => {
     );
 
     oauthParams.oauth_signature = signature;
+    console.log('=== GENERATED SIGNATURE ===');
+    console.log(signature);
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
