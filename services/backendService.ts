@@ -231,29 +231,39 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
 };
 
 export const getGlobalSettings = async (): Promise<Record<string, string>> => {
-  const { data, error } = await supabase
+  const { data: keyValueData, error: kvError } = await supabase
     .from('global_settings')
-    .select('setting_key, setting_value, smugmug_oauth_token, smugmug_user_nickname, smugmug_connection_status, smugmug_default_visibility, use_smugmug_for_sms')
-    .limit(1)
-    .maybeSingle();
+    .select('setting_key, setting_value');
 
-  if (error) {
-    console.error('Failed to fetch global settings:', error);
-    throw new Error(`Failed to fetch global settings: ${error.message}`);
+  if (kvError) {
+    console.error('Failed to fetch global settings:', kvError);
+    throw new Error(`Failed to fetch global settings: ${kvError.message}`);
   }
 
   const settings: Record<string, string> = {};
 
-  if (data) {
-    if (data.setting_key && data.setting_value) {
-      settings[data.setting_key] = data.setting_value;
+  if (keyValueData) {
+    for (const row of keyValueData) {
+      if (row.setting_key && row.setting_value !== null) {
+        settings[row.setting_key] = row.setting_value;
+      }
     }
+  }
 
-    if (data.smugmug_oauth_token) settings.smugmug_oauth_token = data.smugmug_oauth_token;
-    if (data.smugmug_user_nickname) settings.smugmug_user_nickname = data.smugmug_user_nickname;
-    if (data.smugmug_connection_status) settings.smugmug_connection_status = data.smugmug_connection_status;
-    if (data.smugmug_default_visibility) settings.smugmug_default_visibility = data.smugmug_default_visibility;
-    if (data.use_smugmug_for_sms !== undefined) settings.use_smugmug_for_sms = String(data.use_smugmug_for_sms);
+  const { data: specialData, error: specialError } = await supabase
+    .from('global_settings')
+    .select('smugmug_oauth_token, smugmug_user_nickname, smugmug_connection_status, smugmug_default_visibility, use_smugmug_for_sms')
+    .limit(1)
+    .maybeSingle();
+
+  if (specialError) {
+    console.error('Failed to fetch special global settings:', specialError);
+  } else if (specialData) {
+    if (specialData.smugmug_oauth_token) settings.smugmug_oauth_token = specialData.smugmug_oauth_token;
+    if (specialData.smugmug_user_nickname) settings.smugmug_user_nickname = specialData.smugmug_user_nickname;
+    if (specialData.smugmug_connection_status) settings.smugmug_connection_status = specialData.smugmug_connection_status;
+    if (specialData.smugmug_default_visibility) settings.smugmug_default_visibility = specialData.smugmug_default_visibility;
+    if (specialData.use_smugmug_for_sms !== undefined) settings.use_smugmug_for_sms = String(specialData.use_smugmug_for_sms);
   }
 
   return settings;
@@ -274,7 +284,7 @@ export const getGlobalSetting = async (key: string): Promise<string | null> => {
   return data?.setting_value || null;
 };
 
-export const updateGlobalSettings = async (settings: Record<string, string>): Promise<void> => {
+export const updateGlobalSettings = async (settings: Record<string, any>): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -291,14 +301,43 @@ export const updateGlobalSettings = async (settings: Record<string, string>): Pr
     throw new Error('Must be an admin to update global settings');
   }
 
+  const specialColumns = ['smugmug_oauth_token', 'smugmug_oauth_token_secret', 'smugmug_user_nickname', 'smugmug_connection_status', 'smugmug_default_visibility', 'use_smugmug_for_sms'];
+  const specialUpdates: Record<string, any> = {};
+  const keyValueUpdates: Record<string, string> = {};
+
   for (const [key, value] of Object.entries(settings)) {
+    if (specialColumns.includes(key)) {
+      specialUpdates[key] = value;
+    } else {
+      keyValueUpdates[key] = value;
+    }
+  }
+
+  if (Object.keys(specialUpdates).length > 0) {
     const { error } = await supabase
       .from('global_settings')
       .update({
-        setting_value: value,
+        ...specialUpdates,
         updated_at: new Date().toISOString()
       })
-      .eq('setting_key', key);
+      .limit(1);
+
+    if (error) {
+      console.error('Failed to update special global settings:', error);
+      throw new Error(`Failed to update special global settings: ${error.message}`);
+    }
+  }
+
+  for (const [key, value] of Object.entries(keyValueUpdates)) {
+    const { error } = await supabase
+      .from('global_settings')
+      .upsert({
+        setting_key: key,
+        setting_value: value,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'setting_key'
+      });
 
     if (error) {
       console.error(`Failed to update global setting ${key}:`, error);
