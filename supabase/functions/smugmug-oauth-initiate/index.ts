@@ -94,6 +94,7 @@ Deno.serve(async (req: Request) => {
     oauthParams.oauth_signature = signature;
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
+      .sort()
       .map(key => {
         const value = key === 'oauth_signature'
           ? oauthParams[key]
@@ -101,6 +102,9 @@ Deno.serve(async (req: Request) => {
         return `${key}="${value}"`;
       })
       .join(', ');
+
+    console.log('OAuth Authorization header:', authHeader);
+    console.log('Request token URL:', SMUGMUG_REQUEST_TOKEN_URL);
 
     const response = await fetch(SMUGMUG_REQUEST_TOKEN_URL, {
       method: 'GET',
@@ -112,6 +116,9 @@ Deno.serve(async (req: Request) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('SmugMug API error response:', errorText);
+      console.error('Response status:', response.status);
+      console.error('Response headers:', Object.fromEntries(response.headers.entries()));
       throw new Error(`SmugMug request token failed: ${response.status} - ${errorText}`);
     }
 
