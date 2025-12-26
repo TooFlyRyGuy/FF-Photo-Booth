@@ -463,105 +463,108 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
         </div>
       )}
 
-      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
-        <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
-          <div className="flex items-center gap-3">
-            <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
-              <circle cx="24" cy="24" r="24" fill="#F22F46"/>
-              <circle cx="18" cy="18" r="3.5" fill="white"/>
-              <circle cx="30" cy="18" r="3.5" fill="white"/>
-              <circle cx="18" cy="30" r="3.5" fill="white"/>
-              <circle cx="30" cy="30" r="3.5" fill="white"/>
-            </svg>
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">Twilio Integration</h3>
-              <p className="text-slate-600 text-sm">Send photos via SMS to guests using Twilio</p>
+      {isAdmin && (
+        <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+          <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+            <div className="flex items-center gap-3">
+              <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
+                <circle cx="24" cy="24" r="24" fill="#F22F46"/>
+                <circle cx="18" cy="18" r="3.5" fill="white"/>
+                <circle cx="30" cy="18" r="3.5" fill="white"/>
+                <circle cx="18" cy="30" r="3.5" fill="white"/>
+                <circle cx="30" cy="30" r="3.5" fill="white"/>
+              </svg>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Twilio Integration</h3>
+                <p className="text-slate-600 text-sm">Send photos via SMS to guests using Twilio</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="p-6 space-y-4">
-          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-300">
-            <input
-              type="checkbox"
-              checked={twilioEnabled}
-              onChange={(e) => setTwilioEnabled(e.target.checked)}
-              className="w-5 h-5 rounded accent-green-700"
-              id="twilio-enabled"
-            />
-            <label htmlFor="twilio-enabled" className="flex-1 cursor-pointer">
-              <span className="font-medium text-slate-900">Enable SMS Delivery</span>
-              <p className="text-sm text-slate-600">Allow guests to receive photos via text message</p>
-            </label>
-            {twilioEnabled && <Check className="text-green-700" size={20} />}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-900 mb-2">Account SID</label>
-            <input
-              type="text"
-              value={twilioSid}
-              onChange={(e) => setTwilioSid(e.target.value)}
-              placeholder="AC..."
-              className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-900 mb-2">Auth Token</label>
-            <div className="relative">
+          <div className="p-6 space-y-4">
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-300">
               <input
-                type={showTwilioToken ? 'text' : 'password'}
-                value={twilioToken}
-                onChange={(e) => handleTwilioTokenChange(e.target.value)}
-                placeholder="Enter your Twilio auth token"
-                className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
+                type="checkbox"
+                checked={twilioEnabled}
+                onChange={(e) => setTwilioEnabled(e.target.checked)}
+                className="w-5 h-5 rounded accent-green-700"
+                id="twilio-enabled"
               />
-              <button
-                type="button"
-                onClick={() => setShowTwilioToken(!showTwilioToken)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
-              >
-                {showTwilioToken ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+              <label htmlFor="twilio-enabled" className="flex-1 cursor-pointer">
+                <span className="font-medium text-slate-900">Enable SMS Delivery</span>
+                <p className="text-sm text-slate-600">Allow guests to receive photos via text message</p>
+              </label>
+              {twilioEnabled && <Check className="text-green-700" size={20} />}
             </div>
-            {twilioToken.startsWith('•') && (
-              <p className="text-xs text-green-700 mt-2">✓ Token is saved (hidden for security)</p>
-            )}
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-900 mb-2">Phone Number</label>
-            <input
-              type="tel"
-              value={twilioPhone}
-              onChange={(e) => setTwilioPhone(e.target.value)}
-              placeholder="+1234567890"
-              className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
-            />
-            <p className="text-xs text-slate-600 mt-2">
-              Use E.164 format (e.g., +12125551234)
-            </p>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-900 mb-2">Account SID</label>
+              <input
+                type="text"
+                value={twilioSid}
+                onChange={(e) => setTwilioSid(e.target.value)}
+                placeholder="AC..."
+                className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+              />
+            </div>
 
-          <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
-            <p className="text-sm text-green-800">
-              <strong>Note:</strong> Get your credentials from the{' '}
-              <a
-                href="https://console.twilio.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-green-700"
-              >
-                Twilio Console
-              </a>
-              . You'll need an active Twilio account with a phone number.
-            </p>
+            <div>
+              <label className="block text-sm font-medium text-slate-900 mb-2">Auth Token</label>
+              <div className="relative">
+                <input
+                  type={showTwilioToken ? 'text' : 'password'}
+                  value={twilioToken}
+                  onChange={(e) => handleTwilioTokenChange(e.target.value)}
+                  placeholder="Enter your Twilio auth token"
+                  className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowTwilioToken(!showTwilioToken)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
+                >
+                  {showTwilioToken ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {twilioToken.startsWith('•') && (
+                <p className="text-xs text-green-700 mt-2">✓ Token is saved (hidden for security)</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-900 mb-2">Phone Number</label>
+              <input
+                type="tel"
+                value={twilioPhone}
+                onChange={(e) => setTwilioPhone(e.target.value)}
+                placeholder="+1234567890"
+                className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+              />
+              <p className="text-xs text-slate-600 mt-2">
+                Use E.164 format (e.g., +12125551234)
+              </p>
+            </div>
+
+            <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
+              <p className="text-sm text-green-800">
+                <strong>Note:</strong> Get your credentials from the{' '}
+                <a
+                  href="https://console.twilio.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-green-700"
+                >
+                  Twilio Console
+                </a>
+                . You'll need an active Twilio account with a phone number.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+      {isAdmin && (
+        <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
         <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
           <div className="flex items-center gap-3">
             <Sparkles className="text-green-700" size={24} />
@@ -614,6 +617,7 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
           </div>
         </div>
       </div>
+      )}
 
       {isAdmin && (
         <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">

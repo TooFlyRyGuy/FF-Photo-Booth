@@ -314,17 +314,25 @@ export const updateGlobalSettings = async (settings: Record<string, any>): Promi
   }
 
   if (Object.keys(specialUpdates).length > 0) {
-    const { error } = await supabase
+    const { data: existingRow } = await supabase
       .from('global_settings')
-      .update({
-        ...specialUpdates,
-        updated_at: new Date().toISOString()
-      })
-      .limit(1);
+      .select('id')
+      .limit(1)
+      .maybeSingle();
 
-    if (error) {
-      console.error('Failed to update special global settings:', error);
-      throw new Error(`Failed to update special global settings: ${error.message}`);
+    if (existingRow) {
+      const { error } = await supabase
+        .from('global_settings')
+        .update({
+          ...specialUpdates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingRow.id);
+
+      if (error) {
+        console.error('Failed to update special global settings:', error);
+        throw new Error(`Failed to update special global settings: ${error.message}`);
+      }
     }
   }
 
