@@ -213,15 +213,14 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', settings.id);
 
-    const redirectUrl = new URL('/oauth-success.html', state);
-    redirectUrl.searchParams.set('type', 'smugmug');
-    redirectUrl.searchParams.set('success', 'true');
+    const appUrl = state.startsWith('http') ? state : `https://${state}`;
+    const redirectUrl = `${appUrl}/oauth-success.html?type=smugmug&success=true`;
 
     return new Response(null, {
       status: 302,
       headers: {
         ...corsHeaders,
-        'Location': redirectUrl.toString(),
+        'Location': redirectUrl,
       },
     });
   } catch (error: any) {
@@ -229,17 +228,15 @@ Deno.serve(async (req: Request) => {
 
     const url = new URL(req.url);
     const state = url.searchParams.get('state') || url.origin;
-
-    const redirectUrl = new URL('/oauth-success.html', state);
-    redirectUrl.searchParams.set('type', 'smugmug');
-    redirectUrl.searchParams.set('success', 'false');
-    redirectUrl.searchParams.set('error', error.message);
+    const appUrl = state.startsWith('http') ? state : `https://${state}`;
+    const errorMessage = encodeURIComponent(error.message);
+    const redirectUrl = `${appUrl}/oauth-success.html?type=smugmug&success=false&error=${errorMessage}`;
 
     return new Response(null, {
       status: 302,
       headers: {
         ...corsHeaders,
-        'Location': redirectUrl.toString(),
+        'Location': redirectUrl,
       },
     });
   }
