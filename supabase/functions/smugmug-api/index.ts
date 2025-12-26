@@ -133,32 +133,41 @@ async function findOrCreateFolder(
   parentNodeUri: string,
   folderName: string
 ): Promise<string> {
-  const childrenResponse = await makeSmugMugRequest('GET', `${parentNodeUri}!children`, accessToken, accessTokenSecret);
+  try {
+    const childrenResponse = await makeSmugMugRequest('GET', `${parentNodeUri}!children`, accessToken, accessTokenSecret);
 
-  const existingFolder = childrenResponse.Response.Node?.find((node: any) =>
-    node.Type === 'Folder' && node.Name === folderName
-  );
+    const nodes = childrenResponse.Response.Node || [];
+    const existingFolder = nodes.find((node: any) =>
+      node.Type === 'Folder' && node.Name === folderName
+    );
 
-  if (existingFolder) {
-    return existingFolder.Uri;
+    if (existingFolder) {
+      console.log(`Found existing folder: ${folderName}`);
+      return existingFolder.Uri;
+    }
+
+    console.log(`Creating new folder: ${folderName}`);
+    const folderData = {
+      Type: 'Folder',
+      Name: folderName,
+      UrlName: folderName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      Privacy: 'Public',
+    };
+
+    const createResponse = await makeSmugMugRequest(
+      'POST',
+      `${parentNodeUri}!children`,
+      accessToken,
+      accessTokenSecret,
+      folderData
+    );
+
+    console.log(`Created folder ${folderName}:`, createResponse.Response.Node);
+    return createResponse.Response.Node.Uri;
+  } catch (error) {
+    console.error(`Error in findOrCreateFolder for ${folderName}:`, error);
+    throw error;
   }
-
-  const folderData = {
-    Name: folderName,
-    UrlName: folderName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-    Type: 'Folder',
-    Privacy: 'Public',
-  };
-
-  const createResponse = await makeSmugMugRequest(
-    'POST',
-    `${parentNodeUri}!children`,
-    accessToken,
-    accessTokenSecret,
-    folderData
-  );
-
-  return createResponse.Response.Node.Uri;
 }
 
 async function createGallery(
@@ -167,50 +176,88 @@ async function createGallery(
   galleryName: string,
   visibility: string
 ): Promise<{ galleryId: string; galleryUrl: string }> {
-  const userData = await makeSmugMugRequest('GET', '!authuser', accessToken, accessTokenSecret);
-  const userUri = userData.Response.User.Uris.Node.Uri;
+  try {
+    console.log(`Creating SmugMug gallery: ${galleryName}`);
 
-  const photoBoothFolderUri = await findOrCreateFolder(
-    accessToken,
-    accessTokenSecret,
-    userUri,
-    'Photo Booth Galleries'
-  );
+    const userData = await makeSmugMugRequest('GET', '!authuser', accessToken, accessTokenSecret);
+    const userUri = userData.Response.User.Uris.Node.Uri;
+    console.log('User node URI:', userUri);
 
-  const aiPhotoBoothFolderUri = await findOrCreateFolder(
-    accessToken,
-    accessTokenSecret,
-    photoBoothFolderUri,
-    'AI Photo Booth'
-  );
+    const photoBoothFolderUri = await findOrCreateFolder(
+      accessToken,
+      accessTokenSecret,
+      userUri,
+      'Photo Booth Galleries'
+    );
+    console.log('Photo Booth Galleries URI:', photoBoothFolderUri);
 
-  const privacyLevel = visibility === 'public' ? 'Public' : 'Unlisted';
+    const aiPhotoBoothFolderUri = await findOrCreateFolder(
+      accessToken,
+      accessTokenSecret,
+      photoBoothFolderUri,
+      'AI Photo Booth'
+    );
+    console.log('AI Photo Booth URI:', aiPhotoBoothFolderUri);
 
-  const galleryData = {
-    Name: galleryName,
-    UrlName: galleryName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-    Privacy: privacyLevel,
-    SortMethod: 'Date Uploaded',
-    SortDirection: 'Descending',
-    Description: 'AI Photo Booth Gallery',
-  };
+    const privacyLevel = visibility === 'public' ? 'Public' : 'Unlisted';
 
-  const response = await makeSmugMugRequest(
-    'POST',
-    `${aiPhotoBoothFolderUri}!children`,
-    accessToken,
-    accessTokenSecret,
-    galleryData
-  );
+    const albumData = {
+      Type: 'Album',
+      Name: galleryName,
+      UrlName: galleryName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 60),
+      Privacy: privacyLevel,
+      SortMethod: 'DateUploaded',
+      SortDirection: 'Descending',
+      Description: 'AI Photo Booth Gallery',
+    };
 
-  const gallery = response.Response.Album;
-  const galleryKey = gallery.AlbumKey;
-  const webUrl = gallery.Uris.AlbumShareUris?.AlbumShareUri?.Uri || gallery.WebUri;
+    console.log('Creating album with data:', albumData);
 
-  return {
-    galleryId: galleryKey,
-    galleryUrl: `https://www.smugmug.com${webUrl}`,
-  };
+    const response = await makeSmugMugRequest(
+      'POST',
+      `${aiPhotoBoothFolderUri}!children`,
+      accessToken,
+      accessTokenSecret,
+      albumData
+    );
+
+    console.log('Album creation response:', response);
+
+    const album = response.Response.Album;
+    if (!album || !album.AlbumKey) {
+      throw new Error('Album creation failed: No AlbumKey returned');
+    }
+
+    const albumKey = album.AlbumKey;
+    const albumUri = album.Uri;
+
+    let webUrl = album.WebUri || '';
+
+    if (!webUrl && album.Uris?.AlbumShareUris) {
+      const shareUris = Array.isArray(album.Uris.AlbumShareUris)
+        ? album.Uris.AlbumShareUris
+        : [album.Uris.AlbumShareUris];
+
+      for (const shareUri of shareUris) {
+        if (shareUri?.Uri) {
+          webUrl = shareUri.Uri;
+          break;
+        }
+      }
+    }
+
+    const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
+
+    console.log('Gallery created successfully:', { albumKey, fullUrl });
+
+    return {
+      galleryId: albumKey,
+      galleryUrl: fullUrl,
+    };
+  } catch (error) {
+    console.error('Error creating gallery:', error);
+    throw error;
+  }
 }
 
 async function uploadImage(
@@ -220,55 +267,79 @@ async function uploadImage(
   imageData: string,
   fileName: string
 ): Promise<string> {
-  const imageBuffer = Uint8Array.from(atob(imageData.split(',')[1]), c => c.charCodeAt(0));
+  try {
+    console.log(`Uploading image to gallery ${galleryKey}: ${fileName}`);
 
-  const nonce = generateNonce();
-  const timestamp = generateTimestamp();
+    const base64Data = imageData.includes(',') ? imageData.split(',')[1] : imageData;
+    const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-  const oauthParams: Record<string, string> = {
-    oauth_consumer_key: SMUGMUG_API_KEY,
-    oauth_nonce: nonce,
-    oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp: timestamp,
-    oauth_token: accessToken,
-    oauth_version: '1.0',
-  };
+    console.log(`Image buffer size: ${imageBuffer.length} bytes`);
 
-  const signature = await generateSignature(
-    'POST',
-    SMUGMUG_UPLOAD_BASE,
-    oauthParams,
-    SMUGMUG_API_SECRET,
-    accessTokenSecret
-  );
+    const nonce = generateNonce();
+    const timestamp = generateTimestamp();
 
-  oauthParams.oauth_signature = signature;
+    const oauthParams: Record<string, string> = {
+      oauth_consumer_key: SMUGMUG_API_KEY,
+      oauth_nonce: nonce,
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: timestamp,
+      oauth_token: accessToken,
+      oauth_version: '1.0',
+    };
 
-  const authHeader = 'OAuth ' + Object.keys(oauthParams)
-    .sort()
-    .map(key => `${key}="${oauthParams[key]}"`)
-    .join(', ');
+    const signature = await generateSignature(
+      'POST',
+      SMUGMUG_UPLOAD_BASE,
+      oauthParams,
+      SMUGMUG_API_SECRET,
+      accessTokenSecret
+    );
 
-  const response = await fetch(SMUGMUG_UPLOAD_BASE, {
-    method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'X-Smug-AlbumUri': `/api/v2/album/${galleryKey}`,
-      'X-Smug-FileName': fileName,
-      'X-Smug-ResponseType': 'JSON',
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': imageBuffer.length.toString(),
-    },
-    body: imageBuffer,
-  });
+    oauthParams.oauth_signature = signature;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`SmugMug upload error: ${response.status} - ${errorText}`);
+    const authHeader = 'OAuth ' + Object.keys(oauthParams)
+      .sort()
+      .map(key => `${key}="${oauthParams[key]}"`)
+      .join(', ');
+
+    const albumUri = `/api/v2/album/${galleryKey}`;
+    console.log(`Uploading to album URI: ${albumUri}`);
+
+    const response = await fetch(SMUGMUG_UPLOAD_BASE, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'X-Smug-AlbumUri': albumUri,
+        'X-Smug-FileName': fileName,
+        'X-Smug-ResponseType': 'JSON',
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': imageBuffer.length.toString(),
+      },
+      body: imageBuffer,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Upload failed: ${response.status} - ${errorText}`);
+      throw new Error(`SmugMug upload error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('Upload response:', result);
+
+    const imageUrl = result.Image?.ImageUri || result.Image?.URL || result.Image?.Uri;
+
+    if (!imageUrl) {
+      console.error('No image URL in response:', result);
+      throw new Error('No image URL returned from SmugMug');
+    }
+
+    console.log(`Image uploaded successfully: ${imageUrl}`);
+    return imageUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
   }
-
-  const result = await response.json();
-  return result.Image.URL;
 }
 
 Deno.serve(async (req: Request) => {
