@@ -323,7 +323,9 @@ export const getEvents = async (): Promise<Event[]> => {
           name,
           description,
           category,
-          prompt_text
+          prompt_text,
+          preview_image_url,
+          reference_image_url
         )
       )
     `)
@@ -362,8 +364,8 @@ export const getEvents = async (): Promise<Event[]> => {
         description: ep.prompts.description,
         category: ep.prompts.category,
         promptText: ep.prompts.prompt_text,
-        previewImage: '',
-        referenceImage: '',
+        previewImage: ep.prompts.preview_image_url || '',
+        referenceImage: ep.prompts.reference_image_url || '',
       }))
   }));
 };
@@ -377,7 +379,7 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
 
   const { data, error } = await supabase
     .from('prompts')
-    .select('*')
+    .select('id, name, description, category, prompt_text, preview_image_url, reference_image_url, tags')
     .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
@@ -392,8 +394,8 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
     description: prompt.description,
     category: prompt.category,
     promptText: prompt.prompt_text,
-    previewImage: prompt.preview_image_url,
-    referenceImage: prompt.reference_image_url,
+    previewImage: prompt.preview_image_url || '',
+    referenceImage: prompt.reference_image_url || '',
   }));
 
   cachedPrompts = prompts;
@@ -660,7 +662,15 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
       event_prompts (
         prompt_id,
         display_order,
-        prompts (*)
+        prompts (
+          id,
+          name,
+          description,
+          category,
+          prompt_text,
+          preview_image_url,
+          reference_image_url
+        )
       )
     `)
     .eq('passcode', passcode)
@@ -701,8 +711,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
         description: ep.prompts.description,
         category: ep.prompts.category,
         promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_url,
-        referenceImage: ep.prompts.reference_image_url,
+        previewImage: ep.prompts.preview_image_url || '',
+        referenceImage: ep.prompts.reference_image_url || '',
       }))
   };
 };
