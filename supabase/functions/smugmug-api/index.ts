@@ -106,7 +106,8 @@ async function makeSmugMugRequest(
 
   const authHeader = 'OAuth ' + Object.keys(oauthParams)
     .sort()
-    .map(key => `${key}=\"${percentEncode(oauthParams[key])}\"`)    .join(', ');
+    .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
+    .join(', ');
 
   console.log(`Making ${method} request to ${url}`);
   console.log('Authorization header:', authHeader.substring(0, 100) + '...');
@@ -327,7 +328,8 @@ async function uploadImage(
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}=\"${percentEncode(oauthParams[key])}\"`)      .join(', ');
+      .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
+      .join(', ');
 
     const albumUri = `/api/v2/album/${galleryKey}`;
     console.log(`Uploading to album URI: ${albumUri}`);
