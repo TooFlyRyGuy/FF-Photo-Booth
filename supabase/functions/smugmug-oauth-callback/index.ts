@@ -21,6 +21,15 @@ function generateTimestamp(): string {
   return Math.floor(Date.now() / 1000).toString();
 }
 
+function percentEncode(str: string): string {
+  return encodeURIComponent(str)
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A');
+}
+
 async function generateSignature(
   method: string,
   url: string,
@@ -30,16 +39,16 @@ async function generateSignature(
 ): Promise<string> {
   const sortedParams = Object.keys(params)
     .sort()
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
     .join('&');
 
   const signatureBaseString = [
     method.toUpperCase(),
-    encodeURIComponent(url),
-    encodeURIComponent(sortedParams)
+    percentEncode(url),
+    percentEncode(sortedParams)
   ].join('&');
 
-  const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(tokenSecret)}`;
+  const signingKey = `${percentEncode(consumerSecret)}&${percentEncode(tokenSecret)}`;
 
   const encoder = new TextEncoder();
   const keyData = encoder.encode(signingKey);
@@ -55,7 +64,7 @@ async function generateSignature(
 
   const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
   const signatureArray = new Uint8Array(signature);
-  
+
   return btoa(String.fromCharCode(...signatureArray));
 }
 
@@ -114,7 +123,7 @@ Deno.serve(async (req: Request) => {
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}="${encodeURIComponent(oauthParams[key])}"`)
+      .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
       .join(', ');
 
     const response = await fetch(SMUGMUG_ACCESS_TOKEN_URL, {
@@ -162,7 +171,7 @@ Deno.serve(async (req: Request) => {
 
     const userAuthHeader = 'OAuth ' + Object.keys(userOauthParams)
       .sort()
-      .map(key => `${key}="${encodeURIComponent(userOauthParams[key])}"`)
+      .map(key => `${key}="${percentEncode(userOauthParams[key])}"`)
       .join(', ');
 
     const userResponse = await fetch('https://api.smugmug.com/api/v2!authuser', {
