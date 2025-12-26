@@ -31,6 +31,11 @@ function percentEncode(str: string): string {
     .replace(/\*/g, '%2A');
 }
 
+function createUrlName(name: string, maxLength: number = 60): string {
+  const urlName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, maxLength);
+  return urlName.charAt(0).toUpperCase() + urlName.slice(1);
+}
+
 async function generateSignature(
   method: string,
   url: string,
@@ -153,7 +158,7 @@ async function findOrCreateFolder(
     const folderData = {
       Type: 'Folder',
       Name: folderName,
-      UrlName: folderName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      UrlName: createUrlName(folderName),
       Privacy: 'Public',
     };
 
@@ -207,7 +212,7 @@ async function createGallery(
     const albumData = {
       Type: 'Album',
       Name: galleryName,
-      UrlName: galleryName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 60),
+      UrlName: createUrlName(galleryName, 60),
       Privacy: privacyLevel,
       SortMethod: 'DateUploaded',
       SortDirection: 'Descending',
