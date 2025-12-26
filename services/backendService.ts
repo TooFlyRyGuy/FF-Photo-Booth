@@ -13,10 +13,12 @@ const PROMPTS_CACHE_TTL = 300000;
 
 const getUserTenantId = async (): Promise<string> => {
   if (cachedTenantId && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_TTL) {
+    console.log('🔍 getUserTenantId - using cached tenant:', cachedTenantId);
     return cachedTenantId;
   }
 
   const { data: { user } } = await supabase.auth.getUser();
+  console.log('🔍 getUserTenantId - current user:', user?.id || 'none');
 
   if (user) {
     const { data: tenantData } = await supabase
@@ -25,6 +27,8 @@ const getUserTenantId = async (): Promise<string> => {
       .eq('user_id', user.id)
       .maybeSingle();
 
+    console.log('🔍 getUserTenantId - tenant lookup result:', tenantData?.id || 'none found');
+
     if (tenantData) {
       cachedTenantId = tenantData.id;
       cacheTimestamp = Date.now();
@@ -32,6 +36,7 @@ const getUserTenantId = async (): Promise<string> => {
     }
   }
 
+  console.log('🔍 getUserTenantId - falling back to demo tenant:', DEMO_TENANT_ID);
   return DEMO_TENANT_ID;
 };
 
@@ -358,6 +363,7 @@ export const updateGlobalSettings = async (settings: Record<string, any>): Promi
 
 export const getEvents = async (): Promise<Event[]> => {
   const tenantId = await getUserTenantId();
+  console.log('🔍 getEvents - fetching events for tenant:', tenantId);
 
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
@@ -380,8 +386,11 @@ export const getEvents = async (): Promise<Event[]> => {
     .order('created_at', { ascending: false });
 
   if (eventsError) {
+    console.error('❌ getEvents error:', eventsError);
     throw new Error(`Failed to fetch events: ${eventsError.message}`);
   }
+
+  console.log('✅ getEvents - found', eventsData?.length || 0, 'events');
 
   return eventsData.map((event: any) => ({
     id: event.id,
