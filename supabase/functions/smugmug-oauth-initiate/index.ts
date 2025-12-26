@@ -102,6 +102,19 @@ Deno.serve(async (req: Request) => {
 
     oauthParams.oauth_signature = signature;
 
+    const sortedParams = Object.keys(oauthParams)
+      .sort()
+      .map(key => `${percentEncode(key)}=${percentEncode(oauthParams[key])}`)
+      .join('&');
+
+    const ourSBS = `GET&${percentEncode(SMUGMUG_REQUEST_TOKEN_URL)}&${percentEncode(sortedParams)}`;
+    console.log('=== OUR SIGNATURE BASE STRING ===');
+    console.log(ourSBS);
+    console.log('=== OAUTH PARAMS ===');
+    console.log(JSON.stringify(oauthParams, null, 2));
+    console.log('=== CALLBACK URL ===');
+    console.log(callbackWithState);
+
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
       .map(key => `${key}="${oauthParams[key]}"`)
