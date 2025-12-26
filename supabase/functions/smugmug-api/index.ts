@@ -76,7 +76,7 @@ async function makeSmugMugRequest(
   accessTokenSecret: string,
   body?: any
 ): Promise<any> {
-  const url = `${SMUGMUG_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : endpoint.startsWith('/api/v2') ? `https://api.smugmug.com${endpoint}` : `${SMUGMUG_API_BASE}${endpoint}`;
   const nonce = generateNonce();
   const timestamp = generateTimestamp();
 
@@ -351,6 +351,14 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    console.log('=== SMUGMUG API REQUEST ===');
+    console.log('Environment check:', {
+      hasApiKey: !!SMUGMUG_API_KEY,
+      hasApiSecret: !!SMUGMUG_API_SECRET,
+      hasSupabaseUrl: !!Deno.env.get('SUPABASE_URL'),
+      hasServiceKey: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+    });
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -117,13 +117,22 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     await loadData();
   };
 
+  const generateUniquePasscode = (): string => {
+    const existingPasscodes = events.map(e => e.passcode);
+    let passcode: string;
+    do {
+      passcode = Math.floor(1000 + Math.random() * 9000).toString();
+    } while (existingPasscodes.includes(passcode));
+    return passcode;
+  };
+
   const handleCreateEvent = () => {
     setEditingEvent({
       id: `evt_${Date.now()}`,
       name: '',
       city: '',
       date: new Date().toISOString().split('T')[0],
-      passcode: '',
+      passcode: generateUniquePasscode(),
       isActive: true,
       prompts: [],
       tenantId: tenant?.id || '',
@@ -167,6 +176,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const handleSaveEvent = async () => {
     if (!editingEvent.name || !editingEvent.passcode) {
       alert("Please fill in the required fields (Name, Passcode)");
+      return;
+    }
+
+    const duplicatePasscode = events.find(
+      e => e.passcode === editingEvent.passcode && e.id !== editingEvent.id
+    );
+    if (duplicatePasscode) {
+      alert(`Passcode ${editingEvent.passcode} is already used by event "${duplicatePasscode.name}". Please use a different passcode.`);
       return;
     }
 
@@ -620,13 +637,25 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Kiosk Passcode</label>
-                  <input
-                    type="text"
-                    value={editingEvent.passcode}
-                    onChange={(e) => setEditingEvent({...editingEvent, passcode: e.target.value})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
-                    placeholder="e.g. 1234"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editingEvent.passcode}
+                      onChange={(e) => setEditingEvent({...editingEvent, passcode: e.target.value})}
+                      className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
+                      placeholder="e.g. 1234"
+                      maxLength={4}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEditingEvent({...editingEvent, passcode: generateUniquePasscode()})}
+                      className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors flex items-center gap-2"
+                      title="Generate new passcode"
+                    >
+                      <RefreshCw size={16} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Start Date & Time (Optional)</label>
