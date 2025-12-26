@@ -705,7 +705,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                         <button
                           onClick={() => {
                             onAddToEvent(prompt);
-                            onClose();
                           }}
                           className="flex-1 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-1"
                         >

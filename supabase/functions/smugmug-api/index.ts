@@ -101,8 +101,11 @@ async function makeSmugMugRequest(
 
   const authHeader = 'OAuth ' + Object.keys(oauthParams)
     .sort()
-    .map(key => `${key}="${oauthParams[key]}"`)
+    .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
     .join(', ');
+
+  console.log(`Making ${method} request to ${url}`);
+  console.log('Authorization header:', authHeader.substring(0, 100) + '...');
 
   const headers: HeadersInit = {
     'Authorization': authHeader,
@@ -299,7 +302,7 @@ async function uploadImage(
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}="${oauthParams[key]}"`)
+      .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
       .join(', ');
 
     const albumUri = `/api/v2/album/${galleryKey}`;
@@ -442,7 +445,7 @@ Deno.serve(async (req: Request) => {
           ...corsHeaders,
           'Content-Type': 'application/json',
         },
-      }
+      },
     );
   }
 });
