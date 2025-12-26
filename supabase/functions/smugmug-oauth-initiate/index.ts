@@ -79,32 +79,17 @@ Deno.serve(async (req: Request) => {
     const callbackUrl = url.searchParams.get('callback_url') || `${url.origin}/smugmug-callback`;
     const appOrigin = url.searchParams.get('app_origin') || url.origin;
 
-    const callbackWithState = `${callbackUrl}?state=${appOrigin}`;
-
     const nonce = generateNonce();
     const timestamp = generateTimestamp();
 
     const oauthParams: Record<string, string> = {
-      oauth_callback: callbackWithState,
+      oauth_callback: callbackUrl,
       oauth_consumer_key: SMUGMUG_API_KEY,
       oauth_nonce: nonce,
       oauth_signature_method: 'HMAC-SHA1',
       oauth_timestamp: timestamp,
       oauth_version: '1.0',
     };
-
-    const sortedParamsForSig = Object.keys(oauthParams)
-      .sort()
-      .map(key => `${percentEncode(key)}=${percentEncode(oauthParams[key])}`)
-      .join('&');
-
-    const ourSBS = `GET&${percentEncode(SMUGMUG_REQUEST_TOKEN_URL)}&${percentEncode(sortedParamsForSig)}`;
-    console.log('=== OUR SIGNATURE BASE STRING (before signature) ===');
-    console.log(ourSBS);
-    console.log('=== OAUTH PARAMS (before signature) ===');
-    console.log(JSON.stringify(oauthParams, null, 2));
-    console.log('=== CALLBACK URL ===');
-    console.log(callbackWithState);
 
     const signature = await generateSignature(
       'GET',
@@ -117,11 +102,8 @@ Deno.serve(async (req: Request) => {
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}="${oauthParams[key]}"`)
+      .map(key => `${key}=\"${oauthParams[key]}\"`)
       .join(', ');
-
-    console.log('OAuth Authorization header:', authHeader);
-    console.log('Request token URL:', SMUGMUG_REQUEST_TOKEN_URL);
 
     const response = await fetch(SMUGMUG_REQUEST_TOKEN_URL, {
       method: 'GET',
@@ -168,6 +150,7 @@ Deno.serve(async (req: Request) => {
         smugmug_oauth_token: requestToken,
         smugmug_request_token_secret: requestTokenSecret,
         smugmug_connection_status: 'authorizing',
+        smugmug_user_nickname: appOrigin,
       })
       .eq('id', settings.id);
 

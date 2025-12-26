@@ -77,14 +77,9 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const oauthToken = url.searchParams.get('oauth_token');
     const oauthVerifier = url.searchParams.get('oauth_verifier');
-    const state = url.searchParams.get('state');
 
     if (!oauthToken || !oauthVerifier) {
       throw new Error('Missing oauth_token or oauth_verifier');
-    }
-
-    if (!state) {
-      throw new Error('Missing state parameter');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -93,7 +88,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: settings } = await supabase
       .from('global_settings')
-      .select('id, smugmug_request_token_secret')
+      .select('id, smugmug_request_token_secret, smugmug_user_nickname')
       .limit(1)
       .maybeSingle();
 
@@ -102,6 +97,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestTokenSecret = settings.smugmug_request_token_secret;
+    const appOrigin = settings.smugmug_user_nickname || url.origin;
 
     const nonce = generateNonce();
     const timestamp = generateTimestamp();
@@ -126,18 +122,9 @@ Deno.serve(async (req: Request) => {
 
     oauthParams.oauth_signature = signature;
 
-    const sortedParams = Object.keys(oauthParams)
-      .sort()
-      .map(key => `${percentEncode(key)}=${percentEncode(oauthParams[key])}`)
-      .join('&');
-
-    const ourSBS = `GET&${percentEncode(SMUGMUG_ACCESS_TOKEN_URL)}&${percentEncode(sortedParams)}`;
-    console.log('Our signature base string:', ourSBS);
-    console.log('OAuth params:', oauthParams);
-
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}="${oauthParams[key]}"`)
+      .map(key => `${key}=\"${oauthParams[key]}\"`)
       .join(', ');
 
     const response = await fetch(SMUGMUG_ACCESS_TOKEN_URL, {
@@ -185,7 +172,7 @@ Deno.serve(async (req: Request) => {
 
     const userAuthHeader = 'OAuth ' + Object.keys(userOauthParams)
       .sort()
-      .map(key => `${key}="${userOauthParams[key]}"`)
+      .map(key => `${key}=\"${userOauthParams[key]}\"`)
       .join(', ');
 
     const userResponse = await fetch('https://api.smugmug.com/api/v2!authuser', {
@@ -213,7 +200,7 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', settings.id);
 
-    const appUrl = state.startsWith('http') ? state : `https://${state}`;
+    const appUrl = appOrigin.startsWith('http') ? appOrigin : `https://${appOrigin}`;
     const redirectUrl = `${appUrl}/oauth-success.html?type=smugmug&success=true`;
 
     return new Response(null, {
@@ -227,8 +214,18 @@ Deno.serve(async (req: Request) => {
     console.error('SmugMug OAuth callback error:', error);
 
     const url = new URL(req.url);
-    const state = url.searchParams.get('state') || url.origin;
-    const appUrl = state.startsWith('http') ? state : `https://${state}`;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: settings } = await supabase
+      .from('global_settings')
+      .select('smugmug_user_nickname')
+      .limit(1)
+      .maybeSingle();
+
+    const appOrigin = settings?.smugmug_user_nickname || url.origin;
+    const appUrl = appOrigin.startsWith('http') ? appOrigin : `https://${appOrigin}`;
     const errorMessage = encodeURIComponent(error.message);
     const redirectUrl = `${appUrl}/oauth-success.html?type=smugmug&success=false&error=${errorMessage}`;
 
