@@ -77,9 +77,14 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const oauthToken = url.searchParams.get('oauth_token');
     const oauthVerifier = url.searchParams.get('oauth_verifier');
+    const state = url.searchParams.get('state');
 
     if (!oauthToken || !oauthVerifier) {
       throw new Error('Missing oauth_token or oauth_verifier');
+    }
+
+    if (!state) {
+      throw new Error('Missing state parameter');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -208,67 +213,33 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', settings.id);
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>SmugMug Connected</title>
-        </head>
-        <body>
-          <h2>SmugMug Connected Successfully!</h2>
-          <p>This window will close automatically...</p>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ type: 'smugmug-oauth-success' }, '*');
-              setTimeout(() => window.close(), 1000);
-            } else {
-              document.body.innerHTML = '<h2>Success!</h2><p>You can close this window now.</p>';
-            }
-          </script>
-        </body>
-      </html>
-    `;
+    const redirectUrl = new URL('/oauth-success.html', state);
+    redirectUrl.searchParams.set('type', 'smugmug');
+    redirectUrl.searchParams.set('success', 'true');
 
-    return new Response(html, {
-      status: 200,
+    return new Response(null, {
+      status: 302,
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/html',
+        'Location': redirectUrl.toString(),
       },
     });
   } catch (error: any) {
     console.error('SmugMug OAuth callback error:', error);
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>SmugMug Connection Failed</title>
-        </head>
-        <body>
-          <h2>Failed to Connect to SmugMug</h2>
-          <p>${error.message}</p>
-          <p>This window will close automatically...</p>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({
-                type: 'smugmug-oauth-error',
-                error: ${JSON.stringify(error.message)}
-              }, '*');
-              setTimeout(() => window.close(), 2000);
-            } else {
-              document.body.innerHTML += '<p>You can close this window now.</p>';
-            }
-          </script>
-        </body>
-      </html>
-    `;
+    const url = new URL(req.url);
+    const state = url.searchParams.get('state') || url.origin;
 
-    return new Response(html, {
-      status: 200,
+    const redirectUrl = new URL('/oauth-success.html', state);
+    redirectUrl.searchParams.set('type', 'smugmug');
+    redirectUrl.searchParams.set('success', 'false');
+    redirectUrl.searchParams.set('error', error.message);
+
+    return new Response(null, {
+      status: 302,
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/html',
+        'Location': redirectUrl.toString(),
       },
     });
   }

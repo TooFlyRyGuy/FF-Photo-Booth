@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>OAuth Success</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 1rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      margin: 0 0 1rem;
+      font-size: 2rem;
+    }
+    p {
+      margin: 0;
+      opacity: 0.9;
+    }
+    .error {
+      background: rgba(220, 38, 38, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="title">Processing...</h1>
+    <p id="message">Please wait...</p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const type = params.get('type');
+    const success = params.get('success') === 'true';
+    const error = params.get('error');
+
+    const title = document.getElementById('title');
+    const message = document.getElementById('message');
+    const container = document.querySelector('.container');
+
+    if (success) {
+      title.textContent = 'Connected Successfully!';
+      message.textContent = 'This window will close automatically...';
+
+      if (window.opener) {
+        window.opener.postMessage({
+          type: `${type}-oauth-success`
+        }, '*');
+        setTimeout(() => window.close(), 1000);
+      } else {
+        message.textContent = 'You can close this window now.';
+      }
+    } else {
+      container.classList.add('error');
+      title.textContent = 'Connection Failed';
+      message.textContent = error || 'An unknown error occurred';
+
+      if (window.opener) {
+        window.opener.postMessage({
+          type: `${type}-oauth-error`,
+          error: error || 'Connection failed'
+        }, '*');
+        setTimeout(() => window.close(), 3000);
+      } else {
+        message.textContent += ' - You can close this window now.';
+      }
+    }
+  </script>
+</body>
+</html>
