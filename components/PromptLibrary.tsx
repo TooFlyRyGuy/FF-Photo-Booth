@@ -702,15 +702,34 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {eventId && onAddToEvent ? (
-                        <button
-                          onClick={() => {
-                            onAddToEvent(prompt);
-                          }}
-                          className="flex-1 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-1"
-                        >
-                          <Plus size={14} />
-                          Add to Event
-                        </button>
+                        (() => {
+                          const isAdded = selectedPrompts.some(p => p.id === prompt.id);
+                          return (
+                            <button
+                              onClick={() => {
+                                onAddToEvent(prompt);
+                              }}
+                              className={`flex-1 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-1 ${
+                                isAdded
+                                  ? 'bg-slate-300 text-slate-700 cursor-default'
+                                  : 'bg-green-700 hover:bg-green-800 text-white'
+                              }`}
+                              disabled={isAdded}
+                            >
+                              {isAdded ? (
+                                <>
+                                  <Check size={14} />
+                                  Added to Event
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} />
+                                  Add to Event
+                                </>
+                              )}
+                            </button>
+                          );
+                        })()
                       ) : (
                         <>
                           <button
