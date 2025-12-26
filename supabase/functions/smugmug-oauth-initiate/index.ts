@@ -133,7 +133,7 @@ Deno.serve(async (req: Request) => {
       throw new Error('Global settings not found');
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('global_settings')
       .update({
         smugmug_oauth_token: requestToken,
@@ -141,6 +141,22 @@ Deno.serve(async (req: Request) => {
         smugmug_connection_status: 'authorizing',
       })
       .eq('id', settings.id);
+
+    if (updateError) {
+      console.error('Failed to save request token to database:', updateError);
+      throw new Error('Failed to save OAuth state to database');
+    }
+
+    const { data: verify } = await supabase
+      .from('global_settings')
+      .select('smugmug_request_token_secret')
+      .eq('id', settings.id)
+      .maybeSingle();
+
+    if (!verify?.smugmug_request_token_secret) {
+      console.error('Request token secret was not saved to database');
+      throw new Error('Failed to verify OAuth state in database');
+    }
 
     const authorizeUrl = `${SMUGMUG_AUTHORIZE_URL}?oauth_token=${requestToken}&Access=Full&Permissions=Modify`;
 
