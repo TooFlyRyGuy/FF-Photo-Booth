@@ -94,7 +94,12 @@ Deno.serve(async (req: Request) => {
     oauthParams.oauth_signature = signature;
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
-      .map(key => `${key}="${encodeURIComponent(oauthParams[key])}"`)
+      .map(key => {
+        const value = key === 'oauth_signature'
+          ? oauthParams[key]
+          : encodeURIComponent(oauthParams[key]);
+        return `${key}="${value}"`;
+      })
       .join(', ');
 
     const response = await fetch(SMUGMUG_REQUEST_TOKEN_URL, {

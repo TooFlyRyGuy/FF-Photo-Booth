@@ -113,7 +113,12 @@ Deno.serve(async (req: Request) => {
     oauthParams.oauth_signature = signature;
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
-      .map(key => `${key}="${encodeURIComponent(oauthParams[key])}"`)
+      .map(key => {
+        const value = key === 'oauth_signature'
+          ? oauthParams[key]
+          : encodeURIComponent(oauthParams[key]);
+        return `${key}="${value}"`;
+      })
       .join(', ');
 
     const response = await fetch(SMUGMUG_ACCESS_TOKEN_URL, {
@@ -160,7 +165,12 @@ Deno.serve(async (req: Request) => {
     userOauthParams.oauth_signature = userSignature;
 
     const userAuthHeader = 'OAuth ' + Object.keys(userOauthParams)
-      .map(key => `${key}="${encodeURIComponent(userOauthParams[key])}"`)
+      .map(key => {
+        const value = key === 'oauth_signature'
+          ? userOauthParams[key]
+          : encodeURIComponent(userOauthParams[key]);
+        return `${key}="${value}"`;
+      })
       .join(', ');
 
     const userResponse = await fetch('https://api.smugmug.com/api/v2!authuser', {

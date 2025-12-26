@@ -91,7 +91,12 @@ async function makeSmugMugRequest(
   oauthParams.oauth_signature = signature;
 
   const authHeader = 'OAuth ' + Object.keys(oauthParams)
-    .map(key => `${key}="${encodeURIComponent(oauthParams[key])}"`)
+    .map(key => {
+      const value = key === 'oauth_signature'
+        ? oauthParams[key]
+        : encodeURIComponent(oauthParams[key]);
+      return `${key}="${value}"`;
+    })
     .join(', ');
 
   const headers: HeadersInit = {
@@ -187,7 +192,12 @@ async function uploadImage(
   oauthParams.oauth_signature = signature;
 
   const authHeader = 'OAuth ' + Object.keys(oauthParams)
-    .map(key => `${key}="${encodeURIComponent(oauthParams[key])}"`)
+    .map(key => {
+      const value = key === 'oauth_signature'
+        ? oauthParams[key]
+        : encodeURIComponent(oauthParams[key]);
+      return `${key}="${value}"`;
+    })
     .join(', ');
 
   const response = await fetch(SMUGMUG_UPLOAD_BASE, {
