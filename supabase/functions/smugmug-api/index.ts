@@ -106,8 +106,7 @@ async function makeSmugMugRequest(
 
   const authHeader = 'OAuth ' + Object.keys(oauthParams)
     .sort()
-    .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
-    .join(', ');
+    .map(key => `${key}=\"${percentEncode(oauthParams[key])}\"`)    .join(', ');
 
   console.log(`Making ${method} request to ${url}`);
   console.log('Authorization header:', authHeader.substring(0, 100) + '...');
@@ -139,7 +138,8 @@ async function findOrCreateFolder(
   accessToken: string,
   accessTokenSecret: string,
   parentNodeUri: string,
-  folderName: string
+  folderName: string,
+  urlName?: string
 ): Promise<string> {
   try {
     const childrenResponse = await makeSmugMugRequest('GET', `${parentNodeUri}!children`, accessToken, accessTokenSecret);
@@ -158,7 +158,7 @@ async function findOrCreateFolder(
     const folderData = {
       Type: 'Folder',
       Name: folderName,
-      UrlName: createUrlName(folderName),
+      UrlName: urlName || createUrlName(folderName),
       Privacy: 'Public',
     };
 
@@ -195,7 +195,8 @@ async function createGallery(
       accessToken,
       accessTokenSecret,
       userUri,
-      'Photo Booth Galleries'
+      'Photo Booth Galleries',
+      'Photo-Booth-Galleries'
     );
     console.log('Photo Booth Galleries URI:', photoBoothFolderUri);
 
@@ -203,7 +204,8 @@ async function createGallery(
       accessToken,
       accessTokenSecret,
       photoBoothFolderUri,
-      'AI Photo Booth'
+      'AI Photo Booth',
+      'AI-photo-booth'
     );
     console.log('AI Photo Booth URI:', aiPhotoBoothFolderUri);
 
@@ -307,8 +309,7 @@ async function uploadImage(
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
-      .join(', ');
+      .map(key => `${key}=\"${percentEncode(oauthParams[key])}\"`)      .join(', ');
 
     const albumUri = `/api/v2/album/${galleryKey}`;
     console.log(`Uploading to album URI: ${albumUri}`);
