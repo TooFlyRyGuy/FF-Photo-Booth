@@ -233,7 +233,9 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
 export const getGlobalSettings = async (): Promise<Record<string, string>> => {
   const { data, error } = await supabase
     .from('global_settings')
-    .select('setting_key, setting_value');
+    .select('setting_key, setting_value, smugmug_oauth_token, smugmug_user_nickname, smugmug_connection_status, smugmug_default_visibility, use_smugmug_for_sms')
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     console.error('Failed to fetch global settings:', error);
@@ -241,11 +243,18 @@ export const getGlobalSettings = async (): Promise<Record<string, string>> => {
   }
 
   const settings: Record<string, string> = {};
-  data?.forEach((row) => {
-    if (row.setting_value) {
-      settings[row.setting_key] = row.setting_value;
+
+  if (data) {
+    if (data.setting_key && data.setting_value) {
+      settings[data.setting_key] = data.setting_value;
     }
-  });
+
+    if (data.smugmug_oauth_token) settings.smugmug_oauth_token = data.smugmug_oauth_token;
+    if (data.smugmug_user_nickname) settings.smugmug_user_nickname = data.smugmug_user_nickname;
+    if (data.smugmug_connection_status) settings.smugmug_connection_status = data.smugmug_connection_status;
+    if (data.smugmug_default_visibility) settings.smugmug_default_visibility = data.smugmug_default_visibility;
+    if (data.use_smugmug_for_sms !== undefined) settings.use_smugmug_for_sms = String(data.use_smugmug_for_sms);
+  }
 
   return settings;
 };
@@ -309,7 +318,13 @@ export const getEvents = async (): Promise<Event[]> => {
       *,
       event_prompts (
         prompt_id,
-        prompts (*)
+        prompts (
+          id,
+          name,
+          description,
+          category,
+          prompt_text
+        )
       )
     `)
     .eq('tenant_id', tenantId)
@@ -347,8 +362,8 @@ export const getEvents = async (): Promise<Event[]> => {
         description: ep.prompts.description,
         category: ep.prompts.category,
         promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_url,
-        referenceImage: ep.prompts.reference_image_url,
+        previewImage: '',
+        referenceImage: '',
       }))
   }));
 };
