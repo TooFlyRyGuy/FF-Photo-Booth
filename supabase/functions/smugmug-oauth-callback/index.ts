@@ -114,7 +114,7 @@ Deno.serve(async (req: Request) => {
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .map(key => {
-        const value = encodeURIComponent(oauthParams[key]);
+        const value = key === 'oauth_signature' ? oauthParams[key] : encodeURIComponent(oauthParams[key]);
         return `${key}="${value}"`;
       })
       .join(', ');
@@ -164,7 +164,7 @@ Deno.serve(async (req: Request) => {
 
     const userAuthHeader = 'OAuth ' + Object.keys(userOauthParams)
       .map(key => {
-        const value = encodeURIComponent(userOauthParams[key]);
+        const value = key === 'oauth_signature' ? userOauthParams[key] : encodeURIComponent(userOauthParams[key]);
         return `${key}="${value}"`;
       })
       .join(', ');
