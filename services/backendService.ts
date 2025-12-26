@@ -403,6 +403,8 @@ export const getEvents = async (): Promise<Event[]> => {
     startDatetime: event.start_datetime,
     endDatetime: event.end_datetime,
     smsMessage: event.sms_message,
+    smugmugGalleryKey: event.smugmug_gallery_key,
+    smugmugGalleryUrl: event.smugmug_gallery_url,
     prompts: event.event_prompts
       .filter((ep: any) => ep.prompts !== null)
       .map((ep: any) => ({
@@ -451,11 +453,61 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
   return prompts;
 };
 
+const createSmugMugGalleryForEvent = async (eventName: string, eventDate: string): Promise<{ galleryKey: string; galleryUrl: string } | null> => {
+  try {
+    const settings = await getGlobalSettings();
+    if (settings.smugmug_connection_status !== 'connected') {
+      console.log('SmugMug not connected, skipping gallery creation');
+      return null;
+    }
+
+    const defaultVisibility = settings.smugmug_default_visibility || 'private';
+    const galleryName = `${eventName} - ${eventDate}`;
+
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-api`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        action: 'create_gallery',
+        galleryName,
+        visibility: defaultVisibility,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Failed to create SmugMug gallery:', error);
+      return null;
+    }
+
+    const result = await response.json();
+    return {
+      galleryKey: result.galleryId,
+      galleryUrl: result.galleryUrl,
+    };
+  } catch (error) {
+    console.error('Error creating SmugMug gallery:', error);
+    return null;
+  }
+};
+
 export const saveEvent = async (event: Event): Promise<Event> => {
   const isNewEvent = !event.id || event.id.startsWith('evt_');
   const tenantId = await getUserTenantId();
 
   if (isNewEvent) {
+    let smugmugGalleryKey = null;
+    let smugmugGalleryUrl = null;
+
+    const smugmugGallery = await createSmugMugGalleryForEvent(event.name, event.date);
+    if (smugmugGallery) {
+      smugmugGalleryKey = smugmugGallery.galleryKey;
+      smugmugGalleryUrl = smugmugGallery.galleryUrl;
+    }
+
     const { data, error } = await supabase
       .from('events')
       .insert({
@@ -477,6 +529,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         start_datetime: event.startDatetime || null,
         end_datetime: event.endDatetime || null,
         sms_message: event.smsMessage || null,
+        smugmug_gallery_key: smugmugGalleryKey,
+        smugmug_gallery_url: smugmugGalleryUrl,
       })
       .select()
       .maybeSingle();
@@ -511,7 +565,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
       }
     }
 
-    return { ...event, id: data.id };
+    return { ...event, id: data.id, smugmugGalleryKey, smugmugGalleryUrl };
   } else {
     const { data, error } = await supabase
       .from('events')
@@ -750,6 +804,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
     hideEventName: eventsData.hide_event_name || false,
     startDatetime: eventsData.start_datetime,
     endDatetime: eventsData.end_datetime,
+    smugmugGalleryKey: eventsData.smugmug_gallery_key,
+    smugmugGalleryUrl: eventsData.smugmug_gallery_url,
     prompts: eventsData.event_prompts
       .sort((a: any, b: any) => a.display_order - b.display_order)
       .map((ep: any) => ({

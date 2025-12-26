@@ -5,6 +5,7 @@ import { Event, Prompt, GeneratedImage, Tenant } from '../types';
 import { generateBoothImage } from '../services/geminiService';
 import { sendSms, saveGeneratedImage, getTenantById, getGlobalSetting } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
+import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage } from '../services/imageUtils';
 
 interface KioskProps {
@@ -215,9 +216,31 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       setFinalImage(genImage);
 
-      // 3. Upload generated image to Dropbox
+      // 3. Upload generated image to SmugMug or Dropbox
       let generatedUrl = genImage;
-      if (tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
+      let uploadedToSmugMug = false;
+
+      if (event.smugmugGalleryKey) {
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const fileName = `${event.name}-${selectedPrompt.name}-${timestamp}.jpg`;
+
+          const result = await uploadToSmugMug(
+            event.smugmugGalleryKey,
+            genImage,
+            fileName,
+            import.meta.env.VITE_SUPABASE_ANON_KEY
+          );
+
+          generatedUrl = result.imageUrl;
+          uploadedToSmugMug = true;
+          console.log('Uploaded to SmugMug:', generatedUrl);
+        } catch (smugmugErr) {
+          console.error('SmugMug upload failed, falling back to Dropbox:', smugmugErr);
+        }
+      }
+
+      if (!uploadedToSmugMug && tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
         try {
           generatedUrl = await uploadImageToDropbox({
             tenantId: event.tenantId,
@@ -227,6 +250,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             imageType: 'generated',
             promptName: selectedPrompt.name,
           });
+          console.log('Uploaded to Dropbox:', generatedUrl);
         } catch (dropboxErr) {
           console.error('Dropbox upload failed for generated:', dropboxErr);
         }

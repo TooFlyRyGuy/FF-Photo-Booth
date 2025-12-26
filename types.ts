@@ -72,6 +72,8 @@ export interface Event {
   startDatetime?: string;
   endDatetime?: string;
   smsMessage?: string;
+  smugmugGalleryKey?: string;
+  smugmugGalleryUrl?: string;
 }
 
 export interface GeneratedImage {

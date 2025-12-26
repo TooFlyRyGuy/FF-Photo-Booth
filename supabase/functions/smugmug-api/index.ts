@@ -127,6 +127,40 @@ async function makeSmugMugRequest(
   return await response.json();
 }
 
+async function findOrCreateFolder(
+  accessToken: string,
+  accessTokenSecret: string,
+  parentNodeUri: string,
+  folderName: string
+): Promise<string> {
+  const childrenResponse = await makeSmugMugRequest('GET', `${parentNodeUri}!children`, accessToken, accessTokenSecret);
+
+  const existingFolder = childrenResponse.Response.Node?.find((node: any) =>
+    node.Type === 'Folder' && node.Name === folderName
+  );
+
+  if (existingFolder) {
+    return existingFolder.Uri;
+  }
+
+  const folderData = {
+    Name: folderName,
+    UrlName: folderName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    Type: 'Folder',
+    Privacy: 'Public',
+  };
+
+  const createResponse = await makeSmugMugRequest(
+    'POST',
+    `${parentNodeUri}!children`,
+    accessToken,
+    accessTokenSecret,
+    folderData
+  );
+
+  return createResponse.Response.Node.Uri;
+}
+
 async function createGallery(
   accessToken: string,
   accessTokenSecret: string,
@@ -135,6 +169,20 @@ async function createGallery(
 ): Promise<{ galleryId: string; galleryUrl: string }> {
   const userData = await makeSmugMugRequest('GET', '!authuser', accessToken, accessTokenSecret);
   const userUri = userData.Response.User.Uris.Node.Uri;
+
+  const photoBoothFolderUri = await findOrCreateFolder(
+    accessToken,
+    accessTokenSecret,
+    userUri,
+    'Photo Booth Galleries'
+  );
+
+  const aiPhotoBoothFolderUri = await findOrCreateFolder(
+    accessToken,
+    accessTokenSecret,
+    photoBoothFolderUri,
+    'AI Photo Booth'
+  );
 
   const privacyLevel = visibility === 'public' ? 'Public' : 'Unlisted';
 
@@ -149,7 +197,7 @@ async function createGallery(
 
   const response = await makeSmugMugRequest(
     'POST',
-    `${userUri}!children`,
+    `${aiPhotoBoothFolderUri}!children`,
     accessToken,
     accessTokenSecret,
     galleryData
