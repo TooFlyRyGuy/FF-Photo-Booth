@@ -111,7 +111,7 @@ Deno.serve(async (req: Request) => {
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}=\"${oauthParams[key]}\"`)
+      .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
       .join(', ');
 
     const response = await fetch(SMUGMUG_REQUEST_TOKEN_URL, {
