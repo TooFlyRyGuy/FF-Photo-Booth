@@ -99,6 +99,11 @@ Deno.serve(async (req: Request) => {
     const requestTokenSecret = settings.smugmug_request_token_secret;
     const appOrigin = settings.smugmug_user_nickname || url.origin;
 
+    console.log('=== CALLBACK DEBUG ===');
+    console.log('appOrigin from DB:', settings.smugmug_user_nickname);
+    console.log('url.origin:', url.origin);
+    console.log('final appOrigin:', appOrigin);
+
     const nonce = generateNonce();
     const timestamp = generateTimestamp();
 
@@ -202,6 +207,10 @@ Deno.serve(async (req: Request) => {
 
     const appUrl = appOrigin.startsWith('http') ? appOrigin : `https://${appOrigin}`;
     const redirectUrl = `${appUrl}/oauth-success.html?type=smugmug&success=true`;
+
+    console.log('=== REDIRECT INFO ===');
+    console.log('appUrl:', appUrl);
+    console.log('redirectUrl:', redirectUrl);
 
     return new Response(null, {
       status: 302,
