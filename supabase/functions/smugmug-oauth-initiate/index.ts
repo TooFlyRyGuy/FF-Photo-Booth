@@ -91,6 +91,15 @@ Deno.serve(async (req: Request) => {
       oauth_version: '1.0',
     };
 
+    const sortedParams = Object.keys(oauthParams)
+      .sort()
+      .map(key => `${percentEncode(key)}=${percentEncode(oauthParams[key])}`)
+      .join('&');
+
+    const ourSBS = `GET&${percentEncode(SMUGMUG_REQUEST_TOKEN_URL)}&${percentEncode(sortedParams)}`;
+    console.log('=== OUR SIGNATURE BASE STRING ===');
+    console.log(ourSBS);
+
     const signature = await generateSignature(
       'GET',
       SMUGMUG_REQUEST_TOKEN_URL,
