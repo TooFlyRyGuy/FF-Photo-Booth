@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.87.1";
 
 const SMUGMUG_API_KEY = Deno.env.get('SMUGMUG_API_KEY')!;
 const SMUGMUG_API_SECRET = Deno.env.get('SMUGMUG_API_SECRET')!;
-const SMUGMUG_ACCESS_TOKEN_URL = "https://secure.smugmug.com/services/oauth/1.0a/getAccessToken";
+const SMUGMUG_ACCESS_TOKEN_URL = "https://api.smugmug.com/services/oauth/1.0a/getAccessToken";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
