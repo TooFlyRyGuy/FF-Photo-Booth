@@ -368,9 +368,31 @@ export const getEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
     .select(`
-      *,
+      id,
+      name,
+      event_date,
+      city,
+      is_active,
+      passcode,
+      tenant_id,
+      aspect_ratio,
+      background_image_url,
+      logo_url,
+      overlay_image_url,
+      primary_color,
+      secondary_color,
+      accent_color,
+      hide_logo,
+      hide_event_name,
+      start_datetime,
+      end_datetime,
+      sms_message,
+      smugmug_gallery_key,
+      smugmug_gallery_url,
+      created_at,
       event_prompts (
         prompt_id,
+        display_order,
         prompts (
           id,
           name,
@@ -378,7 +400,8 @@ export const getEvents = async (): Promise<Event[]> => {
           category,
           prompt_text,
           preview_image_url,
-          reference_image_url
+          reference_image_url,
+          tags
         )
       )
     `)
