@@ -79,7 +79,7 @@ Deno.serve(async (req: Request) => {
     const callbackUrl = url.searchParams.get('callback_url') || `${url.origin}/smugmug-callback`;
     const appOrigin = url.searchParams.get('app_origin') || url.origin;
 
-    const callbackWithState = `${callbackUrl}?state=${appOrigin}`;
+    const callbackWithState = `${callbackUrl}?state=${encodeURIComponent(appOrigin)}`;
 
     const nonce = generateNonce();
     const timestamp = generateTimestamp();
