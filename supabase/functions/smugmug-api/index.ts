@@ -209,6 +209,24 @@ async function createGallery(
     );
     console.log('AI Photo Booth URI:', aiPhotoBoothFolderUri);
 
+    const childrenResponse = await makeSmugMugRequest('GET', `${aiPhotoBoothFolderUri}!children`, accessToken, accessTokenSecret);
+    const nodes = childrenResponse.Response.Node || [];
+    const existingAlbum = nodes.find((node: any) =>
+      node.Type === 'Album' && node.Name === galleryName
+    );
+
+    if (existingAlbum) {
+      console.log(`Found existing album: ${galleryName}`);
+      const albumKey = existingAlbum.AlbumKey || existingAlbum.NodeID;
+      const webUrl = existingAlbum.WebUri || existingAlbum.UrlPath || '';
+      const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
+
+      return {
+        galleryId: albumKey,
+        galleryUrl: fullUrl,
+      };
+    }
+
     const privacyLevel = visibility === 'public' ? 'Public' : 'Unlisted';
 
     const albumData = {
