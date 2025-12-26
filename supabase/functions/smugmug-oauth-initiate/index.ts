@@ -104,7 +104,7 @@ Deno.serve(async (req: Request) => {
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}="${oauthParams[key]}"`)
+      .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
       .join(', ');
 
     console.log('OAuth Authorization header:', authHeader);

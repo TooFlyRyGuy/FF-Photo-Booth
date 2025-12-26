@@ -123,7 +123,7 @@ Deno.serve(async (req: Request) => {
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
-      .map(key => `${key}="${oauthParams[key]}"`)
+      .map(key => `${key}="${percentEncode(oauthParams[key])}"`)
       .join(', ');
 
     const response = await fetch(SMUGMUG_ACCESS_TOKEN_URL, {
@@ -171,7 +171,7 @@ Deno.serve(async (req: Request) => {
 
     const userAuthHeader = 'OAuth ' + Object.keys(userOauthParams)
       .sort()
-      .map(key => `${key}="${userOauthParams[key]}"`)
+      .map(key => `${key}="${percentEncode(userOauthParams[key])}"`)
       .join(', ');
 
     const userResponse = await fetch('https://api.smugmug.com/api/v2!authuser', {
