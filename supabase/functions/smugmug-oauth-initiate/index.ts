@@ -79,7 +79,7 @@ Deno.serve(async (req: Request) => {
     const callbackUrl = url.searchParams.get('callback_url') || `${url.origin}/smugmug-callback`;
     const appOrigin = url.searchParams.get('app_origin') || url.origin;
 
-    const callbackWithState = `${callbackUrl}?state=${encodeURIComponent(appOrigin)}`;
+    const callbackWithState = `${callbackUrl}?state=${appOrigin}`;
 
     const nonce = generateNonce();
     const timestamp = generateTimestamp();
@@ -93,6 +93,19 @@ Deno.serve(async (req: Request) => {
       oauth_version: '1.0',
     };
 
+    const sortedParamsForSig = Object.keys(oauthParams)
+      .sort()
+      .map(key => `${percentEncode(key)}=${percentEncode(oauthParams[key])}`)
+      .join('&');
+
+    const ourSBS = `GET&${percentEncode(SMUGMUG_REQUEST_TOKEN_URL)}&${percentEncode(sortedParamsForSig)}`;
+    console.log('=== OUR SIGNATURE BASE STRING (before signature) ===');
+    console.log(ourSBS);
+    console.log('=== OAUTH PARAMS (before signature) ===');
+    console.log(JSON.stringify(oauthParams, null, 2));
+    console.log('=== CALLBACK URL ===');
+    console.log(callbackWithState);
+
     const signature = await generateSignature(
       'GET',
       SMUGMUG_REQUEST_TOKEN_URL,
@@ -101,19 +114,6 @@ Deno.serve(async (req: Request) => {
     );
 
     oauthParams.oauth_signature = signature;
-
-    const sortedParams = Object.keys(oauthParams)
-      .sort()
-      .map(key => `${percentEncode(key)}=${percentEncode(oauthParams[key])}`)
-      .join('&');
-
-    const ourSBS = `GET&${percentEncode(SMUGMUG_REQUEST_TOKEN_URL)}&${percentEncode(sortedParams)}`;
-    console.log('=== OUR SIGNATURE BASE STRING ===');
-    console.log(ourSBS);
-    console.log('=== OAUTH PARAMS ===');
-    console.log(JSON.stringify(oauthParams, null, 2));
-    console.log('=== CALLBACK URL ===');
-    console.log(callbackWithState);
 
     const authHeader = 'OAuth ' + Object.keys(oauthParams)
       .sort()
