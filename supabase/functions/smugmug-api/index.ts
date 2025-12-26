@@ -92,9 +92,7 @@ async function makeSmugMugRequest(
 
   const authHeader = 'OAuth ' + Object.keys(oauthParams)
     .map(key => {
-      const value = key === 'oauth_signature'
-        ? oauthParams[key]
-        : encodeURIComponent(oauthParams[key]);
+      const value = encodeURIComponent(oauthParams[key]);
       return `${key}="${value}"`;
     })
     .join(', ');
@@ -193,9 +191,7 @@ async function uploadImage(
 
   const authHeader = 'OAuth ' + Object.keys(oauthParams)
     .map(key => {
-      const value = key === 'oauth_signature'
-        ? oauthParams[key]
-        : encodeURIComponent(oauthParams[key]);
+      const value = encodeURIComponent(oauthParams[key]);
       return `${key}="${value}"`;
     })
     .join(', ');
