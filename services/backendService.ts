@@ -491,7 +491,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
 
   const { data: eventPromptsData } = await supabase
     .from('event_prompts')
-    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed, preview_image_url, reference_image_url)')
+    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed)')
     .eq('event_id', eventId)
     .order('display_order', { ascending: true });
 
@@ -501,8 +501,8 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     description: ep.prompts.description,
     category: ep.prompts.category,
     promptText: ep.prompts.prompt_text,
-    previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
-    referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
+    previewImage: ep.prompts.preview_image_compressed || '',
+    referenceImage: ep.prompts.reference_image_compressed || '',
   })) || [];
 
   return {
@@ -916,7 +916,27 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
   const { data: eventsData, error } = await supabase
     .from('events')
     .select(`
-      *,
+      id,
+      name,
+      event_date,
+      city,
+      is_active,
+      passcode,
+      tenant_id,
+      aspect_ratio,
+      background_image_url,
+      logo_url,
+      overlay_image_url,
+      primary_color,
+      secondary_color,
+      accent_color,
+      hide_logo,
+      hide_event_name,
+      start_datetime,
+      end_datetime,
+      sms_message,
+      smugmug_gallery_key,
+      smugmug_gallery_url,
       event_prompts (
         prompt_id,
         display_order,
@@ -927,9 +947,7 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
           category,
           prompt_text,
           preview_image_compressed,
-          reference_image_compressed,
-          preview_image_url,
-          reference_image_url
+          reference_image_compressed
         )
       )
     `)
@@ -956,6 +974,7 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
     aspectRatio: eventsData.aspect_ratio || 'square',
     backgroundImageUrl: eventsData.background_image_url,
     logoUrl: eventsData.logo_url,
+    overlayImageUrl: eventsData.overlay_image_url,
     primaryColor: eventsData.primary_color,
     secondaryColor: eventsData.secondary_color,
     accentColor: eventsData.accent_color,
@@ -963,6 +982,7 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
     hideEventName: eventsData.hide_event_name || false,
     startDatetime: eventsData.start_datetime,
     endDatetime: eventsData.end_datetime,
+    smsMessage: eventsData.sms_message,
     smugmugGalleryKey: eventsData.smugmug_gallery_key,
     smugmugGalleryUrl: eventsData.smugmug_gallery_url,
     prompts: eventsData.event_prompts
@@ -973,8 +993,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
         description: ep.prompts.description,
         category: ep.prompts.category,
         promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
-        referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
+        previewImage: ep.prompts.preview_image_compressed || '',
+        referenceImage: ep.prompts.reference_image_compressed || '',
       }))
   };
 };
