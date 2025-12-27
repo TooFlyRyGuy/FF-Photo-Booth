@@ -71,7 +71,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, usage_count, tenant_id, preview_image_compressed')
+        .select('id, name, description, category, tags, usage_count, tenant_id, preview_image_url')
         .eq('is_active', true)
         .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
         .order('usage_count', { ascending: false })
@@ -90,7 +90,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         description: p.description || '',
         category: p.category || 'Custom',
         promptText: '',
-        previewImage: p.preview_image_compressed || '',
+        previewImage: p.preview_image_url || '',
         referenceImage: null,
         tags: p.tags || [],
         isActive: true,
@@ -183,15 +183,31 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const originalBase64 = reader.result as string;
-        const maxDim = field === 'previewImage' ? 400 : 600;
-        const compressed = await compressBase64Image(originalBase64, maxDim, 0.6);
-        setEditingPrompt(prev => prev ? { ...prev, [field]: compressed } : null);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    try {
+      const timestamp = Date.now();
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${field}_${timestamp}.${fileExt}`;
+      const filePath = `${tenantId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('prompt-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('prompt-images')
+        .getPublicUrl(filePath);
+
+      setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image. Please try again.');
     }
   };
 
@@ -217,9 +233,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           category: editingPrompt.category,
           prompt_text: editingPrompt.promptText,
           preview_image_url: editingPrompt.previewImage || null,
-          preview_image_compressed: editingPrompt.previewImage || null,
           reference_image_url: editingPrompt.referenceImage || null,
-          reference_image_compressed: editingPrompt.referenceImage || null,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
         });
@@ -235,9 +249,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
             category: editingPrompt.category,
             prompt_text: editingPrompt.promptText,
             preview_image_url: editingPrompt.previewImage || null,
-            preview_image_compressed: editingPrompt.previewImage || null,
             reference_image_url: editingPrompt.referenceImage || null,
-            reference_image_compressed: editingPrompt.referenceImage || null,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
           })
