@@ -267,6 +267,10 @@ async function uploadImage(
 
     console.log(`Image buffer size: ${imageBuffer.length} bytes`);
 
+    const md5Hash = await crypto.subtle.digest('MD5', imageBuffer);
+    const md5Base64 = btoa(String.fromCharCode(...new Uint8Array(md5Hash)));
+    console.log(`MD5 hash (base64): ${md5Base64}`);
+
     const nonce = generateNonce();
     const timestamp = generateTimestamp();
 
@@ -300,11 +304,13 @@ async function uploadImage(
       method: 'POST',
       headers: {
         'Authorization': authHeader,
+        'Content-MD5': md5Base64,
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': imageBuffer.length.toString(),
         'X-Smug-AlbumUri': albumUri,
         'X-Smug-FileName': fileName,
         'X-Smug-ResponseType': 'JSON',
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': imageBuffer.length.toString(),
+        'X-Smug-Version': 'v2',
       },
       body: imageBuffer,
     });
@@ -319,41 +325,33 @@ async function uploadImage(
     console.log('Upload response (full):', JSON.stringify(result, null, 2));
     console.log('Response keys:', Object.keys(result));
 
-    let imageUri: string | undefined;
-    let imageKey: string | undefined;
-
-    if (result.Image) {
-      const image = result.Image;
-      console.log('Image object found:', JSON.stringify(image, null, 2));
-      imageUri = image.ImageUri || image.Uri || image.URL || image.ArchivedUri;
-      imageKey = image.ImageKey;
-    } else if (result.stat === 'ok') {
-      console.log('Response has stat=ok but no Image object');
-      if (result.method) {
-        console.log('Upload method:', result.method);
-      }
-
-      imageUri = result.ImageUri || result.Uri || result.URL;
-      imageKey = result.ImageKey || result.Key;
-    } else {
-      console.error('Unexpected response structure. Full response:', JSON.stringify(result, null, 2));
+    if (result.stat !== 'ok') {
+      console.error('Upload failed with stat:', result.stat);
+      throw new Error(`SmugMug upload failed: ${result.message || 'Unknown error'}`);
     }
 
-    if (imageKey && !imageUri) {
-      imageUri = `/api/v2/image/${imageKey}`;
-      console.log('Constructed imageUri from imageKey:', imageUri);
+    if (!result.Image) {
+      console.error('No Image object in response despite stat=ok');
+      console.error('Full response:', JSON.stringify(result, null, 2));
+      throw new Error('No Image object returned from SmugMug');
     }
 
-    if (!imageUri) {
-      console.error('Could not find image URI in response');
-      console.error('Response structure:', JSON.stringify(result, null, 2));
-      throw new Error(`No image URI found. Response stat: ${result.stat || 'unknown'}, method: ${result.method || 'unknown'}`);
+    const image = result.Image;
+    console.log('Image object:', JSON.stringify(image, null, 2));
+
+    const imageUri = image.ImageUri || image.AlbumImageUri;
+    const imageUrl = image.URL;
+
+    if (!imageUri && !imageUrl) {
+      console.error('No ImageUri or URL in Image object');
+      console.error('Available fields:', Object.keys(image));
+      throw new Error('No image URI or URL returned from SmugMug');
     }
 
-    const imageUrl = imageUri.startsWith('http') ? imageUri : `https://api.smugmug.com${imageUri}`;
-    console.log(`Image uploaded successfully: ${imageUrl}`);
+    const finalUrl = imageUrl || (imageUri.startsWith('http') ? imageUri : `https://api.smugmug.com${imageUri}`);
+    console.log(`Image uploaded successfully: ${finalUrl}`);
 
-    return imageUrl;
+    return finalUrl;
   } catch (error) {
     console.error('Error uploading image:', error);
     throw error;
