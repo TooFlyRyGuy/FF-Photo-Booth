@@ -926,6 +926,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
           description,
           category,
           prompt_text,
+          preview_image_compressed,
+          reference_image_compressed,
           preview_image_url,
           reference_image_url
         )
@@ -971,8 +973,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
         description: ep.prompts.description,
         category: ep.prompts.category,
         promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_url || '',
-        referenceImage: ep.prompts.reference_image_url || '',
+        previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
+        referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
       }))
   };
 };
