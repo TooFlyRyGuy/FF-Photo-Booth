@@ -494,7 +494,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
     const { data: eventPromptsData } = await supabase
       .from('event_prompts')
-      .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
+      .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_compressed, preview_image_url, reference_image_compressed, reference_image_url)')
       .in('event_id', eventIds)
       .order('display_order', { ascending: true });
 
@@ -509,8 +509,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
           description: ep.prompts.description,
           category: ep.prompts.category,
           promptText: ep.prompts.prompt_text,
-          previewImage: ep.prompts.preview_image_url || '',
-          referenceImage: ep.prompts.reference_image_url || '',
+          previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
+          referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
         });
       }
     });
@@ -566,7 +566,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
 
   const { data: eventPromptsData } = await supabase
     .from('event_prompts')
-    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
+    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_compressed, preview_image_url, reference_image_compressed, reference_image_url)')
     .eq('event_id', eventId)
     .order('display_order', { ascending: true });
 
@@ -576,8 +576,8 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     description: ep.prompts.description,
     category: ep.prompts.category,
     promptText: ep.prompts.prompt_text,
-    previewImage: ep.prompts.preview_image_url || '',
-    referenceImage: ep.prompts.reference_image_url || '',
+    previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
+    referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
   })) || [];
 
   return {
@@ -615,7 +615,7 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
 
   const { data, error } = await supabase
     .from('prompts')
-    .select('id, name, description, category, tags, preview_image_url, reference_image_url')
+    .select('id, name, description, category, tags, preview_image_compressed, preview_image_url, reference_image_compressed, reference_image_url')
     .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
@@ -630,8 +630,8 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
     description: prompt.description,
     category: prompt.category,
     promptText: '',
-    previewImage: prompt.preview_image_url || '',
-    referenceImage: prompt.reference_image_url || '',
+    previewImage: prompt.preview_image_compressed || prompt.preview_image_url || '',
+    referenceImage: prompt.reference_image_compressed || prompt.reference_image_url || '',
     tags: prompt.tags || []
   }));
 
@@ -1061,7 +1061,9 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
           description,
           category,
           prompt_text,
+          preview_image_compressed,
           preview_image_url,
+          reference_image_compressed,
           reference_image_url
         )
       )
@@ -1108,8 +1110,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
         description: ep.prompts.description,
         category: ep.prompts.category,
         promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_url || '',
-        referenceImage: ep.prompts.reference_image_url || '',
+        previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
+        referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
       }))
   };
 };

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { getPrompts as getPromptsFromService } from '../services/backendService';
+import { compressBase64Image } from '../services/imageCompression';
 
 interface Prompt {
   id: string;
@@ -174,16 +175,18 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     try {
       const { data, error } = await supabase
         .from('prompts')
-        .select('preview_image_url')
+        .select('preview_image_compressed, preview_image_url')
         .eq('id', promptId)
         .maybeSingle();
 
       if (error) throw error;
 
-      if (data?.preview_image_url) {
+      const imageUrl = data?.preview_image_compressed || data?.preview_image_url;
+
+      if (imageUrl) {
         setLoadedImages(prev => {
           const newMap = new Map(prev);
-          newMap.set(promptId, data.preview_image_url);
+          newMap.set(promptId, imageUrl);
           return newMap;
         });
       }
@@ -217,12 +220,15 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setIsPublic(prompt.tenantId === null);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditingPrompt(prev => prev ? { ...prev, [field]: reader.result as string } : null);
+      reader.onloadend = async () => {
+        const originalBase64 = reader.result as string;
+        const maxDim = field === 'previewImage' ? 400 : 600;
+        const compressed = await compressBase64Image(originalBase64, maxDim, 0.6);
+        setEditingPrompt(prev => prev ? { ...prev, [field]: compressed } : null);
       };
       reader.readAsDataURL(file);
     }
@@ -250,7 +256,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           category: editingPrompt.category,
           prompt_text: editingPrompt.promptText,
           preview_image_url: editingPrompt.previewImage || null,
+          preview_image_compressed: editingPrompt.previewImage || null,
           reference_image_url: editingPrompt.referenceImage || null,
+          reference_image_compressed: editingPrompt.referenceImage || null,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
         });
@@ -266,7 +274,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
             category: editingPrompt.category,
             prompt_text: editingPrompt.promptText,
             preview_image_url: editingPrompt.previewImage || null,
+            preview_image_compressed: editingPrompt.previewImage || null,
             reference_image_url: editingPrompt.referenceImage || null,
+            reference_image_compressed: editingPrompt.referenceImage || null,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
           })

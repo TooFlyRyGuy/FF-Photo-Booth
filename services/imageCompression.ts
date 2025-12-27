@@ -1,7 +1,7 @@
 export async function compressBase64Image(
   base64: string,
   maxDimension: number = 400,
-  quality: number = 0.7
+  quality: number = 0.6
 ): Promise<string> {
   if (!base64 || !base64.startsWith('data:image')) {
     return base64;
@@ -34,10 +34,18 @@ export async function compressBase64Image(
 
           ctx.drawImage(img, 0, 0, width, height);
 
-          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+          let compressedBase64;
+          try {
+            compressedBase64 = canvas.toDataURL('image/webp', quality);
+            if (!compressedBase64.startsWith('data:image/webp')) {
+              compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+            }
+          } catch (e) {
+            compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+          }
 
           console.log(
-            `Compressed image: ${base64.length} -> ${compressedBase64.length} (${Math.round((compressedBase64.length / base64.length) * 100)}%)`
+            `Compressed image from ${img.width}x${img.height} to ${width}x${height}: ${base64.length} bytes -> ${compressedBase64.length} bytes (${Math.round((compressedBase64.length / base64.length) * 100)}%)`
           );
 
           resolve(compressedBase64);
