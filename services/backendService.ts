@@ -380,10 +380,10 @@ export const updateGlobalSettings = async (settings: Record<string, any>): Promi
   console.log('Global settings updated successfully');
 };
 
-export const getEvents = async (skipCache: boolean = false): Promise<Event[]> => {
+export const getEvents = async (skipCache: boolean = false, includePrompts: boolean = false): Promise<Event[]> => {
   const tenantId = await getUserTenantId();
 
-  if (!skipCache && cachedEvents && eventsCacheTimestamp && Date.now() - eventsCacheTimestamp < EVENTS_CACHE_TTL) {
+  if (!skipCache && cachedEvents && eventsCacheTimestamp && Date.now() - eventsCacheTimestamp < EVENTS_CACHE_TTL && !includePrompts) {
     console.log('🔍 getEvents - using cached events');
     return cachedEvents;
   }
@@ -404,36 +404,41 @@ export const getEvents = async (skipCache: boolean = false): Promise<Event[]> =>
   console.log('✅ getEvents - found', eventsData?.length || 0, 'events');
 
   if (!eventsData || eventsData.length === 0) {
-    cachedEvents = [];
-    eventsCacheTimestamp = Date.now();
+    if (!includePrompts) {
+      cachedEvents = [];
+      eventsCacheTimestamp = Date.now();
+    }
     return [];
   }
 
-  const eventIds = eventsData.map(e => e.id);
+  let promptsByEvent = new Map<string, any[]>();
 
-  const { data: eventPromptsData } = await supabase
-    .from('event_prompts')
-    .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
-    .in('event_id', eventIds)
-    .order('display_order', { ascending: true });
+  if (includePrompts) {
+    const eventIds = eventsData.map(e => e.id);
 
-  const promptsByEvent = new Map<string, any[]>();
-  eventPromptsData?.forEach((ep: any) => {
-    if (!promptsByEvent.has(ep.event_id)) {
-      promptsByEvent.set(ep.event_id, []);
-    }
-    if (ep.prompts) {
-      promptsByEvent.get(ep.event_id)!.push({
-        id: ep.prompts.id,
-        name: ep.prompts.name,
-        description: ep.prompts.description,
-        category: ep.prompts.category,
-        promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_url || '',
-        referenceImage: ep.prompts.reference_image_url || '',
-      });
-    }
-  });
+    const { data: eventPromptsData } = await supabase
+      .from('event_prompts')
+      .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
+      .in('event_id', eventIds)
+      .order('display_order', { ascending: true });
+
+    eventPromptsData?.forEach((ep: any) => {
+      if (!promptsByEvent.has(ep.event_id)) {
+        promptsByEvent.set(ep.event_id, []);
+      }
+      if (ep.prompts) {
+        promptsByEvent.get(ep.event_id)!.push({
+          id: ep.prompts.id,
+          name: ep.prompts.name,
+          description: ep.prompts.description,
+          category: ep.prompts.category,
+          promptText: ep.prompts.prompt_text,
+          previewImage: ep.prompts.preview_image_url || '',
+          referenceImage: ep.prompts.reference_image_url || '',
+        });
+      }
+    });
+  }
 
   const events = eventsData.map((event: any) => ({
     id: event.id,
@@ -457,13 +462,72 @@ export const getEvents = async (skipCache: boolean = false): Promise<Event[]> =>
     smsMessage: event.sms_message,
     smugmugGalleryKey: event.smugmug_gallery_key,
     smugmugGalleryUrl: event.smugmug_gallery_url,
-    prompts: promptsByEvent.get(event.id) || []
+    prompts: includePrompts ? (promptsByEvent.get(event.id) || []) : []
   }));
 
-  cachedEvents = events;
-  eventsCacheTimestamp = Date.now();
+  if (!includePrompts) {
+    cachedEvents = events;
+    eventsCacheTimestamp = Date.now();
+  }
 
   return events;
+};
+
+export const getEventById = async (eventId: string): Promise<Event> => {
+  const { data: eventData, error: eventError } = await supabase
+    .from('events')
+    .select('id, name, event_date, city, is_active, passcode, tenant_id, aspect_ratio, background_image_url, logo_url, overlay_image_url, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, created_at')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (eventError) {
+    throw new Error(`Failed to fetch event: ${eventError.message}`);
+  }
+
+  if (!eventData) {
+    throw new Error('Event not found');
+  }
+
+  const { data: eventPromptsData } = await supabase
+    .from('event_prompts')
+    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
+    .eq('event_id', eventId)
+    .order('display_order', { ascending: true });
+
+  const prompts = eventPromptsData?.filter((ep: any) => ep.prompts !== null).map((ep: any) => ({
+    id: ep.prompts.id,
+    name: ep.prompts.name,
+    description: ep.prompts.description,
+    category: ep.prompts.category,
+    promptText: ep.prompts.prompt_text,
+    previewImage: ep.prompts.preview_image_url || '',
+    referenceImage: ep.prompts.reference_image_url || '',
+  })) || [];
+
+  return {
+    id: eventData.id,
+    name: eventData.name,
+    date: eventData.event_date,
+    city: eventData.city,
+    isActive: eventData.is_active,
+    passcode: eventData.passcode,
+    tenantId: eventData.tenant_id,
+    aspectRatio: eventData.aspect_ratio || 'square',
+    backgroundImageUrl: eventData.background_image_url,
+    logoUrl: eventData.logo_url,
+    overlayImageUrl: eventData.overlay_image_url,
+    primaryColor: eventData.primary_color,
+    secondaryColor: eventData.secondary_color,
+    accentColor: eventData.accent_color,
+    hideLogo: eventData.hide_logo || false,
+    hideEventName: eventData.hide_event_name || false,
+    startDatetime: eventData.start_datetime,
+    endDatetime: eventData.end_datetime,
+    smsMessage: eventData.sms_message,
+    smugmugGalleryKey: eventData.smugmug_gallery_key,
+    smugmugGalleryUrl: eventData.smugmug_gallery_url,
+    prompts
+  };
 };
 
 export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> => {

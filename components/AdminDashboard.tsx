@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache, clearGlobalSettingsCache } from '../services/backendService';
+import { getTenant, getEvents, getEventById, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache, clearGlobalSettingsCache } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw } from 'lucide-react';
 import Settings from './Settings';
@@ -153,9 +153,15 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     setActiveTab('create_event');
   };
 
-  const handleEditEvent = (event: Event) => {
-    setEditingEvent({ ...event });
-    setActiveTab('edit_event');
+  const handleEditEvent = async (event: Event) => {
+    try {
+      const eventWithPrompts = await getEventById(event.id);
+      setEditingEvent({ ...eventWithPrompts });
+      setActiveTab('edit_event');
+    } catch (error) {
+      console.error('Failed to load event details:', error);
+      alert('Failed to load event details. Please try again.');
+    }
   };
 
   const handleViewAnalytics = (event: Event) => {
