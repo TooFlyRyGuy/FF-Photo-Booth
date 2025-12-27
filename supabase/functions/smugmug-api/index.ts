@@ -198,12 +198,14 @@ async function createGallery(
     for (const album of albums) {
       if (album.Name === galleryName) {
         console.log(`Found existing album: ${galleryName}`);
-        const albumKey = album.AlbumKey;
+        const albumUri = album.Uri || `/api/v2/album/${album.AlbumKey}`;
         const webUrl = album.WebUri || album.UrlPath || '';
         const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
 
+        console.log(`Returning album URI: ${albumUri}, AlbumKey: ${album.AlbumKey}`);
+
         return {
-          galleryId: albumKey,
+          galleryId: albumUri,
           galleryUrl: fullUrl,
         };
       }
@@ -238,12 +240,14 @@ async function createGallery(
         for (const album of retryAlbums) {
           if (album.Name === galleryName || album.UrlName === urlName) {
             console.log(`Found album after 409: ${galleryName}`);
-            const albumKey = album.AlbumKey;
+            const albumUri = album.Uri || `/api/v2/album/${album.AlbumKey}`;
             const webUrl = album.WebUri || album.UrlPath || '';
             const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
 
+            console.log(`Returning album URI: ${albumUri}, AlbumKey: ${album.AlbumKey}`);
+
             return {
-              galleryId: albumKey,
+              galleryId: albumUri,
               galleryUrl: fullUrl,
             };
           }
@@ -252,13 +256,14 @@ async function createGallery(
       throw createError;
     }
 
-    console.log('Album creation response:', response);
+    console.log('Album creation response:', JSON.stringify(response, null, 2));
 
     const album = response.Response.Album;
-    if (!album || !album.AlbumKey) {
-      throw new Error('Album creation failed: No AlbumKey returned');
+    if (!album) {
+      throw new Error('Album creation failed: No Album object returned');
     }
 
+    const albumUri = album.Uri || `/api/v2/album/${album.AlbumKey}`;
     const albumKey = album.AlbumKey;
 
     let webUrl = album.WebUri || '';
@@ -277,10 +282,10 @@ async function createGallery(
 
     const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
 
-    console.log('Gallery created successfully:', { albumKey, fullUrl });
+    console.log('Gallery created successfully:', { albumUri, albumKey, fullUrl });
 
     return {
-      galleryId: albumKey,
+      galleryId: albumUri,
       galleryUrl: fullUrl,
     };
   } catch (error) {
@@ -292,12 +297,12 @@ async function createGallery(
 async function uploadImage(
   accessToken: string,
   accessTokenSecret: string,
-  galleryKey: string,
+  galleryUri: string,
   imageData: string,
   fileName: string
 ): Promise<string> {
   try {
-    console.log(`Uploading image to gallery ${galleryKey}: ${fileName}`);
+    console.log(`Uploading image to gallery ${galleryUri}: ${fileName}`);
 
     const base64Data = imageData.includes(',') ? imageData.split(',')[1] : imageData;
     const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
@@ -334,8 +339,7 @@ async function uploadImage(
       .sort()
       .map(key => `${key}=\"${percentEncode(oauthParams[key])}\"`)      .join(', ');
 
-    const albumUri = `/api/v2/album/${galleryKey}`;
-    console.log(`Uploading to album URI: ${albumUri}`);
+    console.log(`Uploading to album URI: ${galleryUri}`);
     console.log(`OAuth params used:`, {
       consumer_key: SMUGMUG_API_KEY?.substring(0, 10) + '...',
       token: accessToken?.substring(0, 10) + '...',
@@ -350,7 +354,7 @@ async function uploadImage(
         'Content-MD5': md5Base64,
         'Content-Type': 'application/octet-stream',
         'Content-Length': imageBuffer.length.toString(),
-        'X-Smug-AlbumUri': albumUri,
+        'X-Smug-AlbumUri': galleryUri,
         'X-Smug-FileName': fileName,
         'X-Smug-ResponseType': 'JSON',
         'X-Smug-Version': 'v2',
