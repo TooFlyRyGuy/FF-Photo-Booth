@@ -159,7 +159,7 @@ async function createGallery(
     const albums = albumsResponse.Response.Album || [];
 
     for (const album of albums) {
-      if (album.Title === galleryName || album.Name === galleryName) {
+      if (album.Name === galleryName) {
         console.log(`Found existing album: ${galleryName}`);
         const albumKey = album.AlbumKey;
         const webUrl = album.WebUri || album.UrlPath || '';
@@ -172,12 +172,12 @@ async function createGallery(
       }
     }
 
-    const niceName = createUrlName(galleryName, 60);
+    const urlName = createUrlName(galleryName, 60);
     const albumData = {
-      Title: galleryName,
-      NiceName: niceName,
+      Name: galleryName,
+      UrlName: urlName,
       Privacy: privacyLevel,
-      SortMethod: 'DateUploaded',
+      SortMethod: 'Date Uploaded',
       SortDirection: 'Descending',
       Description: 'AI Photo Booth Gallery',
     };
@@ -199,7 +199,7 @@ async function createGallery(
         const retryResponse = await makeSmugMugRequest('GET', `${FOLDER_PATH}!albums`, accessToken, accessTokenSecret);
         const retryAlbums = retryResponse.Response.Album || [];
         for (const album of retryAlbums) {
-          if (album.Title === galleryName || album.NiceName === niceName) {
+          if (album.Name === galleryName || album.UrlName === urlName) {
             console.log(`Found album after 409: ${galleryName}`);
             const albumKey = album.AlbumKey;
             const webUrl = album.WebUri || album.UrlPath || '';
