@@ -1,15 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import AdminDashboard from './components/AdminDashboard';
-import KioskMode from './components/KioskMode';
-import Login from './components/Login';
-import Signup from './components/Signup';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Event } from './types';
 import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
 import { getEventByPasscode, clearTenantCache } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const KioskMode = lazy(() => import('./components/KioskMode'));
+const Login = lazy(() => import('./components/Login'));
+const Signup = lazy(() => import('./components/Signup'));
+
 type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'loading';
+
+const LoadingSpinner: React.FC = () => (
+  <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center">
+    <div className="text-center space-y-4">
+      <div className="w-16 h-16 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto"></div>
+      <p className="text-slate-900 text-xl">Loading...</p>
+    </div>
+  </div>
+);
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('loading');
@@ -143,33 +153,45 @@ const App: React.FC = () => {
 
   // 1. KIOSK MODE
   if (view === 'kiosk' && activeEvent) {
-    return <KioskMode event={activeEvent} onExit={exitKiosk} />;
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <KioskMode event={activeEvent} onExit={exitKiosk} />
+      </Suspense>
+    );
   }
 
   // 2. ADMIN MODE
   if (view === 'admin') {
-    return <AdminDashboard onLogout={handleLogout} onLaunchKiosk={launchKiosk} user={user} />;
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <AdminDashboard onLogout={handleLogout} onLaunchKiosk={launchKiosk} user={user} />
+      </Suspense>
+    );
   }
 
   // 3. LOGIN MODE
   if (view === 'login') {
     return (
-      <Login
-        onSuccess={() => setView('admin')}
-        onSwitchToSignup={() => setView('signup')}
-        onBackToLanding={() => setView('landing')}
-      />
+      <Suspense fallback={<LoadingSpinner />}>
+        <Login
+          onSuccess={() => setView('admin')}
+          onSwitchToSignup={() => setView('signup')}
+          onBackToLanding={() => setView('landing')}
+        />
+      </Suspense>
     );
   }
 
   // 4. SIGNUP MODE
   if (view === 'signup') {
     return (
-      <Signup
-        onSuccess={() => setView('admin')}
-        onSwitchToLogin={() => setView('login')}
-        onBackToLanding={() => setView('landing')}
-      />
+      <Suspense fallback={<LoadingSpinner />}>
+        <Signup
+          onSuccess={() => setView('admin')}
+          onSwitchToLogin={() => setView('login')}
+          onBackToLanding={() => setView('landing')}
+        />
+      </Suspense>
     );
   }
 

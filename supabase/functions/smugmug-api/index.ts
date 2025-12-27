@@ -6,7 +6,8 @@ const SMUGMUG_API_KEY = Deno.env.get('SMUGMUG_API_KEY')!;
 const SMUGMUG_API_SECRET = Deno.env.get('SMUGMUG_API_SECRET')!;
 const SMUGMUG_API_BASE = "https://api.smugmug.com/api/v2";
 const SMUGMUG_UPLOAD_BASE = "https://upload.smugmug.com";
-const API_TIMEOUT_MS = 30000;
+const API_TIMEOUT_MS = 15000;
+const UPLOAD_TIMEOUT_MS = 25000;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -349,7 +350,7 @@ async function uploadImage(
         'X-Smug-Version': 'v2',
       },
       body: imageBuffer,
-    }, 45000);
+    }, UPLOAD_TIMEOUT_MS);
 
     if (!response.ok) {
       const errorText = await response.text();
