@@ -146,7 +146,7 @@ async function createGallery(
   try {
     console.log(`Creating SmugMug gallery: ${galleryName}`);
 
-    const PARENT_FOLDER_PATH = '/api/v2/node/Photo-Booth-Galleries/AI-photo-booth/';
+    const PARENT_FOLDER_PATH = '/api/v2/node/Photo-Booth-Galleries/AI-photo-booth';
     console.log('Using hard-coded parent folder path:', PARENT_FOLDER_PATH);
 
     const privacyLevel = visibility === 'public' ? 'Public' : 'Unlisted';
