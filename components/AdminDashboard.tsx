@@ -999,6 +999,30 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     </label>
                   </div>
                 </div>
+
+                <div className="pt-6 space-y-4">
+                  <p className="text-sm font-medium text-slate-700">Gallery Upload Options</p>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingEvent.uploadOriginalsToGallery || false}
+                      onChange={(e) => setEditingEvent({...editingEvent, uploadOriginalsToGallery: e.target.checked})}
+                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      disabled={!editingEvent.smugmugGalleryKey}
+                    />
+                    <span className="text-black">Upload Original Photos to Gallery</span>
+                  </label>
+                  {!editingEvent.smugmugGalleryKey && (
+                    <p className="text-xs text-slate-500 ml-8">
+                      Requires a SmugMug gallery to be configured in Settings
+                    </p>
+                  )}
+                  {editingEvent.smugmugGalleryKey && (
+                    <p className="text-xs text-slate-500 ml-8">
+                      Original photos will be uploaded to SmugMug gallery after AI generation
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* SMS Message Customization */}

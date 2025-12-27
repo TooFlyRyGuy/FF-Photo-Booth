@@ -74,6 +74,7 @@ export interface Event {
   smsMessage?: string;
   smugmugGalleryKey?: string;
   smugmugGalleryUrl?: string;
+  uploadOriginalsToGallery?: boolean;
 }
 
 export interface GeneratedImage {

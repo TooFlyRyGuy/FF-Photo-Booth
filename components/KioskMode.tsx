@@ -171,24 +171,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         return;
       }
 
-      // 1. Upload original image to Dropbox
-      let originalUrl = capturedImage;
-      if (tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
-        try {
-          originalUrl = await uploadImageToDropbox({
-            tenantId: event.tenantId,
-            eventId: event.id,
-            eventName: event.name,
-            imageBase64: capturedImage,
-            imageType: 'original',
-            promptName: selectedPrompt.name,
-          });
-        } catch (dropboxErr) {
-          console.error('Dropbox upload failed for original:', dropboxErr);
-        }
-      }
-
-      // 2. Generate with Gemini
+      // 1. Generate with Gemini
       console.log('🔑 Gemini API Key Check:', {
         hasKey: !!geminiApiKey,
         keyLength: geminiApiKey?.length,
@@ -216,14 +199,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       setFinalImage(genImage);
 
-      // 3. Upload generated image to SmugMug or Dropbox
+      // 2. Upload generated image to SmugMug or Dropbox
       let generatedUrl = genImage;
-      let uploadedToSmugMug = false;
+      let uploadedGeneratedToSmugMug = false;
 
       if (event.smugmugGalleryKey) {
         try {
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const fileName = `${event.name}-${selectedPrompt.name}-${timestamp}.jpg`;
+          const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
 
           const result = await uploadToSmugMug(
             event.smugmugGalleryKey,
@@ -233,14 +216,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           );
 
           generatedUrl = result.imageUrl;
-          uploadedToSmugMug = true;
-          console.log('Uploaded to SmugMug:', generatedUrl);
+          uploadedGeneratedToSmugMug = true;
+          console.log('Uploaded generated to SmugMug:', generatedUrl);
         } catch (smugmugErr) {
-          console.error('SmugMug upload failed, falling back to Dropbox:', smugmugErr);
+          console.error('SmugMug upload failed for generated, falling back to Dropbox:', smugmugErr);
         }
       }
 
-      if (!uploadedToSmugMug && tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
+      if (!uploadedGeneratedToSmugMug && tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
         try {
           generatedUrl = await uploadImageToDropbox({
             tenantId: event.tenantId,
@@ -250,13 +233,51 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             imageType: 'generated',
             promptName: selectedPrompt.name,
           });
-          console.log('Uploaded to Dropbox:', generatedUrl);
+          console.log('Uploaded generated to Dropbox:', generatedUrl);
         } catch (dropboxErr) {
           console.error('Dropbox upload failed for generated:', dropboxErr);
         }
       }
 
-      // 4. Save URLs to database
+      // 3. Upload original image to SmugMug gallery if enabled
+      let originalUrl = capturedImage;
+      if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
+
+          const originalResult = await uploadToSmugMug(
+            event.smugmugGalleryKey,
+            capturedImage,
+            originalFileName,
+            import.meta.env.VITE_SUPABASE_ANON_KEY
+          );
+
+          originalUrl = originalResult.imageUrl;
+          console.log('Uploaded original to SmugMug:', originalUrl);
+        } catch (smugmugOrigErr) {
+          console.error('SmugMug upload failed for original:', smugmugOrigErr);
+        }
+      }
+
+      // 4. Upload original to Dropbox if enabled and not already uploaded to SmugMug
+      if (originalUrl === capturedImage && tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
+        try {
+          originalUrl = await uploadImageToDropbox({
+            tenantId: event.tenantId,
+            eventId: event.id,
+            eventName: event.name,
+            imageBase64: capturedImage,
+            imageType: 'original',
+            promptName: selectedPrompt.name,
+          });
+          console.log('Uploaded original to Dropbox:', originalUrl);
+        } catch (dropboxErr) {
+          console.error('Dropbox upload failed for original:', dropboxErr);
+        }
+      }
+
+      // 5. Save URLs to database
       await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
