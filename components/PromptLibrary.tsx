@@ -67,35 +67,22 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     const startTime = performance.now();
 
     try {
-      console.log('[PromptLibrary] Starting query...');
+      console.log('[PromptLibrary] Loading prompts with caching...');
 
-      const { data, error } = await supabase
+      const cachedPrompts = await getPromptsFromService(false);
+
+      const { data: usageData } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, usage_count, tenant_id, preview_image_url')
-        .eq('is_active', true)
-        .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-        .order('usage_count', { ascending: false })
-        .limit(100);
+        .select('id, usage_count, tenant_id')
+        .in('id', cachedPrompts.map(p => p.id));
 
-      const queryTime = performance.now() - startTime;
-      console.log(`[PromptLibrary] Query completed in ${queryTime.toFixed(2)}ms, returned ${data?.length || 0} rows`);
+      const usageMap = new Map(usageData?.map(p => [p.id, { usage_count: p.usage_count || 0, tenant_id: p.tenant_id }]) || []);
 
-      if (error) throw error;
-
-      console.log(`[PromptLibrary] Processing ${data?.length || 0} prompts...`);
-
-      const mappedPrompts = (data || []).map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        category: p.category || 'Custom',
-        promptText: '',
-        previewImage: p.preview_image_url || '',
-        referenceImage: null,
-        tags: p.tags || [],
+      const mappedPrompts = cachedPrompts.map(p => ({
+        ...p,
         isActive: true,
-        usageCount: p.usage_count || 0,
-        tenantId: p.tenant_id,
+        usageCount: usageMap.get(p.id)?.usage_count || 0,
+        tenantId: usageMap.get(p.id)?.tenant_id,
       }));
 
       setPrompts(mappedPrompts);
@@ -175,8 +162,24 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setIsPublic(false);
   };
 
-  const handleEdit = (prompt: Prompt) => {
-    setEditingPrompt({ ...prompt });
+  const handleEdit = async (prompt: Prompt) => {
+    if (!prompt.promptText) {
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('prompt_text')
+        .eq('id', prompt.id)
+        .maybeSingle();
+
+      if (data && !error) {
+        const fullPrompt = { ...prompt, promptText: data.prompt_text || '' };
+        setEditingPrompt(fullPrompt);
+        setPrompts(prev => prev.map(p => p.id === prompt.id ? fullPrompt : p));
+      } else {
+        setEditingPrompt({ ...prompt });
+      }
+    } else {
+      setEditingPrompt({ ...prompt });
+    }
     setIsCreating(false);
     setIsPublic(prompt.tenantId === null);
   };
@@ -724,6 +727,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                         src={prompt.previewImage}
                         alt={prompt.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-400">
