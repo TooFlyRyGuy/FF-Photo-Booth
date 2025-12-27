@@ -32,8 +32,11 @@ function percentEncode(str: string): string {
 }
 
 function createUrlName(name: string, maxLength: number = 60): string {
-  const urlName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, maxLength);
-  return urlName.charAt(0).toUpperCase() + urlName.slice(1);
+  const timestamp = Date.now().toString().slice(-6);
+  const maxNameLength = maxLength - 7;
+  const urlName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, maxNameLength);
+  const cleanName = urlName.charAt(0).toUpperCase() + urlName.slice(1);
+  return `${cleanName}-${timestamp}`;
 }
 
 async function generateSignature(
@@ -163,16 +166,32 @@ async function findOrCreateFolder(
       Privacy: 'Public',
     };
 
-    const createResponse = await makeSmugMugRequest(
-      'POST',
-      `${parentNodeUri}!children`,
-      accessToken,
-      accessTokenSecret,
-      folderData
-    );
+    try {
+      const createResponse = await makeSmugMugRequest(
+        'POST',
+        `${parentNodeUri}!children`,
+        accessToken,
+        accessTokenSecret,
+        folderData
+      );
 
-    console.log(`Created folder ${folderName}:`, createResponse.Response.Node);
-    return createResponse.Response.Node.Uri;
+      console.log(`Created folder ${folderName}:`, createResponse.Response.Node);
+      return createResponse.Response.Node.Uri;
+    } catch (createError: any) {
+      if (createError.message.includes('409')) {
+        console.log('Folder creation returned 409, retrying folder search...');
+        const retryResponse = await makeSmugMugRequest('GET', `${parentNodeUri}!children`, accessToken, accessTokenSecret);
+        const retryNodes = retryResponse.Response.Node || [];
+        const retryFolder = retryNodes.find((node: any) =>
+          node.Type === 'Folder' && node.Name === folderName
+        );
+        if (retryFolder) {
+          console.log(`Found folder after 409: ${folderName}`);
+          return retryFolder.Uri;
+        }
+      }
+      throw createError;
+    }
   } catch (error) {
     console.error(`Error in findOrCreateFolder for ${folderName}:`, error);
     throw error;
@@ -242,13 +261,37 @@ async function createGallery(
 
     console.log('Creating album with data:', albumData);
 
-    const response = await makeSmugMugRequest(
-      'POST',
-      `${aiPhotoBoothFolderUri}!children`,
-      accessToken,
-      accessTokenSecret,
-      albumData
-    );
+    let response;
+    try {
+      response = await makeSmugMugRequest(
+        'POST',
+        `${aiPhotoBoothFolderUri}!children`,
+        accessToken,
+        accessTokenSecret,
+        albumData
+      );
+    } catch (createError: any) {
+      if (createError.message.includes('409')) {
+        console.log('Album creation returned 409, retrying album search...');
+        const retryResponse = await makeSmugMugRequest('GET', `${aiPhotoBoothFolderUri}!children`, accessToken, accessTokenSecret);
+        const retryNodes = retryResponse.Response.Node || [];
+        const retryAlbum = retryNodes.find((node: any) =>
+          node.Type === 'Album' && node.Name === galleryName
+        );
+        if (retryAlbum) {
+          console.log(`Found album after 409: ${galleryName}`);
+          const albumKey = retryAlbum.AlbumKey || retryAlbum.NodeID;
+          const webUrl = retryAlbum.WebUri || retryAlbum.UrlPath || '';
+          const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
+
+          return {
+            galleryId: albumKey,
+            galleryUrl: fullUrl,
+          };
+        }
+      }
+      throw createError;
+    }
 
     console.log('Album creation response:', response);
 
