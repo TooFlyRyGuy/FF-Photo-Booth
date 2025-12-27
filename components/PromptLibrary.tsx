@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
@@ -47,10 +47,25 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
   const [displayLimit, setDisplayLimit] = useState(10);
+  const hasLoadedRef = useRef(false);
+  const [loadedImages, setLoadedImages] = useState<Map<string, string>>(new Map());
+  const loadingImagesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    loadPrompts();
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      loadPrompts();
+    }
   }, [tenantId]);
+
+  useEffect(() => {
+    const displayed = filteredPrompts.slice(0, displayLimit);
+    displayed.forEach(prompt => {
+      if (!loadedImages.has(prompt.id) && !loadingImagesRef.current.has(prompt.id)) {
+        loadPromptImage(prompt.id);
+      }
+    });
+  }, [filteredPrompts, displayLimit, loadedImages]);
 
   useEffect(() => {
     filterPrompts();
@@ -66,14 +81,14 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, usage_count, tenant_id, preview_image_url')
+        .select('id, name, description, category, tags, usage_count, tenant_id')
         .eq('is_active', true)
         .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
         .order('usage_count', { ascending: false })
         .limit(100);
 
       const queryTime = performance.now() - startTime;
-      console.log(`[PromptLibrary] Query completed in ${queryTime.toFixed(2)}ms`);
+      console.log(`[PromptLibrary] Query completed in ${queryTime.toFixed(2)}ms, returned ${data?.length || 0} rows`);
 
       if (error) throw error;
 
@@ -85,7 +100,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         description: p.description || '',
         category: p.category || 'Custom',
         promptText: '',
-        previewImage: p.preview_image_url || '',
+        previewImage: '',
         referenceImage: null,
         tags: p.tags || [],
         isActive: true,
@@ -151,6 +166,32 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setSelectedTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
+  };
+
+  const loadPromptImage = async (promptId: string) => {
+    loadingImagesRef.current.add(promptId);
+
+    try {
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('preview_image_url')
+        .eq('id', promptId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data?.preview_image_url) {
+        setLoadedImages(prev => {
+          const newMap = new Map(prev);
+          newMap.set(promptId, data.preview_image_url);
+          return newMap;
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to load image for prompt ${promptId}:`, error);
+    } finally {
+      loadingImagesRef.current.delete(promptId);
+    }
   };
 
   const handleCreateNew = () => {
@@ -686,11 +727,17 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                   className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden hover:shadow-lg transition-all"
                 >
                   <div className="relative aspect-video bg-slate-200">
-                    <img
-                      src={prompt.previewImage}
-                      alt={prompt.name}
-                      className="w-full h-full object-cover"
-                    />
+                    {loadedImages.get(prompt.id) ? (
+                      <img
+                        src={loadedImages.get(prompt.id)}
+                        alt={prompt.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400">
+                        <ImageIcon size={48} />
+                      </div>
+                    )}
                     {!prompt.isActive && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                         <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold">
