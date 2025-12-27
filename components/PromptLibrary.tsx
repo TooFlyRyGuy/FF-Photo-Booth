@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
+import { getPrompts as getPromptsFromService } from '../services/backendService';
 
 interface Prompt {
   id: string;
@@ -61,9 +62,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     try {
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, is_active, usage_count, tenant_id, preview_image_compressed')
+        .select('id, name, description, category, tags, usage_count, tenant_id, preview_image_url')
+        .eq('is_active', true)
         .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-        .order('usage_count', { ascending: false });
+        .order('usage_count', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
 
@@ -73,10 +76,10 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         description: p.description || '',
         category: p.category || 'Custom',
         promptText: '',
-        previewImage: p.preview_image_compressed || '',
+        previewImage: p.preview_image_url || '',
         referenceImage: null,
         tags: p.tags || [],
-        isActive: p.is_active,
+        isActive: true,
         usageCount: p.usage_count || 0,
         tenantId: p.tenant_id,
       }));
