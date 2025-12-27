@@ -316,20 +316,38 @@ async function uploadImage(
     }
 
     const result = await response.json();
-    console.log('Upload response:', JSON.stringify(result, null, 2));
+    console.log('Upload response (full):', JSON.stringify(result, null, 2));
+    console.log('Response keys:', Object.keys(result));
 
-    const image = result.Image;
-    if (!image) {
-      console.error('No Image object in response:', result);
-      throw new Error('No Image object returned from SmugMug');
+    let imageUri: string | undefined;
+    let imageKey: string | undefined;
+
+    if (result.Image) {
+      const image = result.Image;
+      console.log('Image object found:', JSON.stringify(image, null, 2));
+      imageUri = image.ImageUri || image.Uri || image.URL || image.ArchivedUri;
+      imageKey = image.ImageKey;
+    } else if (result.stat === 'ok') {
+      console.log('Response has stat=ok but no Image object');
+      if (result.method) {
+        console.log('Upload method:', result.method);
+      }
+
+      imageUri = result.ImageUri || result.Uri || result.URL;
+      imageKey = result.ImageKey || result.Key;
+    } else {
+      console.error('Unexpected response structure. Full response:', JSON.stringify(result, null, 2));
     }
 
-    console.log('Image object:', JSON.stringify(image, null, 2));
+    if (imageKey && !imageUri) {
+      imageUri = `/api/v2/image/${imageKey}`;
+      console.log('Constructed imageUri from imageKey:', imageUri);
+    }
 
-    const imageUri = image.ImageUri || image.Uri;
     if (!imageUri) {
-      console.error('No ImageUri found. Available fields:', Object.keys(image));
-      throw new Error('No image URI returned from SmugMug');
+      console.error('Could not find image URI in response');
+      console.error('Response structure:', JSON.stringify(result, null, 2));
+      throw new Error(`No image URI found. Response stat: ${result.stat || 'unknown'}, method: ${result.method || 'unknown'}`);
     }
 
     const imageUrl = imageUri.startsWith('http') ? imageUri : `https://api.smugmug.com${imageUri}`;
