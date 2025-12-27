@@ -137,63 +137,6 @@ async function makeSmugMugRequest(
   return await response.json();
 }
 
-async function findOrCreateFolder(
-  accessToken: string,
-  accessTokenSecret: string,
-  parentNodeUri: string,
-  folderName: string,
-  urlName?: string
-): Promise<string> {
-  try {
-    const childrenResponse = await makeSmugMugRequest('GET', `${parentNodeUri}!children`, accessToken, accessTokenSecret);
-
-    const nodes = childrenResponse.Response.Node || [];
-    for (const node of nodes) {
-      if (node.Type === 'Folder' && (node.Name === folderName || (urlName && node.UrlName === urlName))) {
-        console.log(`Found existing folder: ${folderName} (${node.UrlName})`);
-        return node.Uri;
-      }
-    }
-
-    console.log(`Creating new folder: ${folderName}`);
-    const folderData = {
-      Type: 'Folder',
-      Name: folderName,
-      UrlName: urlName || createUrlName(folderName),
-      Privacy: 'Public',
-    };
-
-    try {
-      const createResponse = await makeSmugMugRequest(
-        'POST',
-        `${parentNodeUri}!children`,
-        accessToken,
-        accessTokenSecret,
-        folderData
-      );
-
-      console.log(`Created folder ${folderName}:`, createResponse.Response.Node);
-      return createResponse.Response.Node.Uri;
-    } catch (createError: any) {
-      if (createError.message.includes('409')) {
-        console.log('Folder creation returned 409, searching again...');
-        const retryResponse = await makeSmugMugRequest('GET', `${parentNodeUri}!children`, accessToken, accessTokenSecret);
-        const retryNodes = retryResponse.Response.Node || [];
-        for (const node of retryNodes) {
-          if (node.Type === 'Folder' && (node.Name === folderName || (urlName && node.UrlName === urlName) || node.UrlName === folderData.UrlName)) {
-            console.log(`Found folder after 409: ${folderName} (${node.UrlName})`);
-            return node.Uri;
-          }
-        }
-      }
-      throw createError;
-    }
-  } catch (error) {
-    console.error(`Error in findOrCreateFolder for ${folderName}:`, error);
-    throw error;
-  }
-}
-
 async function createGallery(
   accessToken: string,
   accessTokenSecret: string,
@@ -203,31 +146,12 @@ async function createGallery(
   try {
     console.log(`Creating SmugMug gallery: ${galleryName}`);
 
-    const userData = await makeSmugMugRequest('GET', '!authuser', accessToken, accessTokenSecret);
-    const userUri = userData.Response.User.Uris.Node.Uri;
-    console.log('User node URI:', userUri);
-
-    const photoBoothFolderUri = await findOrCreateFolder(
-      accessToken,
-      accessTokenSecret,
-      userUri,
-      'Photo Booth Galleries',
-      'Photo-Booth-Galleries'
-    );
-    console.log('Photo Booth Galleries URI:', photoBoothFolderUri);
-
-    const aiPhotoBoothFolderUri = await findOrCreateFolder(
-      accessToken,
-      accessTokenSecret,
-      photoBoothFolderUri,
-      'AI Photo Booth',
-      'AI-photo-booth'
-    );
-    console.log('AI Photo Booth URI:', aiPhotoBoothFolderUri);
+    const PARENT_FOLDER_PATH = '/api/v2/user/funframephoto/Photo-Booth-Galleries/AI-photo-booth';
+    console.log('Using hard-coded parent folder path:', PARENT_FOLDER_PATH);
 
     const privacyLevel = visibility === 'public' ? 'Public' : 'Unlisted';
 
-    const childrenResponse = await makeSmugMugRequest('GET', `${aiPhotoBoothFolderUri}!children`, accessToken, accessTokenSecret);
+    const childrenResponse = await makeSmugMugRequest('GET', `${PARENT_FOLDER_PATH}!children`, accessToken, accessTokenSecret);
     const nodes = childrenResponse.Response.Node || [];
 
     for (const node of nodes) {
@@ -260,7 +184,7 @@ async function createGallery(
     try {
       response = await makeSmugMugRequest(
         'POST',
-        `${aiPhotoBoothFolderUri}!children`,
+        `${PARENT_FOLDER_PATH}!children`,
         accessToken,
         accessTokenSecret,
         albumData
@@ -268,7 +192,7 @@ async function createGallery(
     } catch (createError: any) {
       if (createError.message.includes('409')) {
         console.log('Album creation returned 409, searching again...');
-        const retryResponse = await makeSmugMugRequest('GET', `${aiPhotoBoothFolderUri}!children`, accessToken, accessTokenSecret);
+        const retryResponse = await makeSmugMugRequest('GET', `${PARENT_FOLDER_PATH}!children`, accessToken, accessTokenSecret);
         const retryNodes = retryResponse.Response.Node || [];
         for (const node of retryNodes) {
           if (node.Type === 'Album' && (node.Name === galleryName || node.UrlName === albumData.UrlName)) {
