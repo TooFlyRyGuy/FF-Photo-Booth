@@ -1,5 +1,6 @@
 import { Tenant, Event, Prompt, SubscriptionTier } from '../types';
 import { supabase } from '../lib/supabase';
+import { compressBase64Image } from './imageCompression';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -418,7 +419,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
     const { data: eventPromptsData } = await supabase
       .from('event_prompts')
-      .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
+      .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed, preview_image_url, reference_image_url)')
       .in('event_id', eventIds)
       .order('display_order', { ascending: true });
 
@@ -433,8 +434,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
           description: ep.prompts.description,
           category: ep.prompts.category,
           promptText: ep.prompts.prompt_text,
-          previewImage: ep.prompts.preview_image_url || '',
-          referenceImage: ep.prompts.reference_image_url || '',
+          previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
+          referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
         });
       }
     });
@@ -490,7 +491,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
 
   const { data: eventPromptsData } = await supabase
     .from('event_prompts')
-    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
+    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed, preview_image_url, reference_image_url)')
     .eq('event_id', eventId)
     .order('display_order', { ascending: true });
 
@@ -500,8 +501,8 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     description: ep.prompts.description,
     category: ep.prompts.category,
     promptText: ep.prompts.prompt_text,
-    previewImage: ep.prompts.preview_image_url || '',
-    referenceImage: ep.prompts.reference_image_url || '',
+    previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
+    referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
   })) || [];
 
   return {
@@ -539,7 +540,7 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
 
   const { data, error } = await supabase
     .from('prompts')
-    .select('id, name, description, category, prompt_text, preview_image_url, reference_image_url, tags')
+    .select('id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed, preview_image_url, reference_image_url, tags')
     .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
@@ -554,8 +555,8 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
     description: prompt.description,
     category: prompt.category,
     promptText: prompt.prompt_text,
-    previewImage: prompt.preview_image_url || '',
-    referenceImage: prompt.reference_image_url || '',
+    previewImage: prompt.preview_image_compressed || prompt.preview_image_url || '',
+    referenceImage: prompt.reference_image_compressed || prompt.reference_image_url || '',
   }));
 
   cachedPrompts = prompts;
@@ -751,6 +752,13 @@ export const saveEvent = async (event: Event): Promise<Event> => {
 export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
   const tenantId = await getUserTenantId();
 
+  const previewCompressed = prompt.previewImage
+    ? await compressBase64Image(prompt.previewImage, 400, 0.7)
+    : null;
+  const referenceCompressed = prompt.referenceImage
+    ? await compressBase64Image(prompt.referenceImage, 600, 0.7)
+    : null;
+
   const { data, error } = await supabase
     .from('prompts')
     .insert({
@@ -761,6 +769,8 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
       prompt_text: prompt.promptText,
       preview_image_url: prompt.previewImage,
       reference_image_url: prompt.referenceImage,
+      preview_image_compressed: previewCompressed,
+      reference_image_compressed: referenceCompressed,
       is_active: true,
     })
     .select()
@@ -782,8 +792,8 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
     description: data.description,
     category: data.category,
     promptText: data.prompt_text,
-    previewImage: data.preview_image_url,
-    referenceImage: data.reference_image_url,
+    previewImage: data.preview_image_compressed || data.preview_image_url,
+    referenceImage: data.reference_image_compressed || data.reference_image_url,
   };
 };
 
@@ -794,8 +804,14 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
   if (prompt.description !== undefined) updates.description = prompt.description;
   if (prompt.category !== undefined) updates.category = prompt.category;
   if (prompt.promptText !== undefined) updates.prompt_text = prompt.promptText;
-  if (prompt.previewImage !== undefined) updates.preview_image_url = prompt.previewImage;
-  if (prompt.referenceImage !== undefined) updates.reference_image_url = prompt.referenceImage;
+  if (prompt.previewImage !== undefined) {
+    updates.preview_image_url = prompt.previewImage;
+    updates.preview_image_compressed = await compressBase64Image(prompt.previewImage, 400, 0.7);
+  }
+  if (prompt.referenceImage !== undefined) {
+    updates.reference_image_url = prompt.referenceImage;
+    updates.reference_image_compressed = await compressBase64Image(prompt.referenceImage, 600, 0.7);
+  }
 
   const { data, error } = await supabase
     .from('prompts')
