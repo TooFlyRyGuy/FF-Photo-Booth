@@ -392,44 +392,7 @@ export const getEvents = async (skipCache: boolean = false): Promise<Event[]> =>
 
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select(`
-      id,
-      name,
-      event_date,
-      city,
-      is_active,
-      passcode,
-      tenant_id,
-      aspect_ratio,
-      background_image_url,
-      logo_url,
-      overlay_image_url,
-      primary_color,
-      secondary_color,
-      accent_color,
-      hide_logo,
-      hide_event_name,
-      start_datetime,
-      end_datetime,
-      sms_message,
-      smugmug_gallery_key,
-      smugmug_gallery_url,
-      created_at,
-      event_prompts (
-        prompt_id,
-        display_order,
-        prompts (
-          id,
-          name,
-          description,
-          category,
-          prompt_text,
-          preview_image_url,
-          reference_image_url,
-          tags
-        )
-      )
-    `)
+    .select('id, name, event_date, city, is_active, passcode, tenant_id, aspect_ratio, background_image_url, logo_url, overlay_image_url, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, created_at')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
@@ -439,6 +402,38 @@ export const getEvents = async (skipCache: boolean = false): Promise<Event[]> =>
   }
 
   console.log('✅ getEvents - found', eventsData?.length || 0, 'events');
+
+  if (!eventsData || eventsData.length === 0) {
+    cachedEvents = [];
+    eventsCacheTimestamp = Date.now();
+    return [];
+  }
+
+  const eventIds = eventsData.map(e => e.id);
+
+  const { data: eventPromptsData } = await supabase
+    .from('event_prompts')
+    .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
+    .in('event_id', eventIds)
+    .order('display_order', { ascending: true });
+
+  const promptsByEvent = new Map<string, any[]>();
+  eventPromptsData?.forEach((ep: any) => {
+    if (!promptsByEvent.has(ep.event_id)) {
+      promptsByEvent.set(ep.event_id, []);
+    }
+    if (ep.prompts) {
+      promptsByEvent.get(ep.event_id)!.push({
+        id: ep.prompts.id,
+        name: ep.prompts.name,
+        description: ep.prompts.description,
+        category: ep.prompts.category,
+        promptText: ep.prompts.prompt_text,
+        previewImage: ep.prompts.preview_image_url || '',
+        referenceImage: ep.prompts.reference_image_url || '',
+      });
+    }
+  });
 
   const events = eventsData.map((event: any) => ({
     id: event.id,
@@ -462,17 +457,7 @@ export const getEvents = async (skipCache: boolean = false): Promise<Event[]> =>
     smsMessage: event.sms_message,
     smugmugGalleryKey: event.smugmug_gallery_key,
     smugmugGalleryUrl: event.smugmug_gallery_url,
-    prompts: event.event_prompts
-      .filter((ep: any) => ep.prompts !== null)
-      .map((ep: any) => ({
-        id: ep.prompts.id,
-        name: ep.prompts.name,
-        description: ep.prompts.description,
-        category: ep.prompts.category,
-        promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_url || '',
-        referenceImage: ep.prompts.reference_image_url || '',
-      }))
+    prompts: promptsByEvent.get(event.id) || []
   }));
 
   cachedEvents = events;
