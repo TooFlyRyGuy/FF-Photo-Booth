@@ -59,7 +59,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
   const loadPrompts = async () => {
     setLoading(true);
+    const startTime = performance.now();
+
     try {
+      console.log('[PromptLibrary] Starting query...');
+
       const { data, error } = await supabase
         .from('prompts')
         .select('id, name, description, category, tags, usage_count, tenant_id, preview_image_url')
@@ -68,7 +72,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         .order('usage_count', { ascending: false })
         .limit(100);
 
+      const queryTime = performance.now() - startTime;
+      console.log(`[PromptLibrary] Query completed in ${queryTime.toFixed(2)}ms`);
+
       if (error) throw error;
+
+      console.log(`[PromptLibrary] Processing ${data?.length || 0} prompts...`);
 
       const mappedPrompts = (data || []).map(p => ({
         id: p.id,
@@ -87,6 +96,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       setPrompts(mappedPrompts);
       extractAllTags(mappedPrompts);
       extractAllCategories(mappedPrompts);
+
+      const totalTime = performance.now() - startTime;
+      console.log(`[PromptLibrary] Total load time: ${totalTime.toFixed(2)}ms`);
     } catch (error) {
       console.error('Error loading prompts:', error);
     } finally {
