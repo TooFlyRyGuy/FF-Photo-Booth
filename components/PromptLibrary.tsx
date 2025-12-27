@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { getPrompts as getPromptsFromService } from '../services/backendService';
 import { compressBase64Image } from '../services/imageCompression';
