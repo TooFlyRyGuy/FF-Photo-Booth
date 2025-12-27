@@ -11,6 +11,10 @@ let cachedPrompts: Prompt[] | null = null;
 let promptsCacheTimestamp: number | null = null;
 const PROMPTS_CACHE_TTL = 300000;
 
+let cachedEvents: Event[] | null = null;
+let eventsCacheTimestamp: number | null = null;
+const EVENTS_CACHE_TTL = 30000;
+
 let cachedGlobalSettings: Record<string, string> | null = null;
 let globalSettingsCacheTimestamp: number | null = null;
 const GLOBAL_SETTINGS_CACHE_TTL = 60000;
@@ -52,6 +56,11 @@ export const clearTenantCache = () => {
 export const clearPromptsCache = () => {
   cachedPrompts = null;
   promptsCacheTimestamp = null;
+};
+
+export const clearEventsCache = () => {
+  cachedEvents = null;
+  eventsCacheTimestamp = null;
 };
 
 export const clearGlobalSettingsCache = () => {
@@ -371,8 +380,14 @@ export const updateGlobalSettings = async (settings: Record<string, any>): Promi
   console.log('Global settings updated successfully');
 };
 
-export const getEvents = async (): Promise<Event[]> => {
+export const getEvents = async (skipCache: boolean = false): Promise<Event[]> => {
   const tenantId = await getUserTenantId();
+
+  if (!skipCache && cachedEvents && eventsCacheTimestamp && Date.now() - eventsCacheTimestamp < EVENTS_CACHE_TTL) {
+    console.log('🔍 getEvents - using cached events');
+    return cachedEvents;
+  }
+
   console.log('🔍 getEvents - fetching events for tenant:', tenantId);
 
   const { data: eventsData, error: eventsError } = await supabase
@@ -425,7 +440,7 @@ export const getEvents = async (): Promise<Event[]> => {
 
   console.log('✅ getEvents - found', eventsData?.length || 0, 'events');
 
-  return eventsData.map((event: any) => ({
+  const events = eventsData.map((event: any) => ({
     id: event.id,
     name: event.name,
     date: event.event_date,
@@ -459,6 +474,11 @@ export const getEvents = async (): Promise<Event[]> => {
         referenceImage: ep.prompts.reference_image_url || '',
       }))
   }));
+
+  cachedEvents = events;
+  eventsCacheTimestamp = Date.now();
+
+  return events;
 };
 
 export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> => {
@@ -607,6 +627,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
       }
     }
 
+    clearEventsCache();
     return { ...event, id: data.id, smugmugGalleryKey, smugmugGalleryUrl };
   } else {
     const { data, error } = await supabase
@@ -673,6 +694,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
       }
     }
 
+    clearEventsCache();
     return event;
   }
 };
@@ -961,6 +983,8 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
   if (error) {
     throw new Error(`Failed to delete event: ${error.message}`);
   }
+
+  clearEventsCache();
 };
 
 export interface DashboardStats {
