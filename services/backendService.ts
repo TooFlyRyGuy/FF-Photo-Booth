@@ -1,6 +1,5 @@
 import { Tenant, Event, Prompt, SubscriptionTier } from '../types';
 import { supabase } from '../lib/supabase';
-import { compressBase64Image } from './imageCompression';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -67,6 +66,82 @@ export const clearEventsCache = () => {
 export const clearGlobalSettingsCache = () => {
   cachedGlobalSettings = null;
   globalSettingsCacheTimestamp = null;
+};
+
+const base64ToBlob = (base64: string): Blob => {
+  const parts = base64.split(';base64,');
+  const contentType = parts[0].split(':')[1];
+  const raw = window.atob(parts[1]);
+  const rawLength = raw.length;
+  const uInt8Array = new Uint8Array(rawLength);
+
+  for (let i = 0; i < rawLength; ++i) {
+    uInt8Array[i] = raw.charCodeAt(i);
+  }
+
+  return new Blob([uInt8Array], { type: contentType });
+};
+
+const uploadImageToStorage = async (
+  base64Image: string,
+  folder: 'preview' | 'reference',
+  promptId?: string
+): Promise<string> => {
+  if (!base64Image || !base64Image.startsWith('data:image')) {
+    throw new Error('Invalid image data');
+  }
+
+  const blob = base64ToBlob(base64Image);
+  const fileExtension = base64Image.includes('image/png') ? 'png' : 'jpg';
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(7);
+  const fileName = promptId
+    ? `${folder}/${promptId}_${timestamp}.${fileExtension}`
+    : `${folder}/${timestamp}_${randomId}.${fileExtension}`;
+
+  const { data, error } = await supabase.storage
+    .from('prompt-images')
+    .upload(fileName, blob, {
+      contentType: blob.type,
+      upsert: false,
+    });
+
+  if (error) {
+    console.error('Failed to upload image to storage:', error);
+    throw new Error(`Failed to upload image: ${error.message}`);
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('prompt-images')
+    .getPublicUrl(data.path);
+
+  console.log(`✅ Uploaded image to storage: ${publicUrl}`);
+  return publicUrl;
+};
+
+const deleteImageFromStorage = async (imageUrl: string): Promise<void> => {
+  if (!imageUrl || !imageUrl.includes('prompt-images')) {
+    return;
+  }
+
+  try {
+    const urlParts = imageUrl.split('/prompt-images/');
+    if (urlParts.length !== 2) return;
+
+    const filePath = urlParts[1];
+
+    const { error } = await supabase.storage
+      .from('prompt-images')
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Failed to delete image from storage:', error);
+    } else {
+      console.log(`✅ Deleted image from storage: ${filePath}`);
+    }
+  } catch (error) {
+    console.error('Error deleting image from storage:', error);
+  }
 };
 
 const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
@@ -419,7 +494,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
     const { data: eventPromptsData } = await supabase
       .from('event_prompts')
-      .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed, preview_image_url, reference_image_url)')
+      .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
       .in('event_id', eventIds)
       .order('display_order', { ascending: true });
 
@@ -434,8 +509,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
           description: ep.prompts.description,
           category: ep.prompts.category,
           promptText: ep.prompts.prompt_text,
-          previewImage: ep.prompts.preview_image_compressed || ep.prompts.preview_image_url || '',
-          referenceImage: ep.prompts.reference_image_compressed || ep.prompts.reference_image_url || '',
+          previewImage: ep.prompts.preview_image_url || '',
+          referenceImage: ep.prompts.reference_image_url || '',
         });
       }
     });
@@ -491,7 +566,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
 
   const { data: eventPromptsData } = await supabase
     .from('event_prompts')
-    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed)')
+    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
     .eq('event_id', eventId)
     .order('display_order', { ascending: true });
 
@@ -501,8 +576,8 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     description: ep.prompts.description,
     category: ep.prompts.category,
     promptText: ep.prompts.prompt_text,
-    previewImage: ep.prompts.preview_image_compressed || '',
-    referenceImage: ep.prompts.reference_image_compressed || '',
+    previewImage: ep.prompts.preview_image_url || '',
+    referenceImage: ep.prompts.reference_image_url || '',
   })) || [];
 
   return {
@@ -569,7 +644,7 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
 export const getPromptById = async (promptId: string): Promise<Prompt> => {
   const { data, error } = await supabase
     .from('prompts')
-    .select('id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed, preview_image_url, reference_image_url, tags')
+    .select('id, name, description, category, prompt_text, preview_image_url, reference_image_url, tags')
     .eq('id', promptId)
     .maybeSingle();
 
@@ -587,8 +662,8 @@ export const getPromptById = async (promptId: string): Promise<Prompt> => {
     description: data.description,
     category: data.category,
     promptText: data.prompt_text,
-    previewImage: data.preview_image_compressed || data.preview_image_url || '',
-    referenceImage: data.reference_image_compressed || data.reference_image_url || '',
+    previewImage: data.preview_image_url || '',
+    referenceImage: data.reference_image_url || '',
     tags: data.tags || []
   };
 };
@@ -780,12 +855,16 @@ export const saveEvent = async (event: Event): Promise<Event> => {
 export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
   const tenantId = await getUserTenantId();
 
-  const previewCompressed = prompt.previewImage
-    ? await compressBase64Image(prompt.previewImage, 400, 0.7)
-    : null;
-  const referenceCompressed = prompt.referenceImage
-    ? await compressBase64Image(prompt.referenceImage, 600, 0.7)
-    : null;
+  let previewUrl = null;
+  let referenceUrl = null;
+
+  if (prompt.previewImage && prompt.previewImage.startsWith('data:image')) {
+    previewUrl = await uploadImageToStorage(prompt.previewImage, 'preview');
+  }
+
+  if (prompt.referenceImage && prompt.referenceImage.startsWith('data:image')) {
+    referenceUrl = await uploadImageToStorage(prompt.referenceImage, 'reference');
+  }
 
   const { data, error } = await supabase
     .from('prompts')
@@ -795,10 +874,10 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
       description: prompt.description,
       category: prompt.category,
       prompt_text: prompt.promptText,
-      preview_image_url: prompt.previewImage,
-      reference_image_url: prompt.referenceImage,
-      preview_image_compressed: previewCompressed,
-      reference_image_compressed: referenceCompressed,
+      preview_image_url: previewUrl || prompt.previewImage,
+      reference_image_url: referenceUrl || prompt.referenceImage,
+      preview_image_compressed: null,
+      reference_image_compressed: null,
       is_active: true,
     })
     .select()
@@ -820,25 +899,47 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
     description: data.description,
     category: data.category,
     promptText: data.prompt_text,
-    previewImage: data.preview_image_compressed || data.preview_image_url,
-    referenceImage: data.reference_image_compressed || data.reference_image_url,
+    previewImage: data.preview_image_url || '',
+    referenceImage: data.reference_image_url || '',
   };
 };
 
 export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): Promise<Prompt> => {
+  const { data: existingPrompt } = await supabase
+    .from('prompts')
+    .select('preview_image_url, reference_image_url')
+    .eq('id', promptId)
+    .maybeSingle();
+
   const updates: any = {};
 
   if (prompt.name !== undefined) updates.name = prompt.name;
   if (prompt.description !== undefined) updates.description = prompt.description;
   if (prompt.category !== undefined) updates.category = prompt.category;
   if (prompt.promptText !== undefined) updates.prompt_text = prompt.promptText;
+
   if (prompt.previewImage !== undefined) {
-    updates.preview_image_url = prompt.previewImage;
-    updates.preview_image_compressed = await compressBase64Image(prompt.previewImage, 400, 0.7);
+    if (prompt.previewImage.startsWith('data:image')) {
+      if (existingPrompt?.preview_image_url) {
+        await deleteImageFromStorage(existingPrompt.preview_image_url);
+      }
+      updates.preview_image_url = await uploadImageToStorage(prompt.previewImage, 'preview', promptId);
+    } else {
+      updates.preview_image_url = prompt.previewImage;
+    }
+    updates.preview_image_compressed = null;
   }
+
   if (prompt.referenceImage !== undefined) {
-    updates.reference_image_url = prompt.referenceImage;
-    updates.reference_image_compressed = await compressBase64Image(prompt.referenceImage, 600, 0.7);
+    if (prompt.referenceImage.startsWith('data:image')) {
+      if (existingPrompt?.reference_image_url) {
+        await deleteImageFromStorage(existingPrompt.reference_image_url);
+      }
+      updates.reference_image_url = await uploadImageToStorage(prompt.referenceImage, 'reference', promptId);
+    } else {
+      updates.reference_image_url = prompt.referenceImage;
+    }
+    updates.reference_image_compressed = null;
   }
 
   const { data, error } = await supabase
@@ -864,12 +965,18 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
     description: data.description,
     category: data.category,
     promptText: data.prompt_text,
-    previewImage: data.preview_image_url,
-    referenceImage: data.reference_image_url,
+    previewImage: data.preview_image_url || '',
+    referenceImage: data.reference_image_url || '',
   };
 };
 
 export const deletePrompt = async (promptId: string): Promise<void> => {
+  const { data: promptData } = await supabase
+    .from('prompts')
+    .select('preview_image_url, reference_image_url')
+    .eq('id', promptId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('prompts')
     .update({ is_active: false })
@@ -877,6 +984,14 @@ export const deletePrompt = async (promptId: string): Promise<void> => {
 
   if (error) {
     throw new Error(`Failed to delete prompt: ${error.message}`);
+  }
+
+  if (promptData?.preview_image_url) {
+    await deleteImageFromStorage(promptData.preview_image_url);
+  }
+
+  if (promptData?.reference_image_url) {
+    await deleteImageFromStorage(promptData.reference_image_url);
   }
 
   clearPromptsCache();
@@ -946,8 +1061,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
           description,
           category,
           prompt_text,
-          preview_image_compressed,
-          reference_image_compressed
+          preview_image_url,
+          reference_image_url
         )
       )
     `)
@@ -993,8 +1108,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
         description: ep.prompts.description,
         category: ep.prompts.category,
         promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_compressed || '',
-        referenceImage: ep.prompts.reference_image_compressed || '',
+        previewImage: ep.prompts.preview_image_url || '',
+        referenceImage: ep.prompts.reference_image_url || '',
       }))
   };
 };
