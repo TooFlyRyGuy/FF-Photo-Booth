@@ -325,7 +325,7 @@ async function uploadImage(
       oauth_version: '1.0',
     };
 
-    const signatureBaseUrl = 'http://upload.smugmug.com/';
+    const signatureBaseUrl = 'https://upload.smugmug.com/';
 
     const signature = await generateSignature(
       'POST',
@@ -414,11 +414,11 @@ async function uploadImage(
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
-
   try {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { status: 200, headers: corsHeaders });
+    }
+
     console.log('=== SMUGMUG API REQUEST ===');
     console.log('Environment check:', {
       hasApiKey: !!SMUGMUG_API_KEY,
@@ -503,24 +503,29 @@ Deno.serve(async (req: Request) => {
     throw new Error('Invalid action');
   } catch (error: any) {
     console.error('SmugMug API error:', error);
+    console.error('Error stack:', error.stack);
 
-    if (error.message.includes('401') || error.message.includes('OAuth')) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    try {
+      if (error.message.includes('401') || error.message.includes('OAuth')) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const { data: settings } = await supabase
-        .from('global_settings')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
-
-      if (settings) {
-        await supabase
+        const { data: settings } = await supabase
           .from('global_settings')
-          .update({ smugmug_connection_status: 'needs_attention' })
-          .eq('id', settings.id);
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+
+        if (settings) {
+          await supabase
+            .from('global_settings')
+            .update({ smugmug_connection_status: 'needs_attention' })
+            .eq('id', settings.id);
+        }
       }
+    } catch (dbError) {
+      console.error('Failed to update connection status:', dbError);
     }
 
     return new Response(

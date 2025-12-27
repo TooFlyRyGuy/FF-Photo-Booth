@@ -41,24 +41,38 @@ export async function uploadToSmugMug(
   fileName: string,
   anonKey: string
 ): Promise<SmugMugUploadResult> {
-  const response = await fetch(SMUGMUG_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${anonKey}`,
-    },
-    body: JSON.stringify({
-      action: 'upload_image',
-      galleryKey,
-      imageData,
-      fileName,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to upload to SmugMug');
+  try {
+    const response = await fetch(SMUGMUG_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify({
+        action: 'upload_image',
+        galleryKey,
+        imageData,
+        fileName,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload to SmugMug');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('SmugMug upload timeout after 3 seconds');
+    }
+    throw error;
   }
-
-  return await response.json();
 }
