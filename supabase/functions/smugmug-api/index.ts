@@ -325,13 +325,17 @@ async function uploadImage(
       oauth_version: '1.0',
     };
 
+    const signatureBaseUrl = 'http://upload.smugmug.com/';
+
     const signature = await generateSignature(
       'POST',
-      SMUGMUG_UPLOAD_BASE,
+      signatureBaseUrl,
       oauthParams,
       SMUGMUG_API_SECRET,
       accessTokenSecret
     );
+
+    console.log(`Generated signature using base URL: ${signatureBaseUrl}`);
 
     oauthParams.oauth_signature = signature;
 
