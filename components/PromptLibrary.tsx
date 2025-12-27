@@ -49,8 +49,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   const [generationError, setGenerationError] = useState<string>('');
   const [displayLimit, setDisplayLimit] = useState(10);
   const hasLoadedRef = useRef(false);
-  const [loadedImages, setLoadedImages] = useState<Map<string, string>>(new Map());
-  const loadingImagesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
@@ -58,15 +56,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       loadPrompts();
     }
   }, [tenantId]);
-
-  useEffect(() => {
-    const displayed = filteredPrompts.slice(0, displayLimit);
-    displayed.forEach(prompt => {
-      if (!loadedImages.has(prompt.id) && !loadingImagesRef.current.has(prompt.id)) {
-        loadPromptImage(prompt.id);
-      }
-    });
-  }, [filteredPrompts, displayLimit, loadedImages]);
 
   useEffect(() => {
     filterPrompts();
@@ -82,7 +71,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, usage_count, tenant_id')
+        .select('id, name, description, category, tags, usage_count, tenant_id, preview_image_compressed')
         .eq('is_active', true)
         .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
         .order('usage_count', { ascending: false })
@@ -101,7 +90,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         description: p.description || '',
         category: p.category || 'Custom',
         promptText: '',
-        previewImage: '',
+        previewImage: p.preview_image_compressed || '',
         referenceImage: null,
         tags: p.tags || [],
         isActive: true,
@@ -167,34 +156,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setSelectedTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
-  };
-
-  const loadPromptImage = async (promptId: string) => {
-    loadingImagesRef.current.add(promptId);
-
-    try {
-      const { data, error } = await supabase
-        .from('prompts')
-        .select('preview_image_compressed, preview_image_url')
-        .eq('id', promptId)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      const imageUrl = data?.preview_image_compressed || data?.preview_image_url;
-
-      if (imageUrl) {
-        setLoadedImages(prev => {
-          const newMap = new Map(prev);
-          newMap.set(promptId, imageUrl);
-          return newMap;
-        });
-      }
-    } catch (error) {
-      console.error(`Failed to load image for prompt ${promptId}:`, error);
-    } finally {
-      loadingImagesRef.current.delete(promptId);
-    }
   };
 
   const handleCreateNew = () => {
@@ -746,9 +707,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                   className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden hover:shadow-lg transition-all"
                 >
                   <div className="relative aspect-video bg-slate-200">
-                    {loadedImages.get(prompt.id) ? (
+                    {prompt.previewImage ? (
                       <img
-                        src={loadedImages.get(prompt.id)}
+                        src={prompt.previewImage}
                         alt={prompt.name}
                         className="w-full h-full object-cover"
                       />
