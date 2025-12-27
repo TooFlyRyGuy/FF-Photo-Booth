@@ -5,7 +5,7 @@ import { crypto as stdCrypto } from "jsr:@std/crypto@1.0.3";
 const SMUGMUG_API_KEY = Deno.env.get('SMUGMUG_API_KEY')!;
 const SMUGMUG_API_SECRET = Deno.env.get('SMUGMUG_API_SECRET')!;
 const SMUGMUG_API_BASE = "https://api.smugmug.com/api/v2";
-const SMUGMUG_UPLOAD_BASE = "https://upload.smugmug.com";
+const SMUGMUG_UPLOAD_BASE = "https://upload.smugmug.com/";
 const API_TIMEOUT_MS = 15000;
 const UPLOAD_TIMEOUT_MS = 25000;
 
@@ -325,17 +325,15 @@ async function uploadImage(
       oauth_version: '1.0',
     };
 
-    const signatureBaseUrl = 'https://upload.smugmug.com/';
-
     const signature = await generateSignature(
       'POST',
-      signatureBaseUrl,
+      SMUGMUG_UPLOAD_BASE,
       oauthParams,
       SMUGMUG_API_SECRET,
       accessTokenSecret
     );
 
-    console.log(`Generated signature using base URL: ${signatureBaseUrl}`);
+    console.log(`Generated signature using base URL: ${SMUGMUG_UPLOAD_BASE}`);
 
     oauthParams.oauth_signature = signature;
 
@@ -344,12 +342,14 @@ async function uploadImage(
       .map(key => `${key}=\"${percentEncode(oauthParams[key])}\"`)      .join(', ');
 
     console.log(`Uploading to album URI: ${galleryUri}`);
+    console.log(`Upload URL: ${SMUGMUG_UPLOAD_BASE}`);
     console.log(`OAuth params used:`, {
       consumer_key: SMUGMUG_API_KEY?.substring(0, 10) + '...',
       token: accessToken?.substring(0, 10) + '...',
       timestamp,
       nonce: nonce.substring(0, 10) + '...',
     });
+    console.log(`Auth header (first 150 chars): ${authHeader.substring(0, 150)}...`);
 
     const response = await fetchWithTimeout(SMUGMUG_UPLOAD_BASE, {
       method: 'POST',

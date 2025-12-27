@@ -42,7 +42,7 @@ export async function uploadToSmugMug(
   anonKey: string
 ): Promise<SmugMugUploadResult> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
     const response = await fetch(SMUGMUG_API_URL, {
@@ -71,7 +71,7 @@ export async function uploadToSmugMug(
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      throw new Error('SmugMug upload timeout after 3 seconds');
+      throw new Error('SmugMug upload timeout after 10 seconds');
     }
     throw error;
   }
