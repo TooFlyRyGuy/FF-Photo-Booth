@@ -6,6 +6,7 @@ const SMUGMUG_API_KEY = Deno.env.get('SMUGMUG_API_KEY')!;
 const SMUGMUG_API_SECRET = Deno.env.get('SMUGMUG_API_SECRET')!;
 const SMUGMUG_API_BASE = "https://api.smugmug.com/api/v2";
 const SMUGMUG_UPLOAD_BASE = "https://upload.smugmug.com";
+const API_TIMEOUT_MS = 30000;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,26 @@ function generateNonce(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = API_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
 }
 
 function generateTimestamp(): string {
@@ -124,7 +145,7 @@ async function makeSmugMugRequest(
     headers['Content-Type'] = 'application/json';
   }
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -142,14 +163,28 @@ async function createGallery(
   accessToken: string,
   accessTokenSecret: string,
   galleryName: string,
-  visibility: string
+  visibility: string,
+  supabase: any,
+  cachedUsername?: string
 ): Promise<{ galleryId: string; galleryUrl: string }> {
   try {
     console.log(`Creating SmugMug gallery: ${galleryName}`);
 
-    const userResponse = await makeSmugMugRequest('GET', '/api/v2!authuser', accessToken, accessTokenSecret);
-    const username = userResponse.Response.User.NickName;
-    console.log(`Got username: ${username}`);
+    let username = cachedUsername;
+
+    if (!username) {
+      console.log('Fetching SmugMug username...');
+      const userResponse = await makeSmugMugRequest('GET', '/api/v2!authuser', accessToken, accessTokenSecret);
+      username = userResponse.Response.User.NickName;
+      console.log(`Got username: ${username}`);
+
+      await supabase
+        .from('global_settings')
+        .update({ smugmug_username: username })
+        .limit(1);
+    } else {
+      console.log(`Using cached username: ${username}`);
+    }
 
     const FOLDER_PATH = `/api/v2/folder/user/${username}/Photo-Booth-Galleries/AI-photo-booth`;
     console.log('Using folder path:', FOLDER_PATH);
@@ -301,7 +336,7 @@ async function uploadImage(
     const albumUri = `/api/v2/album/${galleryKey}`;
     console.log(`Uploading to album URI: ${albumUri}`);
 
-    const response = await fetch(SMUGMUG_UPLOAD_BASE, {
+    const response = await fetchWithTimeout(SMUGMUG_UPLOAD_BASE, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
@@ -314,7 +349,7 @@ async function uploadImage(
         'X-Smug-Version': 'v2',
       },
       body: imageBuffer,
-    });
+    }, 45000);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -379,7 +414,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: settings } = await supabase
       .from('global_settings')
-      .select('id, smugmug_oauth_token, smugmug_oauth_token_secret, smugmug_connection_status')
+      .select('id, smugmug_oauth_token, smugmug_oauth_token_secret, smugmug_connection_status, smugmug_username')
       .limit(1)
       .maybeSingle();
 
@@ -398,7 +433,9 @@ Deno.serve(async (req: Request) => {
         settings.smugmug_oauth_token,
         settings.smugmug_oauth_token_secret,
         galleryName,
-        visibility
+        visibility,
+        supabase,
+        settings.smugmug_username
       );
 
       return new Response(
