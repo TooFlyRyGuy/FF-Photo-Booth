@@ -103,6 +103,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
+  const handleLaunchKiosk = async (event: Event) => {
+    try {
+      const fullEvent = await getEventById(event.id);
+      onLaunchKiosk(fullEvent);
+    } catch (error) {
+      console.error('Failed to load event for kiosk:', error);
+      alert('Failed to launch kiosk mode. Please try again.');
+    }
+  };
+
   const loadUserProfile = async () => {
     if (!user) return;
 
@@ -641,7 +651,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       <Link2 size={16} /> Copy Link
                     </button>
                     <button
-                      onClick={() => onLaunchKiosk(event)}
+                      onClick={() => handleLaunchKiosk(event)}
                       className="px-4 py-2 rounded-md bg-green-700 hover:bg-green-800 text-white text-sm font-medium shadow-lg shadow-green-900/20"
                     >
                       Launch Kiosk
