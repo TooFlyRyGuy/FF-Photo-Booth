@@ -146,19 +146,23 @@ async function createGallery(
   try {
     console.log(`Creating SmugMug gallery: ${galleryName}`);
 
-    const PARENT_FOLDER_PATH = '/api/v2/node/Photo-Booth-Galleries/AI-photo-booth';
-    console.log('Using hard-coded parent folder path:', PARENT_FOLDER_PATH);
+    const userResponse = await makeSmugMugRequest('GET', '/api/v2!authuser', accessToken, accessTokenSecret);
+    const username = userResponse.Response.User.NickName;
+    console.log(`Got username: ${username}`);
+
+    const FOLDER_PATH = `/api/v2/folder/user/${username}/Photo-Booth-Galleries/AI-photo-booth`;
+    console.log('Using folder path:', FOLDER_PATH);
 
     const privacyLevel = visibility === 'public' ? 'Public' : 'Unlisted';
 
-    const childrenResponse = await makeSmugMugRequest('GET', `${PARENT_FOLDER_PATH}!children`, accessToken, accessTokenSecret);
-    const nodes = childrenResponse.Response.Node || [];
+    const albumsResponse = await makeSmugMugRequest('GET', `${FOLDER_PATH}!albums`, accessToken, accessTokenSecret);
+    const albums = albumsResponse.Response.Album || [];
 
-    for (const node of nodes) {
-      if (node.Type === 'Album' && node.Name === galleryName) {
+    for (const album of albums) {
+      if (album.Title === galleryName || album.Name === galleryName) {
         console.log(`Found existing album: ${galleryName}`);
-        const albumKey = node.AlbumKey || node.NodeID;
-        const webUrl = node.WebUri || node.UrlPath || '';
+        const albumKey = album.AlbumKey;
+        const webUrl = album.WebUri || album.UrlPath || '';
         const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
 
         return {
@@ -168,10 +172,10 @@ async function createGallery(
       }
     }
 
+    const niceName = createUrlName(galleryName, 60);
     const albumData = {
-      Type: 'Album',
-      Name: galleryName,
-      UrlName: createUrlName(galleryName, 60),
+      Title: galleryName,
+      NiceName: niceName,
       Privacy: privacyLevel,
       SortMethod: 'DateUploaded',
       SortDirection: 'Descending',
@@ -184,7 +188,7 @@ async function createGallery(
     try {
       response = await makeSmugMugRequest(
         'POST',
-        `${PARENT_FOLDER_PATH}!children`,
+        `${FOLDER_PATH}!albums`,
         accessToken,
         accessTokenSecret,
         albumData
@@ -192,13 +196,13 @@ async function createGallery(
     } catch (createError: any) {
       if (createError.message.includes('409')) {
         console.log('Album creation returned 409, searching again...');
-        const retryResponse = await makeSmugMugRequest('GET', `${PARENT_FOLDER_PATH}!children`, accessToken, accessTokenSecret);
-        const retryNodes = retryResponse.Response.Node || [];
-        for (const node of retryNodes) {
-          if (node.Type === 'Album' && (node.Name === galleryName || node.UrlName === albumData.UrlName)) {
-            console.log(`Found album after 409: ${galleryName} (${node.UrlName})`);
-            const albumKey = node.AlbumKey || node.NodeID;
-            const webUrl = node.WebUri || node.UrlPath || '';
+        const retryResponse = await makeSmugMugRequest('GET', `${FOLDER_PATH}!albums`, accessToken, accessTokenSecret);
+        const retryAlbums = retryResponse.Response.Album || [];
+        for (const album of retryAlbums) {
+          if (album.Title === galleryName || album.NiceName === niceName) {
+            console.log(`Found album after 409: ${galleryName}`);
+            const albumKey = album.AlbumKey;
+            const webUrl = album.WebUri || album.UrlPath || '';
             const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
 
             return {
@@ -219,7 +223,6 @@ async function createGallery(
     }
 
     const albumKey = album.AlbumKey;
-    const albumUri = album.Uri;
 
     let webUrl = album.WebUri || '';
 
@@ -233,8 +236,7 @@ async function createGallery(
           webUrl = shareUri.Uri;
           break;
         }
-      }
-    }
+      }    }
 
     const fullUrl = webUrl.startsWith('http') ? webUrl : `https://www.smugmug.com${webUrl}`;
 
