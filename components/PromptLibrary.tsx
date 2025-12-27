@@ -61,7 +61,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     try {
       const { data, error } = await supabase
         .from('prompts')
-        .select('*')
+        .select('id, name, description, category, tags, is_active, usage_count, tenant_id, preview_image_compressed')
         .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
         .order('usage_count', { ascending: false });
 
@@ -72,9 +72,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         name: p.name,
         description: p.description || '',
         category: p.category || 'Custom',
-        promptText: p.prompt_text || '',
-        previewImage: p.preview_image_url || '',
-        referenceImage: p.reference_image_url,
+        promptText: '',
+        previewImage: p.preview_image_compressed || '',
+        referenceImage: null,
         tags: p.tags || [],
         isActive: p.is_active,
         usageCount: p.usage_count || 0,

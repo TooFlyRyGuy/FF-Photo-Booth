@@ -540,7 +540,7 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
 
   const { data, error } = await supabase
     .from('prompts')
-    .select('id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed, preview_image_url, reference_image_url, tags')
+    .select('id, name, description, category, tags')
     .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
@@ -554,15 +554,43 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
     name: prompt.name,
     description: prompt.description,
     category: prompt.category,
-    promptText: prompt.prompt_text,
-    previewImage: prompt.preview_image_compressed || prompt.preview_image_url || '',
-    referenceImage: prompt.reference_image_compressed || prompt.reference_image_url || '',
+    promptText: '',
+    previewImage: '',
+    referenceImage: '',
+    tags: prompt.tags || []
   }));
 
   cachedPrompts = prompts;
   promptsCacheTimestamp = Date.now();
 
   return prompts;
+};
+
+export const getPromptById = async (promptId: string): Promise<Prompt> => {
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('id, name, description, category, prompt_text, preview_image_compressed, reference_image_compressed, preview_image_url, reference_image_url, tags')
+    .eq('id', promptId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch prompt: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Prompt not found');
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    category: data.category,
+    promptText: data.prompt_text,
+    previewImage: data.preview_image_compressed || data.preview_image_url || '',
+    referenceImage: data.reference_image_compressed || data.reference_image_url || '',
+    tags: data.tags || []
+  };
 };
 
 const createSmugMugGalleryForEvent = async (eventName: string, eventDate: string): Promise<{ galleryKey: string; galleryUrl: string } | null> => {
