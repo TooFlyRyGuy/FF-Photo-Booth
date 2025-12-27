@@ -61,7 +61,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     try {
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, is_active, usage_count, tenant_id, preview_image_compressed')
+        .select('id, name, description, category, tags, is_active, usage_count, tenant_id')
         .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
         .order('usage_count', { ascending: false });
 
@@ -73,7 +73,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         description: p.description || '',
         category: p.category || 'Custom',
         promptText: '',
-        previewImage: p.preview_image_compressed || '',
+        previewImage: '',
         referenceImage: null,
         tags: p.tags || [],
         isActive: p.is_active,
@@ -583,9 +583,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           </div>
           <button
             onClick={onClose}
-            className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
+            className="px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex-shrink-0"
           >
-            ×
+            Finished
           </button>
         </div>
 

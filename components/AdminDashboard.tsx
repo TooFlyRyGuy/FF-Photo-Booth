@@ -1318,10 +1318,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         <PromptLibrary
           tenantId={tenant.id}
           eventId={promptLibraryEventContext}
+          selectedPrompts={editingEvent.prompts || []}
           onClose={() => {
             setShowPromptLibrary(false);
             setPromptLibraryEventContext(null);
-            loadData();
           }}
           onAddToEvent={(prompt) => {
             if (promptLibraryEventContext) {
