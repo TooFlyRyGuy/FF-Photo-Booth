@@ -336,6 +336,12 @@ async function uploadImage(
 
     const albumUri = `/api/v2/album/${galleryKey}`;
     console.log(`Uploading to album URI: ${albumUri}`);
+    console.log(`OAuth params used:`, {
+      consumer_key: SMUGMUG_API_KEY?.substring(0, 10) + '...',
+      token: accessToken?.substring(0, 10) + '...',
+      timestamp,
+      nonce: nonce.substring(0, 10) + '...',
+    });
 
     const response = await fetchWithTimeout(SMUGMUG_UPLOAD_BASE, {
       method: 'POST',
@@ -352,10 +358,14 @@ async function uploadImage(
       body: imageBuffer,
     }, UPLOAD_TIMEOUT_MS);
 
+    console.log(`Upload response status: ${response.status}`);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Upload failed: ${response.status} - ${errorText}`);
-      throw new Error(`SmugMug upload error: ${response.status} - ${errorText}`);
+      console.error(`Upload failed with status ${response.status}`);
+      console.error(`Response headers:`, Object.fromEntries(response.headers.entries()));
+      console.error(`Error response body: ${errorText}`);
+      throw new Error(`SmugMug upload error: ${response.status} - ${errorText || 'No error details provided'}`);
     }
 
     const result = await response.json();
@@ -428,6 +438,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const { action, galleryName, visibility, galleryKey, imageData, fileName } = await req.json();
+    console.log(`Action requested: ${action}`);
 
     if (action === 'create_gallery') {
       const result = await createGallery(
@@ -451,7 +462,14 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'upload_image') {
+      console.log(`Upload request - Gallery Key: ${galleryKey}, File: ${fileName}`);
+
       if (!galleryKey || !imageData || !fileName) {
+        console.error('Missing parameters:', {
+          hasGalleryKey: !!galleryKey,
+          hasImageData: !!imageData,
+          hasFileName: !!fileName
+        });
         throw new Error('Missing required parameters for upload');
       }
 
