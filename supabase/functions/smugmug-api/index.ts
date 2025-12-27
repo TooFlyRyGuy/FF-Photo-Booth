@@ -316,16 +316,25 @@ async function uploadImage(
     }
 
     const result = await response.json();
-    console.log('Upload response:', result);
+    console.log('Upload response:', JSON.stringify(result, null, 2));
 
-    const imageUrl = result.Image?.ImageUri || result.Image?.URL || result.Image?.Uri;
-
-    if (!imageUrl) {
-      console.error('No image URL in response:', result);
-      throw new Error('No image URL returned from SmugMug');
+    const image = result.Image;
+    if (!image) {
+      console.error('No Image object in response:', result);
+      throw new Error('No Image object returned from SmugMug');
     }
 
+    console.log('Image object:', JSON.stringify(image, null, 2));
+
+    const imageUri = image.ImageUri || image.Uri;
+    if (!imageUri) {
+      console.error('No ImageUri found. Available fields:', Object.keys(image));
+      throw new Error('No image URI returned from SmugMug');
+    }
+
+    const imageUrl = imageUri.startsWith('http') ? imageUri : `https://api.smugmug.com${imageUri}`;
     console.log(`Image uploaded successfully: ${imageUrl}`);
+
     return imageUrl;
   } catch (error) {
     console.error('Error uploading image:', error);
