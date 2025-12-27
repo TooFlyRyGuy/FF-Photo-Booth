@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.87.1";
+import { crypto as stdCrypto } from "jsr:@std/crypto@1.0.3";
 
 const SMUGMUG_API_KEY = Deno.env.get('SMUGMUG_API_KEY')!;
 const SMUGMUG_API_SECRET = Deno.env.get('SMUGMUG_API_SECRET')!;
@@ -267,7 +268,7 @@ async function uploadImage(
 
     console.log(`Image buffer size: ${imageBuffer.length} bytes`);
 
-    const md5Hash = await crypto.subtle.digest('MD5', imageBuffer);
+    const md5Hash = await stdCrypto.subtle.digest('MD5', imageBuffer);
     const md5Base64 = btoa(String.fromCharCode(...new Uint8Array(md5Hash)));
     console.log(`MD5 hash (base64): ${md5Base64}`);
 
