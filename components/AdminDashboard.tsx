@@ -28,6 +28,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Event Editor State
   const [editingEvent, setEditingEvent] = useState<Partial<Event>>({});
@@ -54,11 +56,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       loadData();
       loadDashboardData();
       loadUserProfile();
+    } else {
+      setIsLoading(false);
+      setLoadError('No user session found');
     }
   }, [user?.id]);
 
   const loadData = async () => {
     try {
+      setIsLoading(true);
+      setLoadError(null);
+
       const tenantData = await getTenant();
       if (!tenantData) {
         throw new Error('Unable to load tenant data');
@@ -72,10 +80,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         tenantId: tenantData?.id || 'unknown',
         events: (eventsData || []).length
       });
+
+      setIsLoading(false);
     } catch (error) {
       console.error('Failed to load data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Failed to load your data: ${errorMessage}. Please try logging out and back in.`);
+      setLoadError(errorMessage);
+      setIsLoading(false);
     }
   };
 
@@ -298,7 +309,56 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
-  if (!tenant) return <div className="flex h-screen items-center justify-center text-slate-900 bg-slate-100">Loading Dashboard...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-slate-900 bg-slate-100">
+        <div className="text-center">
+          <div className="text-xl font-semibold mb-2">Loading Dashboard...</div>
+          {loadError && (
+            <div className="mt-4 text-red-600">
+              <div className="font-semibold mb-2">Error:</div>
+              <div className="text-sm">{loadError}</div>
+              <button
+                onClick={() => {
+                  setLoadError(null);
+                  loadData();
+                }}
+                className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!tenant) {
+    return (
+      <div className="flex h-screen items-center justify-center text-slate-900 bg-slate-100">
+        <div className="text-center">
+          <div className="text-xl font-semibold text-red-600 mb-2">Unable to load dashboard</div>
+          <div className="text-sm text-slate-600 mb-4">{loadError || 'Unknown error'}</div>
+          <button
+            onClick={() => {
+              setLoadError(null);
+              loadData();
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 mr-2"
+          >
+            Retry
+          </button>
+          <button
+            onClick={onLogout}
+            className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const usagePercent = (tenant.usage.imagesUsed / tenant.usage.imagesLimit) * 100;
 
