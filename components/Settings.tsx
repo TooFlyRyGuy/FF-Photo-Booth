@@ -48,12 +48,6 @@ const Settings: React.FC<SettingsProps> = ({ tenant, onSave, isAdmin = false }) 
     }
   }, [isAdmin]);
 
-  useEffect(() => {
-    if (isAdmin) {
-      loadGlobalSettings();
-    }
-  }, []);
-
   const loadGlobalSettings = async () => {
     try {
       const settings = await getGlobalSettings();

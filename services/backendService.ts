@@ -11,6 +11,10 @@ let cachedPrompts: Prompt[] | null = null;
 let promptsCacheTimestamp: number | null = null;
 const PROMPTS_CACHE_TTL = 300000;
 
+let cachedGlobalSettings: Record<string, string> | null = null;
+let globalSettingsCacheTimestamp: number | null = null;
+const GLOBAL_SETTINGS_CACHE_TTL = 60000;
+
 const getUserTenantId = async (): Promise<string> => {
   if (cachedTenantId && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_TTL) {
     console.log('🔍 getUserTenantId - using cached tenant:', cachedTenantId);
@@ -48,6 +52,11 @@ export const clearTenantCache = () => {
 export const clearPromptsCache = () => {
   cachedPrompts = null;
   promptsCacheTimestamp = null;
+};
+
+export const clearGlobalSettingsCache = () => {
+  cachedGlobalSettings = null;
+  globalSettingsCacheTimestamp = null;
 };
 
 const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
@@ -235,41 +244,39 @@ export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<vo
   console.log('Tenant settings updated successfully');
 };
 
-export const getGlobalSettings = async (): Promise<Record<string, string>> => {
-  const { data: keyValueData, error: kvError } = await supabase
-    .from('global_settings')
-    .select('setting_key, setting_value');
+export const getGlobalSettings = async (skipCache: boolean = false): Promise<Record<string, string>> => {
+  if (!skipCache && cachedGlobalSettings && globalSettingsCacheTimestamp && Date.now() - globalSettingsCacheTimestamp < GLOBAL_SETTINGS_CACHE_TTL) {
+    return cachedGlobalSettings;
+  }
 
-  if (kvError) {
-    console.error('Failed to fetch global settings:', kvError);
-    throw new Error(`Failed to fetch global settings: ${kvError.message}`);
+  const { data: allData, error } = await supabase
+    .from('global_settings')
+    .select('setting_key, setting_value, smugmug_oauth_token, smugmug_user_nickname, smugmug_connection_status, smugmug_default_visibility, use_smugmug_for_sms');
+
+  if (error) {
+    console.error('Failed to fetch global settings:', error);
+    throw new Error(`Failed to fetch global settings: ${error.message}`);
   }
 
   const settings: Record<string, string> = {};
 
-  if (keyValueData) {
-    for (const row of keyValueData) {
+  if (allData && allData.length > 0) {
+    for (const row of allData) {
       if (row.setting_key && row.setting_value !== null) {
         settings[row.setting_key] = row.setting_value;
       }
     }
+
+    const firstRow = allData[0];
+    if (firstRow.smugmug_oauth_token) settings.smugmug_oauth_token = firstRow.smugmug_oauth_token;
+    if (firstRow.smugmug_user_nickname) settings.smugmug_user_nickname = firstRow.smugmug_user_nickname;
+    if (firstRow.smugmug_connection_status) settings.smugmug_connection_status = firstRow.smugmug_connection_status;
+    if (firstRow.smugmug_default_visibility) settings.smugmug_default_visibility = firstRow.smugmug_default_visibility;
+    if (firstRow.use_smugmug_for_sms !== undefined) settings.use_smugmug_for_sms = String(firstRow.use_smugmug_for_sms);
   }
 
-  const { data: specialData, error: specialError } = await supabase
-    .from('global_settings')
-    .select('smugmug_oauth_token, smugmug_user_nickname, smugmug_connection_status, smugmug_default_visibility, use_smugmug_for_sms')
-    .limit(1)
-    .maybeSingle();
-
-  if (specialError) {
-    console.error('Failed to fetch special global settings:', specialError);
-  } else if (specialData) {
-    if (specialData.smugmug_oauth_token) settings.smugmug_oauth_token = specialData.smugmug_oauth_token;
-    if (specialData.smugmug_user_nickname) settings.smugmug_user_nickname = specialData.smugmug_user_nickname;
-    if (specialData.smugmug_connection_status) settings.smugmug_connection_status = specialData.smugmug_connection_status;
-    if (specialData.smugmug_default_visibility) settings.smugmug_default_visibility = specialData.smugmug_default_visibility;
-    if (specialData.use_smugmug_for_sms !== undefined) settings.use_smugmug_for_sms = String(specialData.use_smugmug_for_sms);
-  }
+  cachedGlobalSettings = settings;
+  globalSettingsCacheTimestamp = Date.now();
 
   return settings;
 };
@@ -357,6 +364,9 @@ export const updateGlobalSettings = async (settings: Record<string, any>): Promi
       throw new Error(`Failed to update global setting ${key}: ${error.message}`);
     }
   }
+
+  cachedGlobalSettings = null;
+  globalSettingsCacheTimestamp = null;
 
   console.log('Global settings updated successfully');
 };
