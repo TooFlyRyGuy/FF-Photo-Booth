@@ -288,9 +288,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       setEditingPrompt(null);
       setIsCreating(false);
       loadPrompts();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving prompt:', error);
-      alert('Failed to save prompt');
+      alert(`Failed to save prompt: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -436,12 +436,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 <label className="block text-sm font-bold text-slate-900 mb-2">Category *</label>
                 <input
                   type="text"
+                  list="category-suggestions"
                   value={editingPrompt.category}
                   onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
                   className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  placeholder="Holiday"
+                  placeholder="Select or type a category (e.g., Holiday, Sports, Nature)"
                 />
-                <p className="text-xs text-slate-500 mt-1">Create custom categories or use existing ones</p>
+                <datalist id="category-suggestions">
+                  {allCategories.map(cat => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
+                <p className="text-xs text-slate-500 mt-1">
+                  Select from existing categories or type a new one
+                  {allCategories.length > 0 && ` (${allCategories.length} existing)`}
+                </p>
               </div>
             </div>
 
