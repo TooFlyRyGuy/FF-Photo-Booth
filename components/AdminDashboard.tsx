@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTenant, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache, clearGlobalSettingsCache } from '../services/backendService';
 import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -609,60 +609,92 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               <h2 className="text-3xl font-bold text-black">Your Events</h2>
               <button
                 onClick={handleCreateEvent}
-                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2 whitespace-nowrap"
+                className="bg-green-700 hover:bg-green-800 text-white px-6 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 whitespace-nowrap shadow-lg shadow-green-900/20 transition-all"
               >
-                <Plus size={16} /> Create Event
+                <Plus size={18} /> Create Event
               </button>
             </header>
 
-            <div className="grid gap-4">
+            <div className="grid gap-4 md:gap-6">
               {events.map(event => (
-                <div key={event.id} className="bg-white p-6 rounded-xl border-2 border-slate-300 flex justify-between items-center group hover:border-green-700/50 transition-colors">
-                  <div>
-                    <h3 className="text-xl font-bold flex items-center gap-2 text-black">
-                      {event.name}
-                      {event.isActive && <span className="text-xs bg-green-700/20 text-green-800 px-2 py-0.5 rounded-full">Active</span>}
-                    </h3>
-                    <p className="text-slate-600 text-sm mt-1">{event.city} • {event.date}</p>
-                    <p className="text-slate-500 text-xs mt-1 flex items-center gap-2">
-                      <ExternalLink size={12} />
-                      <span className="font-mono">/?kiosk={event.passcode}</span>
-                    </p>
+                <div key={event.id} className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden group hover:border-green-700/50 hover:shadow-lg transition-all">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg sm:text-xl font-bold text-black truncate">
+                              {event.name}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {event.isActive && (
+                                <span className="text-xs bg-green-700/20 text-green-800 px-2 py-0.5 rounded-full font-medium">
+                                  Active
+                                </span>
+                              )}
+                              <span className="text-slate-600 text-sm">{event.city}</span>
+                              <span className="text-slate-400">•</span>
+                              <span className="text-slate-600 text-sm">{event.date}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-500 text-xs mt-3 bg-slate-50 px-3 py-2 rounded-lg">
+                          <ExternalLink size={14} className="flex-shrink-0" />
+                          <span className="font-mono truncate">/?kiosk={event.passcode}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleViewAnalytics(event)}
-                      className="px-4 py-2 rounded-md border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium flex items-center gap-2"
-                      title="View event analytics"
-                    >
-                      <BarChart3 size={16} /> Analytics
-                    </button>
-                    <button
-                      onClick={() => handleEditEvent(event)}
-                      className="px-4 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => copyKioskLink(event)}
-                      className="px-4 py-2 rounded-md border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium flex items-center gap-2"
-                      title="Copy shareable kiosk link"
-                    >
-                      <Link2 size={16} /> Copy Link
-                    </button>
-                    <button
-                      onClick={() => handleLaunchKiosk(event)}
-                      className="px-4 py-2 rounded-md bg-green-700 hover:bg-green-800 text-white text-sm font-medium shadow-lg shadow-green-900/20"
-                    >
-                      Launch Kiosk
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEvent(event)}
-                      className="px-4 py-2 rounded-md border-2 border-red-600 text-red-600 hover:bg-red-600/10 text-sm font-medium flex items-center gap-2"
-                      title="Delete event"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+
+                  <div className="border-t-2 border-slate-200 bg-slate-50 p-3 sm:p-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleLaunchKiosk(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold shadow-md shadow-green-900/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Camera size={16} /> Launch Kiosk
+                      </button>
+
+                      {event.smugmugGalleryUrl && (
+                        <a
+                          href={event.smugmugGalleryUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-blue-600 bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        >
+                          <Images size={16} /> View Gallery
+                        </a>
+                      )}
+
+                      <button
+                        onClick={() => handleViewAnalytics(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                      >
+                        <BarChart3 size={16} /> Analytics
+                      </button>
+
+                      <button
+                        onClick={() => copyKioskLink(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                      >
+                        <Link2 size={16} /> <span className="hidden sm:inline">Copy Link</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleEditEvent(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                      >
+                        <Pencil size={16} /> <span className="hidden sm:inline">Edit</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteEvent(event)}
+                        className="px-4 py-2.5 rounded-lg border-2 border-red-600 text-red-600 hover:bg-red-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        title="Delete event"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
