@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
-import { getPrompts as getPromptsFromService } from '../services/backendService';
 import { compressBase64Image } from '../services/imageCompression';
+
+const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+const LOAD_BATCH_SIZE = 6;
 
 interface Prompt {
   id: string;
@@ -47,7 +49,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   const [testGeneratedImage, setTestGeneratedImage] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
-  const [displayLimit, setDisplayLimit] = useState(10);
+  const [loadOffset, setLoadOffset] = useState(0);
+  const [hasMoreToLoad, setHasMoreToLoad] = useState(true);
   const hasLoadedRef = useRef(false);
 
   useEffect(() => {
@@ -59,40 +62,64 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
   useEffect(() => {
     filterPrompts();
-    setDisplayLimit(10);
   }, [prompts, selectedTags, selectedCategory, searchQuery]);
 
-  const loadPrompts = async () => {
-    setLoading(true);
+  const loadPrompts = async (isInitial: boolean = true) => {
+    if (isInitial) {
+      setLoading(true);
+      setLoadOffset(0);
+      setPrompts([]);
+    }
+
     const startTime = performance.now();
+    const offset = isInitial ? 0 : loadOffset;
 
     try {
-      console.log('[PromptLibrary] Loading prompts with caching...');
+      console.log(`[PromptLibrary] Loading ${LOAD_BATCH_SIZE} prompts from offset ${offset}...`);
 
-      const cachedPrompts = await getPromptsFromService(false);
-
-      const { data: usageData } = await supabase
+      const { data, error } = await supabase
         .from('prompts')
-        .select('id, usage_count, tenant_id')
-        .in('id', cachedPrompts.map(p => p.id));
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, tenant_id, is_active')
+        .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
+        .eq('is_active', true)
+        .order('usage_count', { ascending: false })
+        .range(offset, offset + LOAD_BATCH_SIZE - 1);
 
-      const usageMap = new Map(usageData?.map(p => [p.id, { usage_count: p.usage_count || 0, tenant_id: p.tenant_id }]) || []);
+      if (error) throw error;
 
-      const mappedPrompts = cachedPrompts.map(p => ({
-        ...p,
-        isActive: true,
-        usageCount: usageMap.get(p.id)?.usage_count || 0,
-        tenantId: usageMap.get(p.id)?.tenant_id,
+      const newPrompts = data.map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        description: prompt.description,
+        category: prompt.category,
+        promptText: '',
+        previewImage: prompt.preview_image_url || '',
+        referenceImage: prompt.reference_image_url || '',
+        tags: prompt.tags || [],
+        isActive: prompt.is_active,
+        usageCount: prompt.usage_count || 0,
+        tenantId: prompt.tenant_id,
       }));
 
-      setPrompts(mappedPrompts);
-      extractAllTags(mappedPrompts);
-      extractAllCategories(mappedPrompts);
+      if (isInitial) {
+        setPrompts(newPrompts);
+        extractAllTags(newPrompts);
+        extractAllCategories(newPrompts);
+      } else {
+        const combined = [...prompts, ...newPrompts];
+        setPrompts(combined);
+        extractAllTags(combined);
+        extractAllCategories(combined);
+      }
+
+      setHasMoreToLoad(newPrompts.length === LOAD_BATCH_SIZE);
+      setLoadOffset(offset + LOAD_BATCH_SIZE);
 
       const totalTime = performance.now() - startTime;
-      console.log(`[PromptLibrary] Total load time: ${totalTime.toFixed(2)}ms`);
+      console.log(`[PromptLibrary] Load time: ${totalTime.toFixed(2)}ms, loaded ${newPrompts.length} prompts`);
     } catch (error) {
       console.error('Error loading prompts:', error);
+      setHasMoreToLoad(false);
     } finally {
       setLoading(false);
     }
@@ -263,7 +290,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       setEditingPrompt(null);
       setIsCreating(false);
-      loadPrompts();
+      loadPrompts(true);
     } catch (error: any) {
       console.error('Error saving prompt:', error);
       alert(`Failed to save prompt: ${error.message || 'Unknown error'}`);
@@ -278,7 +305,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       if (error) throw error;
 
-      loadPrompts();
+      loadPrompts(true);
     } catch (error) {
       console.error('Error deleting prompt:', error);
       alert('Failed to delete prompt');
@@ -373,11 +400,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   };
 
   const handleLoadMore = () => {
-    setDisplayLimit(prev => prev + 10);
+    loadPrompts(false);
   };
-
-  const displayedPrompts = filteredPrompts.slice(0, displayLimit);
-  const hasMorePrompts = filteredPrompts.length > displayLimit;
 
   if (editingPrompt) {
     return (
@@ -716,7 +740,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {displayedPrompts.map(prompt => (
+                {filteredPrompts.map(prompt => (
                 <div
                   key={prompt.id}
                   className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden hover:shadow-lg transition-all"
@@ -819,14 +843,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 ))}
               </div>
 
-              {hasMorePrompts && (
+              {hasMoreToLoad && !searchQuery && selectedTags.length === 0 && !selectedCategory && (
                 <div className="flex justify-center mt-8">
                   <button
                     onClick={handleLoadMore}
-                    className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center gap-2 transition-colors"
+                    disabled={loading}
+                    className="px-6 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-400 text-white rounded-lg font-bold flex items-center gap-2 transition-colors"
                   >
-                    Load More
-                    <span className="text-sm font-normal">({filteredPrompts.length - displayLimit} remaining)</span>
+                    {loading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      <>Load More ({LOAD_BATCH_SIZE} more)</>
+                    )}
                   </button>
                 </div>
               )}
