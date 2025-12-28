@@ -83,8 +83,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, tenant_id, is_active')
-        .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
+        .select('id, name, description, category, tags, preview_image_url, preview_image_compressed, reference_image_url, usage_count, tenant_id, is_active')
         .eq('is_active', true)
         .order('usage_count', { ascending: false })
         .range(offset, offset + LOAD_BATCH_SIZE - 1);
@@ -97,7 +96,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         description: prompt.description,
         category: prompt.category,
         promptText: '',
-        previewImage: prompt.preview_image_url || '',
+        previewImage: prompt.preview_image_compressed || prompt.preview_image_url || '',
         referenceImage: prompt.reference_image_url || '',
         tags: prompt.tags || [],
         isActive: prompt.is_active,
@@ -151,8 +150,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       let dbQuery = supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, tenant_id, is_active')
-        .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
+        .select('id, name, description, category, tags, preview_image_url, preview_image_compressed, reference_image_url, usage_count, tenant_id, is_active')
         .eq('is_active', true)
         .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
         .order('created_at', { ascending: false });
@@ -167,7 +165,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         description: prompt.description,
         category: prompt.category,
         promptText: '',
-        previewImage: prompt.preview_image_url || '',
+        previewImage: prompt.preview_image_compressed || prompt.preview_image_url || '',
         referenceImage: prompt.reference_image_url || '',
         tags: prompt.tags || [],
         isActive: prompt.is_active,
