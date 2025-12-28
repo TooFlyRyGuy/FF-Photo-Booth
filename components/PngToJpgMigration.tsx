@@ -30,25 +30,15 @@ export function PngToJpgMigration() {
         throw new Error('You must be logged in to run this migration');
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/migrate-png-to-jpg`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('migrate-png-to-jpg', {
+        method: 'POST',
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Migration failed');
+      if (error) {
+        throw new Error(error.message || 'Migration failed');
       }
 
-      const migrationResult = await response.json();
-      setResult(migrationResult);
+      setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
