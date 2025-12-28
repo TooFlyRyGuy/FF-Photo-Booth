@@ -765,6 +765,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         sms_message: event.smsMessage || null,
         smugmug_gallery_key: smugmugGalleryKey,
         smugmug_gallery_url: smugmugGalleryUrl,
+        upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
       })
       .select()
       .maybeSingle();
@@ -822,6 +823,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         start_datetime: event.startDatetime || null,
         end_datetime: event.endDatetime || null,
         sms_message: event.smsMessage || null,
+        upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
       })
       .eq('id', event.id)
       .select()
