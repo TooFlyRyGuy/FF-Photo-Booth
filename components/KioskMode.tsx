@@ -26,6 +26,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
+  const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -309,10 +310,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setErrorMsg('');
     try {
       await sendSms(event.tenantId, phoneNumber, generatedImageUrl, event.id);
+      setPhoneNumber('');
+      setDeliveryCountdown(15);
       setView('delivery');
-      setTimeout(() => {
-        resetKiosk();
-      }, 5000);
     } catch (error) {
       console.error('SMS send failed:', error);
       setErrorMsg('Failed to send SMS. Please try again.');
@@ -421,6 +421,24 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   useEffect(() => {
     if (view === 'camera') startCamera();
   }, [view, startCamera]);
+
+  // Handle delivery countdown
+  useEffect(() => {
+    if (view === 'delivery') {
+      const interval = setInterval(() => {
+        setDeliveryCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            resetKiosk();
+            return 15;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [view]);
 
   // --- RENDER VIEWS ---
 
@@ -744,7 +762,33 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                 </div>
                 <h2 className="text-xl md:text-4xl text-slate-900 font-bold">Sent!</h2>
                 <p className="text-sm md:text-base text-slate-600">Check your phone for the link.</p>
-                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-12">Closing in 5 seconds...</p>
+
+                <div className="pt-3 md:pt-6 space-y-2 md:space-y-4">
+                  <button
+                    onClick={handleDownload}
+                    className="w-full text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                    style={{
+                      backgroundColor: colors.primary,
+                      boxShadow: `0 10px 25px ${colors.primary}50`,
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                  >
+                    <Download size={18} className="md:w-6 md:h-6" /> Download Photo
+                  </button>
+
+                  <button
+                    onClick={() => setView('result')}
+                    className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
+                  >
+                    <Smartphone size={18} className="md:w-6 md:h-6" /> Send to Another Number
+                  </button>
+                </div>
+
+                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-8">Starting over in {deliveryCountdown} seconds...</p>
+                <button onClick={resetKiosk} className="text-xs md:text-sm text-slate-600 hover:text-slate-900 py-2">
+                  Start Over Now
+                </button>
              </div>
            ) : (
              <>
