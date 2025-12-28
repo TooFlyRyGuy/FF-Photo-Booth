@@ -61,7 +61,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   }, [tenantId]);
 
   useEffect(() => {
-    filterPrompts();
+    if (searchQuery.trim()) {
+      searchPrompts(searchQuery);
+    } else {
+      filterPrompts();
+    }
   }, [prompts, selectedTags, selectedCategory, searchQuery]);
 
   const loadPrompts = async (isInitial: boolean = true) => {
@@ -141,6 +145,53 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setAllCategories(Array.from(categorySet).sort());
   };
 
+  const searchPrompts = async (query: string) => {
+    try {
+      const searchTerm = query.toLowerCase().trim();
+
+      let dbQuery = supabase
+        .from('prompts')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, tenant_id, is_active')
+        .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
+        .eq('is_active', true)
+        .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
+        .order('created_at', { ascending: false });
+
+      const { data, error } = await dbQuery;
+
+      if (error) throw error;
+
+      let searchResults = data.map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        description: prompt.description,
+        category: prompt.category,
+        promptText: '',
+        previewImage: prompt.preview_image_url || '',
+        referenceImage: prompt.reference_image_url || '',
+        tags: prompt.tags || [],
+        isActive: prompt.is_active,
+        usageCount: prompt.usage_count || 0,
+        tenantId: prompt.tenant_id,
+      }));
+
+      if (selectedCategory) {
+        searchResults = searchResults.filter(prompt => prompt.category === selectedCategory);
+      }
+
+      if (selectedTags.length > 0) {
+        searchResults = searchResults.filter(prompt =>
+          selectedTags.some(tag => prompt.tags.includes(tag))
+        );
+      }
+
+      setFilteredPrompts(searchResults);
+    } catch (error) {
+      console.error('Error searching prompts:', error);
+      setFilteredPrompts([]);
+    }
+  };
+
   const filterPrompts = () => {
     let filtered = prompts;
 
@@ -151,15 +202,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     if (selectedTags.length > 0) {
       filtered = filtered.filter(prompt =>
         selectedTags.some(tag => prompt.tags.includes(tag))
-      );
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(prompt =>
-        prompt.name.toLowerCase().includes(query) ||
-        prompt.description.toLowerCase().includes(query) ||
-        prompt.category.toLowerCase().includes(query)
       );
     }
 
