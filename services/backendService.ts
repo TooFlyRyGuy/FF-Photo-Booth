@@ -91,18 +91,37 @@ const uploadImageToStorage = async (
     throw new Error('Invalid image data');
   }
 
-  const blob = base64ToBlob(base64Image);
-  const fileExtension = base64Image.includes('image/png') ? 'png' : 'jpg';
+  let imageToUpload = base64Image;
+
+  if (!base64Image.startsWith('data:image/jpeg') && !base64Image.startsWith('data:image/jpg')) {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = base64Image;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(img, 0, 0);
+      imageToUpload = canvas.toDataURL('image/jpeg', 0.92);
+    }
+  }
+
+  const blob = base64ToBlob(imageToUpload);
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(7);
   const fileName = promptId
-    ? `${folder}/${promptId}_${timestamp}.${fileExtension}`
-    : `${folder}/${timestamp}_${randomId}.${fileExtension}`;
+    ? `${folder}/${promptId}_${timestamp}.jpg`
+    : `${folder}/${timestamp}_${randomId}.jpg`;
 
   const { data, error } = await supabase.storage
     .from('prompt-images')
     .upload(fileName, blob, {
-      contentType: blob.type,
+      contentType: 'image/jpeg',
       upsert: false,
     });
 

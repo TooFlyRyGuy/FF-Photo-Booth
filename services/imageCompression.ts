@@ -34,15 +34,7 @@ export async function compressBase64Image(
 
           ctx.drawImage(img, 0, 0, width, height);
 
-          let compressedBase64;
-          try {
-            compressedBase64 = canvas.toDataURL('image/webp', quality);
-            if (!compressedBase64.startsWith('data:image/webp')) {
-              compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-            }
-          } catch (e) {
-            compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-          }
+          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
 
           console.log(
             `Compressed image from ${img.width}x${img.height} to ${width}x${height}: ${base64.length} bytes -> ${compressedBase64.length} bytes (${Math.round((compressedBase64.length / base64.length) * 100)}%)`
