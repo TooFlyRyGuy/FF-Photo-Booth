@@ -44,23 +44,11 @@ Deno.serve(async (req: Request) => {
 
     let messageTemplate = "Here's your AI-generated photo from {event_name}! {image_url}";
     let eventName = 'your event';
-    let useSmugMugForSms = false;
-    let galleryUrl = '';
-
-    const { data: settings } = await supabase
-      .from('global_settings')
-      .select('use_smugmug_for_sms')
-      .limit(1)
-      .maybeSingle();
-
-    if (settings?.use_smugmug_for_sms) {
-      useSmugMugForSms = true;
-    }
 
     if (eventId) {
       const { data: event } = await supabase
         .from('events')
-        .select('name, sms_message, smugmug_gallery_url')
+        .select('name, sms_message')
         .eq('id', eventId)
         .maybeSingle();
 
@@ -69,19 +57,12 @@ Deno.serve(async (req: Request) => {
         if (event.sms_message) {
           messageTemplate = event.sms_message;
         }
-        if (event.smugmug_gallery_url && useSmugMugForSms) {
-          galleryUrl = event.smugmug_gallery_url;
-        }
       }
     }
 
-    let messageBody = messageTemplate
+    const messageBody = messageTemplate
       .replace('{event_name}', eventName)
       .replace('{image_url}', imageUrl);
-
-    if (galleryUrl) {
-      messageBody += `\n\nView all photos: ${galleryUrl}`;
-    }
 
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\D/g, '')}`;
 
