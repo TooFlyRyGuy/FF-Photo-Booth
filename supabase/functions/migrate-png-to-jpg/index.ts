@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { Image } from 'npm:imagescript@1.3.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -84,17 +85,12 @@ Deno.serve(async (req: Request) => {
         }
 
         const arrayBuffer = await fileData.arrayBuffer();
-        const base64 = btoa(
-          new Uint8Array(arrayBuffer).reduce(
-            (data, byte) => data + String.fromCharCode(byte),
-            ''
-          )
-        );
-        const pngDataUrl = `data:image/png;base64,${base64}`;
+        const pngBuffer = new Uint8Array(arrayBuffer);
 
-        const jpgDataUrl = await convertToJpeg(pngDataUrl);
+        const image = await Image.decode(pngBuffer);
+        const jpgBuffer = await image.encodeJPEG(92);
 
-        const jpgBlob = dataUrlToBlob(jpgDataUrl);
+        const jpgBlob = new Blob([jpgBuffer], { type: 'image/jpeg' });
         const jpgPath = filePath.replace(/\.png$/i, '.jpg');
 
         const { error: uploadError } = await supabase.storage
@@ -229,51 +225,3 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
-
-async function convertToJpeg(pngDataUrl: string): Promise<string> {
-  const response = await fetch(pngDataUrl);
-  const blob = await response.blob();
-  const arrayBuffer = await blob.arrayBuffer();
-
-  const pngBytes = new Uint8Array(arrayBuffer);
-
-  const canvas = new OffscreenCanvas(1, 1);
-  const img = await createImageBitmap(blob);
-
-  canvas.width = img.width;
-  canvas.height = img.height;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Could not get canvas context');
-
-  ctx.drawImage(img, 0, 0);
-
-  const jpgBlob = await canvas.convertToBlob({
-    type: 'image/jpeg',
-    quality: 0.92,
-  });
-
-  const jpgArrayBuffer = await jpgBlob.arrayBuffer();
-  const jpgBase64 = btoa(
-    new Uint8Array(jpgArrayBuffer).reduce(
-      (data, byte) => data + String.fromCharCode(byte),
-      ''
-    )
-  );
-
-  return `data:image/jpeg;base64,${jpgBase64}`;
-}
-
-function dataUrlToBlob(dataUrl: string): Blob {
-  const parts = dataUrl.split(';base64,');
-  const contentType = parts[0].split(':')[1];
-  const raw = atob(parts[1]);
-  const rawLength = raw.length;
-  const uInt8Array = new Uint8Array(rawLength);
-
-  for (let i = 0; i < rawLength; ++i) {
-    uInt8Array[i] = raw.charCodeAt(i);
-  }
-
-  return new Blob([uInt8Array], { type: contentType });
-}
