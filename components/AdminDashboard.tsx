@@ -6,6 +6,7 @@ import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
 import PromptLibrary from './PromptLibrary';
+import { PngToJpgMigration } from './PngToJpgMigration';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -1369,6 +1370,12 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             </header>
 
             <Settings tenant={tenant} onSave={handleSaveSettings} isAdmin={userProfile?.subscription_tier === 'ADMIN'} />
+
+            {userProfile?.subscription_tier === 'ADMIN' && (
+              <div className="mt-8 pt-8 border-t border-slate-200">
+                <PngToJpgMigration />
+              </div>
+            )}
           </div>
         )}
 
