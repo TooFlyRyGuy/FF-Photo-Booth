@@ -259,24 +259,59 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
     try {
       const timestamp = Date.now();
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${field}_${timestamp}.${fileExt}`;
+      const fileName = `${field}_${timestamp}.jpg`;
       const filePath = `${tenantId}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('prompt-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const img = new Image();
+          img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Failed to get canvas context');
 
-      if (uploadError) throw uploadError;
+            ctx.drawImage(img, 0, 0);
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('prompt-images')
-        .getPublicUrl(filePath);
+            canvas.toBlob(async (blob) => {
+              if (!blob) throw new Error('Failed to convert image to JPG');
 
-      setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+              const { error: uploadError } = await supabase.storage
+                .from('prompt-images')
+                .upload(filePath, blob, {
+                  cacheControl: '3600',
+                  upsert: false,
+                  contentType: 'image/jpeg'
+                });
+
+              if (uploadError) throw uploadError;
+
+              const { data: { publicUrl } } = supabase.storage
+                .from('prompt-images')
+                .getPublicUrl(filePath);
+
+              setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+            }, 'image/jpeg', 0.92);
+          };
+
+          img.onerror = () => {
+            throw new Error('Failed to load image');
+          };
+
+          img.src = event.target?.result as string;
+        } catch (error) {
+          console.error('Error processing image:', error);
+          alert('Failed to process image. Please try again.');
+        }
+      };
+
+      reader.onerror = () => {
+        alert('Failed to read image file. Please try again.');
+      };
+
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading image:', error);
       alert('Failed to upload image. Please try again.');

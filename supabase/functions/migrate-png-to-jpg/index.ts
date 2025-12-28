@@ -40,32 +40,37 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    const { data: files, error: listError } = await supabase.storage
-      .from('prompt-images')
-      .list('', { limit: 1000 });
-
-    if (listError) {
-      throw new Error(`Failed to list files: ${listError.message}`);
-    }
-
     const allFiles: string[] = [];
 
-    for (const folder of ['preview', 'reference']) {
-      const { data: folderFiles } = await supabase.storage
+    async function listAllFiles(prefix: string = ''): Promise<void> {
+      const { data: items, error } = await supabase.storage
         .from('prompt-images')
-        .list(folder, { limit: 1000 });
+        .list(prefix, { limit: 1000 });
 
-      if (folderFiles) {
-        allFiles.push(...folderFiles.map(f => `${folder}/${f.name}`));
+      if (error) {
+        console.warn(`Failed to list files in ${prefix}: ${error.message}`);
+        return;
+      }
+
+      if (!items) return;
+
+      for (const item of items) {
+        const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
+
+        if (item.id === null) {
+          await listAllFiles(fullPath);
+        } else if (item.name.toLowerCase().endsWith('.png')) {
+          allFiles.push(fullPath);
+        }
       }
     }
 
-    const pngFiles = allFiles.filter(file => file.toLowerCase().endsWith('.png'));
-    result.totalFiles = pngFiles.length;
+    await listAllFiles();
 
-    console.log(`Found ${pngFiles.length} PNG files to convert`);
+    result.totalFiles = allFiles.length;
+    console.log(`Found ${allFiles.length} PNG files to convert`);
 
-    for (const filePath of pngFiles) {
+    for (const filePath of allFiles) {
       try {
         console.log(`Converting: ${filePath}`);
 
