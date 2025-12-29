@@ -943,11 +943,11 @@ export const saveGeneratedImage = async (
     .eq('id', eventId)
     .maybeSingle();
 
-  const userId = eventData?.user_id;
-
-  if (!userId) {
-    throw new Error('Event not found or user ID missing');
+  if (!eventData) {
+    throw new Error('Event not found');
   }
+
+  const userId = eventData.user_id || null;
 
   const imageData = {
     event_id: eventId,
