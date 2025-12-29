@@ -282,9 +282,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
-        event.tenantId,
         originalUrl,
         generatedUrl,
+        null,
         'completed'
       );
 
