@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getTenant, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache, clearGlobalSettingsCache } from '../services/backendService';
-import { Tenant, Event, Prompt } from '../types';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache } from '../services/backendService';
+import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
 import PromptLibrary from './PromptLibrary';
-import { PngToJpgMigration } from './PngToJpgMigration';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -20,10 +19,12 @@ interface AdminProps {
 type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts';
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
-  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
+  const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [userProfile, setUserProfile] = useState<any>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ totalImages: 0, totalSms: 0, totalEvents: 0, activeEvents: 0 });
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
@@ -51,12 +52,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   useEffect(() => {
     if (user) {
-      clearTenantCache();
       clearPromptsCache();
       clearGlobalSettingsCache();
       loadData();
       loadDashboardData();
-      loadUserProfile();
     } else {
       setIsLoading(false);
       setLoadError('No user session found');
@@ -68,17 +67,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       setIsLoading(true);
       setLoadError(null);
 
-      const tenantData = await getTenant();
-      if (!tenantData) {
-        throw new Error('Unable to load tenant data');
-      }
-      setTenant(tenantData);
+      const [profileData, settingsData, globalData, creditsData, eventsData] = await Promise.all([
+        getUserProfile(),
+        getUserSettings(),
+        getGlobalSettings(),
+        getUserCredits(),
+        getEvents()
+      ]);
 
-      const eventsData = await getEvents();
+      if (!profileData) {
+        throw new Error('Unable to load user profile');
+      }
+
+      setUserProfile(profileData);
+      setUserSettings(settingsData);
+      setGlobalSettings(globalData);
+      setUserCredits(creditsData);
       setEvents(eventsData || []);
 
       console.log('Loaded data successfully:', {
-        tenantId: tenantData?.id || 'unknown',
+        userId: profileData?.id || 'unknown',
         events: (eventsData || []).length
       });
 
@@ -114,18 +122,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
-  const loadUserProfile = async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    setUserProfile(data);
-  };
-
   const copyKioskLink = (event: Event) => {
     const url = `${window.location.origin}/?kiosk=${event.passcode}`;
     navigator.clipboard.writeText(url).then(() => {
@@ -135,8 +131,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     });
   };
 
-  const handleSaveSettings = async (updates: Partial<Tenant>) => {
-    await updateTenantSettings(updates);
+  const handleSaveUserSettings = async (updates: Partial<UserSettings>) => {
+    await updateUserSettings(updates);
+    await loadData();
+  };
+
+  const handleSaveGlobalSettings = async (updates: Partial<GlobalSettings>) => {
+    await updateGlobalSettings(updates);
     await loadData();
   };
 
@@ -158,7 +159,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       passcode: generateUniquePasscode(),
       isActive: true,
       prompts: [],
-      tenantId: tenant?.id || '',
+      userId: user?.id || '',
       aspectRatio: 'square'
     });
     setActiveTab('create_event');
@@ -351,7 +352,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     );
   }
 
-  if (!tenant) {
+  if (!userProfile || !userCredits) {
     return (
       <div className="flex h-screen items-center justify-center text-slate-900 bg-slate-100">
         <div className="text-center">
@@ -377,7 +378,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     );
   }
 
-  const usagePercent = (tenant.usage.imagesUsed / tenant.usage.imagesLimit) * 100;
+  const usagePercent = (userCredits.images_used / userCredits.images_limit) * 100;
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
@@ -427,9 +428,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </h1>
           {userProfile && !sidebarCollapsed && (
             <div className="mt-3 text-xs">
-              <p className="text-slate-600 truncate">{userProfile.email}</p>
+              <p className="text-slate-600 truncate">{user?.email}</p>
               <p className="text-slate-500 mt-1 uppercase tracking-widest">
-                {userProfile.subscription_tier?.toUpperCase() || 'FREE'} PLAN
+                {userProfile.role?.toUpperCase() || 'USER'}
               </p>
             </div>
           )}
@@ -487,7 +488,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             <div>
               <div className="flex justify-between text-xs text-slate-600 mb-1">
                 <span>Credits</span>
-                <span>{tenant.usage.imagesUsed} / {tenant.usage.imagesLimit}</span>
+                <span>{userCredits.images_used} / {userCredits.images_limit}</span>
               </div>
               <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                 <div className="h-full bg-green-700" style={{ width: `${usagePercent}%` }}></div>
@@ -1362,20 +1363,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         )}
 
         {/* SETTINGS VIEW */}
-        {tenant && (
+        {userProfile && userSettings && globalSettings && (
           <div className={`space-y-6 ${activeTab === 'settings' ? '' : 'hidden'}`}>
             <header className="mb-8">
               <h2 className="text-3xl font-bold text-black">Integration Settings</h2>
               <p className="text-slate-600 mt-2">Connect your accounts to unlock powerful features</p>
             </header>
 
-            <Settings tenant={tenant} onSave={handleSaveSettings} isAdmin={userProfile?.subscription_tier === 'ADMIN'} />
-
-            {userProfile?.subscription_tier === 'ADMIN' && (
-              <div className="mt-8 pt-8 border-t border-slate-200">
-                <PngToJpgMigration />
-              </div>
-            )}
+            <Settings
+              userSettings={userSettings}
+              globalSettings={globalSettings}
+              userProfile={userProfile}
+              onSaveUserSettings={handleSaveUserSettings}
+              onSaveGlobalSettings={handleSaveGlobalSettings}
+            />
           </div>
         )}
 
@@ -1387,9 +1388,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       )}
 
       {/* Prompt Library Modal */}
-      {showPromptLibrary && tenant && (
+      {showPromptLibrary && user && (
         <PromptLibrary
-          tenantId={tenant.id}
+          userId={user.id}
           eventId={promptLibraryEventContext}
           selectedPrompts={editingEvent.prompts || []}
           onClose={() => {

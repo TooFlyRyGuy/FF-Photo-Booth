@@ -173,6 +173,7 @@ export const getUserProfile = async (): Promise<UserProfile> => {
     id: profileData.id,
     email: profileData.email,
     fullName: profileData.full_name,
+    role: profileData.role || 'user',
     subscriptionStatus: profileData.subscription_status,
     subscriptionTierId: profileData.subscription_tier_id,
     stripeCustomerId: profileData.stripe_customer_id,
@@ -216,6 +217,90 @@ export const getUserCredits = async (): Promise<UserCredits> => {
   };
 };
 
+export const getUserSettings = async (): Promise<UserSettings> => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to fetch user settings:', error);
+    return {};
+  }
+
+  if (!data) {
+    return {};
+  }
+
+  return {
+    dropboxAppKey: data.dropbox_app_key,
+    dropboxAppSecret: data.dropbox_app_secret,
+    dropboxAccessToken: data.dropbox_access_token,
+    dropboxRefreshToken: data.dropbox_refresh_token,
+    dropboxTokenExpiresAt: data.dropbox_token_expires_at,
+    dropboxEnabled: data.dropbox_enabled || false,
+  };
+};
+
+export const getUserSettingsByUserId = async (userId: string): Promise<UserSettings> => {
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to fetch user settings:', error);
+    return {};
+  }
+
+  if (!data) {
+    return {};
+  }
+
+  return {
+    dropboxAppKey: data.dropbox_app_key,
+    dropboxAppSecret: data.dropbox_app_secret,
+    dropboxAccessToken: data.dropbox_access_token,
+    dropboxRefreshToken: data.dropbox_refresh_token,
+    dropboxTokenExpiresAt: data.dropbox_token_expires_at,
+    dropboxEnabled: data.dropbox_enabled || false,
+  };
+};
+
+export const updateUserSettings = async (settings: Partial<UserSettings>): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const updateData: any = { user_id: user.id };
+  if (settings.dropboxAppKey !== undefined) updateData.dropbox_app_key = settings.dropboxAppKey;
+  if (settings.dropboxAppSecret !== undefined) updateData.dropbox_app_secret = settings.dropboxAppSecret;
+  if (settings.dropboxAccessToken !== undefined) updateData.dropbox_access_token = settings.dropboxAccessToken;
+  if (settings.dropboxRefreshToken !== undefined) updateData.dropbox_refresh_token = settings.dropboxRefreshToken;
+  if (settings.dropboxTokenExpiresAt !== undefined) updateData.dropbox_token_expires_at = settings.dropboxTokenExpiresAt;
+  if (settings.dropboxEnabled !== undefined) updateData.dropbox_enabled = settings.dropboxEnabled;
+
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert(updateData, { onConflict: 'user_id' });
+
+  if (error) {
+    throw new Error(`Failed to update user settings: ${error.message}`);
+  }
+
+  console.log('User settings updated successfully');
+};
+
 export const getGlobalSettings = async (skipCache: boolean = false): Promise<GlobalSettings> => {
   if (!skipCache && cachedGlobalSettings && globalSettingsCacheTimestamp &&
       Date.now() - globalSettingsCacheTimestamp < GLOBAL_SETTINGS_CACHE_TTL) {
@@ -238,10 +323,8 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
   }
 
   const settings: GlobalSettings = {
-    dropboxAccessToken: data.dropbox_access_token,
-    dropboxRefreshToken: data.dropbox_refresh_token,
-    dropboxTokenExpiresAt: data.dropbox_token_expires_at,
-    dropboxEnabled: data.dropbox_enabled || false,
+    dropboxAppKey: data.dropbox_app_key,
+    dropboxAppSecret: data.dropbox_app_secret,
     twilioAccountSid: data.twilio_account_sid,
     twilioAuthToken: data.twilio_auth_token,
     twilioPhoneNumber: data.twilio_phone_number,
@@ -271,10 +354,8 @@ export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): P
   }
 
   const updateData: any = {};
-  if (settings.dropboxAccessToken !== undefined) updateData.dropbox_access_token = settings.dropboxAccessToken;
-  if (settings.dropboxRefreshToken !== undefined) updateData.dropbox_refresh_token = settings.dropboxRefreshToken;
-  if (settings.dropboxTokenExpiresAt !== undefined) updateData.dropbox_token_expires_at = settings.dropboxTokenExpiresAt;
-  if (settings.dropboxEnabled !== undefined) updateData.dropbox_enabled = settings.dropboxEnabled;
+  if (settings.dropboxAppKey !== undefined) updateData.dropbox_app_key = settings.dropboxAppKey;
+  if (settings.dropboxAppSecret !== undefined) updateData.dropbox_app_secret = settings.dropboxAppSecret;
   if (settings.twilioAccountSid !== undefined) updateData.twilio_account_sid = settings.twilioAccountSid;
   if (settings.twilioAuthToken !== undefined) updateData.twilio_auth_token = settings.twilioAuthToken;
   if (settings.twilioPhoneNumber !== undefined) updateData.twilio_phone_number = settings.twilioPhoneNumber;

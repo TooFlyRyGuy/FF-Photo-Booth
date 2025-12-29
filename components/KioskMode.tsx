@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Event, Prompt, GeneratedImage, Tenant } from '../types';
+import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, saveGeneratedImage, getTenantById, getGlobalSetting } from '../services/backendService';
+import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage } from '../services/imageUtils';
@@ -24,7 +24,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
   const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
   const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
 
@@ -154,7 +155,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const handleGenerate = async () => {
     if (!capturedImage || !selectedPrompt) return;
 
-    if (!tenant) {
+    if (!globalSettings || !userSettings) {
       setErrorMsg('Configuration not loaded. Please try again.');
       return;
     }
@@ -163,14 +164,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setErrorMsg('');
 
     try {
-      const geminiEnabled = await getGlobalSetting('gemini_enabled');
-      const geminiApiKey = await getGlobalSetting('gemini_api_key');
-
-      if (geminiEnabled !== 'true' || !geminiApiKey) {
+      if (!globalSettings?.geminiEnabled || !globalSettings?.geminiApiKey) {
         setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
         setView('camera');
         return;
       }
+
+      const geminiApiKey = globalSettings.geminiApiKey;
 
       // 1. Generate with Gemini
       console.log('🔑 Gemini API Key Check:', {
@@ -186,8 +186,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         geminiApiKey,
         selectedPrompt.referenceImage,
         event.aspectRatio,
-        tenant.geminiModel,
-        tenant.geminiResolution
+        globalSettings.geminiModel,
+        globalSettings.geminiResolution
       );
 
       if (event.overlayImageUrl) {
@@ -224,10 +224,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         }
       }
 
-      if (!uploadedGeneratedToSmugMug && tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
+      if (!uploadedGeneratedToSmugMug && userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
         try {
           generatedUrl = await uploadImageToDropbox({
-            tenantId: event.tenantId,
+            userId: event.userId,
             eventId: event.id,
             eventName: event.name,
             imageBase64: genImage,
@@ -262,10 +262,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       }
 
       // 4. Upload original to Dropbox if enabled and not already uploaded to SmugMug
-      if (originalUrl === capturedImage && tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
+      if (originalUrl === capturedImage && userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
         try {
           originalUrl = await uploadImageToDropbox({
-            tenantId: event.tenantId,
+            userId: event.userId,
             eventId: event.id,
             eventName: event.name,
             imageBase64: capturedImage,
@@ -393,24 +393,28 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     return () => clearInterval(interval);
   }, [checkEventTimeStatus]);
 
-  // Fetch tenant data on mount
+  // Fetch user and global settings on mount
   useEffect(() => {
-    const loadTenant = async () => {
+    const loadSettings = async () => {
       try {
-        const tenantData = await getTenantById(event.tenantId);
-        console.log('🏢 Tenant loaded:', {
-          hasGeminiKey: !!tenantData.geminiApiKey,
-          geminiKeyLength: tenantData.geminiApiKey?.length,
-          geminiEnabled: tenantData.geminiEnabled,
+        const [userSettingsData, globalSettingsData] = await Promise.all([
+          getUserSettingsByUserId(event.userId),
+          getGlobalSettings()
+        ]);
+        console.log('⚙️ Settings loaded:', {
+          hasGeminiKey: !!globalSettingsData.geminiApiKey,
+          geminiKeyLength: globalSettingsData.geminiApiKey?.length,
+          geminiEnabled: globalSettingsData.geminiEnabled,
         });
-        setTenant(tenantData);
+        setUserSettings(userSettingsData);
+        setGlobalSettings(globalSettingsData);
       } catch (err) {
-        console.error('Failed to load tenant:', err);
+        console.error('Failed to load settings:', err);
         setErrorMsg('Failed to load configuration. Please contact support.');
       }
     };
-    loadTenant();
-  }, [event.tenantId]);
+    loadSettings();
+  }, [event.userId]);
 
   // Handle cleanup on unmount
   useEffect(() => {

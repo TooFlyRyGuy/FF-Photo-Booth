@@ -7,6 +7,7 @@ export interface UserProfile {
   id: string;
   email: string;
   fullName?: string;
+  role: UserRole;
   subscriptionStatus: string;
   subscriptionTierId?: string;
   stripeCustomerId?: string;
@@ -65,11 +66,18 @@ export interface EventPass {
   displayOrder: number;
 }
 
-export interface GlobalSettings {
+export interface UserSettings {
+  dropboxAppKey?: string;
+  dropboxAppSecret?: string;
   dropboxAccessToken?: string;
   dropboxRefreshToken?: string;
   dropboxTokenExpiresAt?: string;
   dropboxEnabled?: boolean;
+}
+
+export interface GlobalSettings {
+  dropboxAppKey?: string;
+  dropboxAppSecret?: string;
   twilioAccountSid?: string;
   twilioAuthToken?: string;
   twilioPhoneNumber?: string;
@@ -89,10 +97,13 @@ export interface Prompt {
   id: string;
   name: string;
   description: string;
-  previewImage: string; // The thumbnail shown in the kiosk
-  referenceImage?: string; // Optional style reference image for the AI
+  previewImage: string;
+  referenceImage?: string;
   promptText: string;
   category: string;
+  isPublic: boolean;
+  userId?: string;
+  tags?: string[];
 }
 
 export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9';
