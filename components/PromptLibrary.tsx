@@ -376,19 +376,35 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     if (!confirm('Are you sure you want to delete this prompt? This cannot be undone.')) return;
 
     try {
-      const { data: usageData, error: usageError } = await supabase
+      // Check if prompt is used in any events
+      const { data: eventUsageData, error: eventUsageError } = await supabase
         .from('event_prompts')
         .select('event_id, events(name)')
         .eq('prompt_id', promptId)
         .limit(5);
 
-      if (usageError) throw usageError;
+      if (eventUsageError) throw eventUsageError;
 
-      if (usageData && usageData.length > 0) {
-        const eventNames = usageData.map((ep: any) => ep.events?.name || 'Unknown Event').join(', ');
-        const additionalCount = usageData.length > 1 ? ` and ${usageData.length - 1} other event(s)` : '';
+      if (eventUsageData && eventUsageData.length > 0) {
+        const eventNames = eventUsageData.map((ep: any) => ep.events?.name || 'Unknown Event').join(', ');
+        const additionalCount = eventUsageData.length > 1 ? ` and ${eventUsageData.length - 1} other event(s)` : '';
         alert(
           `Cannot delete this prompt because it is currently being used in the following event(s):\n\n${eventNames}${additionalCount}\n\nPlease remove the prompt from these events first before deleting it.`
+        );
+        return;
+      }
+
+      // Check if prompt has any generated images
+      const { count: imageCount, error: imageCountError } = await supabase
+        .from('generated_images')
+        .select('*', { count: 'exact', head: true })
+        .eq('prompt_id', promptId);
+
+      if (imageCountError) throw imageCountError;
+
+      if (imageCount && imageCount > 0) {
+        alert(
+          `Cannot delete this prompt because it has ${imageCount} generated image(s) associated with it.\n\nThese images were created using this prompt and cannot be orphaned. Please delete these images first before removing the prompt.`
         );
         return;
       }
