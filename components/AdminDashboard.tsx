@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
 import PromptLibrary from './PromptLibrary';
+import UserManagement from './UserManagement';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -54,6 +55,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [adminStats, setAdminStats] = useState<any>(null);
   const [revenueStats, setRevenueStats] = useState<any>(null);
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -66,6 +69,33 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       setLoadError('No user session found');
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    filterEvents();
+  }, [events, eventSearchQuery]);
+
+  const filterEvents = () => {
+    if (!eventSearchQuery.trim()) {
+      setFilteredEvents(events);
+      return;
+    }
+
+    const query = eventSearchQuery.toLowerCase();
+    const filtered = events.filter(event => {
+      const eventDate = new Date(event.date).toLocaleDateString().toLowerCase();
+      const createdByEmail = event.createdByEmail?.toLowerCase() || '';
+      const userName = event.userName?.toLowerCase() || '';
+
+      return (
+        event.name.toLowerCase().includes(query) ||
+        event.city?.toLowerCase().includes(query) ||
+        eventDate.includes(query) ||
+        createdByEmail.includes(query) ||
+        userName.includes(query)
+      );
+    });
+    setFilteredEvents(filtered);
+  };
 
   const loadData = async () => {
     try {
@@ -689,8 +719,19 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </button>
             </header>
 
+            <div className="relative mb-6">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+              <input
+                type="text"
+                value={eventSearchQuery}
+                onChange={(e) => setEventSearchQuery(e.target.value)}
+                placeholder="Search by event name, date, city, or user..."
+                className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+              />
+            </div>
+
             <div className="grid gap-4 md:gap-6">
-              {events.map(event => (
+              {filteredEvents.map(event => (
                 <div key={event.id} className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden group hover:border-green-700/50 hover:shadow-lg transition-all">
                   <div className="p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -710,6 +751,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                               <span className="text-slate-400">•</span>
                               <span className="text-slate-600 text-sm">{event.date}</span>
                             </div>
+                            {isAdmin && event.userEmail && (
+                              <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded">
+                                <UserIcon size={12} />
+                                <span className="font-medium">{event.userName}</span>
+                                <span className="text-slate-400">({event.userEmail})</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 text-slate-500 text-xs mt-3 bg-slate-50 px-3 py-2 rounded-lg">
@@ -1436,71 +1484,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
         {/* USER MANAGEMENT VIEW */}
         {activeTab === 'users' && isAdmin && (
-          <div className="space-y-6">
-            <header className="mb-8">
-              <h2 className="text-3xl font-bold text-black">User Management</h2>
-              <p className="text-slate-600 mt-2">View and manage all users in the system</p>
-            </header>
-
-            <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b-2 border-slate-300">
-                    <tr>
-                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Email</th>
-                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Full Name</th>
-                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Role</th>
-                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Subscription</th>
-                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Images</th>
-                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">SMS</th>
-                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Events</th>
-                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Created At</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {allUsers.length > 0 ? (
-                      allUsers.map((user, index) => (
-                        <tr key={user.id || index} className="hover:bg-slate-50">
-                          <td className="px-6 py-4 text-sm text-slate-900">{user.email}</td>
-                          <td className="px-6 py-4 text-sm text-slate-900">{user.full_name || '-'}</td>
-                          <td className="px-6 py-4 text-sm">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              user.role === 'admin'
-                                ? 'bg-green-700 text-white'
-                                : 'bg-slate-200 text-slate-700'
-                            }`}>
-                              {user.role || 'user'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-900">
-                            {user.subscription_status || 'free'}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-900">
-                            {user.images_used || 0} / {user.images_limit || 0}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-900">
-                            {user.sms_used || 0} / {user.sms_limit || 0}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-900">
-                            {user.events_count || 0}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600">
-                            {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
-                          No users found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <UserManagement />
         )}
 
         {/* REVENUE VIEW */}

@@ -120,6 +120,9 @@ export interface Event {
   passcode: string;
   prompts: Prompt[];
   userId: string;
+  userName?: string;
+  userEmail?: string;
+  createdByEmail?: string;
   aspectRatio?: AspectRatio;
   backgroundImageUrl?: string;
   logoUrl?: string;

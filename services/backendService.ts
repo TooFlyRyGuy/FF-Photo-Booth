@@ -1153,8 +1153,14 @@ export const getAllUsers = async (): Promise<any[]> => {
 
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data, error } = await supabase
-    .from('admin_all_events')
-    .select('*')
+    .from('events')
+    .select(`
+      *,
+      user_profiles!events_user_id_fkey (
+        email,
+        full_name
+      )
+    `)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -1170,6 +1176,9 @@ export const getAllEvents = async (): Promise<Event[]> => {
     passcode: e.passcode,
     prompts: [],
     userId: e.user_id,
+    userName: e.user_profiles?.full_name || 'Unknown',
+    userEmail: e.user_profiles?.email || '',
+    createdByEmail: e.user_profiles?.email || '',
     aspectRatio: e.aspect_ratio,
     backgroundImageUrl: e.background_image_url,
     logoUrl: e.logo_url,
