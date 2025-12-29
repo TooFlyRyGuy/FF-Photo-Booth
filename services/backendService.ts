@@ -1090,7 +1090,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 
   const { data: credits } = await supabase
     .from('user_credits')
-    .select('available_credits')
+    .select('images_limit, images_used')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -1098,7 +1098,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
   const activeEvents = events?.filter(e => e.is_active).length || 0;
   const totalGenerations = events?.reduce((sum, e) => sum + (e.total_generations || 0), 0) || 0;
   const totalPrompts = prompts?.length || 0;
-  const availableCredits = credits?.available_credits || 0;
+  const availableCredits = credits ? (credits.images_limit - credits.images_used) : 0;
 
   return {
     totalEvents,
