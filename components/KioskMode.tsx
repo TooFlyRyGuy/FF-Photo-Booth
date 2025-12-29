@@ -177,7 +177,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         hasKey: !!geminiApiKey,
         keyLength: geminiApiKey?.length,
         keyPrefix: geminiApiKey?.substring(0, 5),
-        geminiEnabled,
+        geminiEnabled: globalSettings.geminiEnabled,
       });
 
       let genImage = await generateBoothImage(
