@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface UploadRequest {
-  tenantId: string;
+  userId: string;
   eventId: string;
   eventName: string;
   imageBase64: string;
@@ -28,36 +28,36 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { tenantId, eventId, eventName, imageBase64, imageType, promptName }: UploadRequest = await req.json();
+    const { userId, eventId, eventName, imageBase64, imageType, promptName }: UploadRequest = await req.json();
 
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
+    const { data: userSettings, error: settingsError } = await supabase
+      .from('user_settings')
       .select('dropbox_access_token, dropbox_refresh_token, dropbox_token_expires_at, dropbox_enabled, dropbox_app_key, dropbox_app_secret')
-      .eq('id', tenantId)
+      .eq('user_id', userId)
       .maybeSingle();
 
-    if (tenantError || !tenant) {
-      throw new Error('Failed to fetch tenant');
+    if (settingsError || !userSettings) {
+      throw new Error('Failed to fetch user settings');
     }
 
-    if (!tenant.dropbox_enabled || !tenant.dropbox_access_token) {
-      throw new Error('Dropbox is not configured for this tenant');
+    if (!userSettings.dropbox_enabled || !userSettings.dropbox_access_token) {
+      throw new Error('Dropbox is not configured for this user');
     }
 
-    let accessToken = tenant.dropbox_access_token;
+    let accessToken = userSettings.dropbox_access_token;
 
-    if (tenant.dropbox_refresh_token && tenant.dropbox_app_key && tenant.dropbox_app_secret) {
-      const shouldRefresh = !tenant.dropbox_token_expires_at ||
-        new Date(tenant.dropbox_token_expires_at) <= new Date(Date.now() + 5 * 60 * 1000);
+    if (userSettings.dropbox_refresh_token && userSettings.dropbox_app_key && userSettings.dropbox_app_secret) {
+      const shouldRefresh = !userSettings.dropbox_token_expires_at ||
+        new Date(userSettings.dropbox_token_expires_at) <= new Date(Date.now() + 5 * 60 * 1000);
 
       if (shouldRefresh) {
         try {
           accessToken = await refreshAccessToken(
             supabase,
-            tenantId,
-            tenant.dropbox_app_key,
-            tenant.dropbox_app_secret,
-            tenant.dropbox_refresh_token
+            userId,
+            userSettings.dropbox_app_key,
+            userSettings.dropbox_app_secret,
+            userSettings.dropbox_refresh_token
           );
         } catch (error) {
           console.error('Token refresh failed, will attempt with existing token:', error);
@@ -203,7 +203,7 @@ Deno.serve(async (req: Request) => {
 
 async function refreshAccessToken(
   supabase: any,
-  tenantId: string,
+  userId: string,
   appKey: string,
   appSecret: string,
   refreshToken: string
@@ -246,9 +246,9 @@ async function refreshAccessToken(
   }
 
   await supabase
-    .from('tenants')
+    .from('user_settings')
     .update(updateData)
-    .eq('id', tenantId);
+    .eq('user_id', userId);
 
   return tokenData.access_token;
 }

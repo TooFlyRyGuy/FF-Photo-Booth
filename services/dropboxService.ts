@@ -1,7 +1,7 @@
 const DROPBOX_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-upload`;
 
 interface UploadToDropboxParams {
-  tenantId: string;
+  userId: string;
   eventId: string;
   eventName: string;
   imageBase64: string;

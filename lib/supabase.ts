@@ -12,25 +12,46 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type Database = {
   public: {
     Tables: {
-      tenants: {
+      user_profiles: {
         Row: {
           id: string;
-          name: string;
-          tier: 'STARTER' | 'PRO' | 'ENTERPRISE';
-          white_label_enabled: boolean;
-          branding_logo_url: string | null;
-          primary_color: string | null;
-          is_active: boolean;
+          email: string;
+          full_name: string | null;
+          subscription_status: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          subscription_ends_at: string | null;
+          trial_ends_at: string | null;
+          subscription_tier_id: string | null;
+          subscription_start_date: string | null;
+          subscription_end_date: string | null;
+          role: 'user' | 'admin';
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['tenants']['Row'], 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Database['public']['Tables']['tenants']['Insert']>;
+        Insert: Omit<Database['public']['Tables']['user_profiles']['Row'], 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['user_profiles']['Insert']>;
+      };
+      user_credits: {
+        Row: {
+          id: string;
+          user_id: string;
+          images_limit: number;
+          images_used: number;
+          sms_limit: number;
+          sms_used: number;
+          events_limit: number;
+          reset_date: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['user_credits']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['user_credits']['Insert']>;
       };
       events: {
         Row: {
           id: string;
-          tenant_id: string;
+          user_id: string | null;
           name: string;
           city: string;
           event_date: string;
@@ -38,6 +59,24 @@ export type Database = {
           is_active: boolean;
           total_generations: number;
           created_by: string | null;
+          aspect_ratio: 'square' | '3:4' | '4:3' | '9:16' | '16:9';
+          background_image_url: string | null;
+          logo_url: string | null;
+          primary_color: string | null;
+          secondary_color: string | null;
+          accent_color: string | null;
+          hide_logo: boolean;
+          hide_event_name: boolean;
+          start_datetime: string | null;
+          end_datetime: string | null;
+          sms_message: string | null;
+          overlay_image_url: string | null;
+          smugmug_gallery_id: string | null;
+          smugmug_gallery_url: string | null;
+          smugmug_gallery_visibility: string | null;
+          smugmug_gallery_name: string | null;
+          smugmug_gallery_key: string | null;
+          upload_originals_to_gallery: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -47,7 +86,7 @@ export type Database = {
       prompts: {
         Row: {
           id: string;
-          tenant_id: string | null;
+          user_id: string | null;
           name: string;
           description: string;
           category: string;
@@ -55,6 +94,8 @@ export type Database = {
           preview_image_url: string;
           reference_image_url: string | null;
           is_active: boolean;
+          is_public: boolean;
+          tags: string[];
           usage_count: number;
           created_at: string;
           updated_at: string;
@@ -67,7 +108,7 @@ export type Database = {
           id: string;
           event_id: string;
           prompt_id: string;
-          tenant_id: string;
+          user_id: string | null;
           original_image_url: string;
           generated_image_url: string | null;
           status: 'processing' | 'completed' | 'failed';
@@ -80,16 +121,39 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['generated_images']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['generated_images']['Insert']>;
       };
-      subscription_limits: {
+      event_prompts: {
         Row: {
           id: string;
-          tenant_id: string;
-          images_limit: number;
-          images_used: number;
-          sms_limit: number;
-          sms_used: number;
-          events_limit: number;
-          reset_date: string;
+          event_id: string;
+          prompt_id: string;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['event_prompts']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['event_prompts']['Insert']>;
+      };
+      sms_logs: {
+        Row: {
+          id: string;
+          image_id: string;
+          user_id: string | null;
+          phone_number: string;
+          message_sid: string | null;
+          status: 'queued' | 'sent' | 'delivered' | 'failed';
+          error_message: string | null;
+          sent_at: string;
+          delivered_at: string | null;
+        };
+        Insert: Omit<Database['public']['Tables']['sms_logs']['Row'], 'id' | 'sent_at'>;
+        Update: Partial<Database['public']['Tables']['sms_logs']['Insert']>;
+      };
+      global_settings: {
+        Row: {
+          id: string;
+          setting_key: string;
+          setting_value: string | null;
+          description: string | null;
+          is_sensitive: boolean;
           created_at: string;
           updated_at: string;
         };

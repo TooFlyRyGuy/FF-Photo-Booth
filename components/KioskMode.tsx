@@ -309,7 +309,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setIsSending(true);
     setErrorMsg('');
     try {
-      await sendSms(event.tenantId, phoneNumber, generatedImageUrl, event.id);
+      await sendSms(phoneNumber, generatedImageUrl, event.id);
       setPhoneNumber('');
       setDeliveryCountdown(15);
       setView('delivery');

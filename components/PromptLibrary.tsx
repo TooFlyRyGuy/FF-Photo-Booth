@@ -22,7 +22,7 @@ interface Prompt {
 }
 
 interface PromptLibraryProps {
-  tenantId: string;
+  userId: string;
   onClose: () => void;
   eventId?: string | null;
   selectedPrompts?: Prompt[];
@@ -30,7 +30,7 @@ interface PromptLibraryProps {
   onAddToEvent?: (prompt: Prompt) => void;
 }
 
-const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventId, selectedPrompts = [], onPromptsSelected, onAddToEvent }) => {
+const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId, selectedPrompts = [], onPromptsSelected, onAddToEvent }) => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [filteredPrompts, setFilteredPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       hasLoadedRef.current = true;
       loadPrompts();
     }
-  }, [tenantId]);
+  }, [userId]);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -258,7 +258,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     try {
       const timestamp = Date.now();
       const fileName = `${field}_${timestamp}.jpg`;
-      const filePath = `${tenantId}/${fileName}`;
+      const filePath = `${userId}/${fileName}`;
 
       const reader = new FileReader();
       reader.onload = async (event) => {
