@@ -1152,49 +1152,63 @@ export const getAllUsers = async (): Promise<any[]> => {
 };
 
 export const getAllEvents = async (): Promise<Event[]> => {
-  const { data, error } = await supabase
+  const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select(`
-      *,
-      user_profiles!events_user_id_fkey (
-        email,
-        full_name
-      )
-    `)
+    .select('*')
     .order('created_at', { ascending: false });
 
-  if (error) {
-    throw new Error(`Failed to fetch all events: ${error.message}`);
+  if (eventsError) {
+    throw new Error(`Failed to fetch all events: ${eventsError.message}`);
   }
 
-  return (data || []).map(e => ({
-    id: e.id,
-    name: e.name,
-    date: e.event_date,
-    city: e.city,
-    isActive: e.is_active,
-    passcode: e.passcode,
-    prompts: [],
-    userId: e.user_id,
-    userName: e.user_profiles?.full_name || 'Unknown',
-    userEmail: e.user_profiles?.email || '',
-    createdByEmail: e.user_profiles?.email || '',
-    aspectRatio: e.aspect_ratio,
-    backgroundImageUrl: e.background_image_url,
-    logoUrl: e.logo_url,
-    overlayImageUrl: e.overlay_image_url,
-    primaryColor: e.primary_color,
-    secondaryColor: e.secondary_color,
-    accentColor: e.accent_color,
-    hideLogo: e.hide_logo,
-    hideEventName: e.hide_event_name,
-    startDatetime: e.start_datetime,
-    endDatetime: e.end_datetime,
-    smsMessage: e.sms_message,
-    smugmugGalleryKey: e.smugmug_gallery_key,
-    smugmugGalleryUrl: e.smugmug_gallery_url,
-    uploadOriginalsToGallery: e.upload_originals_to_gallery,
-  }));
+  if (!eventsData || eventsData.length === 0) {
+    return [];
+  }
+
+  const userIds = [...new Set(eventsData.map(e => e.user_id).filter(Boolean))];
+
+  const { data: usersData, error: usersError } = await supabase
+    .from('user_profiles')
+    .select('id, email, full_name')
+    .in('id', userIds);
+
+  if (usersError) {
+    console.error('Failed to fetch user profiles:', usersError);
+  }
+
+  const usersMap = new Map((usersData || []).map(u => [u.id, u]));
+
+  return eventsData.map(e => {
+    const userProfile = usersMap.get(e.user_id);
+    return {
+      id: e.id,
+      name: e.name,
+      date: e.event_date,
+      city: e.city,
+      isActive: e.is_active,
+      passcode: e.passcode,
+      prompts: [],
+      userId: e.user_id,
+      userName: userProfile?.full_name || 'Unknown',
+      userEmail: userProfile?.email || '',
+      createdByEmail: userProfile?.email || '',
+      aspectRatio: e.aspect_ratio,
+      backgroundImageUrl: e.background_image_url,
+      logoUrl: e.logo_url,
+      overlayImageUrl: e.overlay_image_url,
+      primaryColor: e.primary_color,
+      secondaryColor: e.secondary_color,
+      accentColor: e.accent_color,
+      hideLogo: e.hide_logo,
+      hideEventName: e.hide_event_name,
+      startDatetime: e.start_datetime,
+      endDatetime: e.end_datetime,
+      smsMessage: e.sms_message,
+      smugmugGalleryKey: e.smugmug_gallery_key,
+      smugmugGalleryUrl: e.smugmug_gallery_url,
+      uploadOriginalsToGallery: e.upload_originals_to_gallery,
+    };
+  });
 };
 
 export const getAllPrompts = async (): Promise<Prompt[]> => {

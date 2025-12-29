@@ -20,6 +20,7 @@ interface UserProfile {
   id: string;
   email: string;
   full_name: string;
+  role?: string;
   subscription_tier: string;
   subscription_status: string;
   stripe_customer_id: string;
@@ -116,6 +117,48 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
     return (
       <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
         <div className="text-slate-900 text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  const isAdmin = userProfile?.role === 'admin';
+
+  if (isAdmin) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-slate-900">Administrator Account</h2>
+            <button
+              onClick={onClose}
+              className="text-slate-600 hover:text-slate-900 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="bg-green-700/10 border-2 border-green-700/30 rounded-xl p-6 mb-6">
+            <div className="flex items-start gap-4">
+              <Crown size={32} className="text-green-800 flex-shrink-0" />
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Admin Access</h3>
+                <p className="text-slate-700 mb-3">
+                  As an administrator, you have unlimited access to all features. Subscription plans do not apply to admin accounts.
+                </p>
+                <p className="text-slate-700">
+                  To manage subscription plans offered to users, navigate to the <strong>Plans</strong> section from the admin menu.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold"
+          >
+            Close
+          </button>
+        </div>
       </div>
     );
   }
