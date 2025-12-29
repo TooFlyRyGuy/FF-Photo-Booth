@@ -28,7 +28,10 @@ export const saveGeneratedImage = async (
   originalImageUrl: string,      // Required
   generatedImageUrl: string | null,
   // ...
-)
+): Promise<string> => {
+  // ... insert with .select().single()
+  return newImage.id;
+}
 
 // After
 export const saveGeneratedImage = async (
@@ -37,8 +40,17 @@ export const saveGeneratedImage = async (
   originalImageUrl: string | null = null,  // Optional
   generatedImageUrl: string | null = null, // Optional
   // ...
-)
+): Promise<string> => {
+  // ... insert without .select() to avoid RLS issues with anonymous users
+  return 'analytics-recorded';
+}
 ```
+
+**Key Changes:**
+- Made image URL parameters optional
+- Removed `.select().single()` after insert to avoid RLS policy issues
+- Anonymous users (kiosk mode) can now insert without needing SELECT permission
+- Returns simple confirmation instead of record ID (ID not needed for analytics)
 
 ### 3. Kiosk Mode Update
 

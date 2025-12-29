@@ -950,17 +950,15 @@ export const saveGeneratedImage = async (
     user_id: user?.id || null,
   };
 
-  const { data: newImage, error } = await supabase
+  const { error } = await supabase
     .from('generated_images')
-    .insert([imageData])
-    .select()
-    .single();
+    .insert([imageData]);
 
   if (error) {
     throw new Error(`Failed to save generated image: ${error.message}`);
   }
 
-  return newImage.id;
+  return 'analytics-recorded';
 };
 
 interface EventAnalytics {
