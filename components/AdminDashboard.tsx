@@ -692,17 +692,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
             {/* Chart */}
             <div className="bg-white p-6 rounded-xl border-2 border-slate-300 h-80">
-              <h3 className="text-lg font-semibold mb-4 text-black">Generation Activity (Last 7 Days)</h3>
+              <h3 className="text-lg font-semibold mb-4 text-black">Generation Activity (Last 30 Days)</h3>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
-                  <XAxis dataKey="name" stroke="#475569" />
+                  <XAxis dataKey="date" stroke="#475569" />
                   <YAxis stroke="#475569" />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1' }}
                     itemStyle={{ color: '#0f172a' }}
                   />
-                  <Bar dataKey="images" fill="#15803d" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="generations" fill="#15803d" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
