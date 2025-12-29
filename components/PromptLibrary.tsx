@@ -341,6 +341,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
           is_public: isPublic,
+          user_id: userId,
         });
 
         if (error) throw error;
