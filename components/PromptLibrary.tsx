@@ -376,6 +376,23 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     if (!confirm('Are you sure you want to delete this prompt? This cannot be undone.')) return;
 
     try {
+      const { data: usageData, error: usageError } = await supabase
+        .from('event_prompts')
+        .select('event_id, events(name)')
+        .eq('prompt_id', promptId)
+        .limit(5);
+
+      if (usageError) throw usageError;
+
+      if (usageData && usageData.length > 0) {
+        const eventNames = usageData.map((ep: any) => ep.events?.name || 'Unknown Event').join(', ');
+        const additionalCount = usageData.length > 1 ? ` and ${usageData.length - 1} other event(s)` : '';
+        alert(
+          `Cannot delete this prompt because it is currently being used in the following event(s):\n\n${eventNames}${additionalCount}\n\nPlease remove the prompt from these events first before deleting it.`
+        );
+        return;
+      }
+
       const { error } = await supabase.from('prompts').delete().eq('id', promptId);
 
       if (error) throw error;
