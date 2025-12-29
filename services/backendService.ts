@@ -503,12 +503,21 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       }
     }
 
+    const now = new Date();
+    let isActive = event.is_active;
+
+    if (event.start_datetime && event.end_datetime) {
+      const startTime = new Date(event.start_datetime);
+      const endTime = new Date(event.end_datetime);
+      isActive = isActive && now >= startTime && now <= endTime;
+    }
+
     events.push({
       id: event.id,
       name: event.name,
       date: event.event_date,
       city: event.city,
-      isActive: event.is_active,
+      isActive,
       passcode: event.passcode,
       prompts,
       userId: event.user_id,
@@ -585,12 +594,21 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     }
   }
 
+  const now = new Date();
+  let isActive = eventData.is_active;
+
+  if (eventData.start_datetime && eventData.end_datetime) {
+    const startTime = new Date(eventData.start_datetime);
+    const endTime = new Date(eventData.end_datetime);
+    isActive = isActive && now >= startTime && now <= endTime;
+  }
+
   return {
     id: eventData.id,
     name: eventData.name,
     date: eventData.event_date,
     city: eventData.city,
-    isActive: eventData.is_active,
+    isActive,
     passcode: eventData.passcode,
     prompts,
     userId: eventData.user_id,
@@ -878,25 +896,28 @@ export const deletePrompt = async (promptId: string): Promise<void> => {
 };
 
 export const sendSms = async (phoneNumber: string, imageUrl: string, eventId?: string): Promise<boolean> => {
-  const settings = await getGlobalSettings();
+  const userId = await getUserId();
 
-  if (!settings.twilioEnabled) {
-    throw new Error('SMS functionality is not enabled');
+  if (!userId) {
+    throw new Error('User not authenticated');
   }
 
-  let message = 'Here\'s your AI-generated photo!';
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
 
-  if (eventId) {
-    const event = await getEventById(eventId);
-    message = event.smsMessage || `Here's your AI-generated photo from ${event.name}!`;
-    message = message.replace('{event_name}', event.name).replace('{image_url}', imageUrl);
+  if (!profile) {
+    throw new Error('User profile not found');
   }
 
   const response = await supabase.functions.invoke('twilio-send-sms', {
     body: {
-      to: phoneNumber,
-      message,
+      tenantId: profile.id,
+      phoneNumber,
       imageUrl,
+      eventId,
     },
   });
 
@@ -1172,12 +1193,22 @@ export const getAllEvents = async (): Promise<Event[]> => {
 
   return eventsData.map(e => {
     const userProfile = usersMap.get(e.user_id);
+
+    const now = new Date();
+    let isActive = e.is_active;
+
+    if (e.start_datetime && e.end_datetime) {
+      const startTime = new Date(e.start_datetime);
+      const endTime = new Date(e.end_datetime);
+      isActive = isActive && now >= startTime && now <= endTime;
+    }
+
     return {
       id: e.id,
       name: e.name,
       date: e.event_date,
       city: e.city,
-      isActive: e.is_active,
+      isActive,
       passcode: e.passcode,
       prompts: [],
       userId: e.user_id,

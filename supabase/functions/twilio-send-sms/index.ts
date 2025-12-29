@@ -28,18 +28,17 @@ Deno.serve(async (req: Request) => {
 
     const { tenantId, phoneNumber, imageUrl, eventId }: SmsRequest = await req.json();
 
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
+    const { data: settings, error: settingsError } = await supabase
+      .from('global_settings')
       .select('twilio_account_sid, twilio_auth_token, twilio_phone_number, twilio_enabled')
-      .eq('id', tenantId)
       .maybeSingle();
 
-    if (tenantError || !tenant) {
-      throw new Error('Failed to fetch tenant');
+    if (settingsError || !settings) {
+      throw new Error('Failed to fetch Twilio settings');
     }
 
-    if (!tenant.twilio_enabled || !tenant.twilio_account_sid || !tenant.twilio_auth_token || !tenant.twilio_phone_number) {
-      throw new Error('Twilio is not configured for this tenant');
+    if (!settings.twilio_enabled || !settings.twilio_account_sid || !settings.twilio_auth_token || !settings.twilio_phone_number) {
+      throw new Error('Twilio is not configured');
     }
 
     let messageTemplate = "Here's your AI-generated photo from {event_name}! {image_url}";
@@ -66,9 +65,9 @@ Deno.serve(async (req: Request) => {
 
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\D/g, '')}`;
 
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${tenant.twilio_account_sid}/Messages.json`;
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${settings.twilio_account_sid}/Messages.json`;
 
-    const authString = btoa(`${tenant.twilio_account_sid}:${tenant.twilio_auth_token}`);
+    const authString = btoa(`${settings.twilio_account_sid}:${settings.twilio_auth_token}`);
 
     const response = await fetch(twilioUrl, {
       method: 'POST',
@@ -78,7 +77,7 @@ Deno.serve(async (req: Request) => {
       },
       body: new URLSearchParams({
         To: formattedPhone,
-        From: tenant.twilio_phone_number,
+        From: settings.twilio_phone_number,
         Body: messageBody,
       }),
     });
