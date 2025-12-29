@@ -544,10 +544,18 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
     const now = new Date();
     let isActive = event.is_active;
 
-    if (event.start_datetime && event.end_datetime) {
-      const startTime = new Date(event.start_datetime);
+    if (event.end_datetime) {
       const endTime = new Date(event.end_datetime);
-      isActive = isActive && now >= startTime && now <= endTime;
+      if (now > endTime) {
+        isActive = false;
+      }
+    }
+
+    if (event.start_datetime) {
+      const startTime = new Date(event.start_datetime);
+      if (now < startTime) {
+        isActive = false;
+      }
     }
 
     events.push({
@@ -635,10 +643,18 @@ export const getEventById = async (eventId: string): Promise<Event> => {
   const now = new Date();
   let isActive = eventData.is_active;
 
-  if (eventData.start_datetime && eventData.end_datetime) {
-    const startTime = new Date(eventData.start_datetime);
+  if (eventData.end_datetime) {
     const endTime = new Date(eventData.end_datetime);
-    isActive = isActive && now >= startTime && now <= endTime;
+    if (now > endTime) {
+      isActive = false;
+    }
+  }
+
+  if (eventData.start_datetime) {
+    const startTime = new Date(eventData.start_datetime);
+    if (now < startTime) {
+      isActive = false;
+    }
   }
 
   return {
@@ -1158,13 +1174,19 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 
   const now = new Date();
   const activeEvents = events?.filter(e => {
-    let isActive = e.is_active;
-    if (e.start_datetime && e.end_datetime) {
-      const startTime = new Date(e.start_datetime);
+    if (!e.is_active) return false;
+
+    if (e.end_datetime) {
       const endTime = new Date(e.end_datetime);
-      isActive = isActive && now >= startTime && now <= endTime;
+      if (now > endTime) return false;
     }
-    return isActive;
+
+    if (e.start_datetime) {
+      const startTime = new Date(e.start_datetime);
+      if (now < startTime) return false;
+    }
+
+    return true;
   }).length || 0;
 
   return {
@@ -1265,10 +1287,18 @@ export const getAllEvents = async (): Promise<Event[]> => {
     const now = new Date();
     let isActive = e.is_active;
 
-    if (e.start_datetime && e.end_datetime) {
-      const startTime = new Date(e.start_datetime);
+    if (e.end_datetime) {
       const endTime = new Date(e.end_datetime);
-      isActive = isActive && now >= startTime && now <= endTime;
+      if (now > endTime) {
+        isActive = false;
+      }
+    }
+
+    if (e.start_datetime) {
+      const startTime = new Date(e.start_datetime);
+      if (now < startTime) {
+        isActive = false;
+      }
     }
 
     return {
