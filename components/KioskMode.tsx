@@ -278,12 +278,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         }
       }
 
-      // 5. Save URLs to database
+      // 5. Save analytics record to database (URLs stored in SmugMug/Dropbox only)
       await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
-        originalUrl,
-        generatedUrl,
+        null, // originalUrl - stored in SmugMug/Dropbox, not database
+        null, // generatedUrl - stored in SmugMug/Dropbox, not database
         null,
         'completed'
       );

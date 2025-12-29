@@ -931,8 +931,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
 export const saveGeneratedImage = async (
   eventId: string,
   promptId: string,
-  originalImageUrl: string,
-  generatedImageUrl: string | null,
+  originalImageUrl: string | null = null,
+  generatedImageUrl: string | null = null,
   phoneNumber: string | null = null,
   status: 'processing' | 'completed' | 'failed' = 'processing',
   errorMessage: string | null = null
