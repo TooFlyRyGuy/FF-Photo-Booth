@@ -20,6 +20,27 @@ interface AdminProps {
 
 type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'plans' | 'revenue';
 
+const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'; label: string; colorClass: string } => {
+  const now = new Date();
+  const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
+  const endDate = event.endDatetime ? new Date(event.endDatetime) : null;
+
+  if (endDate && now > endDate) {
+    return { status: 'ended', label: 'ENDED', colorClass: 'bg-red-100 text-red-800' };
+  }
+
+  if (startDate && now < startDate) {
+    const formattedDate = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return { status: 'upcoming', label: `Starts ${formattedDate}`, colorClass: 'bg-yellow-100 text-yellow-800' };
+  }
+
+  if (event.isActive) {
+    return { status: 'active', label: 'ACTIVE', colorClass: 'bg-green-700/20 text-green-800' };
+  }
+
+  return { status: 'ended', label: 'INACTIVE', colorClass: 'bg-slate-200 text-slate-600' };
+};
+
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -754,11 +775,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                               {event.name}
                             </h3>
                             <div className="flex flex-wrap items-center gap-2 mt-1">
-                              {event.isActive && (
-                                <span className="text-xs bg-green-700/20 text-green-800 px-2 py-0.5 rounded-full font-medium">
-                                  Active
-                                </span>
-                              )}
+                              {(() => {
+                                const eventStatus = getEventStatus(event);
+                                return (
+                                  <span className={`text-xs ${eventStatus.colorClass} px-2 py-0.5 rounded-full font-medium`}>
+                                    {eventStatus.label}
+                                  </span>
+                                );
+                              })()}
                               <span className="text-slate-600 text-sm">{event.city}</span>
                               <span className="text-slate-400">•</span>
                               <span className="text-slate-600 text-sm">{event.date}</span>

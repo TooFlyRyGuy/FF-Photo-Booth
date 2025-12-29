@@ -22,15 +22,25 @@ const getUserId = async (): Promise<string | null> => {
     return cachedUserId;
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (user) {
-    cachedUserId = user.id;
-    cacheTimestamp = Date.now();
-    return user.id;
+    if (error) {
+      console.error('Error fetching user:', error);
+      return null;
+    }
+
+    if (user) {
+      cachedUserId = user.id;
+      cacheTimestamp = Date.now();
+      return user.id;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch user ID:', error);
+    return null;
   }
-
-  return null;
 };
 
 export const clearUserCache = () => {
@@ -149,40 +159,51 @@ const deleteImageFromStorage = async (imageUrl: string): Promise<void> => {
 };
 
 export const getUserProfile = async (): Promise<UserProfile> => {
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!user) {
-    throw new Error('User not authenticated');
+    if (authError) {
+      console.error('Auth error:', authError);
+      throw new Error(`Authentication failed: ${authError.message}`);
+    }
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data: profileData, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Profile fetch error:', error);
+      throw new Error(`Failed to fetch user profile: ${error.message}`);
+    }
+
+    if (!profileData) {
+      throw new Error('User profile not found');
+    }
+
+    return {
+      id: profileData.id,
+      email: profileData.email,
+      fullName: profileData.full_name,
+      role: profileData.role || 'user',
+      subscriptionStatus: profileData.subscription_status,
+      subscriptionTierId: profileData.subscription_tier_id,
+      stripeCustomerId: profileData.stripe_customer_id,
+      stripeSubscriptionId: profileData.stripe_subscription_id,
+      subscriptionStartDate: profileData.subscription_start_date,
+      subscriptionEndDate: profileData.subscription_end_date,
+      createdAt: profileData.created_at,
+      updatedAt: profileData.updated_at,
+    };
+  } catch (error) {
+    console.error('getUserProfile failed:', error);
+    throw error;
   }
-
-  const { data: profileData, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Failed to fetch user profile: ${error.message}`);
-  }
-
-  if (!profileData) {
-    throw new Error('User profile not found');
-  }
-
-  return {
-    id: profileData.id,
-    email: profileData.email,
-    fullName: profileData.full_name,
-    role: profileData.role || 'user',
-    subscriptionStatus: profileData.subscription_status,
-    subscriptionTierId: profileData.subscription_tier_id,
-    stripeCustomerId: profileData.stripe_customer_id,
-    stripeSubscriptionId: profileData.stripe_subscription_id,
-    subscriptionStartDate: profileData.subscription_start_date,
-    subscriptionEndDate: profileData.subscription_end_date,
-    createdAt: profileData.created_at,
-    updatedAt: profileData.updated_at,
-  };
 };
 
 export const getUserCredits = async (): Promise<UserCredits> => {
