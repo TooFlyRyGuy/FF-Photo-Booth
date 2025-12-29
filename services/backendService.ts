@@ -1137,3 +1137,136 @@ export const getDashboardChartData = async (): Promise<ChartDataPoint[]> => {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, generations]) => ({ date, generations }));
 };
+
+export const getAllUsers = async (): Promise<any[]> => {
+  const { data, error } = await supabase
+    .from('admin_all_users')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch all users: ${error.message}`);
+  }
+
+  return data || [];
+};
+
+export const getAllEvents = async (): Promise<Event[]> => {
+  const { data, error } = await supabase
+    .from('admin_all_events')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch all events: ${error.message}`);
+  }
+
+  return (data || []).map(e => ({
+    id: e.id,
+    name: e.name,
+    date: e.event_date,
+    city: e.city,
+    isActive: e.is_active,
+    passcode: e.passcode,
+    prompts: [],
+    userId: e.user_id,
+    aspectRatio: e.aspect_ratio,
+    backgroundImageUrl: e.background_image_url,
+    logoUrl: e.logo_url,
+    overlayImageUrl: e.overlay_image_url,
+    primaryColor: e.primary_color,
+    secondaryColor: e.secondary_color,
+    accentColor: e.accent_color,
+    hideLogo: e.hide_logo,
+    hideEventName: e.hide_event_name,
+    startDatetime: e.start_datetime,
+    endDatetime: e.end_datetime,
+    smsMessage: e.sms_message,
+    smugmugGalleryKey: e.smugmug_gallery_key,
+    smugmugGalleryUrl: e.smugmug_gallery_url,
+    uploadOriginalsToGallery: e.upload_originals_to_gallery,
+  }));
+};
+
+export const getAllPrompts = async (): Promise<Prompt[]> => {
+  const { data, error } = await supabase
+    .from('admin_all_prompts')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch all prompts: ${error.message}`);
+  }
+
+  return (data || []).map(p => ({
+    id: p.id,
+    name: p.name,
+    description: p.description || '',
+    previewImage: p.preview_image_url,
+    referenceImage: p.reference_image_url,
+    promptText: p.prompt_text,
+    category: p.category,
+    isPublic: p.is_public || false,
+    userId: p.user_id,
+    tags: p.tags || [],
+  }));
+};
+
+export const getAdminStats = async (): Promise<any> => {
+  const [usersData, eventsData, imagesData] = await Promise.all([
+    supabase.from('user_profiles').select('id, created_at, subscription_status'),
+    supabase.from('events').select('id'),
+    supabase.from('generated_images').select('id, created_at')
+  ]);
+
+  const totalUsers = usersData.data?.length || 0;
+  const activeUsers = usersData.data?.filter(u => u.subscription_status === 'active').length || 0;
+  const totalEvents = eventsData.data?.length || 0;
+  const totalImages = imagesData.data?.length || 0;
+
+  const last30Days = new Date();
+  last30Days.setDate(last30Days.getDate() - 30);
+  const recentImages = imagesData.data?.filter(
+    img => new Date(img.created_at) > last30Days
+  ).length || 0;
+
+  return {
+    totalUsers,
+    activeUsers,
+    totalEvents,
+    totalImages,
+    recentImages
+  };
+};
+
+export const getRevenueStats = async (): Promise<any> => {
+  const { data, error } = await supabase
+    .from('stripe_orders')
+    .select('*')
+    .eq('status', 'completed');
+
+  if (error) {
+    console.error('Failed to fetch revenue stats:', error);
+    return {
+      totalRevenue: 0,
+      monthlyRevenue: 0,
+      orderCount: 0
+    };
+  }
+
+  const totalRevenue = data?.reduce((sum, order) => sum + (order.amount_total || 0), 0) || 0;
+
+  const currentMonth = new Date();
+  currentMonth.setDate(1);
+  currentMonth.setHours(0, 0, 0, 0);
+
+  const monthlyRevenue = data?.filter(order =>
+    new Date(order.created_at) >= currentMonth
+  ).reduce((sum, order) => sum + (order.amount_total || 0), 0) || 0;
+
+  return {
+    totalRevenue: totalRevenue / 100,
+    monthlyRevenue: monthlyRevenue / 100,
+    orderCount: data?.length || 0
+  };
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -16,7 +16,7 @@ interface AdminProps {
   user: User | null;
 }
 
-type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts';
+type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'revenue';
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -50,6 +50,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [editingPromptData, setEditingPromptData] = useState<Partial<Prompt> | null>(null);
 
+  // Admin State
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [adminStats, setAdminStats] = useState<any>(null);
+  const [revenueStats, setRevenueStats] = useState<any>(null);
+
   useEffect(() => {
     if (user) {
       clearPromptsCache();
@@ -67,17 +72,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       setIsLoading(true);
       setLoadError(null);
 
-      const [profileData, settingsData, globalData, creditsData, eventsData] = await Promise.all([
-        getUserProfile(),
-        getUserSettings(),
-        getGlobalSettings(),
-        getUserCredits(),
-        getEvents()
-      ]);
+      const profileData = await getUserProfile();
 
       if (!profileData) {
         throw new Error('Unable to load user profile');
       }
+
+      const isAdmin = profileData.role === 'admin';
+
+      const [settingsData, globalData, creditsData, eventsData] = await Promise.all([
+        getUserSettings(),
+        getGlobalSettings(),
+        getUserCredits(),
+        isAdmin ? getAllEvents() : getEvents()
+      ]);
 
       setUserProfile(profileData);
       setUserSettings(settingsData);
@@ -87,6 +95,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
       console.log('Loaded data successfully:', {
         userId: profileData?.id || 'unknown',
+        role: profileData?.role || 'user',
         events: (eventsData || []).length
       });
 
@@ -111,6 +120,29 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       console.error('Failed to load dashboard data:', error);
     }
   };
+
+  const loadAdminData = async () => {
+    if (userProfile?.role !== 'admin') return;
+
+    try {
+      const [users, stats, revenue] = await Promise.all([
+        getAllUsers(),
+        getAdminStats(),
+        getRevenueStats()
+      ]);
+      setAllUsers(users || []);
+      setAdminStats(stats);
+      setRevenueStats(revenue);
+    } catch (error) {
+      console.error('Failed to load admin data:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (userProfile?.role === 'admin' && (activeTab === 'users' || activeTab === 'revenue')) {
+      loadAdminData();
+    }
+  }, [activeTab, userProfile?.role]);
 
   const handleLaunchKiosk = async (event: Event) => {
     try {
@@ -379,6 +411,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   }
 
   const usagePercent = (userCredits.images_used / userCredits.images_limit) * 100;
+  const isAdmin = userProfile.role === 'admin';
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
@@ -428,10 +461,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </h1>
           {userProfile && !sidebarCollapsed && (
             <div className="mt-3 text-xs">
-              <p className="text-slate-600 truncate">{user?.email}</p>
-              <p className="text-slate-500 mt-1 uppercase tracking-widest">
-                {userProfile.role?.toUpperCase() || 'USER'}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-slate-600 truncate flex-1">{user?.email}</p>
+                {isAdmin && (
+                  <span className="bg-green-700 text-white px-2 py-0.5 rounded text-xs font-bold">
+                    ADMIN
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -481,6 +518,32 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             <SettingsIcon size={20} />
             {!sidebarCollapsed && 'Settings'}
           </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => {
+                  setActiveTab('users');
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'users' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+                title={sidebarCollapsed ? 'User Management' : ''}
+              >
+                <Users size={20} />
+                {!sidebarCollapsed && 'User Management'}
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('revenue');
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'revenue' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+                title={sidebarCollapsed ? 'Revenue' : ''}
+              >
+                <DollarSign size={20} />
+                {!sidebarCollapsed && 'Revenue'}
+              </button>
+            </>
+          )}
         </nav>
 
         <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
@@ -608,7 +671,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {activeTab === 'events' && (
           <div className="space-y-6">
              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <h2 className="text-3xl font-bold text-black">Your Events</h2>
+              <div>
+                <h2 className="text-3xl font-bold text-black">
+                  {isAdmin ? 'All Events' : 'Your Events'}
+                </h2>
+                {isAdmin && (
+                  <p className="text-sm text-green-700 font-medium mt-1 flex items-center gap-1">
+                    <Users size={14} /> Admin view - Showing all users' events
+                  </p>
+                )}
+              </div>
               <button
                 onClick={handleCreateEvent}
                 className="bg-green-700 hover:bg-green-800 text-white px-6 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 whitespace-nowrap shadow-lg shadow-green-900/20 transition-all"
@@ -1359,6 +1431,204 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             </header>
 
             <EventAnalytics eventId={analyticsEvent.id} eventName={analyticsEvent.name} />
+          </div>
+        )}
+
+        {/* USER MANAGEMENT VIEW */}
+        {activeTab === 'users' && isAdmin && (
+          <div className="space-y-6">
+            <header className="mb-8">
+              <h2 className="text-3xl font-bold text-black">User Management</h2>
+              <p className="text-slate-600 mt-2">View and manage all users in the system</p>
+            </header>
+
+            <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b-2 border-slate-300">
+                    <tr>
+                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Email</th>
+                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Full Name</th>
+                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Role</th>
+                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Subscription</th>
+                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Images</th>
+                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">SMS</th>
+                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Events</th>
+                      <th className="text-left px-6 py-4 text-sm font-bold text-slate-700">Created At</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {allUsers.length > 0 ? (
+                      allUsers.map((user, index) => (
+                        <tr key={user.id || index} className="hover:bg-slate-50">
+                          <td className="px-6 py-4 text-sm text-slate-900">{user.email}</td>
+                          <td className="px-6 py-4 text-sm text-slate-900">{user.full_name || '-'}</td>
+                          <td className="px-6 py-4 text-sm">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              user.role === 'admin'
+                                ? 'bg-green-700 text-white'
+                                : 'bg-slate-200 text-slate-700'
+                            }`}>
+                              {user.role || 'user'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-900">
+                            {user.subscription_status || 'free'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-900">
+                            {user.images_used || 0} / {user.images_limit || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-900">
+                            {user.sms_used || 0} / {user.sms_limit || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-900">
+                            {user.events_count || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600">
+                            {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                          No users found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* REVENUE VIEW */}
+        {activeTab === 'revenue' && isAdmin && (
+          <div className="space-y-6">
+            <header className="mb-8">
+              <h2 className="text-3xl font-bold text-black">Revenue Reports</h2>
+              <p className="text-slate-600 mt-2">View financial metrics and system statistics</p>
+            </header>
+
+            {/* Revenue Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Revenue</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      ${revenueStats?.total_revenue ? (revenueStats.total_revenue / 100).toFixed(2) : '0.00'}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <DollarSign size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Monthly Revenue</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      ${revenueStats?.monthly_revenue ? (revenueStats.monthly_revenue / 100).toFixed(2) : '0.00'}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <DollarSign size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Orders</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {revenueStats?.total_orders || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <CreditCard size={20} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Users</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.total_users || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Users size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Active Users</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.active_users || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Users size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Events</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.total_events || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Calendar size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Images</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.total_images || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Camera size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Recent Images</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.recent_images || 0}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Last 30 days</p>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Camera size={20} />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
