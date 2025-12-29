@@ -119,7 +119,7 @@ export interface Event {
   isActive: boolean;
   passcode: string;
   prompts: Prompt[];
-  userId: string;
+  userId?: string | null;
   userName?: string;
   userEmail?: string;
   createdByEmail?: string;

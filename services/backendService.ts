@@ -288,7 +288,11 @@ export const getUserSettings = async (): Promise<UserSettings> => {
   };
 };
 
-export const getUserSettingsByUserId = async (userId: string): Promise<UserSettings> => {
+export const getUserSettingsByUserId = async (userId: string | null | undefined): Promise<UserSettings> => {
+  if (!userId) {
+    return {};
+  }
+
   const { data, error } = await supabase
     .from('user_settings')
     .select('*')
