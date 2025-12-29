@@ -895,7 +895,7 @@ export const deletePrompt = async (promptId: string): Promise<void> => {
   clearPromptsCache();
 };
 
-export const sendSms = async (phoneNumber: string, imageUrl: string, eventId?: string): Promise<boolean> => {
+export const sendSms = async (phoneNumber: string, imageUrl: string, imageId: string, eventId?: string): Promise<boolean> => {
   const userId = await getUserId();
 
   if (!userId) {
@@ -917,6 +917,7 @@ export const sendSms = async (phoneNumber: string, imageUrl: string, eventId?: s
       tenantId: profile.id,
       phoneNumber,
       imageUrl,
+      imageId,
       eventId,
     },
   });
@@ -971,15 +972,17 @@ export const saveGeneratedImage = async (
     user_id: user?.id || null,
   };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('generated_images')
-    .insert([imageData]);
+    .insert([imageData])
+    .select('id')
+    .single();
 
   if (error) {
     throw new Error(`Failed to save generated image: ${error.message}`);
   }
 
-  return 'analytics-recorded';
+  return data.id;
 };
 
 interface EventAnalytics {

@@ -10,6 +10,7 @@ interface SmsRequest {
   tenantId: string;
   phoneNumber: string;
   imageUrl: string;
+  imageId: string;
   eventId?: string;
 }
 
@@ -26,14 +27,16 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { tenantId, phoneNumber, imageUrl, eventId }: SmsRequest = await req.json();
+    const { tenantId, phoneNumber, imageUrl, imageId, eventId }: SmsRequest = await req.json();
 
     const { data: settings, error: settingsError } = await supabase
       .from('global_settings')
       .select('twilio_account_sid, twilio_auth_token, twilio_phone_number, twilio_enabled')
+      .limit(1)
       .maybeSingle();
 
     if (settingsError || !settings) {
+      console.error('Settings error:', settingsError);
       throw new Error('Failed to fetch Twilio settings');
     }
 
@@ -63,7 +66,7 @@ Deno.serve(async (req: Request) => {
       .replace('{event_name}', eventName)
       .replace('{image_url}', imageUrl);
 
-    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\D/g, '')}`;
+    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\\D/g, '')}`;
 
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${settings.twilio_account_sid}/Messages.json`;
 
@@ -88,6 +91,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const result = await response.json();
+
+    await supabase
+      .from('sms_logs')
+      .insert({
+        image_id: imageId,
+        phone_number: formattedPhone,
+        message_sid: result.sid,
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        user_id: tenantId,
+      });
 
     return new Response(
       JSON.stringify({

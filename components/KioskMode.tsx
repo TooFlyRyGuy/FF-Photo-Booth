@@ -21,6 +21,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [finalImage, setFinalImage] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [generatedImageId, setGeneratedImageId] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -279,7 +280,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       }
 
       // 5. Save analytics record to database (URLs stored in SmugMug/Dropbox only)
-      await saveGeneratedImage(
+      const imageId = await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
         null, // originalUrl - stored in SmugMug/Dropbox, not database
@@ -289,6 +290,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       );
 
       setGeneratedImageUrl(generatedUrl);
+      setGeneratedImageId(imageId);
       setView('result');
     } catch (err: any) {
       setErrorMsg(err.message || "AI Generation Failed");
@@ -298,7 +300,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // --- SMS LOGIC ---
   const handleSendSms = async () => {
-    if (phoneNumber.length < 10 || !generatedImageUrl) return;
+    if (phoneNumber.length < 10 || !generatedImageUrl || !generatedImageId) return;
 
     // Check if the URL is a data URL (base64) - cannot be sent via SMS
     if (generatedImageUrl.startsWith('data:')) {
@@ -309,7 +311,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setIsSending(true);
     setErrorMsg('');
     try {
-      await sendSms(phoneNumber, generatedImageUrl, event.id);
+      await sendSms(phoneNumber, generatedImageUrl, generatedImageId, event.id);
       setPhoneNumber('');
       setDeliveryCountdown(15);
       setView('delivery');
