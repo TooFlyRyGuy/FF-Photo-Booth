@@ -917,25 +917,23 @@ export const deletePrompt = async (promptId: string): Promise<void> => {
 };
 
 export const sendSms = async (phoneNumber: string, imageUrl: string, imageId: string, eventId?: string): Promise<boolean> => {
-  const userId = await getUserId();
-
-  if (!userId) {
-    throw new Error('User not authenticated');
+  if (!eventId) {
+    throw new Error('Event ID is required to send SMS');
   }
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('id')
-    .eq('id', userId)
+  const { data: event } = await supabase
+    .from('events')
+    .select('user_id')
+    .eq('id', eventId)
     .maybeSingle();
 
-  if (!profile) {
-    throw new Error('User profile not found');
+  if (!event) {
+    throw new Error('Event not found');
   }
 
   const response = await supabase.functions.invoke('twilio-send-sms', {
     body: {
-      tenantId: profile.id,
+      tenantId: event.user_id,
       phoneNumber,
       imageUrl,
       imageId,
