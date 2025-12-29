@@ -1066,11 +1066,10 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
 };
 
 interface DashboardStats {
+  totalImages: number;
+  totalSms: number;
   totalEvents: number;
   activeEvents: number;
-  totalGenerations: number;
-  totalPrompts: number;
-  availableCredits: number;
 }
 
 export const getDashboardStats = async (): Promise<DashboardStats> => {
@@ -1078,43 +1077,62 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 
   if (!userId) {
     return {
+      totalImages: 0,
+      totalSms: 0,
       totalEvents: 0,
       activeEvents: 0,
-      totalGenerations: 0,
-      totalPrompts: 0,
-      availableCredits: 0,
     };
   }
 
   const { data: events } = await supabase
     .from('events')
-    .select('id, is_active, total_generations')
+    .select('id, is_active, start_datetime, end_datetime')
     .eq('user_id', userId);
 
-  const { data: prompts } = await supabase
-    .from('prompts')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('is_active', true);
+  const eventIds = events?.map(e => e.id) || [];
 
-  const { data: credits } = await supabase
-    .from('user_credits')
-    .select('images_limit, images_used')
-    .eq('user_id', userId)
-    .maybeSingle();
+  let imagesCount = 0;
+  let smsCount = 0;
+
+  if (eventIds.length > 0) {
+    const { count: imgCount } = await supabase
+      .from('generated_images')
+      .select('*', { count: 'exact', head: true })
+      .in('event_id', eventIds);
+    imagesCount = imgCount || 0;
+
+    const { data: imageIds } = await supabase
+      .from('generated_images')
+      .select('id')
+      .in('event_id', eventIds);
+
+    if (imageIds && imageIds.length > 0) {
+      const { count: smsCountResult } = await supabase
+        .from('sms_logs')
+        .select('*', { count: 'exact', head: true })
+        .in('image_id', imageIds.map(i => i.id));
+      smsCount = smsCountResult || 0;
+    }
+  }
 
   const totalEvents = events?.length || 0;
-  const activeEvents = events?.filter(e => e.is_active).length || 0;
-  const totalGenerations = events?.reduce((sum, e) => sum + (e.total_generations || 0), 0) || 0;
-  const totalPrompts = prompts?.length || 0;
-  const availableCredits = credits ? (credits.images_limit - credits.images_used) : 0;
+
+  const now = new Date();
+  const activeEvents = events?.filter(e => {
+    let isActive = e.is_active;
+    if (e.start_datetime && e.end_datetime) {
+      const startTime = new Date(e.start_datetime);
+      const endTime = new Date(e.end_datetime);
+      isActive = isActive && now >= startTime && now <= endTime;
+    }
+    return isActive;
+  }).length || 0;
 
   return {
+    totalImages: imagesCount,
+    totalSms: smsCount,
     totalEvents,
     activeEvents,
-    totalGenerations,
-    totalPrompts,
-    availableCredits,
   };
 };
 
@@ -1130,13 +1148,24 @@ export const getDashboardChartData = async (): Promise<ChartDataPoint[]> => {
     return [];
   }
 
+  const { data: events } = await supabase
+    .from('events')
+    .select('id')
+    .eq('user_id', userId);
+
+  const eventIds = events?.map(e => e.id) || [];
+
+  if (eventIds.length === 0) {
+    return [];
+  }
+
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const { data: images } = await supabase
     .from('generated_images')
     .select('created_at')
-    .eq('user_id', userId)
+    .in('event_id', eventIds)
     .gte('created_at', thirtyDaysAgo.toISOString());
 
   const dateCounts = new Map<string, number>();
