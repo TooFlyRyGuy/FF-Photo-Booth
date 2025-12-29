@@ -660,6 +660,28 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         <video ref={videoRef} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover transform -scale-x-100" />
         <canvas ref={canvasRef} className="hidden" />
 
+        <div className="absolute inset-0 pointer-events-none z-30 flex items-center justify-center">
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div
+              className={`relative ${getAspectRatioClass()} max-w-full max-h-full border-4 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]`}
+              style={{
+                width: event.aspectRatio === '9:16' || event.aspectRatio === '3:4' ? 'auto' : '90%',
+                height: event.aspectRatio === '16:9' || event.aspectRatio === '4:3' ? 'auto' : '85%'
+              }}
+            >
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
+                <span className="text-white text-sm font-semibold">
+                  {event.aspectRatio === 'square' ? '1:1 Square' :
+                   event.aspectRatio === '3:4' ? '3:4 Portrait' :
+                   event.aspectRatio === '4:3' ? '4:3 Landscape' :
+                   event.aspectRatio === '9:16' ? '9:16 Portrait' :
+                   event.aspectRatio === '16:9' ? '16:9 Landscape' : '1:1 Square'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {countdown && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-50">
             <span className="text-[200px] font-bold text-white animate-ping">{countdown}</span>
