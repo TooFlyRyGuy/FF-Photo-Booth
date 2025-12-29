@@ -18,7 +18,7 @@ interface Prompt {
   tags: string[];
   isActive: boolean;
   usageCount: number;
-  tenantId?: string | null;
+  userId?: string | null;
 }
 
 interface PromptLibraryProps {
@@ -83,7 +83,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, tenant_id, is_active')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
         .eq('is_active', true)
         .order('usage_count', { ascending: false })
         .range(offset, offset + LOAD_BATCH_SIZE - 1);
@@ -101,7 +101,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         tags: prompt.tags || [],
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
-        tenantId: prompt.tenant_id,
+        userId: prompt.user_id,
       }));
 
       if (isInitial) {
@@ -150,7 +150,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       let dbQuery = supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, tenant_id, is_active')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
         .eq('is_active', true)
         .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
         .order('created_at', { ascending: false });
@@ -170,7 +170,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         tags: prompt.tags || [],
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
-        tenantId: prompt.tenant_id,
+        userId: prompt.user_id,
       }));
 
       if (selectedCategory) {
@@ -248,7 +248,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       setEditingPrompt({ ...prompt });
     }
     setIsCreating(false);
-    setIsPublic(prompt.tenantId === null);
+    setIsPublic(prompt.userId === null);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
@@ -332,7 +332,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     try {
       if (isCreating) {
         const { error } = await supabase.from('prompts').insert({
-          tenant_id: isPublic ? null : tenantId,
           name: editingPrompt.name,
           description: editingPrompt.description,
           category: editingPrompt.category,
@@ -341,6 +340,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           reference_image_url: editingPrompt.referenceImage || null,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
+          is_public: isPublic,
         });
 
         if (error) throw error;
@@ -348,7 +348,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         const { error } = await supabase
           .from('prompts')
           .update({
-            tenant_id: isPublic ? null : tenantId,
             name: editingPrompt.name,
             description: editingPrompt.description,
             category: editingPrompt.category,
@@ -357,6 +356,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
             reference_image_url: editingPrompt.referenceImage || null,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
+            is_public: isPublic,
           })
           .eq('id', editingPrompt.id);
 
