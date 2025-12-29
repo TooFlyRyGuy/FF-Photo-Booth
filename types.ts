@@ -1,30 +1,71 @@
 export enum UserRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  OPERATOR = 'OPERATOR'
+  USER = 'user',
+  ADMIN = 'admin'
 }
 
-export enum SubscriptionTier {
-  STARTER = 'STARTER',
-  PRO = 'PRO',
-  ENTERPRISE = 'ENTERPRISE'
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName?: string;
+  subscriptionStatus: string;
+  subscriptionTierId?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  subscriptionStartDate?: string;
+  subscriptionEndDate?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface Tenant {
+export interface UserCredits {
+  id: string;
+  userId: string;
+  availableCredits: number;
+  rolloverCredits: number;
+  lastResetDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubscriptionTier {
   id: string;
   name: string;
-  tier: SubscriptionTier;
-  whiteLabel: boolean;
-  brandingLogo?: string;
-  primaryColor?: string;
-  usage: {
-    imagesUsed: number;
-    imagesLimit: number;
-    smsUsed: number;
-    smsLimit: number;
-  };
-  dropboxAppKey?: string;
-  dropboxAppSecret?: string;
+  billingPeriod: 'monthly' | 'annual';
+  priceCents: number;
+  creditsPerPeriod: number;
+  rolloverEnabled: boolean;
+  features: string[];
+  isActive: boolean;
+  displayOrder: number;
+  stripePriceId?: string;
+  stripeProductId?: string;
+}
+
+export interface AddOn {
+  id: string;
+  name: string;
+  description: string;
+  priceCents: number;
+  stripePriceId?: string;
+  stripeProductId?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface EventPass {
+  id: string;
+  name: string;
+  description: string;
+  priceCents: number;
+  credits: number;
+  validityHours: number;
+  stripePriceId?: string;
+  stripeProductId?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface GlobalSettings {
   dropboxAccessToken?: string;
   dropboxRefreshToken?: string;
   dropboxTokenExpiresAt?: string;
@@ -37,6 +78,11 @@ export interface Tenant {
   geminiEnabled?: boolean;
   geminiModel?: string;
   geminiResolution?: '1K' | '2K' | '4K';
+  smugmugOauthToken?: string;
+  smugmugOauthTokenSecret?: string;
+  smugmugUserNickname?: string;
+  smugmugConnectionStatus?: string;
+  smugmugUsername?: string;
 }
 
 export interface Prompt {
@@ -59,7 +105,7 @@ export interface Event {
   isActive: boolean;
   passcode: string;
   prompts: Prompt[];
-  tenantId: string;
+  userId: string;
   aspectRatio?: AspectRatio;
   backgroundImageUrl?: string;
   logoUrl?: string;

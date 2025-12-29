@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Event } from './types';
 import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
-import { getEventByPasscode, clearTenantCache } from './services/backendService';
+import { getEventByPasscode, clearUserCache } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -59,7 +59,7 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    clearTenantCache();
+    clearUserCache();
     setUser(null);
     setView('landing');
   };

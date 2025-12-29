@@ -1,9 +1,7 @@
-import { Tenant, Event, Prompt, SubscriptionTier } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings } from '../types';
 import { supabase } from '../lib/supabase';
 
-const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-
-let cachedTenantId: string | null = null;
+let cachedUserId: string | null = null;
 let cacheTimestamp: number | null = null;
 const CACHE_TTL = 60000;
 
@@ -15,41 +13,28 @@ let cachedEvents: Event[] | null = null;
 let eventsCacheTimestamp: number | null = null;
 const EVENTS_CACHE_TTL = 30000;
 
-let cachedGlobalSettings: Record<string, string> | null = null;
+let cachedGlobalSettings: GlobalSettings | null = null;
 let globalSettingsCacheTimestamp: number | null = null;
 const GLOBAL_SETTINGS_CACHE_TTL = 60000;
 
-const getUserTenantId = async (): Promise<string> => {
-  if (cachedTenantId && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_TTL) {
-    console.log('🔍 getUserTenantId - using cached tenant:', cachedTenantId);
-    return cachedTenantId;
+const getUserId = async (): Promise<string | null> => {
+  if (cachedUserId && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_TTL) {
+    return cachedUserId;
   }
 
   const { data: { user } } = await supabase.auth.getUser();
-  console.log('🔍 getUserTenantId - current user:', user?.id || 'none');
 
   if (user) {
-    const { data: tenantData } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    console.log('🔍 getUserTenantId - tenant lookup result:', tenantData?.id || 'none found');
-
-    if (tenantData) {
-      cachedTenantId = tenantData.id;
-      cacheTimestamp = Date.now();
-      return tenantData.id;
-    }
+    cachedUserId = user.id;
+    cacheTimestamp = Date.now();
+    return user.id;
   }
 
-  console.log('🔍 getUserTenantId - falling back to demo tenant:', DEMO_TENANT_ID);
-  return DEMO_TENANT_ID;
+  return null;
 };
 
-export const clearTenantCache = () => {
-  cachedTenantId = null;
+export const clearUserCache = () => {
+  cachedUserId = null;
   cacheTimestamp = null;
 };
 
@@ -163,221 +148,114 @@ const deleteImageFromStorage = async (imageUrl: string): Promise<void> => {
   }
 };
 
-const mapTenantFromDb = (tenantData: any, limitsData: any): Tenant => {
+export const getUserProfile = async (): Promise<UserProfile> => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data: profileData, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch user profile: ${error.message}`);
+  }
+
+  if (!profileData) {
+    throw new Error('User profile not found');
+  }
+
   return {
-    id: tenantData.id,
-    name: tenantData.name,
-    tier: tenantData.tier as SubscriptionTier,
-    whiteLabel: tenantData.white_label_enabled,
-    brandingLogo: tenantData.branding_logo_url || undefined,
-    primaryColor: tenantData.primary_color || undefined,
-    dropboxAppKey: tenantData.dropbox_app_key || undefined,
-    dropboxAppSecret: tenantData.dropbox_app_secret || undefined,
-    dropboxAccessToken: tenantData.dropbox_access_token || undefined,
-    dropboxEnabled: tenantData.dropbox_enabled || false,
-    twilioAccountSid: tenantData.twilio_account_sid || undefined,
-    twilioAuthToken: tenantData.twilio_auth_token || undefined,
-    twilioPhoneNumber: tenantData.twilio_phone_number || undefined,
-    twilioEnabled: tenantData.twilio_enabled || false,
-    geminiApiKey: tenantData.gemini_api_key || undefined,
-    geminiEnabled: tenantData.gemini_enabled || false,
-    geminiModel: tenantData.gemini_model || 'gemini-3-pro-image-preview',
-    geminiResolution: tenantData.gemini_resolution || '1K',
-    usage: {
-      imagesUsed: limitsData.images_used,
-      imagesLimit: limitsData.images_limit,
-      smsUsed: limitsData.sms_used,
-      smsLimit: limitsData.sms_limit,
-    }
+    id: profileData.id,
+    email: profileData.email,
+    fullName: profileData.full_name,
+    subscriptionStatus: profileData.subscription_status,
+    subscriptionTierId: profileData.subscription_tier_id,
+    stripeCustomerId: profileData.stripe_customer_id,
+    stripeSubscriptionId: profileData.stripe_subscription_id,
+    subscriptionStartDate: profileData.subscription_start_date,
+    subscriptionEndDate: profileData.subscription_end_date,
+    createdAt: profileData.created_at,
+    updatedAt: profileData.updated_at,
   };
 };
 
-export const getTenant = async (): Promise<Tenant> => {
+export const getUserCredits = async (): Promise<UserCredits> => {
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (user) {
-    let retries = 0;
-    const maxRetries = 3;
-
-    while (retries < maxRetries) {
-      const { data: tenantData } = await supabase
-        .from('tenants')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (tenantData) {
-        return getTenantById(tenantData.id);
-      }
-
-      if (retries < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        retries++;
-      } else {
-        break;
-      }
-    }
-
-    throw new Error('Your account is still being set up. Please refresh the page in a few seconds.');
+  if (!user) {
+    throw new Error('User not authenticated');
   }
 
-  return getTenantById(DEMO_TENANT_ID);
-};
-
-export const getTenantById = async (tenantId: string): Promise<Tenant> => {
-  console.log('🔍 getTenantById called with:', tenantId);
-
-  const { data: tenantData, error: tenantError } = await supabase
-    .from('tenants')
+  const { data: creditsData, error } = await supabase
+    .from('user_credits')
     .select('*')
-    .eq('id', tenantId)
+    .eq('user_id', user.id)
     .maybeSingle();
-
-  console.log('🔍 Tenant query result:', {
-    found: !!tenantData,
-    error: tenantError?.message,
-    tenantId: tenantData?.id
-  });
-
-  if (tenantError) {
-    throw new Error(`Failed to fetch tenant: ${tenantError.message}`);
-  }
-
-  if (!tenantData) {
-    throw new Error(`Tenant not found for ID: ${tenantId}`);
-  }
-
-  console.log('📊 Raw tenant data from DB:', {
-    hasGeminiKey: !!tenantData.gemini_api_key,
-    geminiKeyLength: tenantData.gemini_api_key?.length,
-    geminiEnabled: tenantData.gemini_enabled,
-  });
-
-  const { data: limitsData, error: limitsError } = await supabase
-    .from('subscription_limits')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .maybeSingle();
-
-  console.log('🔍 Subscription limits query result:', {
-    found: !!limitsData,
-    error: limitsError?.message,
-    limitsId: limitsData?.id
-  });
-
-  if (limitsError) {
-    throw new Error(`Failed to fetch subscription limits: ${limitsError.message}`);
-  }
-
-  if (!limitsData) {
-    throw new Error(`Subscription limits not found for tenant: ${tenantId}`);
-  }
-
-  const tenant = mapTenantFromDb(tenantData, limitsData);
-  console.log('✅ Successfully mapped tenant:', tenant.id);
-  return tenant;
-};
-
-export const updateTenantSettings = async (updates: Partial<Tenant>): Promise<void> => {
-  const dbUpdates: any = {};
-
-  if (updates.dropboxAppKey !== undefined) {
-    dbUpdates.dropbox_app_key = updates.dropboxAppKey || null;
-  }
-  if (updates.dropboxAppSecret !== undefined) {
-    dbUpdates.dropbox_app_secret = updates.dropboxAppSecret || null;
-  }
-  if (updates.dropboxAccessToken !== undefined) {
-    dbUpdates.dropbox_access_token = updates.dropboxAccessToken || null;
-  }
-  if (updates.dropboxEnabled !== undefined) {
-    dbUpdates.dropbox_enabled = updates.dropboxEnabled;
-  }
-  if (updates.twilioAccountSid !== undefined) {
-    dbUpdates.twilio_account_sid = updates.twilioAccountSid || null;
-  }
-  if (updates.twilioAuthToken !== undefined) {
-    dbUpdates.twilio_auth_token = updates.twilioAuthToken || null;
-  }
-  if (updates.twilioPhoneNumber !== undefined) {
-    dbUpdates.twilio_phone_number = updates.twilioPhoneNumber || null;
-  }
-  if (updates.twilioEnabled !== undefined) {
-    dbUpdates.twilio_enabled = updates.twilioEnabled;
-  }
-  if (updates.geminiApiKey !== undefined) {
-    dbUpdates.gemini_api_key = updates.geminiApiKey || null;
-  }
-  if (updates.geminiEnabled !== undefined) {
-    dbUpdates.gemini_enabled = updates.geminiEnabled;
-  }
-  if (updates.geminiModel !== undefined) {
-    dbUpdates.gemini_model = updates.geminiModel || 'gemini-3-pro-image-preview';
-  }
-  if (updates.geminiResolution !== undefined) {
-    dbUpdates.gemini_resolution = updates.geminiResolution || '1K';
-  }
-
-  if (Object.keys(dbUpdates).length === 0) {
-    console.log('No settings to update');
-    return;
-  }
-
-  console.log('Updating tenant settings:', {
-    ...dbUpdates,
-    dropbox_app_secret: dbUpdates.dropbox_app_secret ? '[REDACTED]' : dbUpdates.dropbox_app_secret,
-    dropbox_access_token: dbUpdates.dropbox_access_token ? '[REDACTED]' : dbUpdates.dropbox_access_token,
-    twilio_auth_token: dbUpdates.twilio_auth_token ? '[REDACTED]' : dbUpdates.twilio_auth_token,
-    gemini_api_key: dbUpdates.gemini_api_key ? '[REDACTED]' : dbUpdates.gemini_api_key,
-  });
-
-  dbUpdates.updated_at = new Date().toISOString();
-
-  const tenantId = await getUserTenantId();
-
-  const { error } = await supabase
-    .from('tenants')
-    .update(dbUpdates)
-    .eq('id', tenantId);
 
   if (error) {
-    console.error('Failed to update tenant settings:', error);
-    throw new Error(`Failed to update tenant settings: ${error.message}`);
+    throw new Error(`Failed to fetch user credits: ${error.message}`);
   }
 
-  console.log('Tenant settings updated successfully');
+  if (!creditsData) {
+    throw new Error('User credits not found');
+  }
+
+  return {
+    id: creditsData.id,
+    userId: creditsData.user_id,
+    availableCredits: creditsData.available_credits,
+    rolloverCredits: creditsData.rollover_credits,
+    lastResetDate: creditsData.last_reset_date,
+    createdAt: creditsData.created_at,
+    updatedAt: creditsData.updated_at,
+  };
 };
 
-export const getGlobalSettings = async (skipCache: boolean = false): Promise<Record<string, string>> => {
-  if (!skipCache && cachedGlobalSettings && globalSettingsCacheTimestamp && Date.now() - globalSettingsCacheTimestamp < GLOBAL_SETTINGS_CACHE_TTL) {
+export const getGlobalSettings = async (skipCache: boolean = false): Promise<GlobalSettings> => {
+  if (!skipCache && cachedGlobalSettings && globalSettingsCacheTimestamp &&
+      Date.now() - globalSettingsCacheTimestamp < GLOBAL_SETTINGS_CACHE_TTL) {
     return cachedGlobalSettings;
   }
 
-  const { data: allData, error } = await supabase
+  const { data, error } = await supabase
     .from('global_settings')
-    .select('setting_key, setting_value, smugmug_oauth_token, smugmug_user_nickname, smugmug_connection_status, smugmug_default_visibility, use_smugmug_for_sms');
+    .select('*')
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     console.error('Failed to fetch global settings:', error);
-    throw new Error(`Failed to fetch global settings: ${error.message}`);
+    return {};
   }
 
-  const settings: Record<string, string> = {};
-
-  if (allData && allData.length > 0) {
-    for (const row of allData) {
-      if (row.setting_key && row.setting_value !== null) {
-        settings[row.setting_key] = row.setting_value;
-      }
-    }
-
-    const firstRow = allData[0];
-    if (firstRow.smugmug_oauth_token) settings.smugmug_oauth_token = firstRow.smugmug_oauth_token;
-    if (firstRow.smugmug_user_nickname) settings.smugmug_user_nickname = firstRow.smugmug_user_nickname;
-    if (firstRow.smugmug_connection_status) settings.smugmug_connection_status = firstRow.smugmug_connection_status;
-    if (firstRow.smugmug_default_visibility) settings.smugmug_default_visibility = firstRow.smugmug_default_visibility;
-    if (firstRow.use_smugmug_for_sms !== undefined) settings.use_smugmug_for_sms = String(firstRow.use_smugmug_for_sms);
+  if (!data) {
+    return {};
   }
+
+  const settings: GlobalSettings = {
+    dropboxAccessToken: data.dropbox_access_token,
+    dropboxRefreshToken: data.dropbox_refresh_token,
+    dropboxTokenExpiresAt: data.dropbox_token_expires_at,
+    dropboxEnabled: data.dropbox_enabled || false,
+    twilioAccountSid: data.twilio_account_sid,
+    twilioAuthToken: data.twilio_auth_token,
+    twilioPhoneNumber: data.twilio_phone_number,
+    twilioEnabled: data.twilio_enabled || false,
+    geminiApiKey: data.gemini_api_key,
+    geminiEnabled: data.gemini_enabled || false,
+    geminiModel: data.gemini_model || 'gemini-3-pro-image-preview',
+    geminiResolution: data.gemini_resolution || '1K',
+    smugmugOauthToken: data.smugmug_oauth_token,
+    smugmugOauthTokenSecret: data.smugmug_oauth_token_secret,
+    smugmugUserNickname: data.smugmug_user_nickname,
+    smugmugConnectionStatus: data.smugmug_connection_status,
+    smugmugUsername: data.smugmug_username,
+  };
 
   cachedGlobalSettings = settings;
   globalSettingsCacheTimestamp = Date.now();
@@ -385,198 +263,164 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Rec
   return settings;
 };
 
-export const getGlobalSetting = async (key: string): Promise<string | null> => {
-  const { data, error } = await supabase
-    .from('global_settings')
-    .select('setting_value')
-    .eq('setting_key', key)
-    .maybeSingle();
-
-  if (error) {
-    console.error(`Failed to fetch global setting ${key}:`, error);
-    return null;
-  }
-
-  return data?.setting_value || null;
-};
-
-export const updateGlobalSettings = async (settings: Record<string, any>): Promise<void> => {
+export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    throw new Error('Must be authenticated to update global settings');
+    throw new Error('User not authenticated');
   }
 
-  const { data: tenantData } = await supabase
-    .from('tenants')
+  const updateData: any = {};
+  if (settings.dropboxAccessToken !== undefined) updateData.dropbox_access_token = settings.dropboxAccessToken;
+  if (settings.dropboxRefreshToken !== undefined) updateData.dropbox_refresh_token = settings.dropboxRefreshToken;
+  if (settings.dropboxTokenExpiresAt !== undefined) updateData.dropbox_token_expires_at = settings.dropboxTokenExpiresAt;
+  if (settings.dropboxEnabled !== undefined) updateData.dropbox_enabled = settings.dropboxEnabled;
+  if (settings.twilioAccountSid !== undefined) updateData.twilio_account_sid = settings.twilioAccountSid;
+  if (settings.twilioAuthToken !== undefined) updateData.twilio_auth_token = settings.twilioAuthToken;
+  if (settings.twilioPhoneNumber !== undefined) updateData.twilio_phone_number = settings.twilioPhoneNumber;
+  if (settings.twilioEnabled !== undefined) updateData.twilio_enabled = settings.twilioEnabled;
+  if (settings.geminiApiKey !== undefined) updateData.gemini_api_key = settings.geminiApiKey;
+  if (settings.geminiEnabled !== undefined) updateData.gemini_enabled = settings.geminiEnabled;
+  if (settings.geminiModel !== undefined) updateData.gemini_model = settings.geminiModel;
+  if (settings.geminiResolution !== undefined) updateData.gemini_resolution = settings.geminiResolution;
+  if (settings.smugmugOauthToken !== undefined) updateData.smugmug_oauth_token = settings.smugmugOauthToken;
+  if (settings.smugmugOauthTokenSecret !== undefined) updateData.smugmug_oauth_token_secret = settings.smugmugOauthTokenSecret;
+  if (settings.smugmugUserNickname !== undefined) updateData.smugmug_user_nickname = settings.smugmugUserNickname;
+  if (settings.smugmugConnectionStatus !== undefined) updateData.smugmug_connection_status = settings.smugmugConnectionStatus;
+  if (settings.smugmugUsername !== undefined) updateData.smugmug_username = settings.smugmugUsername;
+
+  const { data: existingSettings } = await supabase
+    .from('global_settings')
     .select('id')
-    .eq('user_id', user.id)
+    .limit(1)
     .maybeSingle();
 
-  if (!tenantData) {
-    throw new Error('Must be an admin to update global settings');
-  }
-
-  const specialColumns = ['smugmug_oauth_token', 'smugmug_oauth_token_secret', 'smugmug_user_nickname', 'smugmug_connection_status', 'smugmug_default_visibility', 'use_smugmug_for_sms'];
-  const specialUpdates: Record<string, any> = {};
-  const keyValueUpdates: Record<string, string> = {};
-
-  for (const [key, value] of Object.entries(settings)) {
-    if (specialColumns.includes(key)) {
-      specialUpdates[key] = value;
-    } else {
-      keyValueUpdates[key] = value;
-    }
-  }
-
-  if (Object.keys(specialUpdates).length > 0) {
-    const { data: existingRow } = await supabase
-      .from('global_settings')
-      .select('id')
-      .limit(1)
-      .maybeSingle();
-
-    if (existingRow) {
-      const { error } = await supabase
-        .from('global_settings')
-        .update({
-          ...specialUpdates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingRow.id);
-
-      if (error) {
-        console.error('Failed to update special global settings:', error);
-        throw new Error(`Failed to update special global settings: ${error.message}`);
-      }
-    }
-  }
-
-  for (const [key, value] of Object.entries(keyValueUpdates)) {
+  if (existingSettings) {
     const { error } = await supabase
       .from('global_settings')
-      .upsert({
-        setting_key: key,
-        setting_value: value,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'setting_key'
-      });
+      .update(updateData)
+      .eq('id', existingSettings.id);
 
     if (error) {
-      console.error(`Failed to update global setting ${key}:`, error);
-      throw new Error(`Failed to update global setting ${key}: ${error.message}`);
+      throw new Error(`Failed to update global settings: ${error.message}`);
+    }
+  } else {
+    const { error } = await supabase
+      .from('global_settings')
+      .insert(updateData);
+
+    if (error) {
+      throw new Error(`Failed to create global settings: ${error.message}`);
     }
   }
 
-  cachedGlobalSettings = null;
-  globalSettingsCacheTimestamp = null;
-
-  console.log('Global settings updated successfully');
+  clearGlobalSettingsCache();
 };
 
 export const getEvents = async (skipCache: boolean = false, includePrompts: boolean = false): Promise<Event[]> => {
-  const tenantId = await getUserTenantId();
+  const userId = await getUserId();
 
-  if (!skipCache && cachedEvents && eventsCacheTimestamp && Date.now() - eventsCacheTimestamp < EVENTS_CACHE_TTL && !includePrompts) {
-    console.log('🔍 getEvents - using cached events');
-    return cachedEvents;
-  }
-
-  console.log('🔍 getEvents - fetching events for tenant:', tenantId);
-
-  const { data: eventsData, error: eventsError } = await supabase
-    .from('events')
-    .select('id, name, event_date, city, is_active, passcode, tenant_id, aspect_ratio, background_image_url, logo_url, overlay_image_url, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, created_at')
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false });
-
-  if (eventsError) {
-    console.error('❌ getEvents error:', eventsError);
-    throw new Error(`Failed to fetch events: ${eventsError.message}`);
-  }
-
-  console.log('✅ getEvents - found', eventsData?.length || 0, 'events');
-
-  if (!eventsData || eventsData.length === 0) {
-    if (!includePrompts) {
-      cachedEvents = [];
-      eventsCacheTimestamp = Date.now();
-    }
+  if (!userId) {
     return [];
   }
 
-  let promptsByEvent = new Map<string, any[]>();
+  if (!skipCache && cachedEvents && eventsCacheTimestamp &&
+      Date.now() - eventsCacheTimestamp < EVENTS_CACHE_TTL) {
+    return cachedEvents;
+  }
 
-  if (includePrompts) {
-    const eventIds = eventsData.map(e => e.id);
+  const { data: eventsData, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('user_id', userId)
+    .order('event_date', { ascending: false });
 
-    const { data: eventPromptsData } = await supabase
-      .from('event_prompts')
-      .select('event_id, prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
-      .in('event_id', eventIds)
-      .order('display_order', { ascending: true });
+  if (error) {
+    console.error('Failed to fetch events:', error);
+    throw new Error(`Failed to fetch events: ${error.message}`);
+  }
 
-    eventPromptsData?.forEach((ep: any) => {
-      if (!promptsByEvent.has(ep.event_id)) {
-        promptsByEvent.set(ep.event_id, []);
+  const events: Event[] = [];
+
+  for (const event of eventsData || []) {
+    let prompts: Prompt[] = [];
+
+    if (includePrompts) {
+      const { data: eventPromptsData } = await supabase
+        .from('event_prompts')
+        .select('prompt_id, display_order')
+        .eq('event_id', event.id)
+        .order('display_order', { ascending: true });
+
+      if (eventPromptsData && eventPromptsData.length > 0) {
+        const promptIds = eventPromptsData.map(ep => ep.prompt_id);
+
+        const { data: promptsData } = await supabase
+          .from('prompts')
+          .select('*')
+          .in('id', promptIds)
+          .eq('is_active', true);
+
+        if (promptsData) {
+          const promptsMap = new Map(promptsData.map(p => [p.id, p]));
+          prompts = eventPromptsData
+            .map(ep => promptsMap.get(ep.prompt_id))
+            .filter((p): p is any => p !== undefined)
+            .map(p => ({
+              id: p.id,
+              name: p.name,
+              description: p.description || '',
+              previewImage: p.preview_image_url,
+              referenceImage: p.reference_image_url,
+              promptText: p.prompt_text,
+              category: p.category,
+            }));
+        }
       }
-      if (ep.prompts) {
-        promptsByEvent.get(ep.event_id)!.push({
-          id: ep.prompts.id,
-          name: ep.prompts.name,
-          description: ep.prompts.description,
-          category: ep.prompts.category,
-          promptText: ep.prompts.prompt_text,
-          previewImage: ep.prompts.preview_image_url || '',
-          referenceImage: ep.prompts.reference_image_url || '',
-        });
-      }
+    }
+
+    events.push({
+      id: event.id,
+      name: event.name,
+      date: event.event_date,
+      city: event.city,
+      isActive: event.is_active,
+      passcode: event.passcode,
+      prompts,
+      userId: event.user_id,
+      aspectRatio: event.aspect_ratio,
+      backgroundImageUrl: event.background_image_url,
+      logoUrl: event.logo_url,
+      overlayImageUrl: event.overlay_image_url,
+      primaryColor: event.primary_color,
+      secondaryColor: event.secondary_color,
+      accentColor: event.accent_color,
+      hideLogo: event.hide_logo,
+      hideEventName: event.hide_event_name,
+      startDatetime: event.start_datetime,
+      endDatetime: event.end_datetime,
+      smsMessage: event.sms_message,
+      smugmugGalleryKey: event.smugmug_gallery_key,
+      smugmugGalleryUrl: event.smugmug_gallery_url,
+      uploadOriginalsToGallery: event.upload_originals_to_gallery,
     });
   }
 
-  const events = eventsData.map((event: any) => ({
-    id: event.id,
-    name: event.name,
-    date: event.event_date,
-    city: event.city,
-    isActive: event.is_active,
-    passcode: event.passcode,
-    tenantId: event.tenant_id,
-    aspectRatio: event.aspect_ratio || 'square',
-    backgroundImageUrl: event.background_image_url,
-    logoUrl: event.logo_url,
-    overlayImageUrl: event.overlay_image_url,
-    primaryColor: event.primary_color,
-    secondaryColor: event.secondary_color,
-    accentColor: event.accent_color,
-    hideLogo: event.hide_logo || false,
-    hideEventName: event.hide_event_name || false,
-    startDatetime: event.start_datetime,
-    endDatetime: event.end_datetime,
-    smsMessage: event.sms_message,
-    smugmugGalleryKey: event.smugmug_gallery_key,
-    smugmugGalleryUrl: event.smugmug_gallery_url,
-    prompts: includePrompts ? (promptsByEvent.get(event.id) || []) : []
-  }));
-
-  if (!includePrompts) {
-    cachedEvents = events;
-    eventsCacheTimestamp = Date.now();
-  }
+  cachedEvents = events;
+  eventsCacheTimestamp = Date.now();
 
   return events;
 };
 
 export const getEventById = async (eventId: string): Promise<Event> => {
-  const { data: eventData, error: eventError } = await supabase
+  const { data: eventData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, tenant_id, aspect_ratio, background_image_url, logo_url, overlay_image_url, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, created_at')
+    .select('*')
     .eq('id', eventId)
     .maybeSingle();
 
-  if (eventError) {
-    throw new Error(`Failed to fetch event: ${eventError.message}`);
+  if (error) {
+    throw new Error(`Failed to fetch event: ${error.message}`);
   }
 
   if (!eventData) {
@@ -585,19 +429,37 @@ export const getEventById = async (eventId: string): Promise<Event> => {
 
   const { data: eventPromptsData } = await supabase
     .from('event_prompts')
-    .select('prompt_id, display_order, prompts(id, name, description, category, prompt_text, preview_image_url, reference_image_url)')
+    .select('prompt_id, display_order')
     .eq('event_id', eventId)
     .order('display_order', { ascending: true });
 
-  const prompts = eventPromptsData?.filter((ep: any) => ep.prompts !== null).map((ep: any) => ({
-    id: ep.prompts.id,
-    name: ep.prompts.name,
-    description: ep.prompts.description,
-    category: ep.prompts.category,
-    promptText: ep.prompts.prompt_text,
-    previewImage: ep.prompts.preview_image_url || '',
-    referenceImage: ep.prompts.reference_image_url || '',
-  })) || [];
+  let prompts: Prompt[] = [];
+
+  if (eventPromptsData && eventPromptsData.length > 0) {
+    const promptIds = eventPromptsData.map(ep => ep.prompt_id);
+
+    const { data: promptsData } = await supabase
+      .from('prompts')
+      .select('*')
+      .in('id', promptIds)
+      .eq('is_active', true);
+
+    if (promptsData) {
+      const promptsMap = new Map(promptsData.map(p => [p.id, p]));
+      prompts = eventPromptsData
+        .map(ep => promptsMap.get(ep.prompt_id))
+        .filter((p): p is any => p !== undefined)
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          previewImage: p.preview_image_url,
+          referenceImage: p.reference_image_url,
+          promptText: p.prompt_text,
+          category: p.category,
+        }));
+    }
+  }
 
   return {
     id: eventData.id,
@@ -606,52 +468,60 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     city: eventData.city,
     isActive: eventData.is_active,
     passcode: eventData.passcode,
-    tenantId: eventData.tenant_id,
-    aspectRatio: eventData.aspect_ratio || 'square',
+    prompts,
+    userId: eventData.user_id,
+    aspectRatio: eventData.aspect_ratio,
     backgroundImageUrl: eventData.background_image_url,
     logoUrl: eventData.logo_url,
     overlayImageUrl: eventData.overlay_image_url,
     primaryColor: eventData.primary_color,
     secondaryColor: eventData.secondary_color,
     accentColor: eventData.accent_color,
-    hideLogo: eventData.hide_logo || false,
-    hideEventName: eventData.hide_event_name || false,
+    hideLogo: eventData.hide_logo,
+    hideEventName: eventData.hide_event_name,
     startDatetime: eventData.start_datetime,
     endDatetime: eventData.end_datetime,
     smsMessage: eventData.sms_message,
     smugmugGalleryKey: eventData.smugmug_gallery_key,
     smugmugGalleryUrl: eventData.smugmug_gallery_url,
-    prompts
+    uploadOriginalsToGallery: eventData.upload_originals_to_gallery,
   };
 };
 
 export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> => {
-  if (!skipCache && cachedPrompts && promptsCacheTimestamp && Date.now() - promptsCacheTimestamp < PROMPTS_CACHE_TTL) {
+  if (!skipCache && cachedPrompts && promptsCacheTimestamp &&
+      Date.now() - promptsCacheTimestamp < PROMPTS_CACHE_TTL) {
     return cachedPrompts;
   }
 
-  const tenantId = await getUserTenantId();
+  const userId = await getUserId();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('prompts')
-    .select('id, name, description, category, tags, preview_image_url, reference_image_url')
-    .or(`tenant_id.is.null,tenant_id.eq.${DEMO_TENANT_ID},tenant_id.eq.${tenantId}`)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
+    .select('*')
+    .eq('is_active', true);
+
+  if (userId) {
+    query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+  } else {
+    query = query.is('user_id', null);
+  }
+
+  const { data: promptsData, error } = await query.order('category').order('name');
 
   if (error) {
+    console.error('Failed to fetch prompts:', error);
     throw new Error(`Failed to fetch prompts: ${error.message}`);
   }
 
-  const prompts = data.map((prompt) => ({
-    id: prompt.id,
-    name: prompt.name,
-    description: prompt.description,
-    category: prompt.category,
-    promptText: '',
-    previewImage: prompt.preview_image_url || '',
-    referenceImage: prompt.reference_image_url || '',
-    tags: prompt.tags || []
+  const prompts: Prompt[] = (promptsData || []).map(p => ({
+    id: p.id,
+    name: p.name,
+    description: p.description || '',
+    previewImage: p.preview_image_url,
+    referenceImage: p.reference_image_url,
+    promptText: p.prompt_text,
+    category: p.category,
   }));
 
   cachedPrompts = prompts;
@@ -661,9 +531,9 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
 };
 
 export const getPromptById = async (promptId: string): Promise<Prompt> => {
-  const { data, error } = await supabase
+  const { data: promptData, error } = await supabase
     .from('prompts')
-    .select('id, name, description, category, prompt_text, preview_image_url, reference_image_url, tags')
+    .select('*')
     .eq('id', promptId)
     .maybeSingle();
 
@@ -671,557 +541,381 @@ export const getPromptById = async (promptId: string): Promise<Prompt> => {
     throw new Error(`Failed to fetch prompt: ${error.message}`);
   }
 
-  if (!data) {
+  if (!promptData) {
     throw new Error('Prompt not found');
   }
 
   return {
-    id: data.id,
-    name: data.name,
-    description: data.description,
-    category: data.category,
-    promptText: data.prompt_text,
-    previewImage: data.preview_image_url || '',
-    referenceImage: data.reference_image_url || '',
-    tags: data.tags || []
+    id: promptData.id,
+    name: promptData.name,
+    description: promptData.description || '',
+    previewImage: promptData.preview_image_url,
+    referenceImage: promptData.reference_image_url,
+    promptText: promptData.prompt_text,
+    category: promptData.category,
   };
 };
 
-const createSmugMugGalleryForEvent = async (eventName: string, eventDate: string): Promise<{ galleryKey: string; galleryUrl: string } | null> => {
-  try {
-    const settings = await getGlobalSettings();
-    if (settings.smugmug_connection_status !== 'connected') {
-      console.log('SmugMug not connected, skipping gallery creation');
-      return null;
-    }
-
-    const defaultVisibility = settings.smugmug_default_visibility || 'private';
-    const galleryName = `${eventName} - ${eventDate}`;
-
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smugmug-api`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        action: 'create_gallery',
-        galleryName,
-        visibility: defaultVisibility,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Failed to create SmugMug gallery:', error);
-      return null;
-    }
-
-    const result = await response.json();
-    return {
-      galleryKey: result.galleryId,
-      galleryUrl: result.galleryUrl,
-    };
-  } catch (error) {
-    console.error('Error creating SmugMug gallery:', error);
-    return null;
-  }
-};
-
 export const saveEvent = async (event: Event): Promise<Event> => {
-  const isNewEvent = !event.id || event.id.startsWith('evt_');
-  const tenantId = await getUserTenantId();
+  const userId = await getUserId();
 
-  if (isNewEvent) {
-    let smugmugGalleryKey = null;
-    let smugmugGalleryUrl = null;
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
 
-    const smugmugGallery = await createSmugMugGalleryForEvent(event.name, event.date);
-    if (smugmugGallery) {
-      smugmugGalleryKey = smugmugGallery.galleryKey;
-      smugmugGalleryUrl = smugmugGallery.galleryUrl;
-    }
+  const isUpdate = Boolean(event.id);
 
-    const { data, error } = await supabase
+  const eventData = {
+    name: event.name,
+    city: event.city,
+    event_date: event.date,
+    passcode: event.passcode,
+    is_active: event.isActive,
+    user_id: userId,
+    aspect_ratio: event.aspectRatio || 'square',
+    background_image_url: event.backgroundImageUrl,
+    logo_url: event.logoUrl,
+    overlay_image_url: event.overlayImageUrl,
+    primary_color: event.primaryColor,
+    secondary_color: event.secondaryColor,
+    accent_color: event.accentColor,
+    hide_logo: event.hideLogo || false,
+    hide_event_name: event.hideEventName || false,
+    start_datetime: event.startDatetime,
+    end_datetime: event.endDatetime,
+    sms_message: event.smsMessage,
+    smugmug_gallery_key: event.smugmugGalleryKey,
+    smugmug_gallery_url: event.smugmugGalleryUrl,
+    upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
+  };
+
+  let eventId = event.id;
+
+  if (isUpdate) {
+    const { error } = await supabase
       .from('events')
-      .insert({
-        tenant_id: tenantId,
-        name: event.name,
-        city: event.city,
-        event_date: event.date,
-        passcode: event.passcode,
-        is_active: event.isActive,
-        aspect_ratio: event.aspectRatio || 'square',
-        background_image_url: event.backgroundImageUrl || null,
-        logo_url: event.logoUrl || null,
-        overlay_image_url: event.overlayImageUrl || null,
-        primary_color: event.primaryColor || null,
-        secondary_color: event.secondaryColor || null,
-        accent_color: event.accentColor || null,
-        hide_logo: event.hideLogo || false,
-        hide_event_name: event.hideEventName || false,
-        start_datetime: event.startDatetime || null,
-        end_datetime: event.endDatetime || null,
-        sms_message: event.smsMessage || null,
-        smugmug_gallery_key: smugmugGalleryKey,
-        smugmug_gallery_url: smugmugGalleryUrl,
-        upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
-      })
+      .update(eventData)
+      .eq('id', event.id);
+
+    if (error) {
+      throw new Error(`Failed to update event: ${error.message}`);
+    }
+  } else {
+    const { data: newEvent, error } = await supabase
+      .from('events')
+      .insert([eventData])
       .select()
-      .maybeSingle();
+      .single();
 
     if (error) {
       throw new Error(`Failed to create event: ${error.message}`);
     }
 
-    if (!data) {
-      throw new Error('Failed to create event: No data returned');
-    }
+    eventId = newEvent.id;
+  }
 
-    if (event.prompts && event.prompts.length > 0) {
-      const validPrompts = event.prompts.filter(p =>
-        p.id && !p.id.startsWith('p_') && p.id.length > 20
-      );
-
-      if (validPrompts.length > 0) {
-        const eventPrompts = validPrompts.map((prompt, index) => ({
-          event_id: data.id,
-          prompt_id: prompt.id,
-          display_order: index,
-        }));
-
-        const { error: promptsError } = await supabase
-          .from('event_prompts')
-          .insert(eventPrompts);
-
-        if (promptsError) {
-          throw new Error(`Failed to link prompts: ${promptsError.message}`);
-        }
-      }
-    }
-
-    clearEventsCache();
-    return { ...event, id: data.id, smugmugGalleryKey, smugmugGalleryUrl };
-  } else {
-    const { data, error } = await supabase
-      .from('events')
-      .update({
-        name: event.name,
-        city: event.city,
-        event_date: event.date,
-        passcode: event.passcode,
-        is_active: event.isActive,
-        aspect_ratio: event.aspectRatio || 'square',
-        background_image_url: event.backgroundImageUrl || null,
-        logo_url: event.logoUrl || null,
-        overlay_image_url: event.overlayImageUrl || null,
-        primary_color: event.primaryColor || null,
-        secondary_color: event.secondaryColor || null,
-        accent_color: event.accentColor || null,
-        hide_logo: event.hideLogo || false,
-        hide_event_name: event.hideEventName || false,
-        start_datetime: event.startDatetime || null,
-        end_datetime: event.endDatetime || null,
-        sms_message: event.smsMessage || null,
-        upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
-      })
-      .eq('id', event.id)
-      .select()
-      .maybeSingle();
-
-    if (error) {
-      throw new Error(`Failed to update event: ${error.message}`);
-    }
-
-    if (!data) {
-      throw new Error('Failed to update event: No data returned');
-    }
-
+  if (event.prompts && event.prompts.length > 0) {
     const { error: deleteError } = await supabase
       .from('event_prompts')
       .delete()
-      .eq('event_id', event.id);
+      .eq('event_id', eventId);
 
     if (deleteError) {
-      throw new Error(`Failed to clear prompts: ${deleteError.message}`);
+      console.error('Error removing old event prompts:', deleteError);
     }
 
-    if (event.prompts && event.prompts.length > 0) {
-      const validPrompts = event.prompts.filter(p =>
-        p.id && !p.id.startsWith('p_') && p.id.length > 20
-      );
+    const eventPrompts = event.prompts.map((prompt, index) => ({
+      event_id: eventId,
+      prompt_id: prompt.id,
+      display_order: index,
+    }));
 
-      if (validPrompts.length > 0) {
-        const eventPrompts = validPrompts.map((prompt, index) => ({
-          event_id: event.id,
-          prompt_id: prompt.id,
-          display_order: index,
-        }));
+    const { error: insertError } = await supabase
+      .from('event_prompts')
+      .insert(eventPrompts);
 
-        const { error: promptsError } = await supabase
-          .from('event_prompts')
-          .insert(eventPrompts);
-
-        if (promptsError) {
-          throw new Error(`Failed to link prompts: ${promptsError.message}`);
-        }
-      }
+    if (insertError) {
+      throw new Error(`Failed to link prompts to event: ${insertError.message}`);
     }
-
-    clearEventsCache();
-    return event;
   }
+
+  clearEventsCache();
+  return getEventById(eventId);
 };
 
 export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
-  const tenantId = await getUserTenantId();
+  const userId = await getUserId();
 
-  let previewUrl = null;
-  let referenceUrl = null;
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
 
-  if (prompt.previewImage && prompt.previewImage.startsWith('data:image')) {
-    previewUrl = await uploadImageToStorage(prompt.previewImage, 'preview');
+  let previewImageUrl = prompt.previewImage;
+  let referenceImageUrl = prompt.referenceImage;
+
+  if (prompt.previewImage.startsWith('data:image')) {
+    previewImageUrl = await uploadImageToStorage(prompt.previewImage, 'preview');
   }
 
   if (prompt.referenceImage && prompt.referenceImage.startsWith('data:image')) {
-    referenceUrl = await uploadImageToStorage(prompt.referenceImage, 'reference');
+    referenceImageUrl = await uploadImageToStorage(prompt.referenceImage, 'reference');
   }
 
-  const { data, error } = await supabase
+  const promptData = {
+    name: prompt.name,
+    description: prompt.description,
+    category: prompt.category,
+    prompt_text: prompt.promptText,
+    preview_image_url: previewImageUrl,
+    reference_image_url: referenceImageUrl,
+    is_active: true,
+    user_id: userId,
+  };
+
+  const { data: newPrompt, error } = await supabase
     .from('prompts')
-    .insert({
-      tenant_id: tenantId,
-      name: prompt.name,
-      description: prompt.description,
-      category: prompt.category,
-      prompt_text: prompt.promptText,
-      preview_image_url: previewUrl || prompt.previewImage,
-      reference_image_url: referenceUrl || prompt.referenceImage,
-      preview_image_compressed: null,
-      reference_image_compressed: null,
-      is_active: true,
-    })
+    .insert([promptData])
     .select()
-    .maybeSingle();
+    .single();
 
   if (error) {
-    throw new Error(`Failed to save prompt: ${error.message}`);
-  }
-
-  if (!data) {
-    throw new Error('Failed to save prompt: No data returned');
+    throw new Error(`Failed to create prompt: ${error.message}`);
   }
 
   clearPromptsCache();
-
-  return {
-    id: data.id,
-    name: data.name,
-    description: data.description,
-    category: data.category,
-    promptText: data.prompt_text,
-    previewImage: data.preview_image_url || '',
-    referenceImage: data.reference_image_url || '',
-  };
+  return getPromptById(newPrompt.id);
 };
 
 export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): Promise<Prompt> => {
-  const { data: existingPrompt } = await supabase
-    .from('prompts')
-    .select('preview_image_url, reference_image_url')
-    .eq('id', promptId)
-    .maybeSingle();
+  const updateData: any = {};
 
-  const updates: any = {};
+  if (prompt.name !== undefined) updateData.name = prompt.name;
+  if (prompt.description !== undefined) updateData.description = prompt.description;
+  if (prompt.category !== undefined) updateData.category = prompt.category;
+  if (prompt.promptText !== undefined) updateData.prompt_text = prompt.promptText;
 
-  if (prompt.name !== undefined) updates.name = prompt.name;
-  if (prompt.description !== undefined) updates.description = prompt.description;
-  if (prompt.category !== undefined) updates.category = prompt.category;
-  if (prompt.promptText !== undefined) updates.prompt_text = prompt.promptText;
-
-  if (prompt.previewImage !== undefined) {
+  if (prompt.previewImage) {
     if (prompt.previewImage.startsWith('data:image')) {
-      if (existingPrompt?.preview_image_url) {
-        await deleteImageFromStorage(existingPrompt.preview_image_url);
+      const existingPrompt = await getPromptById(promptId);
+      if (existingPrompt.previewImage) {
+        await deleteImageFromStorage(existingPrompt.previewImage);
       }
-      updates.preview_image_url = await uploadImageToStorage(prompt.previewImage, 'preview', promptId);
+      updateData.preview_image_url = await uploadImageToStorage(prompt.previewImage, 'preview', promptId);
     } else {
-      updates.preview_image_url = prompt.previewImage;
+      updateData.preview_image_url = prompt.previewImage;
     }
-    updates.preview_image_compressed = null;
   }
 
   if (prompt.referenceImage !== undefined) {
-    if (prompt.referenceImage.startsWith('data:image')) {
-      if (existingPrompt?.reference_image_url) {
-        await deleteImageFromStorage(existingPrompt.reference_image_url);
+    if (prompt.referenceImage && prompt.referenceImage.startsWith('data:image')) {
+      const existingPrompt = await getPromptById(promptId);
+      if (existingPrompt.referenceImage) {
+        await deleteImageFromStorage(existingPrompt.referenceImage);
       }
-      updates.reference_image_url = await uploadImageToStorage(prompt.referenceImage, 'reference', promptId);
+      updateData.reference_image_url = await uploadImageToStorage(prompt.referenceImage, 'reference', promptId);
     } else {
-      updates.reference_image_url = prompt.referenceImage;
+      updateData.reference_image_url = prompt.referenceImage;
     }
-    updates.reference_image_compressed = null;
   }
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('prompts')
-    .update(updates)
-    .eq('id', promptId)
-    .select()
-    .maybeSingle();
+    .update(updateData)
+    .eq('id', promptId);
 
   if (error) {
     throw new Error(`Failed to update prompt: ${error.message}`);
   }
 
-  if (!data) {
-    throw new Error('Failed to update prompt: No data returned');
-  }
-
   clearPromptsCache();
-
-  return {
-    id: data.id,
-    name: data.name,
-    description: data.description,
-    category: data.category,
-    promptText: data.prompt_text,
-    previewImage: data.preview_image_url || '',
-    referenceImage: data.reference_image_url || '',
-  };
+  return getPromptById(promptId);
 };
 
 export const deletePrompt = async (promptId: string): Promise<void> => {
-  const { data: promptData } = await supabase
-    .from('prompts')
-    .select('preview_image_url, reference_image_url')
-    .eq('id', promptId)
-    .maybeSingle();
+  const prompt = await getPromptById(promptId);
+
+  if (prompt.previewImage) {
+    await deleteImageFromStorage(prompt.previewImage);
+  }
+  if (prompt.referenceImage) {
+    await deleteImageFromStorage(prompt.referenceImage);
+  }
 
   const { error } = await supabase
     .from('prompts')
-    .update({ is_active: false })
+    .delete()
     .eq('id', promptId);
 
   if (error) {
     throw new Error(`Failed to delete prompt: ${error.message}`);
   }
 
-  if (promptData?.preview_image_url) {
-    await deleteImageFromStorage(promptData.preview_image_url);
-  }
-
-  if (promptData?.reference_image_url) {
-    await deleteImageFromStorage(promptData.reference_image_url);
-  }
-
   clearPromptsCache();
 };
 
-export const sendSms = async (tenantId: string, phoneNumber: string, imageUrl: string, eventId?: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/twilio-send-sms`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        tenantId,
-        phoneNumber,
-        imageUrl,
-        eventId,
-      }),
-    });
+export const sendSms = async (phoneNumber: string, imageUrl: string, eventId?: string): Promise<boolean> => {
+  const settings = await getGlobalSettings();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to send SMS');
-    }
-
-    const result = await response.json();
-    console.log(`[SMS] Sent to ${phoneNumber}: ${result.messageSid}`);
-    return result.success;
-  } catch (error) {
-    console.error('[SMS] Error:', error);
-    throw error;
+  if (!settings.twilioEnabled) {
+    throw new Error('SMS functionality is not enabled');
   }
+
+  let message = 'Here\'s your AI-generated photo!';
+
+  if (eventId) {
+    const event = await getEventById(eventId);
+    message = event.smsMessage || `Here's your AI-generated photo from ${event.name}!`;
+    message = message.replace('{event_name}', event.name).replace('{image_url}', imageUrl);
+  }
+
+  const response = await supabase.functions.invoke('twilio-send-sms', {
+    body: {
+      to: phoneNumber,
+      message,
+      imageUrl,
+    },
+  });
+
+  if (response.error) {
+    console.error('Failed to send SMS:', response.error);
+    return false;
+  }
+
+  return true;
 };
 
 export const getEventByPasscode = async (passcode: string): Promise<Event | null> => {
-  const { data: eventsData, error } = await supabase
+  const { data: eventData, error } = await supabase
     .from('events')
-    .select(`
-      id,
-      name,
-      event_date,
-      city,
-      is_active,
-      passcode,
-      tenant_id,
-      aspect_ratio,
-      background_image_url,
-      logo_url,
-      overlay_image_url,
-      primary_color,
-      secondary_color,
-      accent_color,
-      hide_logo,
-      hide_event_name,
-      start_datetime,
-      end_datetime,
-      sms_message,
-      smugmug_gallery_key,
-      smugmug_gallery_url,
-      event_prompts (
-        prompt_id,
-        display_order,
-        prompts (
-          id,
-          name,
-          description,
-          category,
-          prompt_text,
-          preview_image_url,
-          reference_image_url
-        )
-      )
-    `)
+    .select('*')
     .eq('passcode', passcode)
     .eq('is_active', true)
     .maybeSingle();
 
   if (error) {
-    throw new Error(`Failed to fetch event: ${error.message}`);
-  }
-
-  if (!eventsData) {
+    console.error('Failed to fetch event by passcode:', error);
     return null;
   }
 
-  return {
-    id: eventsData.id,
-    name: eventsData.name,
-    date: eventsData.event_date,
-    city: eventsData.city,
-    isActive: eventsData.is_active,
-    passcode: eventsData.passcode,
-    tenantId: eventsData.tenant_id,
-    aspectRatio: eventsData.aspect_ratio || 'square',
-    backgroundImageUrl: eventsData.background_image_url,
-    logoUrl: eventsData.logo_url,
-    overlayImageUrl: eventsData.overlay_image_url,
-    primaryColor: eventsData.primary_color,
-    secondaryColor: eventsData.secondary_color,
-    accentColor: eventsData.accent_color,
-    hideLogo: eventsData.hide_logo || false,
-    hideEventName: eventsData.hide_event_name || false,
-    startDatetime: eventsData.start_datetime,
-    endDatetime: eventsData.end_datetime,
-    smsMessage: eventsData.sms_message,
-    smugmugGalleryKey: eventsData.smugmug_gallery_key,
-    smugmugGalleryUrl: eventsData.smugmug_gallery_url,
-    prompts: eventsData.event_prompts
-      .sort((a: any, b: any) => a.display_order - b.display_order)
-      .map((ep: any) => ({
-        id: ep.prompts.id,
-        name: ep.prompts.name,
-        description: ep.prompts.description,
-        category: ep.prompts.category,
-        promptText: ep.prompts.prompt_text,
-        previewImage: ep.prompts.preview_image_url || '',
-        referenceImage: ep.prompts.reference_image_url || '',
-      }))
-  };
+  if (!eventData) {
+    return null;
+  }
+
+  return getEventById(eventData.id);
 };
 
 export const saveGeneratedImage = async (
   eventId: string,
   promptId: string,
-  tenantId: string,
-  originalUrl: string,
-  generatedUrl: string | null,
-  status: 'processing' | 'completed' | 'failed'
+  originalImageUrl: string,
+  generatedImageUrl: string | null,
+  phoneNumber: string | null = null,
+  status: 'processing' | 'completed' | 'failed' = 'processing',
+  errorMessage: string | null = null
 ): Promise<string> => {
-  const { data, error } = await supabase
-    .from('generated_images')
-    .insert({
-      event_id: eventId,
-      prompt_id: promptId,
-      tenant_id: tenantId,
-      original_image_url: originalUrl,
-      generated_image_url: generatedUrl,
-      status,
-    })
-    .select()
+  const { data: eventData } = await supabase
+    .from('events')
+    .select('user_id')
+    .eq('id', eventId)
     .maybeSingle();
+
+  const userId = eventData?.user_id;
+
+  if (!userId) {
+    throw new Error('Event not found or user ID missing');
+  }
+
+  const imageData = {
+    event_id: eventId,
+    prompt_id: promptId,
+    original_image_url: originalImageUrl,
+    generated_image_url: generatedImageUrl,
+    phone_number: phoneNumber,
+    status,
+    error_message: errorMessage,
+    user_id: userId,
+  };
+
+  const { data: newImage, error } = await supabase
+    .from('generated_images')
+    .insert([imageData])
+    .select()
+    .single();
 
   if (error) {
     throw new Error(`Failed to save generated image: ${error.message}`);
   }
 
-  if (!data) {
-    throw new Error('Failed to save generated image: No data returned');
-  }
-
-  return data.id;
+  return newImage.id;
 };
 
-export interface EventAnalytics {
-  totalPhotos: number;
-  promptStats: Array<{
-    promptId: string;
+interface EventAnalytics {
+  totalGenerations: number;
+  uniqueUsers: number;
+  successRate: number;
+  averageGenerationTime: number;
+  promptBreakdown: Array<{
     promptName: string;
     count: number;
     percentage: number;
+  }>;
+  hourlyBreakdown: Array<{
+    hour: string;
+    count: number;
   }>;
 }
 
 export const getEventAnalytics = async (eventId: string): Promise<EventAnalytics> => {
   const { data: images, error } = await supabase
     .from('generated_images')
-    .select(`
-      id,
-      prompt_id,
-      prompts (
-        id,
-        name
-      )
-    `)
-    .eq('event_id', eventId)
-    .eq('status', 'completed');
+    .select('*, prompts(name)')
+    .eq('event_id', eventId);
 
   if (error) {
-    throw new Error(`Failed to fetch event analytics: ${error.message}`);
+    throw new Error(`Failed to fetch analytics: ${error.message}`);
   }
 
-  const totalPhotos = images?.length || 0;
+  const totalGenerations = images?.length || 0;
+  const uniqueUsers = new Set(images?.map(img => img.phone_number).filter(Boolean)).size;
+  const completedImages = images?.filter(img => img.status === 'completed').length || 0;
+  const successRate = totalGenerations > 0 ? (completedImages / totalGenerations) * 100 : 0;
 
-  const promptCounts = new Map<string, { name: string; count: number }>();
+  const generationTimes = images
+    ?.filter(img => img.generation_time_ms)
+    .map(img => img.generation_time_ms) || [];
+  const averageGenerationTime = generationTimes.length > 0
+    ? generationTimes.reduce((a, b) => a + b, 0) / generationTimes.length
+    : 0;
 
-  images?.forEach((img: any) => {
-    const promptId = img.prompt_id;
-    const promptName = img.prompts?.name || 'Unknown';
-
-    if (promptCounts.has(promptId)) {
-      promptCounts.get(promptId)!.count++;
-    } else {
-      promptCounts.set(promptId, { name: promptName, count: 1 });
-    }
+  const promptCounts = new Map<string, number>();
+  images?.forEach(img => {
+    const promptName = (img.prompts as any)?.name || 'Unknown';
+    promptCounts.set(promptName, (promptCounts.get(promptName) || 0) + 1);
   });
 
-  const promptStats = Array.from(promptCounts.entries())
-    .map(([promptId, { name, count }]) => ({
-      promptId,
-      promptName: name,
-      count,
-      percentage: totalPhotos > 0 ? Math.round((count / totalPhotos) * 100) : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
+  const promptBreakdown = Array.from(promptCounts.entries()).map(([promptName, count]) => ({
+    promptName,
+    count,
+    percentage: (count / totalGenerations) * 100,
+  }));
+
+  const hourlyCounts = new Map<string, number>();
+  images?.forEach(img => {
+    const hour = new Date(img.created_at).getHours().toString().padStart(2, '0') + ':00';
+    hourlyCounts.set(hour, (hourlyCounts.get(hour) || 0) + 1);
+  });
+
+  const hourlyBreakdown = Array.from(hourlyCounts.entries())
+    .sort()
+    .map(([hour, count]) => ({ hour, count }));
 
   return {
-    totalPhotos,
-    promptStats,
+    totalGenerations,
+    uniqueUsers,
+    successRate,
+    averageGenerationTime,
+    promptBreakdown,
+    hourlyBreakdown,
   };
 };
 
@@ -1238,80 +932,88 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
   clearEventsCache();
 };
 
-export interface DashboardStats {
-  totalImages: number;
-  totalSms: number;
+interface DashboardStats {
   totalEvents: number;
   activeEvents: number;
+  totalGenerations: number;
+  totalPrompts: number;
+  availableCredits: number;
 }
 
 export const getDashboardStats = async (): Promise<DashboardStats> => {
-  const tenantId = await getUserTenantId();
+  const userId = await getUserId();
 
-  const [eventsResult, imagesResult] = await Promise.all([
-    supabase
-      .from('events')
-      .select('id, is_active', { count: 'exact', head: false })
-      .eq('tenant_id', tenantId),
-    supabase
-      .from('generated_images')
-      .select('id', { count: 'exact', head: false })
-      .eq('tenant_id', tenantId)
-      .eq('status', 'completed')
-  ]);
+  if (!userId) {
+    return {
+      totalEvents: 0,
+      activeEvents: 0,
+      totalGenerations: 0,
+      totalPrompts: 0,
+      availableCredits: 0,
+    };
+  }
 
-  const totalImages = imagesResult.data?.length || 0;
-  const totalEvents = eventsResult.data?.length || 0;
-  const activeEvents = eventsResult.data?.filter(e => e.is_active).length || 0;
+  const { data: events } = await supabase
+    .from('events')
+    .select('id, is_active, total_generations')
+    .eq('user_id', userId);
+
+  const { data: prompts } = await supabase
+    .from('prompts')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('is_active', true);
+
+  const { data: credits } = await supabase
+    .from('user_credits')
+    .select('available_credits')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const totalEvents = events?.length || 0;
+  const activeEvents = events?.filter(e => e.is_active).length || 0;
+  const totalGenerations = events?.reduce((sum, e) => sum + (e.total_generations || 0), 0) || 0;
+  const totalPrompts = prompts?.length || 0;
+  const availableCredits = credits?.available_credits || 0;
 
   return {
-    totalImages,
-    totalSms: Math.floor(totalImages * 0.7),
     totalEvents,
     activeEvents,
+    totalGenerations,
+    totalPrompts,
+    availableCredits,
   };
 };
 
-export interface ChartDataPoint {
-  name: string;
-  images: number;
+interface ChartDataPoint {
+  date: string;
+  generations: number;
 }
 
 export const getDashboardChartData = async (): Promise<ChartDataPoint[]> => {
-  const tenantId = await getUserTenantId();
+  const userId = await getUserId();
 
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
-
-  const { data: imagesData } = await supabase
-    .from('generated_images')
-    .select('created_at')
-    .eq('tenant_id', tenantId)
-    .eq('status', 'completed')
-    .gte('created_at', sevenDaysAgo.toISOString());
-
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const chartData: ChartDataPoint[] = [];
-
-  for (let i = 0; i < 7; i++) {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - i));
-    date.setHours(0, 0, 0, 0);
-
-    const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + 1);
-
-    const count = imagesData?.filter(img => {
-      const imgDate = new Date(img.created_at);
-      return imgDate >= date && imgDate < nextDate;
-    }).length || 0;
-
-    chartData.push({
-      name: dayNames[date.getDay()],
-      images: count,
-    });
+  if (!userId) {
+    return [];
   }
 
-  return chartData;
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const { data: images } = await supabase
+    .from('generated_images')
+    .select('created_at')
+    .eq('user_id', userId)
+    .gte('created_at', thirtyDaysAgo.toISOString());
+
+  const dateCounts = new Map<string, number>();
+
+  images?.forEach(img => {
+    const date = new Date(img.created_at).toISOString().split('T')[0];
+    dateCounts.set(date, (dateCounts.get(date) || 0) + 1);
+  });
+
+  return Array.from(dateCounts.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, generations]) => ({ date, generations }));
 };
