@@ -192,7 +192,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     throw new Error('User not authenticated');
   }
 
-  const { data: creditsData, error } = await supabase
+  let { data: creditsData, error } = await supabase
     .from('user_credits')
     .select('*')
     .eq('user_id', user.id)
@@ -203,15 +203,36 @@ export const getUserCredits = async (): Promise<UserCredits> => {
   }
 
   if (!creditsData) {
-    throw new Error('User credits not found');
+    const { data: newCredits, error: insertError } = await supabase
+      .from('user_credits')
+      .insert({
+        user_id: user.id,
+        images_limit: 10,
+        images_used: 0,
+        sms_limit: 5,
+        sms_used: 0,
+        events_limit: 1,
+        reset_date: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      throw new Error(`Failed to create user credits: ${insertError.message}`);
+    }
+
+    creditsData = newCredits;
   }
 
   return {
     id: creditsData.id,
     userId: creditsData.user_id,
-    availableCredits: creditsData.available_credits,
-    rolloverCredits: creditsData.rollover_credits,
-    lastResetDate: creditsData.last_reset_date,
+    images_limit: creditsData.images_limit,
+    images_used: creditsData.images_used,
+    sms_limit: creditsData.sms_limit,
+    sms_used: creditsData.sms_used,
+    events_limit: creditsData.events_limit,
+    reset_date: creditsData.reset_date,
     createdAt: creditsData.created_at,
     updatedAt: creditsData.updated_at,
   };
@@ -224,7 +245,7 @@ export const getUserSettings = async (): Promise<UserSettings> => {
     throw new Error('User not authenticated');
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('user_settings')
     .select('*')
     .eq('user_id', user.id)
@@ -233,6 +254,24 @@ export const getUserSettings = async (): Promise<UserSettings> => {
   if (error) {
     console.error('Failed to fetch user settings:', error);
     return {};
+  }
+
+  if (!data) {
+    const { data: newSettings, error: insertError } = await supabase
+      .from('user_settings')
+      .insert({
+        user_id: user.id,
+        dropbox_enabled: false
+      })
+      .select()
+      .maybeSingle();
+
+    if (insertError) {
+      console.error('Failed to create user settings:', insertError);
+      return {};
+    }
+
+    data = newSettings;
   }
 
   if (!data) {

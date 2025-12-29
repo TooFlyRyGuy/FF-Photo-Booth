@@ -21,9 +21,12 @@ export interface UserProfile {
 export interface UserCredits {
   id: string;
   userId: string;
-  availableCredits: number;
-  rolloverCredits: number;
-  lastResetDate: string;
+  images_limit: number;
+  images_used: number;
+  sms_limit: number;
+  sms_used: number;
+  events_limit: number;
+  reset_date: string;
   createdAt: string;
   updatedAt: string;
 }
