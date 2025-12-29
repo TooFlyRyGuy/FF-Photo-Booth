@@ -446,6 +446,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     }
   }, [view]);
 
+  // Preload prompt images for faster display
+  useEffect(() => {
+    if (event.prompts && event.prompts.length > 0) {
+      event.prompts.forEach(prompt => {
+        const img = new Image();
+        img.src = prompt.previewImage;
+      });
+    }
+  }, [event.prompts]);
+
   // --- RENDER VIEWS ---
 
   // EVENT TIME RESTRICTION SCREENS
@@ -611,7 +621,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
               onMouseEnter={(e) => e.currentTarget.style.borderColor = getBrandingColors().accent}
               onMouseLeave={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
             >
-              <img src={prompt.previewImage} alt={prompt.name} className="w-full h-full object-cover" />
+              <img
+                src={prompt.previewImage}
+                alt={prompt.name}
+                className="w-full h-full object-cover"
+                loading="eager"
+                decoding="async"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-3 md:p-6">
                 <h3 className="text-base md:text-2xl text-white font-bold">{prompt.name}</h3>
                 <p className="text-gray-300 text-xs md:text-sm">{prompt.description}</p>

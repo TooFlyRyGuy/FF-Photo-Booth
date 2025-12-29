@@ -86,25 +86,42 @@ const uploadImageToStorage = async (
     throw new Error('Invalid image data');
   }
 
-  let imageToUpload = base64Image;
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = base64Image;
+  });
 
-  if (!base64Image.startsWith('data:image/jpeg') && !base64Image.startsWith('data:image/jpg')) {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = reject;
-      image.src = base64Image;
-    });
+  const canvas = document.createElement('canvas');
 
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(img, 0, 0);
-      imageToUpload = canvas.toDataURL('image/jpeg', 0.92);
+  let targetWidth = img.width;
+  let targetHeight = img.height;
+
+  if (folder === 'preview') {
+    const maxWidth = 800;
+    if (img.width > maxWidth) {
+      targetWidth = maxWidth;
+      targetHeight = (img.height * maxWidth) / img.width;
+    }
+  } else if (folder === 'reference') {
+    const maxWidth = 1920;
+    if (img.width > maxWidth) {
+      targetWidth = maxWidth;
+      targetHeight = (img.height * maxWidth) / img.width;
     }
   }
+
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Failed to get canvas context');
+  }
+
+  ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+  const imageToUpload = canvas.toDataURL('image/jpeg', 0.85);
 
   const blob = base64ToBlob(imageToUpload);
   const timestamp = Date.now();
