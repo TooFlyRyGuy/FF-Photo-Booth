@@ -937,17 +937,7 @@ export const saveGeneratedImage = async (
   status: 'processing' | 'completed' | 'failed' = 'processing',
   errorMessage: string | null = null
 ): Promise<string> => {
-  const { data: eventData } = await supabase
-    .from('events')
-    .select('user_id')
-    .eq('id', eventId)
-    .maybeSingle();
-
-  if (!eventData) {
-    throw new Error('Event not found');
-  }
-
-  const userId = eventData.user_id || null;
+  const { data: { user } } = await supabase.auth.getUser();
 
   const imageData = {
     event_id: eventId,
@@ -957,7 +947,7 @@ export const saveGeneratedImage = async (
     phone_number: phoneNumber,
     status,
     error_message: errorMessage,
-    user_id: userId,
+    user_id: user?.id || null,
   };
 
   const { data: newImage, error } = await supabase
