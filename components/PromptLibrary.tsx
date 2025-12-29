@@ -395,21 +395,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         return;
       }
 
-      // Check if prompt has any generated images
-      const { count: imageCount, error: imageCountError } = await supabase
-        .from('generated_images')
-        .select('*', { count: 'exact', head: true })
-        .eq('prompt_id', promptId);
-
-      if (imageCountError) throw imageCountError;
-
-      if (imageCount && imageCount > 0) {
-        alert(
-          `Cannot delete this prompt because it has ${imageCount} generated image(s) associated with it.\n\nThese images were created using this prompt and cannot be orphaned. Please delete these images first before removing the prompt.`
-        );
-        return;
-      }
-
       const { error } = await supabase.from('prompts').delete().eq('id', promptId);
 
       if (error) throw error;
