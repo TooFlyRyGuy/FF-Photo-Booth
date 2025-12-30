@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SmsRequest {
-  tenantId: string;
+  userId: string;
   phoneNumber: string;
   imageUrl: string;
   imageId: string;
@@ -27,7 +27,7 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { tenantId, phoneNumber, imageUrl, imageId, eventId }: SmsRequest = await req.json();
+    const { userId, phoneNumber, imageUrl, imageId, eventId }: SmsRequest = await req.json();
 
     const { data: settings, error: settingsError } = await supabase
       .from('global_settings')
@@ -100,7 +100,7 @@ Deno.serve(async (req: Request) => {
         message_sid: result.sid,
         status: 'sent',
         sent_at: new Date().toISOString(),
-        user_id: tenantId,
+        user_id: userId,
       });
 
     return new Response(

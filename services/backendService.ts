@@ -1011,7 +1011,7 @@ export const sendSms = async (phoneNumber: string, imageUrl: string, imageId: st
 
   const response = await supabase.functions.invoke('twilio-send-sms', {
     body: {
-      tenantId: event.user_id,
+      userId: event.user_id,
       phoneNumber,
       imageUrl,
       imageId,
