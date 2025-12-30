@@ -1203,7 +1203,7 @@ export const getEventAccessList = async (eventId: string): Promise<Array<{ userI
     .from('event_access')
     .select(`
       user_id,
-      granted_at,
+      created_at,
       user_profiles!event_access_user_id_fkey (
         email,
         full_name
@@ -1219,7 +1219,7 @@ export const getEventAccessList = async (eventId: string): Promise<Array<{ userI
     userId: item.user_id,
     email: item.user_profiles.email,
     fullName: item.user_profiles.full_name,
-    grantedAt: item.granted_at
+    grantedAt: item.created_at
   }));
 };
 
