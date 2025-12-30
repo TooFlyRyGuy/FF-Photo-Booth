@@ -10,6 +10,7 @@ interface SubscriptionTier {
   credits_per_period: number;
   rollover_enabled: boolean;
   features: string[];
+  prompts_limit: number | null;
   is_active: boolean;
   display_order: number;
   stripe_price_id?: string;
@@ -39,6 +40,7 @@ interface EventPass {
   credits: number;
   duration_hours: number;
   setup_included: boolean;
+  prompts_limit: number | null;
   is_active: boolean;
   display_order: number;
   created_at: string;
@@ -163,6 +165,7 @@ const PlanManagement: React.FC = () => {
       credits_per_period: 0,
       rollover_enabled: false,
       features: [],
+      prompts_limit: null,
       is_active: true,
       display_order: tiers.length,
     });
@@ -188,6 +191,7 @@ const PlanManagement: React.FC = () => {
             credits_per_period: editingTier.credits_per_period,
             rollover_enabled: editingTier.rollover_enabled || false,
             features: editingTier.features || [],
+            prompts_limit: editingTier.prompts_limit,
             is_active: editingTier.is_active !== false,
             display_order: editingTier.display_order || 0,
             stripe_price_id: editingTier.stripe_price_id || null,
@@ -205,6 +209,7 @@ const PlanManagement: React.FC = () => {
             credits_per_period: editingTier.credits_per_period,
             rollover_enabled: editingTier.rollover_enabled || false,
             features: editingTier.features || [],
+            prompts_limit: editingTier.prompts_limit,
             is_active: editingTier.is_active !== false,
             display_order: editingTier.display_order || 0,
             stripe_price_id: editingTier.stripe_price_id || null,
@@ -352,6 +357,7 @@ const PlanManagement: React.FC = () => {
       credits: 0,
       duration_hours: 4,
       setup_included: false,
+      prompts_limit: null,
       is_active: true,
       display_order: eventPasses.length,
     });
@@ -376,6 +382,7 @@ const PlanManagement: React.FC = () => {
             credits: editingEventPass.credits,
             duration_hours: editingEventPass.duration_hours,
             setup_included: editingEventPass.setup_included || false,
+            prompts_limit: editingEventPass.prompts_limit,
             is_active: editingEventPass.is_active !== false,
             display_order: editingEventPass.display_order || 0,
             stripe_price_id: editingEventPass.stripe_price_id || null,
@@ -392,6 +399,7 @@ const PlanManagement: React.FC = () => {
             credits: editingEventPass.credits,
             duration_hours: editingEventPass.duration_hours,
             setup_included: editingEventPass.setup_included || false,
+            prompts_limit: editingEventPass.prompts_limit,
             is_active: editingEventPass.is_active !== false,
             display_order: editingEventPass.display_order || 0,
             stripe_price_id: editingEventPass.stripe_price_id || null,
@@ -568,20 +576,32 @@ const PlanManagement: React.FC = () => {
               )}
             </div>
 
-            <div className="flex items-baseline gap-1 mb-4">
-              <DollarSign size={24} className="text-green-700" />
-              <span className="text-3xl font-bold text-slate-900">
-                {(tier.price_cents / 100).toFixed(2)}
-              </span>
-              <span className="text-slate-600">
-                /{tier.billing_period === 'monthly' ? 'mo' : 'yr'}
-              </span>
+            <div className="mb-4">
+              {tier.price_cents === -1 ? (
+                <div className="text-center py-2">
+                  <span className="text-xl font-bold text-green-900">CONTACT US</span>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-1">
+                  <DollarSign size={24} className="text-green-700" />
+                  <span className="text-3xl font-bold text-slate-900">
+                    {(tier.price_cents / 100).toFixed(2)}
+                  </span>
+                  <span className="text-slate-600">
+                    /{tier.billing_period === 'monthly' ? 'mo' : 'yr'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 mb-4">
               <div className="text-sm">
-                <span className="font-medium text-slate-900">{tier.credits_per_period}</span>
+                <span className="font-medium text-slate-900">{tier.credits_per_period >= 999999 ? 'Unlimited' : tier.credits_per_period}</span>
                 <span className="text-slate-600"> credits per period</span>
+              </div>
+              <div className="text-sm">
+                <span className="font-medium text-slate-900">{tier.prompts_limit === null ? 'Unlimited' : tier.prompts_limit}</span>
+                <span className="text-slate-600"> prompts per event</span>
               </div>
               <div className="text-sm text-slate-600">
                 Rollover: {tier.rollover_enabled ? 'Enabled' : 'Disabled'}
@@ -672,21 +692,33 @@ const PlanManagement: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-baseline gap-1 mb-4">
-                    <DollarSign size={24} className="text-green-700" />
-                    <span className="text-3xl font-bold text-slate-900">
-                      {(eventPass.price_cents / 100).toFixed(2)}
-                    </span>
+                  <div className="mb-4">
+                    {eventPass.price_cents === -1 ? (
+                      <div className="text-center py-2">
+                        <span className="text-xl font-bold text-green-900">CONTACT US</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-baseline gap-1">
+                        <DollarSign size={24} className="text-green-700" />
+                        <span className="text-3xl font-bold text-slate-900">
+                          {(eventPass.price_cents / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Ticket size={16} className="text-slate-500" />
-                      <span>{eventPass.credits} credits</span>
+                      <span>{eventPass.credits >= 999999 ? 'Unlimited' : eventPass.credits} credits</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Clock size={16} className="text-slate-500" />
                       <span>{eventPass.duration_hours} hours</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Zap size={16} className="text-slate-500" />
+                      <span>{eventPass.prompts_limit === null ? 'Unlimited' : eventPass.prompts_limit} prompts</span>
                     </div>
                     {eventPass.setup_included && (
                       <div className="flex items-center gap-2 text-sm text-green-700">
@@ -976,6 +1008,28 @@ const PlanManagement: React.FC = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">
+                    Prompts per Event
+                    <span className="text-xs font-normal text-slate-500 ml-2">(leave empty for unlimited)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={editingTier.prompts_limit ?? ''}
+                    onChange={(e) =>
+                      setEditingTier({
+                        ...editingTier,
+                        prompts_limit: e.target.value === '' ? null : parseInt(e.target.value) || 0
+                      })
+                    }
+                    min="0"
+                    placeholder="Unlimited"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
                   <input
@@ -1271,6 +1325,28 @@ const PlanManagement: React.FC = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">
+                    Prompts per Event
+                    <span className="text-xs font-normal text-slate-500 ml-2">(leave empty for unlimited)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={editingEventPass.prompts_limit ?? ''}
+                    onChange={(e) =>
+                      setEditingEventPass({
+                        ...editingEventPass,
+                        prompts_limit: e.target.value === '' ? null : parseInt(e.target.value) || 0
+                      })
+                    }
+                    min="0"
+                    placeholder="Unlimited"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
                   <input

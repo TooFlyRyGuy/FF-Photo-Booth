@@ -5,15 +5,14 @@ import { Check, CreditCard, Crown, Zap, AlertCircle } from 'lucide-react';
 interface SubscriptionTier {
   id: string;
   name: string;
-  description: string;
-  price_monthly: number;
-  price_yearly: number;
-  images_limit: number;
-  sms_limit: number;
-  events_limit: number;
-  custom_branding: boolean;
-  analytics: boolean;
-  priority_support: boolean;
+  billing_period: string;
+  price_cents: number;
+  credits_per_period: number;
+  rollover_enabled: boolean;
+  features: string[] | null;
+  prompts_limit: number | null;
+  is_active: boolean;
+  display_order: number;
 }
 
 interface UserProfile {
@@ -39,14 +38,15 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [billingCycle]);
 
   const loadData = async () => {
     try {
       const { data: tiersData } = await supabase
         .from('subscription_tiers_new')
         .select('*')
-        .neq('id', 'admin')
+        .eq('is_active', true)
+        .eq('billing_period', billingCycle)
         .order('display_order', { ascending: true });
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -79,34 +79,26 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
     );
   };
 
-  const getTierIcon = (tierId: string) => {
-    switch (tierId) {
-      case 'free':
-        return <Zap size={24} className="text-slate-500" />;
-      case 'starter':
-        return <CreditCard size={24} className="text-green-700" />;
-      case 'professional':
-        return <Crown size={24} className="text-green-800" />;
-      case 'enterprise':
-        return <Crown size={24} className="text-green-900" />;
-      default:
-        return <Zap size={24} />;
+  const getTierIcon = (tierName: string) => {
+    const name = tierName.toLowerCase();
+    if (name === 'starter') {
+      return <CreditCard size={24} className="text-green-700" />;
+    } else if (name === 'pro') {
+      return <Zap size={24} className="text-green-800" />;
+    } else if (name === 'premium') {
+      return <Crown size={24} className="text-green-800" />;
+    } else if (name === 'enterprise') {
+      return <Crown size={24} className="text-green-900" />;
     }
+    return <Zap size={24} className="text-slate-500" />;
   };
 
-  const getTierColor = (tierId: string) => {
-    switch (tierId) {
-      case 'free':
-        return 'border-slate-300';
-      case 'starter':
-        return 'border-green-700/30';
-      case 'professional':
-        return 'border-green-700/30';
-      case 'enterprise':
-        return 'border-green-700/30';
-      default:
-        return 'border-slate-300';
+  const getTierColor = (tierName: string) => {
+    const name = tierName.toLowerCase();
+    if (name === 'enterprise') {
+      return 'border-green-900/50 bg-gradient-to-br from-green-50 to-white';
     }
+    return 'border-green-700/30';
   };
 
   const formatPrice = (cents: number) => {
@@ -229,17 +221,17 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {tiers.map((tier) => {
               const isCurrentTier = userProfile?.subscription_tier === tier.id;
-              const price = billingCycle === 'monthly' ? tier.price_monthly : tier.price_yearly;
+              const isEnterprise = tier.price_cents === -1;
 
               return (
                 <div
                   key={tier.id}
-                  className={`bg-white border-2 ${getTierColor(tier.id)} rounded-xl p-6 flex flex-col ${
+                  className={`border-2 ${getTierColor(tier.name)} rounded-xl p-6 flex flex-col ${
                     isCurrentTier ? 'ring-2 ring-green-700/50' : ''
                   }`}
                 >
                   <div className="flex items-center justify-between mb-4">
-                    {getTierIcon(tier.id)}
+                    {getTierIcon(tier.name)}
                     {isCurrentTier && (
                       <span className="text-xs bg-green-700/20 text-green-800 px-2 py-1 rounded-full">
                         Current Plan
@@ -248,67 +240,71 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                   </div>
 
                   <h3 className="text-xl font-bold text-slate-900 mb-2">{tier.name}</h3>
-                  <p className="text-slate-600 text-sm mb-4 flex-grow">{tier.description}</p>
+                  <p className="text-slate-600 text-xs mb-4">
+                    {tier.billing_period === 'monthly' ? 'Billed monthly' : 'Billed annually'}
+                  </p>
 
                   <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-slate-900">{formatPrice(price)}</span>
-                      {price > 0 && (
-                        <span className="text-slate-600 text-sm">
-                          /{billingCycle === 'monthly' ? 'mo' : 'yr'}
-                        </span>
-                      )}
-                    </div>
-                    {billingCycle === 'yearly' && price > 0 && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        {formatPrice(Math.floor(price / 12))} per month
-                      </p>
+                    {isEnterprise ? (
+                      <div className="text-center py-3">
+                        <span className="text-2xl font-bold text-green-900">CONTACT US</span>
+                        <p className="text-xs text-slate-600 mt-1">Custom pricing</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-slate-900">
+                            {formatPrice(tier.price_cents)}
+                          </span>
+                          <span className="text-slate-600 text-sm">
+                            /{tier.billing_period === 'monthly' ? 'mo' : 'yr'}
+                          </span>
+                        </div>
+                        {tier.billing_period === 'annual' && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            {formatPrice(Math.floor(tier.price_cents / 12))} per month
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  <ul className="space-y-3 mb-6">
+                  <ul className="space-y-3 mb-6 flex-grow">
                     <li className="flex items-start gap-2 text-sm text-slate-700">
                       <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                      {tier.images_limit === 999999 ? 'Unlimited' : tier.images_limit} images/month
+                      {tier.credits_per_period >= 999999 ? 'Unlimited' : tier.credits_per_period} credits/
+                      {tier.billing_period === 'monthly' ? 'month' : 'year'}
                     </li>
                     <li className="flex items-start gap-2 text-sm text-slate-700">
                       <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                      {tier.sms_limit === 999999 ? 'Unlimited' : tier.sms_limit} SMS/month
+                      {tier.prompts_limit === null ? 'Unlimited' : tier.prompts_limit} prompts per event
                     </li>
-                    <li className="flex items-start gap-2 text-sm text-slate-700">
-                      <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                      {tier.events_limit === 999 ? 'Unlimited' : tier.events_limit} active events
-                    </li>
-                    {tier.custom_branding && (
+                    {tier.rollover_enabled && (
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        Custom branding
+                        Credit rollover enabled
                       </li>
                     )}
-                    {tier.analytics && (
-                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                    {tier.features && Array.isArray(tier.features) && tier.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        Advanced analytics
+                        {feature}
                       </li>
-                    )}
-                    {tier.priority_support && (
-                      <li className="flex items-start gap-2 text-sm text-slate-700">
-                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        Priority support
-                      </li>
-                    )}
+                    ))}
                   </ul>
 
                   <button
                     onClick={() => handleSubscribe(tier.id)}
-                    disabled={isCurrentTier}
+                    disabled={isCurrentTier || isEnterprise}
                     className={`w-full py-3 rounded-lg font-medium transition-all ${
                       isCurrentTier
                         ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                        : isEnterprise
+                        ? 'bg-green-900 hover:bg-green-950 text-white'
                         : 'bg-green-700 hover:bg-green-800 text-white'
                     }`}
                   >
-                    {isCurrentTier ? 'Current Plan' : tier.id === 'free' ? 'Get Started' : 'Upgrade'}
+                    {isCurrentTier ? 'Current Plan' : isEnterprise ? 'Contact Sales' : 'Subscribe'}
                   </button>
                 </div>
               );
