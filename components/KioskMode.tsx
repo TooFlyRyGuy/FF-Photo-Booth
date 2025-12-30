@@ -622,15 +622,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   // 2. PROMPT SELECT
   if (view === 'prompt-select') {
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 p-4 md:p-8 flex flex-col items-center justify-center">
-        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-8 text-center">Choose Your Style</h2>
-        <div className="w-full max-w-7xl flex-1 flex items-center justify-center overflow-auto no-scrollbar">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 auto-rows-min">
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center p-4 md:p-8">
+        <div className="flex flex-col items-center justify-center w-full max-w-7xl">
+          <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-8 text-center">Choose Your Style</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
             {event.prompts.map(prompt => (
               <button
                 key={prompt.id}
                 onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
-                className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 h-[150px] md:h-[250px] w-full"
+                className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 h-[150px] md:h-[250px] w-[150px] md:w-[250px]"
                 style={{
                   borderColor: '#cbd5e1',
                 }}
@@ -651,8 +651,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
               </button>
             ))}
           </div>
+          <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4">Cancel</button>
         </div>
-        <button onClick={() => setView('attract')} className="mt-4 md:mt-8 text-slate-600 hover:text-slate-900 py-2 px-4">Cancel</button>
       </div>
     );
   }
