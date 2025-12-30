@@ -1166,6 +1166,19 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
   clearEventsCache();
 };
 
+export const reassignEvent = async (eventId: string, newUserId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('events')
+    .update({ user_id: newUserId })
+    .eq('id', eventId);
+
+  if (error) {
+    throw new Error(`Failed to reassign event: ${error.message}`);
+  }
+
+  clearEventsCache();
+};
+
 interface DashboardStats {
   totalImages: number;
   totalSms: number;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, reassignEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer } from 'lucide-react';
 import Settings from './Settings';
@@ -80,6 +80,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [revenueStats, setRevenueStats] = useState<any>(null);
   const [eventSearchQuery, setEventSearchQuery] = useState('');
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [reassignmentModal, setReassignmentModal] = useState<{ eventId: string; eventName: string } | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [reassigning, setReassigning] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -428,6 +431,35 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     } catch (error: any) {
       alert(`Failed to delete event: ${error.message}`);
       console.error('Delete event error:', error);
+    }
+  };
+
+  const openReassignmentModal = (event: Event) => {
+    setReassignmentModal({ eventId: event.id, eventName: event.name });
+    setSelectedUserId(event.userId || '');
+  };
+
+  const handleReassignEvent = async () => {
+    if (!reassignmentModal || !selectedUserId) {
+      alert('Please select a user to assign the event to.');
+      return;
+    }
+
+    setReassigning(true);
+    try {
+      await reassignEvent(reassignmentModal.eventId, selectedUserId);
+      setReassignmentModal(null);
+      setSelectedUserId('');
+      await loadData();
+      if (userProfile?.role === 'admin') {
+        const users = await getAllUsers();
+        setAllUsers(users);
+      }
+    } catch (error: any) {
+      alert(`Failed to reassign event: ${error.message}`);
+      console.error('Reassign event error:', error);
+    } finally {
+      setReassigning(false);
     }
   };
 
@@ -957,6 +989,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       >
                         <Pencil size={16} /> <span className="hidden sm:inline">Edit</span>
                       </button>
+
+                      {userProfile?.role === 'admin' && (
+                        <button
+                          onClick={() => openReassignmentModal(event)}
+                          className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-700 hover:bg-green-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                          title="Reassign to user"
+                        >
+                          <UserIcon size={16} /> <span className="hidden sm:inline">Reassign</span>
+                        </button>
+                      )}
 
                       <button
                         onClick={() => handleDeleteEvent(event)}
@@ -1815,6 +1857,77 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             }
           }}
         />
+      )}
+
+      {/* Reassign Event Modal */}
+      {reassignmentModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-md">
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900">Reassign Event</h3>
+              <button
+                onClick={() => {
+                  setReassignmentModal(null);
+                  setSelectedUserId('');
+                }}
+                className="text-slate-600 hover:text-slate-900 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-sm text-slate-600 mb-4">
+                  Assign <strong>{reassignmentModal.eventName}</strong> to a different user:
+                </p>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Select User</label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                >
+                  <option value="">-- Select a user --</option>
+                  {allUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.full_name || user.email} ({user.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleReassignEvent}
+                  disabled={!selectedUserId || reassigning}
+                  className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {reassigning ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Reassigning...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} />
+                      Reassign Event
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setReassignmentModal(null);
+                    setSelectedUserId('');
+                  }}
+                  disabled={reassigning}
+                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
