@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight } from 'lucide-react';
+import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
@@ -33,6 +33,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
   const checkEventTimeStatus = useCallback(() => {
     const now = new Date();
@@ -76,8 +77,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   // --- CAMERA LOGIC ---
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 1280, height: 720, facingMode: 'user' } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: facingMode }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -86,7 +87,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       console.error("Camera Error", err);
       setErrorMsg("Camera access denied.");
     }
-  }, []);
+  }, [facingMode]);
 
   const stopCamera = useCallback(() => {
     if (videoRef.current && videoRef.current.srcObject) {
@@ -94,6 +95,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       stream.getTracks().forEach(track => track.stop());
     }
   }, []);
+
+  const toggleCamera = useCallback(async () => {
+    stopCamera();
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  }, [stopCamera]);
 
   const takePhoto = () => {
     setCountdown(3);
@@ -136,8 +142,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           sourceY = (video.videoHeight - sourceHeight) / 2;
         }
 
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
+        if (facingMode === 'user') {
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+        }
         ctx.drawImage(
           video,
           sourceX, sourceY, sourceWidth, sourceHeight,
@@ -438,10 +446,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     return () => stopCamera();
   }, [stopCamera]);
 
-  // Start camera when entering camera view
+  // Start camera when entering camera view or when facingMode changes
   useEffect(() => {
     if (view === 'camera') startCamera();
-  }, [view, startCamera]);
+  }, [view, facingMode, startCamera]);
 
   // Handle delivery countdown
   useEffect(() => {
@@ -674,7 +682,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
     return (
       <div className="h-screen w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
-        <video ref={videoRef} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover transform -scale-x-100" />
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className={`absolute inset-0 h-full w-full object-cover ${facingMode === 'user' ? 'transform -scale-x-100' : ''}`}
+        />
         <canvas ref={canvasRef} className="hidden" />
 
         <div className="absolute inset-0 pointer-events-none z-30 flex items-center justify-center">
@@ -704,6 +717,17 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             <span className="text-[200px] font-bold text-white animate-ping">{countdown}</span>
           </div>
         )}
+
+        <div className="fixed top-4 right-4 z-40">
+          <button
+            onClick={toggleCamera}
+            disabled={!!countdown}
+            className="bg-white/90 backdrop-blur text-slate-900 p-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+            title={facingMode === 'user' ? 'Switch to back camera' : 'Switch to front camera'}
+          >
+            <SwitchCamera className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+        </div>
 
         <div className="fixed bottom-20 md:bottom-24 left-0 right-0 z-40 flex justify-center gap-4 md:gap-8 items-center px-4">
            <button onClick={() => setView('prompt-select')} className="bg-white/90 backdrop-blur text-slate-900 px-4 py-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 text-sm md:text-base min-h-[44px] font-semibold">
