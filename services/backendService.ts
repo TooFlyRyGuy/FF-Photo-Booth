@@ -1242,12 +1242,20 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     };
   }
 
-  const { data: events } = await supabase
+  const { data: ownedEvents } = await supabase
     .from('events')
     .select('id, is_active, start_datetime, end_datetime')
     .eq('user_id', userId);
 
-  const eventIds = events?.map(e => e.id) || [];
+  const { data: sharedEventAccess } = await supabase
+    .from('event_access')
+    .select('event_id, events(id, is_active, start_datetime, end_datetime)')
+    .eq('user_id', userId);
+
+  const sharedEvents = sharedEventAccess?.map(access => access.events).filter(Boolean) || [];
+
+  const allEvents = [...(ownedEvents || []), ...sharedEvents];
+  const eventIds = allEvents.map(e => e.id);
 
   let imagesCount = 0;
   let smsCount = 0;
@@ -1273,10 +1281,10 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     }
   }
 
-  const totalEvents = events?.length || 0;
+  const totalEvents = allEvents.length;
 
   const now = new Date();
-  const activeEvents = events?.filter(e => {
+  const activeEvents = allEvents.filter(e => {
     if (!e.is_active) return false;
 
     if (e.end_datetime) {
@@ -1290,7 +1298,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     }
 
     return true;
-  }).length || 0;
+  }).length;
 
   return {
     totalImages: imagesCount,
