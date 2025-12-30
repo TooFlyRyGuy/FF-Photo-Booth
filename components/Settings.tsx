@@ -51,13 +51,6 @@ const Settings: React.FC<SettingsProps> = ({
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [geminiKeyChanged, setGeminiKeyChanged] = useState(false);
 
-  // Dropbox App Credentials (global, admin only)
-  const [dropboxAppKey, setDropboxAppKey] = useState(maskValue(globalSettings.dropboxAppKey));
-  const [dropboxAppSecret, setDropboxAppSecret] = useState(maskValue(globalSettings.dropboxAppSecret));
-  const [showDropboxAppKey, setShowDropboxAppKey] = useState(false);
-  const [showDropboxAppSecret, setShowDropboxAppSecret] = useState(false);
-  const [dropboxAppKeyChanged, setDropboxAppKeyChanged] = useState(false);
-  const [dropboxAppSecretChanged, setDropboxAppSecretChanged] = useState(false);
 
   // Save states
   const [isSavingUser, setIsSavingUser] = useState(false);
@@ -218,16 +211,6 @@ const Settings: React.FC<SettingsProps> = ({
     setGeminiKeyChanged(true);
   };
 
-  const handleDropboxAppKeyChange = (value: string) => {
-    setDropboxAppKey(value);
-    setDropboxAppKeyChanged(true);
-  };
-
-  const handleDropboxAppSecretChange = (value: string) => {
-    setDropboxAppSecret(value);
-    setDropboxAppSecretChanged(true);
-  };
-
   const handleSaveUserSettings = async () => {
     setIsSavingUser(true);
     setSaveUserSuccess(false);
@@ -271,20 +254,10 @@ const Settings: React.FC<SettingsProps> = ({
         updates.geminiApiKey = geminiApiKey;
       }
 
-      if (dropboxAppKeyChanged && !dropboxAppKey.startsWith('•')) {
-        updates.dropboxAppKey = dropboxAppKey;
-      }
-
-      if (dropboxAppSecretChanged && !dropboxAppSecret.startsWith('•')) {
-        updates.dropboxAppSecret = dropboxAppSecret;
-      }
-
       await onSaveGlobalSettings(updates);
 
       setTwilioTokenChanged(false);
       setGeminiKeyChanged(false);
-      setDropboxAppKeyChanged(false);
-      setDropboxAppSecretChanged(false);
 
       setSaveGlobalSuccess(true);
       setTimeout(() => setSaveGlobalSuccess(false), 3000);
@@ -311,80 +284,12 @@ const Settings: React.FC<SettingsProps> = ({
             </svg>
             <div>
               <h3 className="text-xl font-bold text-slate-900">Dropbox Integration</h3>
-              <p className="text-slate-600 text-sm">Connect Dropbox to automatically backup all photos</p>
+              <p className="text-slate-600 text-sm">Connect your Dropbox account to automatically backup photos</p>
             </div>
           </div>
         </div>
 
         <div className="p-6 space-y-4">
-          {isAdmin && (
-            <>
-              <div className="p-4 bg-blue-50 border-2 border-blue-700/30 rounded-lg">
-                <p className="text-sm font-semibold text-blue-900 mb-2">Admin Configuration Required</p>
-                <p className="text-sm text-blue-800">Configure the Dropbox app credentials below to enable user connections.</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900 mb-2">Dropbox App Key</label>
-                <div className="relative">
-                  <input
-                    type={showDropboxAppKey ? 'text' : 'password'}
-                    value={dropboxAppKey}
-                    onChange={(e) => handleDropboxAppKeyChange(e.target.value)}
-                    placeholder="Enter your Dropbox app key"
-                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowDropboxAppKey(!showDropboxAppKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
-                  >
-                    {showDropboxAppKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {dropboxAppKey.startsWith('•') && (
-                  <p className="text-xs text-green-700 mt-2">✓ App key is saved (hidden for security)</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900 mb-2">Dropbox App Secret</label>
-                <div className="relative">
-                  <input
-                    type={showDropboxAppSecret ? 'text' : 'password'}
-                    value={dropboxAppSecret}
-                    onChange={(e) => handleDropboxAppSecretChange(e.target.value)}
-                    placeholder="Enter your Dropbox app secret"
-                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowDropboxAppSecret(!showDropboxAppSecret)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
-                  >
-                    {showDropboxAppSecret ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {dropboxAppSecret.startsWith('•') && (
-                  <p className="text-xs text-green-700 mt-2">✓ App secret is saved (hidden for security)</p>
-                )}
-              </div>
-
-              <div className="p-4 bg-blue-50 border-2 border-blue-700/30 rounded-lg">
-                <p className="text-sm font-semibold text-blue-900 mb-2">Setup Instructions:</p>
-                <ol className="text-sm text-blue-800 ml-4 list-decimal space-y-1">
-                  <li>Create a Dropbox app at <a href="https://www.dropbox.com/developers/apps/create" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-700">Dropbox App Console</a></li>
-                  <li>Choose "Scoped access" and "Full Dropbox" access</li>
-                  <li>Set the redirect URI to: <code className="bg-white px-2 py-1 rounded text-xs">{import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-callback</code></li>
-                  <li>Enable these permissions: files.content.write, files.content.read, sharing.write, sharing.read</li>
-                  <li>Copy your App key and App secret and paste them above</li>
-                </ol>
-              </div>
-
-              <div className="border-t-2 border-slate-200 my-4"></div>
-            </>
-          )}
-
           {dropboxConnected ? (
             <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -456,56 +361,35 @@ const Settings: React.FC<SettingsProps> = ({
           )}
         </div>
 
-        {isAdmin || dropboxConnected ? (
+        {dropboxConnected && (
           <div className="px-6 pb-6">
             <div className="flex items-center justify-end gap-3">
-              {(saveUserSuccess || saveGlobalSuccess) && (
+              {saveUserSuccess && (
                 <div className="flex items-center gap-2 text-green-700 animate-fade-in">
                   <Check size={18} />
                   <span className="text-sm font-medium">Settings saved successfully</span>
                 </div>
               )}
-              {isAdmin && (
-                <button
-                  onClick={handleSaveGlobalSettings}
-                  disabled={isSavingGlobal}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
-                >
-                  {isSavingGlobal ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={18} />
-                      Save App Config
-                    </>
-                  )}
-                </button>
-              )}
-              {dropboxConnected && !isAdmin && (
-                <button
-                  onClick={handleSaveUserSettings}
-                  disabled={isSavingUser}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
-                >
-                  {isSavingUser ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={18} />
-                      Save Settings
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={handleSaveUserSettings}
+                disabled={isSavingUser}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+              >
+                {isSavingUser ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} />
+                    Save Settings
+                  </>
+                )}
+              </button>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
 
       {/* Global API Settings - Admin Only */}
