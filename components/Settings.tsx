@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserSettings, GlobalSettings, UserProfile } from '../types';
 import { Save, Eye, EyeOff, Check, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -57,6 +57,30 @@ const Settings: React.FC<SettingsProps> = ({
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
   const [saveUserSuccess, setSaveUserSuccess] = useState(false);
   const [saveGlobalSuccess, setSaveGlobalSuccess] = useState(false);
+
+  useEffect(() => {
+    setDropboxConnected(!!userSettings.dropboxAccessToken);
+    setDropboxEnabled(userSettings.dropboxEnabled || false);
+  }, [userSettings.dropboxAccessToken, userSettings.dropboxEnabled]);
+
+  useEffect(() => {
+    setSmugMugConnected(globalSettings.smugmugConnectionStatus === 'connected');
+    setSmugMugUserNickname(globalSettings.smugmugUserNickname || '');
+    setSmugMugConnectionStatus(globalSettings.smugmugConnectionStatus || 'disconnected');
+    setTwilioSid(globalSettings.twilioAccountSid || '');
+    setTwilioPhone(globalSettings.twilioPhoneNumber || '');
+    setTwilioEnabled(globalSettings.twilioEnabled || false);
+    setGeminiEnabled(globalSettings.geminiEnabled || false);
+    setGeminiModel(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
+    setGeminiResolution(globalSettings.geminiResolution || '1K');
+
+    if (!showTwilioToken) {
+      setTwilioToken(maskValue(globalSettings.twilioAuthToken));
+    }
+    if (!showGeminiKey) {
+      setGeminiApiKey(maskValue(globalSettings.geminiApiKey));
+    }
+  }, [globalSettings, showTwilioToken, showGeminiKey]);
 
   const handleConnectDropbox = async () => {
     setIsConnectingDropbox(true);
