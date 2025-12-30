@@ -617,7 +617,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                     <img
                       src={editingPrompt.referenceImage}
                       alt="AI Style Reference"
-                      className="w-full aspect-video object-cover rounded-lg border-2 border-slate-300"
+                      className="w-full aspect-video object-contain rounded-lg border-2 border-slate-300 bg-slate-100"
                     />
                     <button
                       onClick={() => setEditingPrompt({ ...editingPrompt, referenceImage: null })}
@@ -1034,7 +1034,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                       <img
                         src={testReferenceImage || testingPrompt.referenceImage || ''}
                         alt="Reference"
-                        className="w-full aspect-square object-cover rounded-lg border-2 border-slate-300"
+                        className="w-full aspect-square object-contain rounded-lg border-2 border-slate-300 bg-slate-100"
                       />
                       {testReferenceImage && (
                         <button
