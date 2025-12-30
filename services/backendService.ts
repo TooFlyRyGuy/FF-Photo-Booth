@@ -808,6 +808,37 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     }
 
     eventId = newEvent.id;
+
+    if (!event.smugmugGalleryKey) {
+      try {
+        const globalSettings = await getGlobalSettings();
+        if (globalSettings.smugmugConnectionStatus === 'connected') {
+          const { createSmugMugGallery } = await import('./smugmugService');
+          const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          const galleryName = event.city ? `${event.name} - ${event.city}` : event.name;
+
+          const { galleryId, galleryUrl } = await createSmugMugGallery(
+            galleryName,
+            'public',
+            anonKey
+          );
+
+          const { error: updateError } = await supabase
+            .from('events')
+            .update({
+              smugmug_gallery_key: galleryId,
+              smugmug_gallery_url: galleryUrl,
+            })
+            .eq('id', eventId);
+
+          if (updateError) {
+            console.error('Failed to update event with SmugMug gallery info:', updateError);
+          }
+        }
+      } catch (smugmugError) {
+        console.error('Failed to create SmugMug gallery:', smugmugError);
+      }
+    }
   }
 
   if (event.prompts && event.prompts.length > 0) {
