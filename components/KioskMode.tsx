@@ -622,35 +622,37 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   // 2. PROMPT SELECT
   if (view === 'prompt-select') {
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 p-4 md:p-8 flex flex-col">
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 p-4 md:p-8 flex flex-col items-center justify-center">
         <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-8 text-center">Choose Your Style</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 flex-1 overflow-auto no-scrollbar">
-          {event.prompts.map(prompt => (
-            <button
-              key={prompt.id}
-              onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
-              className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 min-h-[150px]"
-              style={{
-                borderColor: '#cbd5e1',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = getBrandingColors().accent}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
-            >
-              <img
-                src={prompt.previewImage}
-                alt={prompt.name}
-                className="w-full h-full object-cover"
-                loading="eager"
-                decoding="async"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-3 md:p-6">
-                <h3 className="text-base md:text-2xl text-white font-bold">{prompt.name}</h3>
-                <p className="text-gray-300 text-xs md:text-sm">{prompt.description}</p>
-              </div>
-            </button>
-          ))}
+        <div className="w-full max-w-7xl flex-1 flex items-center justify-center overflow-auto no-scrollbar">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 auto-rows-min">
+            {event.prompts.map(prompt => (
+              <button
+                key={prompt.id}
+                onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
+                className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 h-[150px] md:h-[250px] w-full"
+                style={{
+                  borderColor: '#cbd5e1',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = getBrandingColors().accent}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
+              >
+                <img
+                  src={prompt.previewImage}
+                  alt={prompt.name}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-3 md:p-6">
+                  <h3 className="text-base md:text-2xl text-white font-bold">{prompt.name}</h3>
+                  <p className="text-gray-300 text-xs md:text-sm">{prompt.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
-        <button onClick={() => setView('attract')} className="mt-4 md:mt-8 text-slate-600 hover:text-slate-900 self-center py-2 px-4">Cancel</button>
+        <button onClick={() => setView('attract')} className="mt-4 md:mt-8 text-slate-600 hover:text-slate-900 py-2 px-4">Cancel</button>
       </div>
     );
   }
