@@ -236,7 +236,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   const handleCreateEvent = () => {
     setEditingEvent({
-      id: `evt_${Date.now()}`,
+      id: '',
       name: '',
       city: '',
       date: new Date().toISOString().split('T')[0],
@@ -391,7 +391,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   const handleAddNewPrompt = async () => {
     const newPrompt: Partial<Prompt> = {
-      id: `prompt_${Date.now()}`,
       name: 'New Prompt',
       description: 'Add a description',
       promptText: 'Add your AI prompt text here',
