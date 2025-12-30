@@ -1082,73 +1082,53 @@ export const saveGeneratedImage = async (
   return data.id;
 };
 
-interface EventAnalytics {
-  totalGenerations: number;
-  uniqueUsers: number;
-  successRate: number;
-  averageGenerationTime: number;
-  promptBreakdown: Array<{
+export interface EventAnalytics {
+  totalPhotos: number;
+  promptStats: Array<{
+    promptId: string;
     promptName: string;
     count: number;
     percentage: number;
-  }>;
-  hourlyBreakdown: Array<{
-    hour: string;
-    count: number;
   }>;
 }
 
 export const getEventAnalytics = async (eventId: string): Promise<EventAnalytics> => {
   const { data: images, error } = await supabase
     .from('generated_images')
-    .select('*, prompts(name)')
+    .select('*, prompts(id, name)')
     .eq('event_id', eventId);
 
   if (error) {
     throw new Error(`Failed to fetch analytics: ${error.message}`);
   }
 
-  const totalGenerations = images?.length || 0;
-  const uniqueUsers = new Set(images?.map(img => img.phone_number).filter(Boolean)).size;
-  const completedImages = images?.filter(img => img.status === 'completed').length || 0;
-  const successRate = totalGenerations > 0 ? (completedImages / totalGenerations) * 100 : 0;
+  const totalPhotos = images?.length || 0;
 
-  const generationTimes = images
-    ?.filter(img => img.generation_time_ms)
-    .map(img => img.generation_time_ms) || [];
-  const averageGenerationTime = generationTimes.length > 0
-    ? generationTimes.reduce((a, b) => a + b, 0) / generationTimes.length
-    : 0;
-
-  const promptCounts = new Map<string, number>();
+  const promptCounts = new Map<string, { promptId: string; promptName: string; count: number }>();
   images?.forEach(img => {
+    const promptId = (img.prompts as any)?.id || 'unknown';
     const promptName = (img.prompts as any)?.name || 'Unknown';
-    promptCounts.set(promptName, (promptCounts.get(promptName) || 0) + 1);
+    const key = promptId;
+    const existing = promptCounts.get(key);
+    if (existing) {
+      existing.count++;
+    } else {
+      promptCounts.set(key, { promptId, promptName, count: 1 });
+    }
   });
 
-  const promptBreakdown = Array.from(promptCounts.entries()).map(([promptName, count]) => ({
-    promptName,
-    count,
-    percentage: (count / totalGenerations) * 100,
-  }));
-
-  const hourlyCounts = new Map<string, number>();
-  images?.forEach(img => {
-    const hour = new Date(img.created_at).getHours().toString().padStart(2, '0') + ':00';
-    hourlyCounts.set(hour, (hourlyCounts.get(hour) || 0) + 1);
-  });
-
-  const hourlyBreakdown = Array.from(hourlyCounts.entries())
-    .sort()
-    .map(([hour, count]) => ({ hour, count }));
+  const promptStats = Array.from(promptCounts.values())
+    .map(({ promptId, promptName, count }) => ({
+      promptId,
+      promptName,
+      count,
+      percentage: totalPhotos > 0 ? Math.round((count / totalPhotos) * 100) : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
 
   return {
-    totalGenerations,
-    uniqueUsers,
-    successRate,
-    averageGenerationTime,
-    promptBreakdown,
-    hourlyBreakdown,
+    totalPhotos,
+    promptStats,
   };
 };
 
