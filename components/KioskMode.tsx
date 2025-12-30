@@ -631,14 +631,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   if (view === 'prompt-select') {
     return (
       <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center p-4 md:p-8">
-        <div className="flex flex-col items-center justify-center">
-          <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-8 text-center">Choose Your Style</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-8 justify-items-center">
+        <div className="flex flex-col items-center justify-center max-w-7xl mx-auto">
+          <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-6 md:mb-10 text-center">Choose Your Style</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-6 md:mb-10 w-full justify-items-center">
             {event.prompts.map(prompt => (
               <button
                 key={prompt.id}
                 onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
-                className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 h-[150px] md:h-[250px] w-[150px] md:w-[250px]"
+                className="relative group rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 aspect-square w-full max-w-[300px] sm:max-w-[280px] md:max-w-[320px] lg:max-w-[360px]"
                 style={{
                   borderColor: '#cbd5e1',
                 }}
@@ -652,9 +652,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                   loading="eager"
                   decoding="async"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-3 md:p-6">
-                  <h3 className="text-base md:text-2xl text-white font-bold">{prompt.name}</h3>
-                  <p className="text-gray-300 text-xs md:text-sm">{prompt.description}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-4 md:p-6">
+                  <h3 className="text-lg md:text-2xl text-white font-bold">{prompt.name}</h3>
+                  <p className="text-gray-300 text-sm md:text-base">{prompt.description}</p>
                 </div>
               </button>
             ))}
