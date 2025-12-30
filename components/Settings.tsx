@@ -51,6 +51,14 @@ const Settings: React.FC<SettingsProps> = ({
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [geminiKeyChanged, setGeminiKeyChanged] = useState(false);
 
+  // Dropbox App Credentials (global, admin only)
+  const [dropboxAppKey, setDropboxAppKey] = useState(maskValue(globalSettings.dropboxAppKey));
+  const [dropboxAppSecret, setDropboxAppSecret] = useState(maskValue(globalSettings.dropboxAppSecret));
+  const [showDropboxAppKey, setShowDropboxAppKey] = useState(false);
+  const [showDropboxAppSecret, setShowDropboxAppSecret] = useState(false);
+  const [dropboxAppKeyChanged, setDropboxAppKeyChanged] = useState(false);
+  const [dropboxAppSecretChanged, setDropboxAppSecretChanged] = useState(false);
+
   // Save states
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
@@ -210,6 +218,16 @@ const Settings: React.FC<SettingsProps> = ({
     setGeminiKeyChanged(true);
   };
 
+  const handleDropboxAppKeyChange = (value: string) => {
+    setDropboxAppKey(value);
+    setDropboxAppKeyChanged(true);
+  };
+
+  const handleDropboxAppSecretChange = (value: string) => {
+    setDropboxAppSecret(value);
+    setDropboxAppSecretChanged(true);
+  };
+
   const handleSaveUserSettings = async () => {
     setIsSavingUser(true);
     setSaveUserSuccess(false);
@@ -253,10 +271,20 @@ const Settings: React.FC<SettingsProps> = ({
         updates.geminiApiKey = geminiApiKey;
       }
 
+      if (dropboxAppKeyChanged && !dropboxAppKey.startsWith('•')) {
+        updates.dropboxAppKey = dropboxAppKey;
+      }
+
+      if (dropboxAppSecretChanged && !dropboxAppSecret.startsWith('•')) {
+        updates.dropboxAppSecret = dropboxAppSecret;
+      }
+
       await onSaveGlobalSettings(updates);
 
       setTwilioTokenChanged(false);
       setGeminiKeyChanged(false);
+      setDropboxAppKeyChanged(false);
+      setDropboxAppSecretChanged(false);
 
       setSaveGlobalSuccess(true);
       setTimeout(() => setSaveGlobalSuccess(false), 3000);
@@ -512,6 +540,86 @@ const Settings: React.FC<SettingsProps> = ({
                     Google AI for Developers
                   </a>
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Dropbox App Configuration */}
+          <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
+                  <path d="M12 9.6L24 16.8L12 24L0 16.8L12 9.6Z" fill="#0061FF"/>
+                  <path d="M0 24L12 31.2L24 24L12 16.8L0 24Z" fill="#0061FF"/>
+                  <path d="M12 31.2L24 38.4L36 31.2L24 24L12 31.2Z" fill="#0061FF"/>
+                  <path d="M24 24L36 31.2L48 24L36 16.8L24 24Z" fill="#0061FF"/>
+                  <path d="M24 16.8L36 9.6L48 16.8L36 24L24 16.8Z" fill="#0061FF"/>
+                </svg>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Dropbox App Configuration</h3>
+                  <p className="text-slate-600 text-sm">Configure Dropbox app credentials for user connections</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-2">Dropbox App Key</label>
+                <div className="relative">
+                  <input
+                    type={showDropboxAppKey ? 'text' : 'password'}
+                    value={dropboxAppKey}
+                    onChange={(e) => handleDropboxAppKeyChange(e.target.value)}
+                    placeholder="Enter your Dropbox app key"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDropboxAppKey(!showDropboxAppKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
+                  >
+                    {showDropboxAppKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {dropboxAppKey.startsWith('•') && (
+                  <p className="text-xs text-green-700 mt-2">✓ App key is saved (hidden for security)</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-2">Dropbox App Secret</label>
+                <div className="relative">
+                  <input
+                    type={showDropboxAppSecret ? 'text' : 'password'}
+                    value={dropboxAppSecret}
+                    onChange={(e) => handleDropboxAppSecretChange(e.target.value)}
+                    placeholder="Enter your Dropbox app secret"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDropboxAppSecret(!showDropboxAppSecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
+                  >
+                    {showDropboxAppSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {dropboxAppSecret.startsWith('•') && (
+                  <p className="text-xs text-green-700 mt-2">✓ App secret is saved (hidden for security)</p>
+                )}
+              </div>
+
+              <div className="p-4 bg-blue-50 border-2 border-blue-700/30 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Setup Instructions:</strong>
+                </p>
+                <ol className="text-sm text-blue-800 mt-2 ml-4 list-decimal space-y-1">
+                  <li>Create a Dropbox app at <a href="https://www.dropbox.com/developers/apps/create" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-700">Dropbox App Console</a></li>
+                  <li>Choose "Scoped access" and "Full Dropbox" access</li>
+                  <li>Set the redirect URI to: <code className="bg-white px-2 py-1 rounded text-xs">{import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-callback</code></li>
+                  <li>Enable these permissions: files.content.write, files.content.read, sharing.write, sharing.read</li>
+                  <li>Copy your App key and App secret and paste them above</li>
+                </ol>
               </div>
             </div>
           </div>
