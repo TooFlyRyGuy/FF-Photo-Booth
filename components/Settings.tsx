@@ -61,23 +61,32 @@ const Settings: React.FC<SettingsProps> = ({
   const handleConnectDropbox = async () => {
     setIsConnectingDropbox(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      alert('Not authenticated');
-      setIsConnectingDropbox(false);
-      return;
-    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Not authenticated');
+        setIsConnectingDropbox(false);
+        return;
+      }
 
-    const authUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-initiate`;
+      const initiateUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-initiate`;
 
-    const response = await fetch(authUrl, {
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-    });
+      const response = await fetch(initiateUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (response.redirected) {
-      const popup = window.open(response.url, 'Dropbox OAuth', 'width=600,height=700');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to initiate Dropbox connection');
+      }
+
+      const { authUrl } = await response.json();
+
+      const popup = window.open(authUrl, 'Dropbox OAuth', 'width=600,height=700');
 
       const handleMessage = async (event: MessageEvent) => {
         if (event.data.type === 'dropbox-oauth-success') {
@@ -107,9 +116,10 @@ const Settings: React.FC<SettingsProps> = ({
           window.removeEventListener('message', handleMessage);
         }
       }, 1000);
-    } else {
+    } catch (error) {
+      console.error('Dropbox connection error:', error);
+      alert(`Failed to connect to Dropbox: ${error instanceof Error ? error.message : String(error)}`);
       setIsConnectingDropbox(false);
-      alert('Failed to initiate Dropbox connection');
     }
   };
 

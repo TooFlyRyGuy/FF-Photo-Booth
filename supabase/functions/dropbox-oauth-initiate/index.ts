@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
@@ -57,25 +57,29 @@ Deno.serve(async (req: Request) => {
       'sharing.write',
       'sharing.read'
     ].join(' ');
-    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${settings.dropbox_app_key}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${user.id}&token_access_type=offline&scope=${encodeURIComponent(scopes)}`;
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${settings.dropbox_app_key.trim()}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${user.id}&token_access_type=offline&scope=${encodeURIComponent(scopes)}`;
 
-    return new Response(null, {
-      status: 302,
-      headers: {
-        ...corsHeaders,
-        'Location': authUrl,
-      },
-    });
+    // Return the auth URL as JSON
+    return new Response(
+      JSON.stringify({ authUrl }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   } catch (error) {
     console.error('OAuth initiate error:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      `<html><body><script>window.opener.postMessage({type:'dropbox-oauth-error',error:'${errorMessage}'},'*');window.close();</script><p>Error: ${errorMessage}</p></body></html>`,
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'text/html',
+          'Content-Type': 'application/json',
         },
       }
     );
