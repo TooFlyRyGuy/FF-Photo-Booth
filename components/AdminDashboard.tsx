@@ -244,18 +244,24 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 text-align: center;
                 max-width: 600px;
               }
+              .logo {
+                max-width: 300px;
+                max-height: 150px;
+                margin-bottom: 32px;
+                object-fit: contain;
+              }
+              h2 {
+                font-size: 36px;
+                font-weight: 700;
+                color: #059669;
+                margin-bottom: 24px;
+              }
               h1 {
                 font-size: 48px;
                 font-weight: 900;
                 color: #1f2937;
-                margin-bottom: 16px;
-                letter-spacing: -0.5px;
-              }
-              h2 {
-                font-size: 32px;
-                font-weight: 700;
-                color: #059669;
                 margin-bottom: 48px;
+                letter-spacing: -0.5px;
               }
               .qr-container {
                 display: inline-block;
@@ -280,8 +286,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </head>
           <body>
             <div class="container">
+              ${event.logoUrl ? `<img src="${event.logoUrl}" alt="Event Logo" class="logo" />` : ''}
+              ${!event.hideEventName ? `<h2>${event.name}</h2>` : ''}
               <h1>SCAN HERE TO USE OUR<br>AI PHOTO BOOTH!</h1>
-              <h2>${event.name}</h2>
               <div class="qr-container">
                 <div id="qr-code"></div>
               </div>
