@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { CreditCard, Plus, Edit, Save, X, Trash2, DollarSign, Calendar, Zap, Clock } from 'lucide-react';
+import { CreditCard, Plus, Edit, Save, X, Trash2, DollarSign, Calendar, Zap, Clock, Ticket, CheckCircle } from 'lucide-react';
 
 interface SubscriptionTier {
   id: string;
@@ -30,14 +30,31 @@ interface AddOn {
   created_at: string;
 }
 
+interface EventPass {
+  id: string;
+  name: string;
+  stripe_price_id?: string;
+  stripe_product_id?: string;
+  price_cents: number;
+  credits: number;
+  duration_hours: number;
+  setup_included: boolean;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+}
+
 const PlanManagement: React.FC = () => {
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [addOns, setAddOns] = useState<AddOn[]>([]);
+  const [eventPasses, setEventPasses] = useState<EventPass[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTier, setEditingTier] = useState<Partial<SubscriptionTier> | null>(null);
   const [editingAddOn, setEditingAddOn] = useState<Partial<AddOn> | null>(null);
+  const [editingEventPass, setEditingEventPass] = useState<Partial<EventPass> | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isCreatingAddOn, setIsCreatingAddOn] = useState(false);
+  const [isCreatingEventPass, setIsCreatingEventPass] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -46,7 +63,7 @@ const PlanManagement: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      await Promise.all([loadTiers(), loadAddOns()]);
+      await Promise.all([loadTiers(), loadAddOns(), loadEventPasses()]);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -79,6 +96,20 @@ const PlanManagement: React.FC = () => {
       setAddOns(data || []);
     } catch (error) {
       console.error('Error loading add-ons:', error);
+    }
+  };
+
+  const loadEventPasses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('event_passes')
+        .select('*')
+        .order('display_order');
+
+      if (error) throw error;
+      setEventPasses(data || []);
+    } catch (error) {
+      console.error('Error loading event passes:', error);
     }
   };
 
@@ -272,6 +303,89 @@ const PlanManagement: React.FC = () => {
     }
   };
 
+  const handleCreateEventPass = () => {
+    setEditingEventPass({
+      name: '',
+      price_cents: 0,
+      credits: 0,
+      duration_hours: 4,
+      setup_included: false,
+      is_active: true,
+      display_order: eventPasses.length,
+    });
+    setIsCreatingEventPass(true);
+  };
+
+  const handleEditEventPass = (eventPass: EventPass) => {
+    setEditingEventPass({ ...eventPass });
+    setIsCreatingEventPass(false);
+  };
+
+  const handleSaveEventPass = async () => {
+    if (!editingEventPass) return;
+
+    try {
+      if (isCreatingEventPass) {
+        const { error } = await supabase
+          .from('event_passes')
+          .insert([{
+            name: editingEventPass.name,
+            price_cents: editingEventPass.price_cents,
+            credits: editingEventPass.credits,
+            duration_hours: editingEventPass.duration_hours,
+            setup_included: editingEventPass.setup_included || false,
+            is_active: editingEventPass.is_active !== false,
+            display_order: editingEventPass.display_order || 0,
+            stripe_price_id: editingEventPass.stripe_price_id || null,
+            stripe_product_id: editingEventPass.stripe_product_id || null,
+          }]);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('event_passes')
+          .update({
+            name: editingEventPass.name,
+            price_cents: editingEventPass.price_cents,
+            credits: editingEventPass.credits,
+            duration_hours: editingEventPass.duration_hours,
+            setup_included: editingEventPass.setup_included || false,
+            is_active: editingEventPass.is_active !== false,
+            display_order: editingEventPass.display_order || 0,
+            stripe_price_id: editingEventPass.stripe_price_id || null,
+            stripe_product_id: editingEventPass.stripe_product_id || null,
+          })
+          .eq('id', editingEventPass.id);
+
+        if (error) throw error;
+      }
+
+      setEditingEventPass(null);
+      setIsCreatingEventPass(false);
+      loadEventPasses();
+    } catch (error: any) {
+      console.error('Error saving event pass:', error);
+      alert(`Failed to save event pass: ${error.message}`);
+    }
+  };
+
+  const handleDeleteEventPass = async (eventPass: EventPass) => {
+    if (!confirm(`Are you sure you want to delete the ${eventPass.name} event pass?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('event_passes')
+        .delete()
+        .eq('id', eventPass.id);
+
+      if (error) throw error;
+      loadEventPasses();
+    } catch (error: any) {
+      console.error('Error deleting event pass:', error);
+      alert(`Failed to delete event pass: ${error.message}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -443,6 +557,84 @@ const PlanManagement: React.FC = () => {
                 </button>
                 <button
                   onClick={() => handleDeleteAddOn(addOn)}
+                  className="px-3 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-6 mt-12">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Event Passes</h2>
+            <p className="text-slate-600 mt-1">Manage event passes for temporary access</p>
+          </div>
+          <button
+            onClick={handleCreateEventPass}
+            className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
+          >
+            <Plus size={18} />
+            Create Event Pass
+          </button>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {eventPasses.map((eventPass) => (
+            <div
+              key={eventPass.id}
+              className={`bg-white border-2 rounded-xl p-6 ${
+                eventPass.is_active ? 'border-slate-300' : 'border-slate-200 opacity-60'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">{eventPass.name}</h3>
+                </div>
+                {!eventPass.is_active && (
+                  <span className="px-2 py-1 text-xs font-medium bg-slate-200 text-slate-600 rounded">
+                    Inactive
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-baseline gap-1 mb-4">
+                <DollarSign size={24} className="text-green-700" />
+                <span className="text-3xl font-bold text-slate-900">
+                  {(eventPass.price_cents / 100).toFixed(2)}
+                </span>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Ticket size={16} className="text-slate-500" />
+                  <span>{eventPass.credits} credits</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Clock size={16} className="text-slate-500" />
+                  <span>{eventPass.duration_hours} hours</span>
+                </div>
+                {eventPass.setup_included && (
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <CheckCircle size={16} />
+                    <span>Setup included</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => handleEditEventPass(eventPass)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium"
+                >
+                  <Edit size={16} />
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteEventPass(eventPass)}
                   className="px-3 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium"
                 >
                   <Trash2 size={16} />
@@ -738,6 +930,136 @@ const PlanManagement: React.FC = () => {
                   onClick={() => {
                     setEditingAddOn(null);
                     setIsCreatingAddOn(false);
+                  }}
+                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingEventPass && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900">
+                {isCreatingEventPass ? 'Create Event Pass' : 'Edit Event Pass'}
+              </h3>
+              <button
+                onClick={() => {
+                  setEditingEventPass(null);
+                  setIsCreatingEventPass(false);
+                }}
+                className="text-slate-600 hover:text-slate-900 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Pass Name</label>
+                <input
+                  type="text"
+                  value={editingEventPass.name || ''}
+                  onChange={(e) => setEditingEventPass({ ...editingEventPass, name: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="e.g., 4-Hour Event Pass"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Price (USD)</label>
+                  <input
+                    type="number"
+                    value={(editingEventPass.price_cents || 0) / 100}
+                    onChange={(e) =>
+                      setEditingEventPass({ ...editingEventPass, price_cents: parseFloat(e.target.value) * 100 || 0 })
+                    }
+                    step="0.01"
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Credits</label>
+                  <input
+                    type="number"
+                    value={editingEventPass.credits || 0}
+                    onChange={(e) =>
+                      setEditingEventPass({ ...editingEventPass, credits: parseInt(e.target.value) || 0 })
+                    }
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Duration (hours)</label>
+                  <input
+                    type="number"
+                    value={editingEventPass.duration_hours || 0}
+                    onChange={(e) =>
+                      setEditingEventPass({ ...editingEventPass, duration_hours: parseInt(e.target.value) || 0 })
+                    }
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
+                  <input
+                    type="number"
+                    value={editingEventPass.display_order || 0}
+                    onChange={(e) => setEditingEventPass({ ...editingEventPass, display_order: parseInt(e.target.value) || 0 })}
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editingEventPass.setup_included || false}
+                    onChange={(e) => setEditingEventPass({ ...editingEventPass, setup_included: e.target.checked })}
+                    className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                  />
+                  <span className="text-sm font-medium text-slate-900">Setup Included</span>
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editingEventPass.is_active !== false}
+                    onChange={(e) => setEditingEventPass({ ...editingEventPass, is_active: e.target.checked })}
+                    className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                  />
+                  <span className="text-sm font-medium text-slate-900">Active</span>
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleSaveEventPass}
+                  className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                >
+                  <Save size={18} />
+                  {isCreatingEventPass ? 'Create Event Pass' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingEventPass(null);
+                    setIsCreatingEventPass(false);
                   }}
                   className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
                 >
