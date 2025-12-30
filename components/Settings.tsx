@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserSettings, GlobalSettings, UserProfile } from '../types';
 import { Save, Eye, EyeOff, Check, Sparkles } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface SettingsProps {
   userSettings: UserSettings;
@@ -56,41 +57,59 @@ const Settings: React.FC<SettingsProps> = ({
   const [saveUserSuccess, setSaveUserSuccess] = useState(false);
   const [saveGlobalSuccess, setSaveGlobalSuccess] = useState(false);
 
-  const handleConnectDropbox = () => {
+  const handleConnectDropbox = async () => {
     setIsConnectingDropbox(true);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      alert('Not authenticated');
+      setIsConnectingDropbox(false);
+      return;
+    }
 
     const authUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-initiate`;
 
-    const popup = window.open(authUrl, 'Dropbox OAuth', 'width=600,height=700');
+    const response = await fetch(authUrl, {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
 
-    const handleMessage = async (event: MessageEvent) => {
-      if (event.data.type === 'dropbox-oauth-success') {
-        setIsConnectingDropbox(false);
-        window.removeEventListener('message', handleMessage);
-        if (popup) popup.close();
+    if (response.redirected) {
+      const popup = window.open(response.url, 'Dropbox OAuth', 'width=600,height=700');
 
-        await onSaveUserSettings({});
+      const handleMessage = async (event: MessageEvent) => {
+        if (event.data.type === 'dropbox-oauth-success') {
+          setIsConnectingDropbox(false);
+          window.removeEventListener('message', handleMessage);
+          if (popup) popup.close();
 
-        setDropboxConnected(true);
-        setDropboxEnabled(true);
-        alert('Successfully connected to Dropbox!');
-      } else if (event.data.type === 'dropbox-oauth-error') {
-        setIsConnectingDropbox(false);
-        window.removeEventListener('message', handleMessage);
-        if (popup) popup.close();
-        alert(`Failed to connect to Dropbox: ${event.data.error}`);
-      }
-    };
+          await onSaveUserSettings({});
 
-    window.addEventListener('message', handleMessage);
+          setDropboxConnected(true);
+          setDropboxEnabled(true);
+          alert('Successfully connected to Dropbox!');
+        } else if (event.data.type === 'dropbox-oauth-error') {
+          setIsConnectingDropbox(false);
+          window.removeEventListener('message', handleMessage);
+          if (popup) popup.close();
+          alert(`Failed to connect to Dropbox: ${event.data.error}`);
+        }
+      };
 
-    const checkPopup = setInterval(() => {
-      if (popup && popup.closed) {
-        clearInterval(checkPopup);
-        setIsConnectingDropbox(false);
-        window.removeEventListener('message', handleMessage);
-      }
-    }, 1000);
+      window.addEventListener('message', handleMessage);
+
+      const checkPopup = setInterval(() => {
+        if (popup && popup.closed) {
+          clearInterval(checkPopup);
+          setIsConnectingDropbox(false);
+          window.removeEventListener('message', handleMessage);
+        }
+      }, 1000);
+    } else {
+      setIsConnectingDropbox(false);
+      alert('Failed to initiate Dropbox connection');
+    }
   };
 
   const handleDisconnectDropbox = async () => {
