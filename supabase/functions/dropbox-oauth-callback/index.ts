@@ -217,9 +217,9 @@ Deno.serve(async (req: Request) => {
 
     if (error) {
       return new Response(errorPage(error), {
+        status: 200,
         headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/html'
+          'Content-Type': 'text/html; charset=UTF-8',
         }
       });
     }
@@ -312,19 +312,18 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(successPage, {
+      status: 200,
       headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/html',
+        'Content-Type': 'text/html; charset=UTF-8',
       },
     });
   } catch (error) {
     console.error('OAuth callback error:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(errorPage(errorMessage), {
-      status: 500,
+      status: 200,
       headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/html',
+        'Content-Type': 'text/html; charset=UTF-8',
       },
     });
   }
