@@ -226,6 +226,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         <html>
           <head>
             <title>Print QR Code - ${event.name}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
               * { margin: 0; padding: 0; box-sizing: border-box; }
               body {
@@ -263,6 +265,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 border-radius: 16px;
                 box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
               }
+              #qr-code canvas {
+                display: block;
+              }
               @media print {
                 body {
                   padding: 0;
@@ -281,19 +286,25 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <div id="qr-code"></div>
               </div>
             </div>
-            <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
             <script>
-              QRCode.toCanvas(document.createElement('canvas'), '${url}', {
-                width: 400,
-                margin: 2,
-                color: {
-                  dark: '#000000',
-                  light: '#FFFFFF'
+              window.addEventListener('load', function() {
+                try {
+                  new QRCode(document.getElementById('qr-code'), {
+                    text: '${url}',
+                    width: 400,
+                    height: 400,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                  });
+                  setTimeout(function() {
+                    window.print();
+                  }, 1000);
+                } catch (error) {
+                  console.error('QR Code generation error:', error);
+                  document.getElementById('qr-code').innerHTML = '<p>Error generating QR code</p>';
                 }
-              }, function (error, canvas) {
-                if (error) console.error(error);
-                document.getElementById('qr-code').appendChild(canvas);
-                setTimeout(() => window.print(), 500);
               });
             </script>
           </body>
