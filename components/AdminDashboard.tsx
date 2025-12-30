@@ -84,6 +84,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [grantingAccess, setGrantingAccess] = useState(false);
   const [eventAccessList, setEventAccessList] = useState<Array<{ userId: string; email: string; fullName: string | null; grantedAt: string }>>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -438,19 +439,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const openAccessModal = async (event: Event) => {
     setAccessModal({ eventId: event.id, eventName: event.name, eventOwnerId: event.userId || '' });
     setSelectedUserId('');
+    setUserSearchQuery('');
 
     try {
-      const [users, accessList] = await Promise.all([
-        allUsers.length === 0 ? getAllUsers() : Promise.resolve(allUsers),
+      const [usersData, accessList] = await Promise.all([
+        getAllUsers(),
         getEventAccessList(event.id)
       ]);
 
-      if (allUsers.length === 0) {
-        setAllUsers(users || []);
-      }
+      console.log('Loaded users:', usersData);
+      setAllUsers(usersData || []);
       setEventAccessList(accessList);
     } catch (error) {
       console.error('Failed to load access data:', error);
+      alert('Failed to load users. Please try again.');
     }
   };
 
@@ -1926,37 +1928,81 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
               <div className="border-t-2 border-slate-300 pt-6">
                 <h4 className="text-md font-bold text-slate-900 mb-4">Grant Access to User</h4>
-                <div className="flex gap-3">
-                  <select
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="flex-1 px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  >
-                    <option value="">-- Select a user --</option>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search users by name or email..."
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                    />
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto border-2 border-slate-300 rounded-lg">
                     {allUsers
-                      .filter(user =>
-                        user.id !== accessModal.eventOwnerId &&
-                        !eventAccessList.some(access => access.userId === user.id)
-                      )
+                      .filter(user => {
+                        if (user.id === accessModal.eventOwnerId) return false;
+                        if (eventAccessList.some(access => access.userId === user.id)) return false;
+
+                        if (!userSearchQuery.trim()) return true;
+
+                        const query = userSearchQuery.toLowerCase();
+                        const email = user.email?.toLowerCase() || '';
+                        const name = user.full_name?.toLowerCase() || '';
+
+                        return email.includes(query) || name.includes(query);
+                      })
                       .map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.full_name || user.email} ({user.email})
-                        </option>
+                        <button
+                          key={user.id}
+                          onClick={() => setSelectedUserId(user.id)}
+                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-200 last:border-b-0 transition-colors ${
+                            selectedUserId === user.id ? 'bg-green-50 border-l-4 border-l-green-700' : ''
+                          }`}
+                        >
+                          <div className="font-medium text-slate-900">
+                            {user.full_name || user.email}
+                          </div>
+                          <div className="text-sm text-slate-600">{user.email}</div>
+                          {user.role === 'admin' && (
+                            <div className="text-xs text-green-700 font-semibold mt-1">ADMIN</div>
+                          )}
+                        </button>
                       ))}
-                  </select>
+                    {allUsers.filter(user => {
+                      if (user.id === accessModal.eventOwnerId) return false;
+                      if (eventAccessList.some(access => access.userId === user.id)) return false;
+
+                      if (!userSearchQuery.trim()) return true;
+
+                      const query = userSearchQuery.toLowerCase();
+                      const email = user.email?.toLowerCase() || '';
+                      const name = user.full_name?.toLowerCase() || '';
+
+                      return email.includes(query) || name.includes(query);
+                    }).length === 0 && (
+                      <div className="px-4 py-8 text-center text-slate-600">
+                        {userSearchQuery ? 'No users found matching your search' : 'No available users to grant access'}
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     onClick={handleGrantAccess}
                     disabled={!selectedUserId || grantingAccess}
-                    className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {grantingAccess ? (
                       <>
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Granting Access...
                       </>
                     ) : (
                       <>
                         <Plus size={18} />
-                        Grant
+                        Grant Access to Selected User
                       </>
                     )}
                   </button>
