@@ -44,10 +44,10 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   const loadData = async () => {
     try {
       const { data: tiersData } = await supabase
-        .from('subscription_tiers')
+        .from('subscription_tiers_new')
         .select('*')
         .neq('id', 'admin')
-        .order('price_monthly', { ascending: true });
+        .order('display_order', { ascending: true });
 
       const { data: { user } } = await supabase.auth.getUser();
 
