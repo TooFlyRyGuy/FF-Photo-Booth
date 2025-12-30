@@ -6,7 +6,7 @@ import { generateBoothImage } from '../services/geminiService';
 import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
-import { applyOverlayToImage } from '../services/imageUtils';
+import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
 
 interface KioskProps {
   event: Event;
@@ -181,11 +181,17 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         geminiEnabled: globalSettings.geminiEnabled,
       });
 
+      let referenceImageBase64 = selectedPrompt.referenceImage;
+      if (referenceImageBase64 && referenceImageBase64.startsWith('http')) {
+        console.log('Converting reference image URL to base64...');
+        referenceImageBase64 = await convertImageUrlToBase64(referenceImageBase64);
+      }
+
       let genImage = await generateBoothImage(
         capturedImage,
         selectedPrompt.promptText,
         geminiApiKey,
-        selectedPrompt.referenceImage,
+        referenceImageBase64,
         event.aspectRatio,
         globalSettings.geminiModel,
         globalSettings.geminiResolution

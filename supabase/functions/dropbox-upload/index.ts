@@ -10,9 +10,10 @@ interface UploadRequest {
   userId: string;
   eventId: string;
   eventName: string;
-  imageBase64: string;
-  imageType: 'original' | 'generated';
+  imageBase64?: string;
+  imageType?: 'original' | 'generated';
   promptName?: string;
+  createFolderOnly?: boolean;
 }
 
 Deno.serve(async (req: Request) => {
@@ -28,7 +29,7 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { userId, eventId, eventName, imageBase64, imageType, promptName }: UploadRequest = await req.json();
+    const { userId, eventId, eventName, imageBase64, imageType, promptName, createFolderOnly }: UploadRequest = await req.json();
 
     const { data: userSettings, error: settingsError } = await supabase
       .from('user_settings')
@@ -67,6 +68,25 @@ Deno.serve(async (req: Request) => {
 
     const folderPath = `/events/${eventName.replace(/[^a-zA-Z0-9-_]/g, '_')}_${eventId.slice(0, 8)}`;
     await ensureFolderExists(accessToken, folderPath);
+
+    if (createFolderOnly) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          path: folderPath,
+        }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    if (!imageBase64 || !imageType) {
+      throw new Error('imageBase64 and imageType are required when not creating folder only');
+    }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const suffix = promptName ? `_${promptName.replace(/[^a-zA-Z0-9-_]/g, '_')}` : '';

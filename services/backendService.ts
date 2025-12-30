@@ -839,6 +839,21 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         console.error('Failed to create SmugMug gallery:', smugmugError);
       }
     }
+
+    try {
+      const userSettings = await getUserSettingsByUserId(userId);
+      if (userSettings.dropboxEnabled && userSettings.dropboxAccessToken) {
+        const { createDropboxFolder } = await import('./dropboxService');
+        await createDropboxFolder({
+          userId,
+          eventId,
+          eventName: event.name,
+        });
+        console.log('Dropbox folder created for event:', event.name);
+      }
+    } catch (dropboxError) {
+      console.error('Failed to create Dropbox folder:', dropboxError);
+    }
   }
 
   if (event.prompts && event.prompts.length > 0) {
