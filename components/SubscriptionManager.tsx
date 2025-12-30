@@ -224,9 +224,62 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
             </button>
           </div>
 
-          <div className="flex items-center justify-center gap-4 mt-6">
+          <div className="flex justify-center gap-2 mt-6 border-b border-slate-200">
             <button
-              onClick={() => setBillingCycle('monthly')}
+              onClick={() => setActiveTab('subscriptions')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'subscriptions'
+                  ? 'border-b-2 border-green-700 text-green-700'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Subscription Plans
+            </button>
+            <button
+              onClick={() => setActiveTab('eventPasses')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'eventPasses'
+                  ? 'border-b-2 border-green-700 text-green-700'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Ticket size={18} />
+                Event Passes
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('addOns')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'addOns'
+                  ? 'border-b-2 border-green-700 text-green-700'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Package size={18} />
+                Add-Ons
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('credits')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'credits'
+                  ? 'border-b-2 border-green-700 text-green-700'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Zap size={18} />
+                Credit Top-ups
+              </div>
+            </button>
+          </div>
+
+          {activeTab === 'subscriptions' && (
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <button
+                onClick={() => setBillingCycle('monthly')}
               className={`px-6 py-2 rounded-lg font-medium transition-all ${
                 billingCycle === 'monthly'
                   ? 'bg-green-700 hover:bg-green-800 text-white'
@@ -249,29 +302,32 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
               </span>
             </button>
           </div>
+          )}
         </div>
 
         <div className="p-6">
-          <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
-            <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-slate-900">
-              <p className="font-medium mb-1">Payment Setup Required</p>
-              <p className="text-slate-700">
-                To enable subscriptions, configure Stripe by visiting{' '}
-                <a
-                  href="https://bolt.new/setup/stripe"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-green-800"
-                >
-                  the setup guide
-                </a>
-              </p>
-            </div>
-          </div>
+          {activeTab === 'subscriptions' && (
+            <>
+              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
+                <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-900">
+                  <p className="font-medium mb-1">Payment Setup Required</p>
+                  <p className="text-slate-700">
+                    To enable subscriptions, configure Stripe by visiting{' '}
+                    <a
+                      href="https://bolt.new/setup/stripe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-green-800"
+                    >
+                      the setup guide
+                    </a>
+                  </p>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {tiers.map((tier) => {
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {tiers.map((tier) => {
               const isCurrentTier = userProfile?.subscription_tier === tier.id;
               const isEnterprise = tier.price_cents === -1;
 
@@ -361,7 +417,187 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                 </div>
               );
             })}
-          </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'eventPasses' && (
+            <>
+              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
+                <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-900">
+                  <p className="font-medium mb-1">Event Passes</p>
+                  <p className="text-slate-700">
+                    Purchase a one-time pass for a single event with temporary access and credits.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {eventPasses.map((pass) => (
+                  <div
+                    key={pass.id}
+                    className="border-2 border-green-700/30 rounded-xl p-6 flex flex-col"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <Ticket size={24} className="text-green-700" />
+                      <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">
+                        {pass.duration_hours}h Access
+                      </span>
+                    </div>
+
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{pass.name}</h3>
+
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold text-slate-900">
+                          {formatPrice(pass.price_cents)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <ul className="space-y-3 mb-6 flex-grow">
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                        {pass.credits >= 999999 ? 'Unlimited' : pass.credits} credits
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                        {pass.prompts_limit === null ? 'Unlimited' : pass.prompts_limit} prompts
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                        {pass.duration_hours} hours of access
+                      </li>
+                      {pass.features && Array.isArray(pass.features) && pass.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
+                          <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button
+                      onClick={() => handleSubscribe(pass.id)}
+                      className="w-full py-3 rounded-lg font-medium transition-all bg-green-700 hover:bg-green-800 text-white"
+                    >
+                      Purchase Pass
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'addOns' && (
+            <>
+              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
+                <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-900">
+                  <p className="font-medium mb-1">Premium Add-Ons</p>
+                  <p className="text-slate-700">
+                    Enhance your events with professional services and premium features.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {addOns.map((addon) => (
+                  <div
+                    key={addon.id}
+                    className="border-2 border-green-700/30 rounded-xl p-6 flex flex-col"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <Package size={24} className="text-green-700" />
+                    </div>
+
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{addon.name}</h3>
+                    <p className="text-sm text-slate-600 mb-4">{addon.description}</p>
+
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold text-slate-900">
+                          {formatPrice(addon.price_cents)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleSubscribe(addon.id)}
+                      className="w-full py-3 rounded-lg font-medium transition-all bg-green-700 hover:bg-green-800 text-white mt-auto"
+                    >
+                      Purchase Add-On
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'credits' && (
+            <>
+              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
+                <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-900">
+                  <p className="font-medium mb-1">Credit Top-Ups</p>
+                  <p className="text-slate-700">
+                    Need more credits? Purchase additional credits anytime to generate more photos.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {creditTopups.map((topup) => (
+                  <div
+                    key={topup.id}
+                    className="border-2 border-green-700/30 rounded-xl p-6 flex flex-col"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <DollarSign size={24} className="text-green-700" />
+                      <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">
+                        {topup.credits} Credits
+                      </span>
+                    </div>
+
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{topup.name}</h3>
+
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold text-slate-900">
+                          {formatPrice(topup.price_cents)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-1">
+                        ${(topup.price_cents / topup.credits / 100).toFixed(2)} per credit
+                      </p>
+                    </div>
+
+                    <ul className="space-y-3 mb-6 flex-grow">
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                        {topup.credits} AI-generated photos
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                        Never expires
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                        Use across all events
+                      </li>
+                    </ul>
+
+                    <button
+                      onClick={() => handleSubscribe(topup.id)}
+                      className="w-full py-3 rounded-lg font-medium transition-all bg-green-700 hover:bg-green-800 text-white"
+                    >
+                      Buy Credits
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -14,6 +14,10 @@ export interface UserProfile {
   stripeSubscriptionId?: string;
   subscriptionStartDate?: string;
   subscriptionEndDate?: string;
+  dropbox_app_key?: string;
+  dropbox_app_secret?: string;
+  dropbox_access_token?: string;
+  dropbox_refresh_token?: string;
   createdAt: string;
   updatedAt: string;
 }
