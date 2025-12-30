@@ -41,6 +41,7 @@ interface EventPass {
   duration_hours: number;
   setup_included: boolean;
   prompts_limit: number | null;
+  features: string[] | null;
   is_active: boolean;
   display_order: number;
   created_at: string;
@@ -267,6 +268,27 @@ const PlanManagement: React.FC = () => {
     setEditingTier({ ...editingTier, features: newFeatures });
   };
 
+  const addEventPassFeature = () => {
+    if (!editingEventPass) return;
+    setEditingEventPass({
+      ...editingEventPass,
+      features: [...(editingEventPass.features || []), ''],
+    });
+  };
+
+  const updateEventPassFeature = (index: number, value: string) => {
+    if (!editingEventPass) return;
+    const newFeatures = [...(editingEventPass.features || [])];
+    newFeatures[index] = value;
+    setEditingEventPass({ ...editingEventPass, features: newFeatures });
+  };
+
+  const removeEventPassFeature = (index: number) => {
+    if (!editingEventPass) return;
+    const newFeatures = (editingEventPass.features || []).filter((_, i) => i !== index);
+    setEditingEventPass({ ...editingEventPass, features: newFeatures });
+  };
+
   const handleCreateAddOn = () => {
     setEditingAddOn({
       name: '',
@@ -358,6 +380,7 @@ const PlanManagement: React.FC = () => {
       duration_hours: 4,
       setup_included: false,
       prompts_limit: null,
+      features: [],
       is_active: true,
       display_order: eventPasses.length,
     });
@@ -383,6 +406,7 @@ const PlanManagement: React.FC = () => {
             duration_hours: editingEventPass.duration_hours,
             setup_included: editingEventPass.setup_included || false,
             prompts_limit: editingEventPass.prompts_limit,
+            features: editingEventPass.features || [],
             is_active: editingEventPass.is_active !== false,
             display_order: editingEventPass.display_order || 0,
             stripe_price_id: editingEventPass.stripe_price_id || null,
@@ -400,6 +424,7 @@ const PlanManagement: React.FC = () => {
             duration_hours: editingEventPass.duration_hours,
             setup_included: editingEventPass.setup_included || false,
             prompts_limit: editingEventPass.prompts_limit,
+            features: editingEventPass.features || [],
             is_active: editingEventPass.is_active !== false,
             display_order: editingEventPass.display_order || 0,
             stripe_price_id: editingEventPass.stripe_price_id || null,
@@ -727,6 +752,19 @@ const PlanManagement: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {eventPass.features && eventPass.features.length > 0 && (
+                    <div className="mb-4 pt-4 border-t border-slate-200">
+                      <p className="text-xs font-medium text-slate-700 mb-2">Features:</p>
+                      <ul className="space-y-1">
+                        {eventPass.features.map((feature, idx) => (
+                          <li key={idx} className="text-xs text-slate-600">
+                            • {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   <div className="flex gap-2 pt-4 border-t border-slate-200">
                     <button
@@ -1356,6 +1394,39 @@ const PlanManagement: React.FC = () => {
                     min="0"
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                   />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-bold text-slate-900">Features</label>
+                  <button
+                    type="button"
+                    onClick={addEventPassFeature}
+                    className="text-sm text-green-700 hover:text-green-800 font-medium"
+                  >
+                    + Add Feature
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {(editingEventPass.features || []).map((feature, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={feature}
+                        onChange={(e) => updateEventPassFeature(idx, e.target.value)}
+                        className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                        placeholder="Feature description"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeEventPassFeature(idx)}
+                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
 

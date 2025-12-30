@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Check, CreditCard, Crown, Zap, AlertCircle } from 'lucide-react';
+import { Check, CreditCard, Crown, Zap, AlertCircle, Ticket, Package, DollarSign } from 'lucide-react';
 
 interface SubscriptionTier {
   id: string;
@@ -11,6 +11,35 @@ interface SubscriptionTier {
   rollover_enabled: boolean;
   features: string[] | null;
   prompts_limit: number | null;
+  is_active: boolean;
+  display_order: number;
+}
+
+interface EventPass {
+  id: string;
+  name: string;
+  price_cents: number;
+  credits: number;
+  duration_hours: number;
+  prompts_limit: number | null;
+  features: string[] | null;
+  is_active: boolean;
+  display_order: number;
+}
+
+interface AddOn {
+  id: string;
+  name: string;
+  description: string | null;
+  price_cents: number;
+  is_active: boolean;
+}
+
+interface CreditTopup {
+  id: string;
+  name: string;
+  credits: number;
+  price_cents: number;
   is_active: boolean;
   display_order: number;
 }
@@ -32,9 +61,13 @@ interface SubscriptionManagerProps {
 
 const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) => {
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
+  const [eventPasses, setEventPasses] = useState<EventPass[]>([]);
+  const [addOns, setAddOns] = useState<AddOn[]>([]);
+  const [creditTopups, setCreditTopups] = useState<CreditTopup[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [activeTab, setActiveTab] = useState<'subscriptions' | 'eventPasses' | 'addOns' | 'credits'>('subscriptions');
 
   useEffect(() => {
     loadData();
@@ -42,14 +75,30 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
   const loadData = async () => {
     try {
-      const { data: tiersData } = await supabase
-        .from('subscription_tiers_new')
-        .select('*')
-        .eq('is_active', true)
-        .eq('billing_period', billingCycle)
-        .order('display_order', { ascending: true });
-
-      const { data: { user } } = await supabase.auth.getUser();
+      const [tiersData, passesData, addOnsData, topupsData, { user }] = await Promise.all([
+        supabase
+          .from('subscription_tiers_new')
+          .select('*')
+          .eq('is_active', true)
+          .eq('billing_period', billingCycle)
+          .order('display_order', { ascending: true }),
+        supabase
+          .from('event_passes')
+          .select('*')
+          .eq('is_active', true)
+          .order('display_order', { ascending: true }),
+        supabase
+          .from('add_ons')
+          .select('*')
+          .eq('is_active', true)
+          .order('name', { ascending: true }),
+        supabase
+          .from('credit_topup_products')
+          .select('*')
+          .eq('is_active', true)
+          .order('display_order', { ascending: true }),
+        supabase.auth.getUser()
+      ]);
 
       if (user) {
         const { data: profileData } = await supabase
@@ -61,7 +110,10 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
         setUserProfile(profileData);
       }
 
-      setTiers(tiersData || []);
+      setTiers(tiersData.data || []);
+      setEventPasses(passesData.data || []);
+      setAddOns(addOnsData.data || []);
+      setCreditTopups(topupsData.data || []);
     } catch (error) {
       console.error('Error loading subscription data:', error);
     } finally {
