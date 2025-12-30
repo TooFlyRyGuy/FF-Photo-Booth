@@ -298,27 +298,93 @@ const Settings: React.FC<SettingsProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* My Dropbox Settings - Available to all users */}
+      {/* Dropbox Integration */}
       <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
         <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
           <div className="flex items-center gap-3">
             <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
-              <path d="M12 9.6L24 16.8L12 24L0 16.8L12 9.6Z" fill="#15803d"/>
-              <path d="M0 24L12 31.2L24 24L12 16.8L0 24Z" fill="#15803d"/>
-              <path d="M12 31.2L24 38.4L36 31.2L24 24L12 31.2Z" fill="#15803d"/>
-              <path d="M24 24L36 31.2L48 24L36 16.8L24 24Z" fill="#15803d"/>
-              <path d="M24 16.8L36 9.6L48 16.8L36 24L24 16.8Z" fill="#15803d"/>
+              <path d="M12 9.6L24 16.8L12 24L0 16.8L12 9.6Z" fill="#0061FF"/>
+              <path d="M0 24L12 31.2L24 24L12 16.8L0 24Z" fill="#0061FF"/>
+              <path d="M12 31.2L24 38.4L36 31.2L24 24L12 31.2Z" fill="#0061FF"/>
+              <path d="M24 24L36 31.2L48 24L36 16.8L24 24Z" fill="#0061FF"/>
+              <path d="M24 16.8L36 9.6L48 16.8L36 24L24 16.8Z" fill="#0061FF"/>
             </svg>
             <div>
-              <h3 className="text-xl font-bold text-slate-900">
-                {isAdmin ? 'My Dropbox Settings' : 'Dropbox Integration'}
-              </h3>
+              <h3 className="text-xl font-bold text-slate-900">Dropbox Integration</h3>
               <p className="text-slate-600 text-sm">Connect Dropbox to automatically backup all photos</p>
             </div>
           </div>
         </div>
 
         <div className="p-6 space-y-4">
+          {isAdmin && (
+            <>
+              <div className="p-4 bg-blue-50 border-2 border-blue-700/30 rounded-lg">
+                <p className="text-sm font-semibold text-blue-900 mb-2">Admin Configuration Required</p>
+                <p className="text-sm text-blue-800">Configure the Dropbox app credentials below to enable user connections.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-2">Dropbox App Key</label>
+                <div className="relative">
+                  <input
+                    type={showDropboxAppKey ? 'text' : 'password'}
+                    value={dropboxAppKey}
+                    onChange={(e) => handleDropboxAppKeyChange(e.target.value)}
+                    placeholder="Enter your Dropbox app key"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDropboxAppKey(!showDropboxAppKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
+                  >
+                    {showDropboxAppKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {dropboxAppKey.startsWith('•') && (
+                  <p className="text-xs text-green-700 mt-2">✓ App key is saved (hidden for security)</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-2">Dropbox App Secret</label>
+                <div className="relative">
+                  <input
+                    type={showDropboxAppSecret ? 'text' : 'password'}
+                    value={dropboxAppSecret}
+                    onChange={(e) => handleDropboxAppSecretChange(e.target.value)}
+                    placeholder="Enter your Dropbox app secret"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-blue-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDropboxAppSecret(!showDropboxAppSecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
+                  >
+                    {showDropboxAppSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {dropboxAppSecret.startsWith('•') && (
+                  <p className="text-xs text-green-700 mt-2">✓ App secret is saved (hidden for security)</p>
+                )}
+              </div>
+
+              <div className="p-4 bg-blue-50 border-2 border-blue-700/30 rounded-lg">
+                <p className="text-sm font-semibold text-blue-900 mb-2">Setup Instructions:</p>
+                <ol className="text-sm text-blue-800 ml-4 list-decimal space-y-1">
+                  <li>Create a Dropbox app at <a href="https://www.dropbox.com/developers/apps/create" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-700">Dropbox App Console</a></li>
+                  <li>Choose "Scoped access" and "Full Dropbox" access</li>
+                  <li>Set the redirect URI to: <code className="bg-white px-2 py-1 rounded text-xs">{import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-callback</code></li>
+                  <li>Enable these permissions: files.content.write, files.content.read, sharing.write, sharing.read</li>
+                  <li>Copy your App key and App secret and paste them above</li>
+                </ol>
+              </div>
+
+              <div className="border-t-2 border-slate-200 my-4"></div>
+            </>
+          )}
+
           {dropboxConnected ? (
             <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -342,7 +408,7 @@ const Settings: React.FC<SettingsProps> = ({
                 <button
                   onClick={handleConnectDropbox}
                   disabled={isConnectingDropbox}
-                  className="bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:text-slate-500 text-white px-8 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors mx-auto"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-8 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors mx-auto"
                 >
                   {isConnectingDropbox ? (
                     <>
@@ -364,8 +430,8 @@ const Settings: React.FC<SettingsProps> = ({
                 </button>
               </div>
 
-              <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
-                <p className="text-sm text-green-800">
+              <div className="p-4 bg-blue-50 border-2 border-blue-700/30 rounded-lg">
+                <p className="text-sm text-blue-800">
                   <strong>Simple Setup:</strong> Click the button above to log in with your Dropbox credentials. A folder will be automatically created for each event to organize all photos.
                 </p>
               </div>
@@ -378,7 +444,7 @@ const Settings: React.FC<SettingsProps> = ({
                 type="checkbox"
                 checked={dropboxEnabled}
                 onChange={(e) => setDropboxEnabled(e.target.checked)}
-                className="w-5 h-5 rounded accent-green-700"
+                className="w-5 h-5 rounded accent-blue-600"
                 id="dropbox-enabled"
               />
               <label htmlFor="dropbox-enabled" className="flex-1 cursor-pointer">
@@ -390,35 +456,56 @@ const Settings: React.FC<SettingsProps> = ({
           )}
         </div>
 
-        {dropboxConnected && (
+        {isAdmin || dropboxConnected ? (
           <div className="px-6 pb-6">
             <div className="flex items-center justify-end gap-3">
-              {saveUserSuccess && (
+              {(saveUserSuccess || saveGlobalSuccess) && (
                 <div className="flex items-center gap-2 text-green-700 animate-fade-in">
                   <Check size={18} />
                   <span className="text-sm font-medium">Settings saved successfully</span>
                 </div>
               )}
-              <button
-                onClick={handleSaveUserSettings}
-                disabled={isSavingUser}
-                className="bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
-              >
-                {isSavingUser ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} />
-                    Save Settings
-                  </>
-                )}
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={handleSaveGlobalSettings}
+                  disabled={isSavingGlobal}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                >
+                  {isSavingGlobal ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} />
+                      Save App Config
+                    </>
+                  )}
+                </button>
+              )}
+              {dropboxConnected && !isAdmin && (
+                <button
+                  onClick={handleSaveUserSettings}
+                  disabled={isSavingUser}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                >
+                  {isSavingUser ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} />
+                      Save Settings
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Global API Settings - Admin Only */}
@@ -540,86 +627,6 @@ const Settings: React.FC<SettingsProps> = ({
                     Google AI for Developers
                   </a>
                 </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Dropbox App Configuration */}
-          <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
-            <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
-              <div className="flex items-center gap-3">
-                <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none">
-                  <path d="M12 9.6L24 16.8L12 24L0 16.8L12 9.6Z" fill="#0061FF"/>
-                  <path d="M0 24L12 31.2L24 24L12 16.8L0 24Z" fill="#0061FF"/>
-                  <path d="M12 31.2L24 38.4L36 31.2L24 24L12 31.2Z" fill="#0061FF"/>
-                  <path d="M24 24L36 31.2L48 24L36 16.8L24 24Z" fill="#0061FF"/>
-                  <path d="M24 16.8L36 9.6L48 16.8L36 24L24 16.8Z" fill="#0061FF"/>
-                </svg>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">Dropbox App Configuration</h3>
-                  <p className="text-slate-600 text-sm">Configure Dropbox app credentials for user connections</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-900 mb-2">Dropbox App Key</label>
-                <div className="relative">
-                  <input
-                    type={showDropboxAppKey ? 'text' : 'password'}
-                    value={dropboxAppKey}
-                    onChange={(e) => handleDropboxAppKeyChange(e.target.value)}
-                    placeholder="Enter your Dropbox app key"
-                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowDropboxAppKey(!showDropboxAppKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
-                  >
-                    {showDropboxAppKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {dropboxAppKey.startsWith('•') && (
-                  <p className="text-xs text-green-700 mt-2">✓ App key is saved (hidden for security)</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900 mb-2">Dropbox App Secret</label>
-                <div className="relative">
-                  <input
-                    type={showDropboxAppSecret ? 'text' : 'password'}
-                    value={dropboxAppSecret}
-                    onChange={(e) => handleDropboxAppSecretChange(e.target.value)}
-                    placeholder="Enter your Dropbox app secret"
-                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowDropboxAppSecret(!showDropboxAppSecret)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
-                  >
-                    {showDropboxAppSecret ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {dropboxAppSecret.startsWith('•') && (
-                  <p className="text-xs text-green-700 mt-2">✓ App secret is saved (hidden for security)</p>
-                )}
-              </div>
-
-              <div className="p-4 bg-blue-50 border-2 border-blue-700/30 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Setup Instructions:</strong>
-                </p>
-                <ol className="text-sm text-blue-800 mt-2 ml-4 list-decimal space-y-1">
-                  <li>Create a Dropbox app at <a href="https://www.dropbox.com/developers/apps/create" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-700">Dropbox App Console</a></li>
-                  <li>Choose "Scoped access" and "Full Dropbox" access</li>
-                  <li>Set the redirect URI to: <code className="bg-white px-2 py-1 rounded text-xs">{import.meta.env.VITE_SUPABASE_URL}/functions/v1/dropbox-oauth-callback</code></li>
-                  <li>Enable these permissions: files.content.write, files.content.read, sharing.write, sharing.read</li>
-                  <li>Copy your App key and App secret and paste them above</li>
-                </ol>
               </div>
             </div>
           </div>
