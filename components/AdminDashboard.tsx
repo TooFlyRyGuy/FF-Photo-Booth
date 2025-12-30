@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -11,6 +11,7 @@ import PlanManagement from './PlanManagement';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface AdminProps {
   onLogout: () => void;
@@ -213,6 +214,93 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }).catch(() => {
       alert(`Kiosk URL:\n${url}\n\n(Copy this link to share with guests)`);
     });
+  };
+
+  const printQRCode = (event: Event) => {
+    const url = `${window.location.origin}/?kiosk=${event.passcode}`;
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print QR Code - ${event.name}</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 40px;
+                background: white;
+              }
+              .container {
+                text-align: center;
+                max-width: 600px;
+              }
+              h1 {
+                font-size: 48px;
+                font-weight: 900;
+                color: #1f2937;
+                margin-bottom: 16px;
+                letter-spacing: -0.5px;
+              }
+              h2 {
+                font-size: 32px;
+                font-weight: 700;
+                color: #059669;
+                margin-bottom: 48px;
+              }
+              .qr-container {
+                display: inline-block;
+                padding: 32px;
+                background: white;
+                border: 4px solid #1f2937;
+                border-radius: 16px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+              }
+              @media print {
+                body {
+                  padding: 0;
+                }
+                .no-print {
+                  display: none;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>SCAN HERE TO USE OUR<br>AI PHOTO BOOTH!</h1>
+              <h2>${event.name}</h2>
+              <div class="qr-container">
+                <div id="qr-code"></div>
+              </div>
+            </div>
+            <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+            <script>
+              QRCode.toCanvas(document.createElement('canvas'), '${url}', {
+                width: 400,
+                margin: 2,
+                color: {
+                  dark: '#000000',
+                  light: '#FFFFFF'
+                }
+              }, function (error, canvas) {
+                if (error) console.error(error);
+                document.getElementById('qr-code').appendChild(canvas);
+                setTimeout(() => window.print(), 500);
+              });
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   };
 
   const handleSaveUserSettings = async (updates: Partial<UserSettings>) => {
@@ -835,6 +923,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
                       >
                         <Link2 size={16} /> <span className="hidden sm:inline">Copy Link</span>
+                      </button>
+
+                      <button
+                        onClick={() => printQRCode(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        title="Print QR Code"
+                      >
+                        <Printer size={16} /> <span className="hidden sm:inline">Print QR</span>
                       </button>
 
                       <button
