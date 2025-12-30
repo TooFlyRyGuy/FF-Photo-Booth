@@ -494,7 +494,6 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
   const { data: eventsData, error } = await supabase
     .from('events')
     .select('*')
-    .eq('user_id', userId)
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -1166,17 +1165,62 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
   clearEventsCache();
 };
 
-export const reassignEvent = async (eventId: string, newUserId: string): Promise<void> => {
+export const grantEventAccess = async (eventId: string, userId: string): Promise<void> => {
   const { error } = await supabase
-    .from('events')
-    .update({ user_id: newUserId })
-    .eq('id', eventId);
+    .from('event_access')
+    .insert({
+      event_id: eventId,
+      user_id: userId,
+      granted_by: (await getUserId())!
+    });
 
   if (error) {
-    throw new Error(`Failed to reassign event: ${error.message}`);
+    if (error.code === '23505') {
+      throw new Error('User already has access to this event');
+    }
+    throw new Error(`Failed to grant access: ${error.message}`);
   }
 
   clearEventsCache();
+};
+
+export const revokeEventAccess = async (eventId: string, userId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('event_access')
+    .delete()
+    .eq('event_id', eventId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to revoke access: ${error.message}`);
+  }
+
+  clearEventsCache();
+};
+
+export const getEventAccessList = async (eventId: string): Promise<Array<{ userId: string; email: string; fullName: string | null; grantedAt: string }>> => {
+  const { data, error } = await supabase
+    .from('event_access')
+    .select(`
+      user_id,
+      granted_at,
+      user_profiles!event_access_user_id_fkey (
+        email,
+        full_name
+      )
+    `)
+    .eq('event_id', eventId);
+
+  if (error) {
+    throw new Error(`Failed to fetch event access list: ${error.message}`);
+  }
+
+  return (data || []).map(item => ({
+    userId: item.user_id,
+    email: item.user_profiles.email,
+    fullName: item.user_profiles.full_name,
+    grantedAt: item.granted_at
+  }));
 };
 
 interface DashboardStats {

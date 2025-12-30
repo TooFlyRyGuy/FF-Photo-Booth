@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, reassignEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer } from 'lucide-react';
 import Settings from './Settings';
@@ -80,9 +80,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [revenueStats, setRevenueStats] = useState<any>(null);
   const [eventSearchQuery, setEventSearchQuery] = useState('');
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
-  const [reassignmentModal, setReassignmentModal] = useState<{ eventId: string; eventName: string } | null>(null);
+  const [accessModal, setAccessModal] = useState<{ eventId: string; eventName: string; eventOwnerId: string } | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [reassigning, setReassigning] = useState(false);
+  const [grantingAccess, setGrantingAccess] = useState(false);
+  const [eventAccessList, setEventAccessList] = useState<Array<{ userId: string; email: string; fullName: string | null; grantedAt: string }>>([]);
 
   useEffect(() => {
     if (user) {
@@ -434,32 +435,70 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
-  const openReassignmentModal = (event: Event) => {
-    setReassignmentModal({ eventId: event.id, eventName: event.name });
-    setSelectedUserId(event.userId || '');
+  const openAccessModal = async (event: Event) => {
+    setAccessModal({ eventId: event.id, eventName: event.name, eventOwnerId: event.userId || '' });
+    setSelectedUserId('');
+
+    try {
+      const [users, accessList] = await Promise.all([
+        allUsers.length === 0 ? getAllUsers() : Promise.resolve(allUsers),
+        getEventAccessList(event.id)
+      ]);
+
+      if (allUsers.length === 0) {
+        setAllUsers(users || []);
+      }
+      setEventAccessList(accessList);
+    } catch (error) {
+      console.error('Failed to load access data:', error);
+    }
   };
 
-  const handleReassignEvent = async () => {
-    if (!reassignmentModal || !selectedUserId) {
-      alert('Please select a user to assign the event to.');
+  const handleGrantAccess = async () => {
+    if (!accessModal || !selectedUserId) {
+      alert('Please select a user to grant access to.');
       return;
     }
 
-    setReassigning(true);
+    if (selectedUserId === accessModal.eventOwnerId) {
+      alert('This user already owns this event.');
+      return;
+    }
+
+    setGrantingAccess(true);
     try {
-      await reassignEvent(reassignmentModal.eventId, selectedUserId);
-      setReassignmentModal(null);
+      await grantEventAccess(accessModal.eventId, selectedUserId);
       setSelectedUserId('');
+
+      const accessList = await getEventAccessList(accessModal.eventId);
+      setEventAccessList(accessList);
+
       await loadData();
-      if (userProfile?.role === 'admin') {
-        const users = await getAllUsers();
-        setAllUsers(users);
-      }
     } catch (error: any) {
-      alert(`Failed to reassign event: ${error.message}`);
-      console.error('Reassign event error:', error);
+      alert(`Failed to grant access: ${error.message}`);
+      console.error('Grant access error:', error);
     } finally {
-      setReassigning(false);
+      setGrantingAccess(false);
+    }
+  };
+
+  const handleRevokeAccess = async (userId: string) => {
+    if (!accessModal) return;
+
+    if (!confirm('Are you sure you want to revoke access for this user?')) {
+      return;
+    }
+
+    try {
+      await revokeEventAccess(accessModal.eventId, userId);
+
+      const accessList = await getEventAccessList(accessModal.eventId);
+      setEventAccessList(accessList);
+
+      await loadData();
+    } catch (error: any) {
+      alert(`Failed to revoke access: ${error.message}`);
+      console.error('Revoke access error:', error);
     }
   };
 
@@ -992,11 +1031,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
                       {userProfile?.role === 'admin' && (
                         <button
-                          onClick={() => openReassignmentModal(event)}
+                          onClick={() => openAccessModal(event)}
                           className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-700 hover:bg-green-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
-                          title="Reassign to user"
+                          title="Manage access"
                         >
-                          <UserIcon size={16} /> <span className="hidden sm:inline">Reassign</span>
+                          <UserIcon size={16} /> <span className="hidden sm:inline">Access</span>
                         </button>
                       )}
 
@@ -1859,16 +1898,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         />
       )}
 
-      {/* Reassign Event Modal */}
-      {reassignmentModal && (
+      {/* Event Access Management Modal */}
+      {accessModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-md">
-            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-slate-900">Reassign Event</h3>
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center sticky top-0 bg-white z-10">
+              <h3 className="text-xl font-bold text-slate-900">Manage Event Access</h3>
               <button
                 onClick={() => {
-                  setReassignmentModal(null);
+                  setAccessModal(null);
                   setSelectedUserId('');
+                  setEventAccessList([]);
                 }}
                 className="text-slate-600 hover:text-slate-900 text-2xl"
               >
@@ -1876,53 +1916,92 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-6">
               <div>
-                <p className="text-sm text-slate-600 mb-4">
-                  Assign <strong>{reassignmentModal.eventName}</strong> to a different user:
+                <h4 className="text-lg font-bold text-slate-900 mb-2">Event: {accessModal.eventName}</h4>
+                <p className="text-sm text-slate-600">
+                  Grant access to users so this event appears in their account. The owner retains full control.
                 </p>
-                <label className="block text-sm font-bold text-slate-900 mb-2">Select User</label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                >
-                  <option value="">-- Select a user --</option>
-                  {allUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.full_name || user.email} ({user.email})
-                    </option>
-                  ))}
-                </select>
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleReassignEvent}
-                  disabled={!selectedUserId || reassigning}
-                  className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {reassigning ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Reassigning...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={18} />
-                      Reassign Event
-                    </>
-                  )}
-                </button>
+              <div className="border-t-2 border-slate-300 pt-6">
+                <h4 className="text-md font-bold text-slate-900 mb-4">Grant Access to User</h4>
+                <div className="flex gap-3">
+                  <select
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    className="flex-1 px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  >
+                    <option value="">-- Select a user --</option>
+                    {allUsers
+                      .filter(user =>
+                        user.id !== accessModal.eventOwnerId &&
+                        !eventAccessList.some(access => access.userId === user.id)
+                      )
+                      .map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name || user.email} ({user.email})
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    onClick={handleGrantAccess}
+                    disabled={!selectedUserId || grantingAccess}
+                    className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {grantingAccess ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={18} />
+                        Grant
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-slate-300 pt-6">
+                <h4 className="text-md font-bold text-slate-900 mb-4">Users with Access</h4>
+                {eventAccessList.length === 0 ? (
+                  <p className="text-sm text-slate-600 italic">No users have been granted access yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {eventAccessList.map((access) => (
+                      <div key={access.userId} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                        <div>
+                          <div className="font-medium text-slate-900">
+                            {access.fullName || access.email}
+                          </div>
+                          <div className="text-xs text-slate-600">{access.email}</div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            Granted {new Date(access.grantedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRevokeAccess(access.userId)}
+                          className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-4 border-t-2 border-slate-300">
                 <button
                   onClick={() => {
-                    setReassignmentModal(null);
+                    setAccessModal(null);
                     setSelectedUserId('');
+                    setEventAccessList([]);
                   }}
-                  disabled={reassigning}
-                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold disabled:opacity-50"
+                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
                 >
-                  Cancel
+                  Close
                 </button>
               </div>
             </div>
