@@ -269,7 +269,15 @@ const UserManagement: React.FC = () => {
       });
       loadUsers();
     } catch (error: any) {
-      console.error('Error creating user:', error);
+      console.error('Full user creation error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        stack: error.stack,
+      });
       alert(`Failed to create user: ${error.message}`);
     } finally {
       setCreatingUser(false);

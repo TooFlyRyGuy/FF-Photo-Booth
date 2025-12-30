@@ -53,6 +53,14 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
         }
       }
     } catch (err: any) {
+      console.error('Full signup error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        status: err.status,
+        code: err.code,
+        details: err.details,
+        hint: err.hint,
+      });
       setError(err.message || 'Failed to create account');
     } finally {
       setLoading(false);
