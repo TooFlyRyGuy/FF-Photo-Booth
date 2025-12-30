@@ -70,11 +70,11 @@ export interface EventPass {
 }
 
 export interface UserSettings {
-  dropboxAppKey?: string;
-  dropboxAppSecret?: string;
-  dropboxAccessToken?: string;
-  dropboxRefreshToken?: string;
-  dropboxTokenExpiresAt?: string;
+  dropboxAppKey?: string | null;
+  dropboxAppSecret?: string | null;
+  dropboxAccessToken?: string | null;
+  dropboxRefreshToken?: string | null;
+  dropboxTokenExpiresAt?: string | null;
   dropboxEnabled?: boolean;
 }
 

@@ -119,9 +119,6 @@ const Settings: React.FC<SettingsProps> = ({
           if (popup) popup.close();
 
           await onSaveUserSettings({});
-
-          setDropboxConnected(true);
-          setDropboxEnabled(true);
           alert('Successfully connected to Dropbox!');
         } else if (event.data.type === 'dropbox-oauth-error') {
           setIsConnectingDropbox(false);
@@ -150,13 +147,11 @@ const Settings: React.FC<SettingsProps> = ({
   const handleDisconnectDropbox = async () => {
     if (confirm('Are you sure you want to disconnect Dropbox?')) {
       await onSaveUserSettings({
-        dropboxAccessToken: undefined,
-        dropboxRefreshToken: undefined,
-        dropboxTokenExpiresAt: undefined,
+        dropboxAccessToken: null,
+        dropboxRefreshToken: null,
+        dropboxTokenExpiresAt: null,
         dropboxEnabled: false,
       });
-      setDropboxConnected(false);
-      setDropboxEnabled(false);
     }
   };
 
