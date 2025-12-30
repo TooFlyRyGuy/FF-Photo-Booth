@@ -623,9 +623,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   if (view === 'prompt-select') {
     return (
       <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center p-4 md:p-8">
-        <div className="flex flex-col items-center justify-center w-full max-w-7xl">
+        <div className="flex flex-col items-center justify-center">
           <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-8 text-center">Choose Your Style</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-8 justify-items-center">
             {event.prompts.map(prompt => (
               <button
                 key={prompt.id}
