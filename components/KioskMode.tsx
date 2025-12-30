@@ -207,7 +207,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       setFinalImage(genImage);
 
-      // 2. Upload generated image to SmugMug or Dropbox
+      // 2. Upload generated image to SmugMug and/or Dropbox
       let generatedUrl = genImage;
       let uploadedGeneratedToSmugMug = false;
 
@@ -227,13 +227,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           uploadedGeneratedToSmugMug = true;
           console.log('Uploaded generated to SmugMug:', generatedUrl);
         } catch (smugmugErr) {
-          console.error('SmugMug upload failed for generated, falling back to Dropbox:', smugmugErr);
+          console.error('SmugMug upload failed for generated:', smugmugErr);
         }
       }
 
-      if (!uploadedGeneratedToSmugMug && userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
+      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
         try {
-          generatedUrl = await uploadImageToDropbox({
+          const dropboxUrl = await uploadImageToDropbox({
             userId: event.userId,
             eventId: event.id,
             eventName: event.name,
@@ -241,7 +241,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             imageType: 'generated',
             promptName: selectedPrompt.name,
           });
-          console.log('Uploaded generated to Dropbox:', generatedUrl);
+          if (!uploadedGeneratedToSmugMug) {
+            generatedUrl = dropboxUrl;
+          }
+          console.log('Uploaded generated to Dropbox:', dropboxUrl);
         } catch (dropboxErr) {
           console.error('Dropbox upload failed for generated:', dropboxErr);
         }
@@ -249,6 +252,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       // 3. Upload original image to SmugMug gallery if enabled
       let originalUrl = capturedImage;
+      let uploadedOriginalToSmugMug = false;
+
       if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
         try {
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -262,16 +267,17 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           );
 
           originalUrl = originalResult.imageUrl;
+          uploadedOriginalToSmugMug = true;
           console.log('Uploaded original to SmugMug:', originalUrl);
         } catch (smugmugOrigErr) {
           console.error('SmugMug upload failed for original:', smugmugOrigErr);
         }
       }
 
-      // 4. Upload original to Dropbox if enabled and not already uploaded to SmugMug
-      if (originalUrl === capturedImage && userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
+      // 4. Upload original to Dropbox if enabled
+      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
         try {
-          originalUrl = await uploadImageToDropbox({
+          const dropboxOrigUrl = await uploadImageToDropbox({
             userId: event.userId,
             eventId: event.id,
             eventName: event.name,
@@ -279,7 +285,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             imageType: 'original',
             promptName: selectedPrompt.name,
           });
-          console.log('Uploaded original to Dropbox:', originalUrl);
+          if (!uploadedOriginalToSmugMug) {
+            originalUrl = dropboxOrigUrl;
+          }
+          console.log('Uploaded original to Dropbox:', dropboxOrigUrl);
         } catch (dropboxErr) {
           console.error('Dropbox upload failed for original:', dropboxErr);
         }
