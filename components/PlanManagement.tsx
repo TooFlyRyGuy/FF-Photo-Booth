@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { CreditCard, Plus, Edit, Save, X, Trash2, DollarSign, Calendar, Zap, Clock, Ticket, CheckCircle } from 'lucide-react';
+import { CreditCard, Plus, Edit, Save, X, Trash2, DollarSign, Calendar, Zap, Clock, Ticket, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SubscriptionTier {
   id: string;
@@ -44,17 +44,38 @@ interface EventPass {
   created_at: string;
 }
 
+interface CreditTopupProduct {
+  id: string;
+  name: string;
+  credits: number;
+  price_cents: number;
+  stripe_price_id?: string;
+  stripe_product_id?: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+}
+
 const PlanManagement: React.FC = () => {
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [addOns, setAddOns] = useState<AddOn[]>([]);
   const [eventPasses, setEventPasses] = useState<EventPass[]>([]);
+  const [creditTopups, setCreditTopups] = useState<CreditTopupProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTier, setEditingTier] = useState<Partial<SubscriptionTier> | null>(null);
   const [editingAddOn, setEditingAddOn] = useState<Partial<AddOn> | null>(null);
   const [editingEventPass, setEditingEventPass] = useState<Partial<EventPass> | null>(null);
+  const [editingCreditTopup, setEditingCreditTopup] = useState<Partial<CreditTopupProduct> | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isCreatingAddOn, setIsCreatingAddOn] = useState(false);
   const [isCreatingEventPass, setIsCreatingEventPass] = useState(false);
+  const [isCreatingCreditTopup, setIsCreatingCreditTopup] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    subscriptions: true,
+    eventPasses: false,
+    addOns: false,
+    creditTopups: false,
+  });
 
   useEffect(() => {
     loadData();
@@ -63,12 +84,19 @@ const PlanManagement: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      await Promise.all([loadTiers(), loadAddOns(), loadEventPasses()]);
+      await Promise.all([loadTiers(), loadAddOns(), loadEventPasses(), loadCreditTopups()]);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   };
 
   const loadTiers = async () => {
@@ -110,6 +138,20 @@ const PlanManagement: React.FC = () => {
       setEventPasses(data || []);
     } catch (error) {
       console.error('Error loading event passes:', error);
+    }
+  };
+
+  const loadCreditTopups = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('credit_topup_products')
+        .select('*')
+        .order('display_order');
+
+      if (error) throw error;
+      setCreditTopups(data || []);
+    } catch (error) {
+      console.error('Error loading credit top-ups:', error);
     }
   };
 
@@ -386,6 +428,83 @@ const PlanManagement: React.FC = () => {
     }
   };
 
+  const handleCreateCreditTopup = () => {
+    setEditingCreditTopup({
+      name: '',
+      credits: 0,
+      price_cents: 0,
+      is_active: true,
+      display_order: creditTopups.length,
+    });
+    setIsCreatingCreditTopup(true);
+  };
+
+  const handleEditCreditTopup = (product: CreditTopupProduct) => {
+    setEditingCreditTopup({ ...product });
+    setIsCreatingCreditTopup(false);
+  };
+
+  const handleSaveCreditTopup = async () => {
+    if (!editingCreditTopup) return;
+
+    try {
+      if (isCreatingCreditTopup) {
+        const { error } = await supabase
+          .from('credit_topup_products')
+          .insert([{
+            name: editingCreditTopup.name,
+            credits: editingCreditTopup.credits,
+            price_cents: editingCreditTopup.price_cents,
+            is_active: editingCreditTopup.is_active !== false,
+            display_order: editingCreditTopup.display_order || 0,
+            stripe_price_id: editingCreditTopup.stripe_price_id || null,
+            stripe_product_id: editingCreditTopup.stripe_product_id || null,
+          }]);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('credit_topup_products')
+          .update({
+            name: editingCreditTopup.name,
+            credits: editingCreditTopup.credits,
+            price_cents: editingCreditTopup.price_cents,
+            is_active: editingCreditTopup.is_active !== false,
+            display_order: editingCreditTopup.display_order || 0,
+            stripe_price_id: editingCreditTopup.stripe_price_id || null,
+            stripe_product_id: editingCreditTopup.stripe_product_id || null,
+          })
+          .eq('id', editingCreditTopup.id);
+
+        if (error) throw error;
+      }
+
+      setEditingCreditTopup(null);
+      setIsCreatingCreditTopup(false);
+      loadCreditTopups();
+    } catch (error: any) {
+      console.error('Error saving credit top-up:', error);
+      alert(`Failed to save credit top-up: ${error.message}`);
+    }
+  };
+
+  const handleDeleteCreditTopup = async (product: CreditTopupProduct) => {
+    if (!confirm(`Are you sure you want to delete the ${product.name} credit top-up?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('credit_topup_products')
+        .delete()
+        .eq('id', product.id);
+
+      if (error) throw error;
+      loadCreditTopups();
+    } catch (error: any) {
+      console.error('Error deleting credit top-up:', error);
+      alert(`Failed to delete credit top-up: ${error.message}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -396,21 +515,37 @@ const PlanManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Subscription Plans</h2>
-          <p className="text-slate-600 mt-1">Manage subscription tiers offered to users</p>
-        </div>
+      <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden">
         <button
-          onClick={handleCreateNew}
-          className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
+          onClick={() => toggleSection('subscriptions')}
+          className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors"
         >
-          <Plus size={18} />
-          Create Plan
+          <div className="flex items-center gap-3">
+            <CreditCard className="text-green-700" size={24} />
+            <div className="text-left">
+              <h2 className="text-xl font-bold text-slate-900">Subscription Plans</h2>
+              <p className="text-sm text-slate-600">Manage subscription tiers offered to users</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">{tiers.length} plans</span>
+            {expandedSections.subscriptions ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </div>
         </button>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {expandedSections.subscriptions && (
+          <div className="p-6 pt-0 border-t-2 border-slate-200">
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={handleCreateNew}
+                className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
+              >
+                <Plus size={18} />
+                Create Plan
+              </button>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {tiers.map((tier) => (
           <div
             key={tier.id}
@@ -483,24 +618,137 @@ const PlanManagement: React.FC = () => {
             </div>
           </div>
         ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="space-y-6 mt-12">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Add-On Services</h2>
-            <p className="text-slate-600 mt-1">Manage additional services available for purchase</p>
+      <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden">
+        <button
+          onClick={() => toggleSection('eventPasses')}
+          className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Ticket className="text-green-700" size={24} />
+            <div className="text-left">
+              <h2 className="text-xl font-bold text-slate-900">Event Passes</h2>
+              <p className="text-sm text-slate-600">Manage event passes for temporary access</p>
+            </div>
           </div>
-          <button
-            onClick={handleCreateAddOn}
-            className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
-          >
-            <Plus size={18} />
-            Create Add-On
-          </button>
-        </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">{eventPasses.length} passes</span>
+            {expandedSections.eventPasses ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </div>
+        </button>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {expandedSections.eventPasses && (
+          <div className="p-6 pt-0 border-t-2 border-slate-200">
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={handleCreateEventPass}
+                className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
+              >
+                <Plus size={18} />
+                Create Event Pass
+              </button>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {eventPasses.map((eventPass) => (
+                <div
+                  key={eventPass.id}
+                  className={`bg-white border-2 rounded-xl p-6 ${
+                    eventPass.is_active ? 'border-slate-300' : 'border-slate-200 opacity-60'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">{eventPass.name}</h3>
+                    </div>
+                    {!eventPass.is_active && (
+                      <span className="px-2 py-1 text-xs font-medium bg-slate-200 text-slate-600 rounded">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-baseline gap-1 mb-4">
+                    <DollarSign size={24} className="text-green-700" />
+                    <span className="text-3xl font-bold text-slate-900">
+                      {(eventPass.price_cents / 100).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Ticket size={16} className="text-slate-500" />
+                      <span>{eventPass.credits} credits</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Clock size={16} className="text-slate-500" />
+                      <span>{eventPass.duration_hours} hours</span>
+                    </div>
+                    {eventPass.setup_included && (
+                      <div className="flex items-center gap-2 text-sm text-green-700">
+                        <CheckCircle size={16} />
+                        <span>Setup included</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-4 border-t border-slate-200">
+                    <button
+                      onClick={() => handleEditEventPass(eventPass)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium"
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEventPass(eventPass)}
+                      className="px-3 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden">
+        <button
+          onClick={() => toggleSection('addOns')}
+          className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Zap className="text-green-700" size={24} />
+            <div className="text-left">
+              <h2 className="text-xl font-bold text-slate-900">Add-On Services</h2>
+              <p className="text-sm text-slate-600">Manage additional services available for purchase</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">{addOns.length} services</span>
+            {expandedSections.addOns ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </div>
+        </button>
+
+        {expandedSections.addOns && (
+          <div className="p-6 pt-0 border-t-2 border-slate-200">
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={handleCreateAddOn}
+                className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
+              >
+                <Plus size={18} />
+                Create Add-On
+              </button>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {addOns.map((addOn) => (
             <div
               key={addOn.id}
@@ -564,85 +812,94 @@ const PlanManagement: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="space-y-6 mt-12">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Event Passes</h2>
-            <p className="text-slate-600 mt-1">Manage event passes for temporary access</p>
-          </div>
-          <button
-            onClick={handleCreateEventPass}
-            className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
-          >
-            <Plus size={18} />
-            Create Event Pass
-          </button>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {eventPasses.map((eventPass) => (
-            <div
-              key={eventPass.id}
-              className={`bg-white border-2 rounded-xl p-6 ${
-                eventPass.is_active ? 'border-slate-300' : 'border-slate-200 opacity-60'
-              }`}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">{eventPass.name}</h3>
-                </div>
-                {!eventPass.is_active && (
-                  <span className="px-2 py-1 text-xs font-medium bg-slate-200 text-slate-600 rounded">
-                    Inactive
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-baseline gap-1 mb-4">
-                <DollarSign size={24} className="text-green-700" />
-                <span className="text-3xl font-bold text-slate-900">
-                  {(eventPass.price_cents / 100).toFixed(2)}
-                </span>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <Ticket size={16} className="text-slate-500" />
-                  <span>{eventPass.credits} credits</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <Clock size={16} className="text-slate-500" />
-                  <span>{eventPass.duration_hours} hours</span>
-                </div>
-                {eventPass.setup_included && (
-                  <div className="flex items-center gap-2 text-sm text-green-700">
-                    <CheckCircle size={16} />
-                    <span>Setup included</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2 pt-4 border-t border-slate-200">
-                <button
-                  onClick={() => handleEditEventPass(eventPass)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium"
-                >
-                  <Edit size={16} />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteEventPass(eventPass)}
-                  className="px-3 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+      <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden">
+        <button
+          onClick={() => toggleSection('creditTopups')}
+          className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <DollarSign className="text-green-700" size={24} />
+            <div className="text-left">
+              <h2 className="text-xl font-bold text-slate-900">Credit Top-Ups</h2>
+              <p className="text-sm text-slate-600">Manage credit packages for one-time purchase</p>
             </div>
-          ))}
-        </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">{creditTopups.length} packages</span>
+            {expandedSections.creditTopups ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </div>
+        </button>
+
+        {expandedSections.creditTopups && (
+          <div className="p-6 pt-0 border-t-2 border-slate-200">
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={handleCreateCreditTopup}
+                className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
+              >
+                <Plus size={18} />
+                Create Credit Package
+              </button>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {creditTopups.map((product) => (
+                <div
+                  key={product.id}
+                  className={`bg-white border-2 rounded-xl p-6 ${
+                    product.is_active ? 'border-slate-300' : 'border-slate-200 opacity-60'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">{product.name}</h3>
+                    </div>
+                    {!product.is_active && (
+                      <span className="px-2 py-1 text-xs font-medium bg-slate-200 text-slate-600 rounded">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-baseline gap-1 mb-4">
+                    <DollarSign size={24} className="text-green-700" />
+                    <span className="text-3xl font-bold text-slate-900">
+                      {(product.price_cents / 100).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Zap size={16} className="text-slate-500" />
+                      <span>{product.credits} credits</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4 border-t border-slate-200">
+                    <button
+                      onClick={() => handleEditCreditTopup(product)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium"
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCreditTopup(product)}
+                      className="px-3 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {editingTier && (
@@ -1060,6 +1317,111 @@ const PlanManagement: React.FC = () => {
                   onClick={() => {
                     setEditingEventPass(null);
                     setIsCreatingEventPass(false);
+                  }}
+                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingCreditTopup && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900">
+                {isCreatingCreditTopup ? 'Create Credit Package' : 'Edit Credit Package'}
+              </h3>
+              <button
+                onClick={() => {
+                  setEditingCreditTopup(null);
+                  setIsCreatingCreditTopup(false);
+                }}
+                className="text-slate-600 hover:text-slate-900 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Package Name</label>
+                <input
+                  type="text"
+                  value={editingCreditTopup.name || ''}
+                  onChange={(e) => setEditingCreditTopup({ ...editingCreditTopup, name: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="e.g., 100 Credits"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Price (USD)</label>
+                  <input
+                    type="number"
+                    value={(editingCreditTopup.price_cents || 0) / 100}
+                    onChange={(e) =>
+                      setEditingCreditTopup({ ...editingCreditTopup, price_cents: parseFloat(e.target.value) * 100 || 0 })
+                    }
+                    step="0.01"
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Credits</label>
+                  <input
+                    type="number"
+                    value={editingCreditTopup.credits || 0}
+                    onChange={(e) =>
+                      setEditingCreditTopup({ ...editingCreditTopup, credits: parseInt(e.target.value) || 0 })
+                    }
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
+                <input
+                  type="number"
+                  value={editingCreditTopup.display_order || 0}
+                  onChange={(e) => setEditingCreditTopup({ ...editingCreditTopup, display_order: parseInt(e.target.value) || 0 })}
+                  min="0"
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editingCreditTopup.is_active !== false}
+                    onChange={(e) => setEditingCreditTopup({ ...editingCreditTopup, is_active: e.target.checked })}
+                    className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                  />
+                  <span className="text-sm font-medium text-slate-900">Active</span>
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleSaveCreditTopup}
+                  className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                >
+                  <Save size={18} />
+                  {isCreatingCreditTopup ? 'Create Package' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingCreditTopup(null);
+                    setIsCreatingCreditTopup(false);
                   }}
                   className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
                 >

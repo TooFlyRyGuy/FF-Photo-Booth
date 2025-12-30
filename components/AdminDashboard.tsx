@@ -588,10 +588,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   setMobileMenuOpen(false);
                 }}
                 className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'plans' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
-                title={sidebarCollapsed ? 'Plans' : ''}
+                title={sidebarCollapsed ? 'Products' : ''}
               >
                 <Package size={20} />
-                {!sidebarCollapsed && 'Plans'}
+                {!sidebarCollapsed && 'Products'}
               </button>
               <button
                 onClick={() => {
