@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, Mail, Search, Edit, Save, X, Calendar, CreditCard, Shield, UserX } from 'lucide-react';
+import { User, Mail, Search, Edit, Save, X, Calendar, CreditCard, Shield, UserX, UserPlus } from 'lucide-react';
 
 interface UserData {
   id: string;
@@ -25,6 +25,17 @@ interface SubscriptionTier {
   price_cents: number;
 }
 
+interface NewUserData {
+  email: string;
+  password: string;
+  full_name: string;
+  role: string;
+  subscription_tier_id: string | null;
+  images_limit: number;
+  sms_limit: number;
+  events_limit: number;
+}
+
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
@@ -33,6 +44,18 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [subscriptionTiers, setSubscriptionTiers] = useState<SubscriptionTier[]>([]);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [newUser, setNewUser] = useState<NewUserData>({
+    email: '',
+    password: '',
+    full_name: '',
+    role: 'user',
+    subscription_tier_id: null,
+    images_limit: 10,
+    sms_limit: 5,
+    events_limit: 1,
+  });
 
   useEffect(() => {
     loadUsers();
@@ -184,6 +207,75 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.password) {
+      alert('Email and password are required');
+      return;
+    }
+
+    if (newUser.password.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+
+    setCreatingUser(true);
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newUser.email,
+        password: newUser.password,
+        options: {
+          data: {
+            full_name: newUser.full_name,
+            role: newUser.role,
+          },
+        },
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Failed to create user');
+
+      const userId = authData.user.id;
+
+      await supabase
+        .from('user_profiles')
+        .update({
+          full_name: newUser.full_name || null,
+          role: newUser.role,
+          subscription_tier_id: newUser.subscription_tier_id,
+          subscription_status: 'active',
+        })
+        .eq('id', userId);
+
+      await supabase
+        .from('user_credits')
+        .update({
+          images_limit: newUser.images_limit,
+          sms_limit: newUser.sms_limit,
+          events_limit: newUser.events_limit,
+        })
+        .eq('user_id', userId);
+
+      alert('User created successfully!');
+      setShowCreateModal(false);
+      setNewUser({
+        email: '',
+        password: '',
+        full_name: '',
+        role: 'user',
+        subscription_tier_id: null,
+        images_limit: 10,
+        sms_limit: 5,
+        events_limit: 1,
+      });
+      loadUsers();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      alert(`Failed to create user: ${error.message}`);
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -203,6 +295,13 @@ const UserManagement: React.FC = () => {
           <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium">
             {users.length} Total Users
           </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium transition-colors"
+          >
+            <UserPlus size={18} />
+            Create User
+          </button>
         </div>
       </div>
 
@@ -447,6 +546,152 @@ const UserManagement: React.FC = () => {
                 <button
                   onClick={() => setEditingUser(null)}
                   className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900">Create New User</h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-600 hover:text-slate-900 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Email *</label>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="user@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Password *</label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="Minimum 6 characters"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Full Name</label>
+                <input
+                  type="text"
+                  value={newUser.full_name}
+                  onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Role</label>
+                  <select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Subscription Tier</label>
+                  <select
+                    value={newUser.subscription_tier_id || ''}
+                    onChange={(e) => setNewUser({ ...newUser, subscription_tier_id: e.target.value || null })}
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  >
+                    <option value="">Free (Default)</option>
+                    {subscriptionTiers.map((tier) => (
+                      <option key={tier.id} value={tier.id}>
+                        {tier.name} - {tier.billing_period} (${(tier.price_cents / 100).toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-slate-300 pt-6">
+                <h4 className="text-lg font-bold text-slate-900 mb-4">Credit Limits</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Images Limit</label>
+                    <input
+                      type="number"
+                      value={newUser.images_limit}
+                      onChange={(e) => setNewUser({ ...newUser, images_limit: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">SMS Limit</label>
+                    <input
+                      type="number"
+                      value={newUser.sms_limit}
+                      onChange={(e) => setNewUser({ ...newUser, sms_limit: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Events Limit</label>
+                    <input
+                      type="number"
+                      value={newUser.events_limit}
+                      onChange={(e) => setNewUser({ ...newUser, events_limit: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleCreateUser}
+                  disabled={creatingUser}
+                  className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {creatingUser ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={18} />
+                      Create User
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={creatingUser}
+                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
