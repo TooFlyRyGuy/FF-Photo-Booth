@@ -1258,7 +1258,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     </button>
                     <button
                       onClick={() => {
-                        setPromptLibraryEventContext(editingEvent.id || null);
+                        setPromptLibraryEventContext(editingEvent.id || 'new-event');
                         setShowPromptLibrary(true);
                       }}
                       className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
@@ -1475,7 +1475,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       </button>
                       <button
                         onClick={() => {
-                          setPromptLibraryEventContext(editingEvent.id || null);
+                          setPromptLibraryEventContext(editingEvent.id || 'new-event');
                           setShowPromptLibrary(true);
                         }}
                         className="bg-slate-700 hover:bg-slate-800 text-white px-6 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2"
