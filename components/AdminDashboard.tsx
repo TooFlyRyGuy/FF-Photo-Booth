@@ -1197,16 +1197,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       checked={editingEvent.uploadOriginalsToGallery || false}
                       onChange={(e) => setEditingEvent({...editingEvent, uploadOriginalsToGallery: e.target.checked})}
                       className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
-                      disabled={!editingEvent.smugmugGalleryKey}
+                      disabled={globalSettings?.smugmugConnectionStatus !== 'connected'}
                     />
                     <span className="text-black">Upload Original Photos to Gallery</span>
                   </label>
-                  {!editingEvent.smugmugGalleryKey && (
+                  {globalSettings?.smugmugConnectionStatus !== 'connected' && (
                     <p className="text-xs text-slate-500 ml-8">
-                      Requires a SmugMug gallery to be configured in Settings
+                      Requires SmugMug to be connected in Settings
                     </p>
                   )}
-                  {editingEvent.smugmugGalleryKey && (
+                  {globalSettings?.smugmugConnectionStatus === 'connected' && (
                     <p className="text-xs text-slate-500 ml-8">
                       Original photos will be uploaded to SmugMug gallery after AI generation
                     </p>
