@@ -9,8 +9,9 @@ const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const KioskMode = lazy(() => import('./components/KioskMode'));
 const Login = lazy(() => import('./components/Login'));
 const Signup = lazy(() => import('./components/Signup'));
+const MarketingPage = lazy(() => import('./components/MarketingPage'));
 
-type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'loading';
+type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'marketing' | 'loading';
 
 const LoadingSpinner: React.FC = () => (
   <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center">
@@ -67,14 +68,36 @@ const App: React.FC = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const kioskPasscode = urlParams.get('kiosk');
+    const marketingView = urlParams.get('marketing');
     const isKioskMode = !!kioskPasscode;
 
-    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'isKioskMode:', isKioskMode);
+    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'isKioskMode:', isKioskMode, 'marketingView:', marketingView);
 
     const initializeAuth = async () => {
       console.log('[App] Starting initializeAuth');
       const { data: { session } } = await supabase.auth.getSession();
       console.log('[App] Session state:', session?.user ? 'logged in' : 'logged out');
+
+      if (marketingView) {
+        console.log('[App] Marketing view detected');
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile?.role === 'admin') {
+            setUser(session.user);
+            setView('marketing');
+          } else {
+            setView('landing');
+          }
+        } else {
+          setView('landing');
+        }
+        return;
+      }
 
       if (kioskPasscode) {
         console.log('[App] Kiosk mode detected - loading event');
@@ -195,7 +218,16 @@ const App: React.FC = () => {
     );
   }
 
-  // 4. LANDING PAGE
+  // 5. MARKETING PAGE (Admin Only)
+  if (view === 'marketing') {
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <MarketingPage />
+      </Suspense>
+    );
+  }
+
+  // 6. LANDING PAGE
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 text-slate-900 relative overflow-hidden">
       {/* Decorative background elements */}
