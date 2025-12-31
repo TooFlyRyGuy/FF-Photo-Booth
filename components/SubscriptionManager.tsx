@@ -49,7 +49,7 @@ interface UserProfile {
   email: string;
   full_name: string;
   role?: string;
-  subscription_tier: string;
+  subscription_tier_id: string;
   subscription_status: string;
   stripe_customer_id: string;
   subscription_ends_at: string;
@@ -66,7 +66,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   const [creditTopups, setCreditTopups] = useState<CreditTopup[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'eventPasses' | 'addOns' | 'credits'>('subscriptions');
 
   useEffect(() => {
@@ -289,9 +289,9 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
               Monthly
             </button>
             <button
-              onClick={() => setBillingCycle('yearly')}
+              onClick={() => setBillingCycle('annual')}
               className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                billingCycle === 'yearly'
+                billingCycle === 'annual'
                   ? 'bg-green-700 hover:bg-green-800 text-white'
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900'
               }`}
@@ -328,7 +328,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {tiers.map((tier) => {
-              const isCurrentTier = userProfile?.subscription_tier === tier.id;
+              const isCurrentTier = userProfile?.subscription_tier_id === tier.id;
               const isEnterprise = tier.price_cents === -1;
 
               return (
