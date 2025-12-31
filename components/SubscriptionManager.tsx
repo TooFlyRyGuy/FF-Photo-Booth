@@ -107,6 +107,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
           .eq('id', user.id)
           .maybeSingle();
 
+        console.log('User profile loaded:', profileData);
         setUserProfile(profileData);
       }
 
@@ -330,6 +331,8 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                 {tiers.map((tier) => {
               const isCurrentTier = userProfile?.subscription_tier_id === tier.id;
               const isEnterprise = tier.price_cents === -1;
+
+              console.log(`Tier: ${tier.name}, ID: ${tier.id}, User Tier ID: ${userProfile?.subscription_tier_id}, Is Current: ${isCurrentTier}`);
 
               return (
                 <div
