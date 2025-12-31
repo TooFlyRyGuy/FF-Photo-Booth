@@ -630,10 +630,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   // 2. PROMPT SELECT
   if (view === 'prompt-select') {
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center p-4 md:p-8">
-        <div className="flex flex-col items-center justify-center max-w-7xl mx-auto">
-          <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-6 md:mb-10 text-center">Choose Your Style</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-6 md:mb-10 w-full justify-items-center">
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
+        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">Choose Your Style</h2>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 w-full max-w-7xl mx-auto justify-items-center">
             {event.prompts.map(prompt => (
               <button
                 key={prompt.id}
@@ -659,7 +660,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
               </button>
             ))}
           </div>
-          <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4">Cancel</button>
+        </div>
+
+        <div className="flex-shrink-0 text-center pt-2">
+          <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">Cancel</button>
         </div>
       </div>
     );
