@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer } from 'lucide-react';
 import Settings from './Settings';
@@ -501,6 +501,29 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     } catch (error: any) {
       alert(`Failed to revoke access: ${error.message}`);
       console.error('Revoke access error:', error);
+    }
+  };
+
+  const handleTransferOwnership = async (newOwnerId: string, newOwnerEmail: string) => {
+    if (!accessModal) return;
+
+    if (!confirm(`Are you sure you want to transfer ownership of "${accessModal.eventName}" to ${newOwnerEmail}? This will make the event count against their subscription limits and credits. This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await transferEventOwnership(accessModal.eventId, newOwnerId);
+
+      setAccessModal(null);
+      setSelectedUserId('');
+      setEventAccessList([]);
+
+      await loadData();
+
+      alert('Ownership transferred successfully!');
+    } catch (error: any) {
+      alert(`Failed to transfer ownership: ${error.message}`);
+      console.error('Transfer ownership error:', error);
     }
   };
 
@@ -1989,23 +2012,40 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     )}
                   </div>
 
-                  <button
-                    onClick={handleGrantAccess}
-                    disabled={!selectedUserId || grantingAccess}
-                    className="w-full py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {grantingAccess ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Granting Access...
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={18} />
-                        Grant Access to Selected User
-                      </>
-                    )}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGrantAccess}
+                      disabled={!selectedUserId || grantingAccess}
+                      className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {grantingAccess ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Granting...
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={18} />
+                          Grant Access
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedUserId) {
+                          const selectedUser = allUsers.find(u => u.id === selectedUserId);
+                          if (selectedUser) {
+                            handleTransferOwnership(selectedUserId, selectedUser.email);
+                          }
+                        }
+                      }}
+                      disabled={!selectedUserId || grantingAccess}
+                      className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <UserIcon size={18} />
+                      Transfer Ownership
+                    </button>
+                  </div>
                 </div>
               </div>
 
