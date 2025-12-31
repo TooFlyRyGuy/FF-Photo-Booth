@@ -75,7 +75,25 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
   const loadData = async () => {
     try {
-      const [tiersData, passesData, addOnsData, topupsData, { user }] = await Promise.all([
+      console.log('Starting to load data...');
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('Auth user:', user, 'Error:', userError);
+
+      if (user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        console.log('User profile loaded:', profileData, 'Error:', profileError);
+        setUserProfile(profileData);
+      } else {
+        console.log('No user found - user is not authenticated');
+      }
+
+      const [tiersData, passesData, addOnsData, topupsData] = await Promise.all([
         supabase
           .from('subscription_tiers_new')
           .select('*')
@@ -96,20 +114,8 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
           .from('credit_topup_products')
           .select('*')
           .eq('is_active', true)
-          .order('display_order', { ascending: true }),
-        supabase.auth.getUser()
+          .order('display_order', { ascending: true })
       ]);
-
-      if (user) {
-        const { data: profileData } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        console.log('User profile loaded:', profileData);
-        setUserProfile(profileData);
-      }
 
       setTiers(tiersData.data || []);
       setEventPasses(passesData.data || []);
