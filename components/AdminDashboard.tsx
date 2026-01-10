@@ -136,7 +136,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         throw new Error('Unable to load user profile');
       }
 
-      const isAdmin = profileData.role === 'admin';
+      const isAdmin = profileData.role?.toLowerCase() === 'admin';
 
       const [settingsData, globalData, creditsData, eventsData] = await Promise.all([
         getUserSettings(),
@@ -664,7 +664,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   }
 
   const usagePercent = (userCredits.images_used / userCredits.images_limit) * 100;
-  const isAdmin = userProfile.role === 'admin';
+  const isAdmin = userProfile.role?.toLowerCase() === 'admin';
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
