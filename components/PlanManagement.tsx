@@ -5,14 +5,14 @@ import { CreditCard, Plus, Edit, Save, X, Trash2, DollarSign, Calendar, Zap, Clo
 interface SubscriptionTier {
   id: string;
   name: string;
-  billing_period: 'monthly' | 'annual';
+  plan_type: 'monthly' | 'annual';
+  tier: 'starter' | 'pro' | 'premium' | 'agency';
   price_cents: number;
   credits_per_period: number;
-  rollover_enabled: boolean;
   features: string[];
-  prompts_limit: number | null;
   is_active: boolean;
   display_order: number;
+  description?: string;
   stripe_price_id?: string;
   stripe_product_id?: string;
 }
@@ -105,7 +105,7 @@ const PlanManagement: React.FC = () => {
   const loadTiers = async () => {
     try {
       const { data, error } = await supabase
-        .from('subscription_tiers_new')
+        .from('subscription_tiers')
         .select('*')
         .order('display_order');
 
@@ -161,12 +161,11 @@ const PlanManagement: React.FC = () => {
   const handleCreateNew = () => {
     setEditingTier({
       name: '',
-      billing_period: 'monthly',
+      plan_type: 'monthly',
+      tier: 'starter',
       price_cents: 0,
       credits_per_period: 0,
-      rollover_enabled: false,
       features: [],
-      prompts_limit: null,
       is_active: true,
       display_order: tiers.length,
     });
@@ -184,7 +183,7 @@ const PlanManagement: React.FC = () => {
     try {
       if (isCreating) {
         const { error } = await supabase
-          .from('subscription_tiers_new')
+          .from('subscription_tiers')
           .insert([{
             name: editingTier.name,
             billing_period: editingTier.billing_period,
@@ -202,7 +201,7 @@ const PlanManagement: React.FC = () => {
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('subscription_tiers_new')
+          .from('subscription_tiers')
           .update({
             name: editingTier.name,
             billing_period: editingTier.billing_period,
@@ -235,7 +234,7 @@ const PlanManagement: React.FC = () => {
 
     try {
       const { error } = await supabase
-        .from('subscription_tiers_new')
+        .from('subscription_tiers')
         .delete()
         .eq('id', tier.id);
 

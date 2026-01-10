@@ -7,6 +7,7 @@ import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
+import { checkCreditAvailability, consumeCredit } from '../services/subscriptionService';
 
 interface KioskProps {
   event: Event;
@@ -173,6 +174,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setErrorMsg('');
 
     try {
+      const creditCheck = await checkCreditAvailability(event.userId);
+
+      if (!creditCheck.available) {
+        setErrorMsg(creditCheck.reason || 'No credits available. Please upgrade your plan or purchase more credits.');
+        setView('camera');
+        return;
+      }
+
       if (!globalSettings?.geminiEnabled || !globalSettings?.geminiApiKey) {
         setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
         setView('camera');
@@ -311,6 +320,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         null,
         'completed'
       );
+
+      const consumed = await consumeCredit(event.userId);
+      if (!consumed) {
+        console.error('Failed to consume credit, but image was generated');
+      }
 
       setGeneratedImageUrl(generatedUrl);
       setGeneratedImageId(imageId);

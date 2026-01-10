@@ -15,7 +15,6 @@ const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPAB
 
 Deno.serve(async (req) => {
   try {
-    // Handle OPTIONS request for CORS preflight
     if (req.method === 'OPTIONS') {
       return new Response(null, { status: 204 });
     }
@@ -24,17 +23,14 @@ Deno.serve(async (req) => {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    // get the signature from the header
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
       return new Response('No signature found', { status: 400 });
     }
 
-    // get the raw body
     const body = await req.text();
 
-    // verify the webhook signature
     let event: Stripe.Event;
 
     try {
@@ -64,7 +60,6 @@ async function handleEvent(event: Stripe.Event) {
     return;
   }
 
-  // for one time payments, we only listen for the checkout.session.completed event
   if (event.type === 'payment_intent.succeeded' && event.data.object.invoice === null) {
     return;
   }
@@ -91,32 +86,7 @@ async function handleEvent(event: Stripe.Event) {
       await syncCustomerFromStripe(customerId);
     } else if (mode === 'payment' && payment_status === 'paid') {
       try {
-        // Extract the necessary information from the session
-        const {
-          id: checkout_session_id,
-          payment_intent,
-          amount_subtotal,
-          amount_total,
-          currency,
-        } = stripeData as Stripe.Checkout.Session;
-
-        // Insert the order into the stripe_orders table
-        const { error: orderError } = await supabase.from('stripe_orders').insert({
-          checkout_session_id,
-          payment_intent_id: payment_intent,
-          customer_id: customerId,
-          amount_subtotal,
-          amount_total,
-          currency,
-          payment_status,
-          status: 'completed', // assuming we want to mark it as completed since payment is successful
-        });
-
-        if (orderError) {
-          console.error('Error inserting order:', orderError);
-          return;
-        }
-        console.info(`Successfully processed one-time payment for session: ${checkout_session_id}`);
+        await handleOneTimePayment(stripeData as Stripe.Checkout.Session, customerId);
       } catch (error) {
         console.error('Error processing one-time payment:', error);
       }
@@ -124,10 +94,93 @@ async function handleEvent(event: Stripe.Event) {
   }
 }
 
-// based on the excellent https://github.com/t3dotgg/stripe-recommendations
+async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId: string) {
+  const {
+    id: checkout_session_id,
+    payment_intent,
+    amount_subtotal,
+    amount_total,
+    currency,
+    payment_status,
+    metadata,
+  } = session;
+
+  const { data: customer } = await supabase
+    .from('stripe_customers')
+    .select('user_id')
+    .eq('customer_id', customerId)
+    .maybeSingle();
+
+  if (!customer) {
+    console.error('Customer not found in database');
+    return;
+  }
+
+  const userId = customer.user_id;
+
+  if (metadata?.purchase_type === 'event_pass') {
+    const eventPassTierId = metadata.event_pass_tier_id;
+    const eventId = metadata.event_id || null;
+    const expirationHours = parseInt(metadata.expiration_hours || '24');
+
+    const { error: passError } = await supabase
+      .from('purchased_event_passes')
+      .insert({
+        user_id: userId,
+        event_id: eventId,
+        event_pass_tier_id: eventPassTierId,
+        stripe_payment_intent_id: payment_intent as string,
+        credits_allocated: parseInt(metadata.credits || '0'),
+        credits_used: 0,
+        prompt_limit: parseInt(metadata.prompt_limit || '0'),
+        prompts_used: 0,
+        expires_at: new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString(),
+        is_active: true,
+      });
+
+    if (passError) {
+      console.error('Error creating event pass:', passError);
+      return;
+    }
+
+    console.info(`Successfully created event pass for user ${userId}`);
+  } else if (metadata?.purchase_type === 'credit_topup') {
+    const credits = parseInt(metadata.credits || '0');
+
+    const { error: creditError } = await supabase.rpc('add_topup_credits', {
+      p_user_id: userId,
+      p_credits: credits,
+    });
+
+    if (creditError) {
+      console.error('Error adding topup credits:', creditError);
+      return;
+    }
+
+    console.info(`Successfully added ${credits} topup credits for user ${userId}`);
+  }
+
+  const { error: orderError } = await supabase.from('stripe_orders').insert({
+    checkout_session_id,
+    payment_intent_id: payment_intent,
+    customer_id: customerId,
+    amount_subtotal,
+    amount_total,
+    currency,
+    payment_status,
+    status: 'completed',
+  });
+
+  if (orderError) {
+    console.error('Error inserting order:', orderError);
+    return;
+  }
+
+  console.info(`Successfully processed one-time payment for session: ${checkout_session_id}`);
+}
+
 async function syncCustomerFromStripe(customerId: string) {
   try {
-    // fetch latest subscription data from Stripe
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       limit: 1,
@@ -135,7 +188,19 @@ async function syncCustomerFromStripe(customerId: string) {
       expand: ['data.default_payment_method'],
     });
 
-    // TODO verify if needed
+    const { data: customer } = await supabase
+      .from('stripe_customers')
+      .select('user_id')
+      .eq('customer_id', customerId)
+      .maybeSingle();
+
+    if (!customer) {
+      console.error('Customer not found in database');
+      return;
+    }
+
+    const userId = customer.user_id;
+
     if (subscriptions.data.length === 0) {
       console.info(`No active subscriptions found for customer: ${customerId}`);
       const { error: noSubError } = await supabase.from('stripe_subscriptions').upsert(
@@ -152,17 +217,72 @@ async function syncCustomerFromStripe(customerId: string) {
         console.error('Error updating subscription status:', noSubError);
         throw new Error('Failed to update subscription status in database');
       }
+      return;
     }
 
-    // assumes that a customer can only have a single subscription
     const subscription = subscriptions.data[0];
+    const priceId = subscription.items.data[0].price.id;
 
-    // store subscription state
+    const { data: tier } = await supabase
+      .from('subscription_tiers')
+      .select('*')
+      .eq('stripe_price_id', priceId)
+      .maybeSingle();
+
+    if (tier) {
+      const isActive = subscription.status === 'active' || subscription.status === 'trialing';
+      const currentPeriodStart = new Date(subscription.current_period_start * 1000);
+      const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+
+      const { error: userSubError } = await supabase
+        .from('user_subscriptions')
+        .upsert({
+          user_id: userId,
+          tier_id: tier.id,
+          stripe_subscription_id: subscription.id,
+          status: isActive ? 'active' : subscription.status as any,
+          current_period_start: currentPeriodStart.toISOString(),
+          current_period_end: currentPeriodEnd.toISOString(),
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id',
+        });
+
+      if (userSubError) {
+        console.error('Error updating user subscription:', userSubError);
+      }
+
+      if (isActive) {
+        const isAnnual = tier.plan_type === 'annual';
+
+        const { error: creditsError } = await supabase
+          .from('user_credits')
+          .update({
+            plan_type: tier.plan_type,
+            subscription_tier_id: tier.id,
+            images_limit: tier.credits_per_period,
+            annual_credits_total: isAnnual ? tier.credits_per_period : null,
+            billing_period_start: currentPeriodStart.toISOString(),
+            billing_period_end: currentPeriodEnd.toISOString(),
+            expires_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+
+        if (creditsError) {
+          console.error('Error updating user credits:', creditsError);
+        }
+      }
+
+      console.info(`Successfully synced subscription for user ${userId} with tier ${tier.name}`);
+    }
+
     const { error: subError } = await supabase.from('stripe_subscriptions').upsert(
       {
         customer_id: customerId,
         subscription_id: subscription.id,
-        price_id: subscription.items.data[0].price.id,
+        price_id: priceId,
         current_period_start: subscription.current_period_start,
         current_period_end: subscription.current_period_end,
         cancel_at_period_end: subscription.cancel_at_period_end,
@@ -183,6 +303,7 @@ async function syncCustomerFromStripe(customerId: string) {
       console.error('Error syncing subscription:', subError);
       throw new Error('Failed to sync subscription in database');
     }
+
     console.info(`Successfully synced subscription for customer: ${customerId}`);
   } catch (error) {
     console.error(`Failed to sync subscription for customer ${customerId}:`, error);
