@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       return corsResponse({ error: 'Method not allowed' }, 405);
     }
 
-    const { price_id, success_url, cancel_url, mode } = await req.json();
+    const { price_id, success_url, cancel_url, mode, metadata } = await req.json();
 
     const error = validateParameters(
       { price_id, success_url, cancel_url, mode },
@@ -177,6 +177,30 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fetch price metadata from Stripe to include in session
+    let sessionMetadata = metadata || {};
+
+    if (mode === 'payment') {
+      try {
+        const price = await stripe.prices.retrieve(price_id, {
+          expand: ['product'],
+        });
+
+        const product = price.product as Stripe.Product;
+
+        if (product.metadata?.type === 'credit_topup') {
+          sessionMetadata = {
+            ...sessionMetadata,
+            type: 'credit_topup',
+            credits_granted: product.metadata.credits_granted || '0',
+            expires: product.metadata.expires || 'never',
+          };
+        }
+      } catch (error) {
+        console.error('Failed to fetch price metadata:', error);
+      }
+    }
+
     // create Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -190,6 +214,7 @@ Deno.serve(async (req) => {
       mode,
       success_url,
       cancel_url,
+      ...(Object.keys(sessionMetadata).length > 0 && { metadata: sessionMetadata }),
     });
 
     console.log(`Created checkout session ${session.id} for customer ${customerId}`);
