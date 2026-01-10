@@ -144,20 +144,22 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
     }
 
     console.info(`Successfully created event pass for user ${userId}`);
-  } else if (metadata?.purchase_type === 'credit_topup') {
-    const credits = parseInt(metadata.credits || '0');
+  } else if (metadata?.purchase_type === 'credit_topup' || metadata?.type === 'credit_topup') {
+    const creditsGranted = parseInt(metadata.credits_granted || metadata.credits || '0');
 
-    const { error: creditError } = await supabase.rpc('add_topup_credits', {
+    const { error: creditError } = await supabase.rpc('add_purchased_credits', {
       p_user_id: userId,
-      p_credits: credits,
+      p_credits: creditsGranted,
+      p_stripe_session_id: checkout_session_id,
+      p_stripe_payment_intent_id: payment_intent as string,
     });
 
     if (creditError) {
-      console.error('Error adding topup credits:', creditError);
+      console.error('Error adding purchased credits:', creditError);
       return;
     }
 
-    console.info(`Successfully added ${credits} topup credits for user ${userId}`);
+    console.info(`Successfully added ${creditsGranted} purchased credits for user ${userId} from ${metadata.type || metadata.purchase_type}`);
   }
 
   const { error: orderError } = await supabase.from('stripe_orders').insert({
@@ -262,6 +264,7 @@ async function syncCustomerFromStripe(customerId: string) {
             plan_type: tier.plan_type,
             subscription_tier_id: tier.id,
             images_limit: tier.credits_per_period,
+            subscription_credits: tier.credits_per_period,
             annual_credits_total: isAnnual ? tier.credits_per_period : null,
             billing_period_start: currentPeriodStart.toISOString(),
             billing_period_end: currentPeriodEnd.toISOString(),

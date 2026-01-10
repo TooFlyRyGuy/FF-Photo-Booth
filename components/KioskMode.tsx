@@ -7,7 +7,7 @@ import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
-import { checkCreditAvailability, consumeCredit } from '../services/subscriptionService';
+import { checkCreditAvailability, consumeCredit } from '../services/creditService';
 
 interface KioskProps {
   event: Event;
