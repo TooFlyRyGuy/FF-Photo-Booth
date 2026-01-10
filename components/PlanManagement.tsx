@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { CreditCard, Plus, Edit, Save, X, Trash2, DollarSign, Calendar, Zap, Clock, Ticket, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { CreditCard, Plus, Edit, Save, X, Trash2, DollarSign, Calendar, Zap, Clock, Ticket, CheckCircle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 
 interface SubscriptionTier {
   id: string;
@@ -79,6 +79,8 @@ const PlanManagement: React.FC = () => {
     addOns: false,
     creditTopups: false,
   });
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -155,6 +157,56 @@ const PlanManagement: React.FC = () => {
       setCreditTopups(data || []);
     } catch (error) {
       console.error('Error loading credit top-ups:', error);
+    }
+  };
+
+  const handleSyncStripeProducts = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-stripe-products`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to sync products');
+      }
+
+      const { results } = data;
+      const totalSynced =
+        results.subscriptions.length +
+        results.creditTopups.length +
+        results.eventPasses.length +
+        results.addOns.length;
+
+      setSyncMessage({
+        type: 'success',
+        text: `Successfully synced ${totalSynced} products from Stripe (${results.subscriptions.length} subscriptions, ${results.creditTopups.length} credit topups, ${results.eventPasses.length} event passes, ${results.addOns.length} add-ons)`,
+      });
+
+      await loadData();
+    } catch (error: any) {
+      console.error('Error syncing Stripe products:', error);
+      setSyncMessage({
+        type: 'error',
+        text: `Failed to sync: ${error.message}`,
+      });
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMessage(null), 5000);
     }
   };
 
@@ -547,6 +599,35 @@ const PlanManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div className="bg-white border-2 border-slate-300 rounded-xl p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Product Management</h1>
+            <p className="text-sm text-slate-600 mt-1">Sync and manage products from your Stripe account</p>
+          </div>
+          <button
+            onClick={handleSyncStripeProducts}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          >
+            <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing...' : 'Sync from Stripe'}
+          </button>
+        </div>
+
+        {syncMessage && (
+          <div
+            className={`mt-4 p-4 rounded-lg border-2 ${
+              syncMessage.type === 'success'
+                ? 'bg-green-50 border-green-300 text-green-800'
+                : 'bg-red-50 border-red-300 text-red-800'
+            }`}
+          >
+            {syncMessage.text}
+          </div>
+        )}
+      </div>
+
       <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden">
         <button
           onClick={() => toggleSection('subscriptions')}
