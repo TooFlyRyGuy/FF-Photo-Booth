@@ -32,11 +32,15 @@ export interface CreditTopupProduct {
 }
 
 export const getCreditBalance = async (userId: string): Promise<CreditBalance> => {
+  console.log('📊 getCreditBalance called for userId:', userId);
+
   const { data, error } = await supabase
     .from('user_credits')
     .select('subscription_credits, purchased_credits, event_credits')
     .eq('user_id', userId)
     .maybeSingle();
+
+  console.log('📊 Database response:', { data, error });
 
   if (error) {
     console.error('Failed to fetch credit balance:', error);
@@ -50,6 +54,7 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
   }
 
   if (!data) {
+    console.log('⚠️ No data returned from database');
     return {
       subscription_credits: 0,
       purchased_credits: 0,
@@ -63,6 +68,14 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
   const purchased_credits = data.purchased_credits || 0;
   const event_credits = data.event_credits || 0;
   const image_credits = subscription_credits + purchased_credits;
+
+  console.log('📊 Calculated credits:', {
+    subscription_credits,
+    purchased_credits,
+    event_credits,
+    image_credits,
+    total: image_credits + event_credits,
+  });
 
   return {
     subscription_credits,
@@ -165,11 +178,16 @@ export const checkCreditAvailability = async (userId: string, type: 'image' | 'e
   breakdown: CreditBalance;
   reason?: string;
 }> => {
+  console.log('🔍 checkCreditAvailability called:', { userId, type });
+
   const balance = await getCreditBalance(userId);
+  console.log('💰 Credit balance fetched:', balance);
 
   const creditsToCheck = type === 'image' ? balance.image_credits : balance.event_credits;
+  console.log('✅ Credits to check:', { type, creditsToCheck });
 
   if (creditsToCheck <= 0) {
+    console.log('❌ No credits available');
     return {
       available: false,
       remaining: 0,
@@ -180,6 +198,7 @@ export const checkCreditAvailability = async (userId: string, type: 'image' | 'e
     };
   }
 
+  console.log('✅ Credits available:', creditsToCheck);
   return {
     available: true,
     remaining: creditsToCheck,
