@@ -4,6 +4,7 @@ export interface CreditBalance {
   subscription_credits: number;
   purchased_credits: number;
   event_credits: number;
+  image_credits: number;
   total: number;
 }
 
@@ -43,6 +44,7 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
       subscription_credits: 0,
       purchased_credits: 0,
       event_credits: 0,
+      image_credits: 0,
       total: 0,
     };
   }
@@ -52,15 +54,22 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
       subscription_credits: 0,
       purchased_credits: 0,
       event_credits: 0,
+      image_credits: 0,
       total: 0,
     };
   }
 
+  const subscription_credits = data.subscription_credits || 0;
+  const purchased_credits = data.purchased_credits || 0;
+  const event_credits = data.event_credits || 0;
+  const image_credits = subscription_credits + purchased_credits;
+
   return {
-    subscription_credits: data.subscription_credits || 0,
-    purchased_credits: data.purchased_credits || 0,
-    event_credits: data.event_credits || 0,
-    total: (data.subscription_credits || 0) + (data.purchased_credits || 0) + (data.event_credits || 0),
+    subscription_credits,
+    purchased_credits,
+    event_credits,
+    image_credits,
+    total: image_credits + event_credits,
   };
 };
 
@@ -150,7 +159,7 @@ export const getCreditTopupProducts = async (): Promise<CreditTopupProduct[]> =>
   return data || [];
 };
 
-export const checkCreditAvailability = async (userId: string): Promise<{
+export const checkCreditAvailability = async (userId: string, type: 'image' | 'event' = 'image'): Promise<{
   available: boolean;
   remaining: number;
   breakdown: CreditBalance;
@@ -158,18 +167,22 @@ export const checkCreditAvailability = async (userId: string): Promise<{
 }> => {
   const balance = await getCreditBalance(userId);
 
-  if (balance.total <= 0) {
+  const creditsToCheck = type === 'image' ? balance.image_credits : balance.event_credits;
+
+  if (creditsToCheck <= 0) {
     return {
       available: false,
       remaining: 0,
       breakdown: balance,
-      reason: 'No credits available. Please purchase credits or upgrade your plan.',
+      reason: type === 'image'
+        ? 'No image credits available. Please purchase credits or upgrade your plan.'
+        : 'No event credits available. Please purchase an event pass.',
     };
   }
 
   return {
     available: true,
-    remaining: balance.total,
+    remaining: creditsToCheck,
     breakdown: balance,
   };
 };
