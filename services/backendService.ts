@@ -385,9 +385,11 @@ export const updateUserSettings = async (settings: Partial<UserSettings>): Promi
 export const getGlobalSettings = async (skipCache: boolean = false): Promise<GlobalSettings> => {
   if (!skipCache && cachedGlobalSettings && globalSettingsCacheTimestamp &&
       Date.now() - globalSettingsCacheTimestamp < GLOBAL_SETTINGS_CACHE_TTL) {
+    console.log('📦 Using cached global settings');
     return cachedGlobalSettings;
   }
 
+  console.log('🔍 Fetching global settings from database...');
   const { data, error } = await supabase
     .from('global_settings')
     .select('*')
@@ -395,13 +397,26 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     .maybeSingle();
 
   if (error) {
-    console.error('Failed to fetch global settings:', error);
+    console.error('❌ Failed to fetch global settings:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
     return {};
   }
 
   if (!data) {
+    console.warn('⚠️ No global settings found in database');
     return {};
   }
+
+  console.log('✅ Global settings fetched successfully:', {
+    hasGeminiKey: !!data.gemini_api_key,
+    geminiEnabled: data.gemini_enabled,
+    geminiKeyLength: data.gemini_api_key?.length
+  });
 
   const settings: GlobalSettings = {
     dropboxAppKey: data.dropbox_app_key,
