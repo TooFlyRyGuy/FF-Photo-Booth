@@ -33,6 +33,18 @@ export interface CreditTopupProduct {
 
 export const getCreditBalance = async (userId: string): Promise<CreditBalance> => {
   console.log('📊 getCreditBalance called for userId:', userId);
+  console.log('📊 userId type:', typeof userId, 'length:', userId?.length);
+
+  if (!userId) {
+    console.error('❌ userId is null or undefined');
+    return {
+      subscription_credits: 0,
+      purchased_credits: 0,
+      event_credits: 0,
+      image_credits: 0,
+      total: 0,
+    };
+  }
 
   const { data, error } = await supabase
     .from('user_credits')

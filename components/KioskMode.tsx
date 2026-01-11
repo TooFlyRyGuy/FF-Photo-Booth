@@ -174,6 +174,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setErrorMsg('');
 
     try {
+      console.log('🎯 Event userId being checked:', event.userId);
+
+      if (!event.userId) {
+        setErrorMsg('Event owner not found. Please contact the administrator.');
+        setView('camera');
+        return;
+      }
+
       const creditCheck = await checkCreditAvailability(event.userId);
 
       if (!creditCheck.available) {
