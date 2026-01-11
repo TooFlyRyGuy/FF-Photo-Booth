@@ -11,6 +11,9 @@ interface UserData {
   subscription_tier_id: string | null;
   subscription_tier_name: string | null;
   created_at: string;
+  subscription_credits: number;
+  purchased_credits: number;
+  event_credits: number;
   images_limit: number;
   images_used: number;
   sms_limit: number;
@@ -31,6 +34,9 @@ interface NewUserData {
   full_name: string;
   role: string;
   subscription_tier_id: string | null;
+  subscription_credits: number;
+  purchased_credits: number;
+  event_credits: number;
   images_limit: number;
   sms_limit: number;
   events_limit: number;
@@ -52,6 +58,9 @@ const UserManagement: React.FC = () => {
     full_name: '',
     role: 'user',
     subscription_tier_id: null,
+    subscription_credits: 0,
+    purchased_credits: 0,
+    event_credits: 0,
     images_limit: 10,
     sms_limit: 5,
     events_limit: 1,
@@ -87,7 +96,7 @@ const UserManagement: React.FC = () => {
       const userIds = data.map(u => u.id);
       const { data: creditsData } = await supabase
         .from('user_credits')
-        .select('user_id, images_limit, images_used, sms_limit, sms_used, events_limit')
+        .select('user_id, subscription_credits, purchased_credits, event_credits, images_limit, images_used, sms_limit, sms_used, events_limit')
         .in('user_id', userIds);
 
       const { data: tiersData } = await supabase
@@ -102,6 +111,9 @@ const UserManagement: React.FC = () => {
         return {
           ...user,
           subscription_tier_name: user.subscription_tier_id ? tiersMap.get(user.subscription_tier_id) || null : null,
+          subscription_credits: credits?.subscription_credits || 0,
+          purchased_credits: credits?.purchased_credits || 0,
+          event_credits: credits?.event_credits || 0,
           images_limit: credits?.images_limit || 0,
           images_used: credits?.images_used || 0,
           sms_limit: credits?.sms_limit || 0,
@@ -171,6 +183,9 @@ const UserManagement: React.FC = () => {
       const { error: creditsError } = await supabase
         .from('user_credits')
         .update({
+          subscription_credits: editingUser.subscription_credits,
+          purchased_credits: editingUser.purchased_credits,
+          event_credits: editingUser.event_credits,
           images_limit: editingUser.images_limit,
           sms_limit: editingUser.sms_limit,
           events_limit: editingUser.events_limit,
@@ -249,6 +264,9 @@ const UserManagement: React.FC = () => {
       await supabase
         .from('user_credits')
         .update({
+          subscription_credits: newUser.subscription_credits,
+          purchased_credits: newUser.purchased_credits,
+          event_credits: newUser.event_credits,
           images_limit: newUser.images_limit,
           sms_limit: newUser.sms_limit,
           events_limit: newUser.events_limit,
@@ -263,6 +281,9 @@ const UserManagement: React.FC = () => {
         full_name: '',
         role: 'user',
         subscription_tier_id: null,
+        subscription_credits: 0,
+        purchased_credits: 0,
+        event_credits: 0,
         images_limit: 10,
         sms_limit: 5,
         events_limit: 1,
@@ -377,9 +398,10 @@ const UserManagement: React.FC = () => {
                   </td>
                   <td className="px-4 py-4">
                     <div className="text-xs text-slate-600 space-y-1">
-                      <div>Images: {user.images_used}/{user.images_limit}</div>
-                      <div>SMS: {user.sms_used}/{user.sms_limit}</div>
-                      <div>Events: {user.events_limit}</div>
+                      <div className="font-medium text-slate-900">Total: {user.subscription_credits + user.purchased_credits + user.event_credits}</div>
+                      <div>Sub: {user.subscription_credits}</div>
+                      <div>Purchased: {user.purchased_credits}</div>
+                      <div>Event: {user.event_credits}</div>
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -504,8 +526,53 @@ const UserManagement: React.FC = () => {
               </div>
 
               <div className="border-t-2 border-slate-300 pt-6">
-                <h4 className="text-lg font-bold text-slate-900 mb-4">Credit Limits</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <h4 className="text-lg font-bold text-slate-900 mb-4">Credits</h4>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Subscription Credits</label>
+                    <input
+                      type="number"
+                      value={editingUser.subscription_credits}
+                      onChange={(e) => setEditingUser({ ...editingUser, subscription_credits: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">From monthly/annual subscription</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Purchased Credits</label>
+                    <input
+                      type="number"
+                      value={editingUser.purchased_credits}
+                      onChange={(e) => setEditingUser({ ...editingUser, purchased_credits: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">From one-time purchases</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Event Credits</label>
+                    <input
+                      type="number"
+                      value={editingUser.event_credits}
+                      onChange={(e) => setEditingUser({ ...editingUser, event_credits: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">From event passes</p>
+                  </div>
+                </div>
+
+                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-6">
+                  <p className="text-sm font-bold text-green-900">
+                    Total Credits Available: {editingUser.subscription_credits + editingUser.purchased_credits + editingUser.event_credits}
+                  </p>
+                </div>
+
+                <h4 className="text-lg font-bold text-slate-900 mb-4 mt-6">Legacy Limits (Deprecated)</h4>
+                <div className="grid grid-cols-3 gap-4 opacity-60">
                   <div>
                     <label className="block text-sm font-bold text-slate-900 mb-2">Images Limit</label>
                     <input
@@ -641,8 +708,44 @@ const UserManagement: React.FC = () => {
               </div>
 
               <div className="border-t-2 border-slate-300 pt-6">
-                <h4 className="text-lg font-bold text-slate-900 mb-4">Credit Limits</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <h4 className="text-lg font-bold text-slate-900 mb-4">Initial Credits</h4>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Subscription Credits</label>
+                    <input
+                      type="number"
+                      value={newUser.subscription_credits}
+                      onChange={(e) => setNewUser({ ...newUser, subscription_credits: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Purchased Credits</label>
+                    <input
+                      type="number"
+                      value={newUser.purchased_credits}
+                      onChange={(e) => setNewUser({ ...newUser, purchased_credits: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Event Credits</label>
+                    <input
+                      type="number"
+                      value={newUser.event_credits}
+                      onChange={(e) => setNewUser({ ...newUser, event_credits: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <h4 className="text-lg font-bold text-slate-900 mb-4 mt-6">Legacy Limits (Optional)</h4>
+                <div className="grid grid-cols-3 gap-4 opacity-60">
                   <div>
                     <label className="block text-sm font-bold text-slate-900 mb-2">Images Limit</label>
                     <input
