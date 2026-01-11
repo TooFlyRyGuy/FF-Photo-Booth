@@ -11,9 +11,10 @@ interface UserData {
   subscription_tier_id: string | null;
   subscription_tier_name: string | null;
   created_at: string;
+  image_credits: number;
+  event_credits: number;
   subscription_credits: number;
   purchased_credits: number;
-  event_credits: number;
   images_limit: number;
   images_used: number;
   sms_limit: number;
@@ -34,8 +35,7 @@ interface NewUserData {
   full_name: string;
   role: string;
   subscription_tier_id: string | null;
-  subscription_credits: number;
-  purchased_credits: number;
+  image_credits: number;
   event_credits: number;
   images_limit: number;
   sms_limit: number;
@@ -58,8 +58,7 @@ const UserManagement: React.FC = () => {
     full_name: '',
     role: 'user',
     subscription_tier_id: null,
-    subscription_credits: 0,
-    purchased_credits: 0,
+    image_credits: 0,
     event_credits: 0,
     images_limit: 10,
     sms_limit: 5,
@@ -108,12 +107,16 @@ const UserManagement: React.FC = () => {
 
       const enrichedUsers = data.map(user => {
         const credits = creditsMap.get(user.id);
+        const subscription_credits = credits?.subscription_credits || 0;
+        const purchased_credits = credits?.purchased_credits || 0;
+        const event_credits = credits?.event_credits || 0;
         return {
           ...user,
           subscription_tier_name: user.subscription_tier_id ? tiersMap.get(user.subscription_tier_id) || null : null,
-          subscription_credits: credits?.subscription_credits || 0,
-          purchased_credits: credits?.purchased_credits || 0,
-          event_credits: credits?.event_credits || 0,
+          image_credits: subscription_credits + purchased_credits,
+          event_credits,
+          subscription_credits,
+          purchased_credits,
           images_limit: credits?.images_limit || 0,
           images_used: credits?.images_used || 0,
           sms_limit: credits?.sms_limit || 0,
@@ -180,11 +183,16 @@ const UserManagement: React.FC = () => {
 
       if (profileError) throw profileError;
 
+      const originalImageCredits = editingUser.subscription_credits + editingUser.purchased_credits;
+      const newImageCredits = editingUser.image_credits;
+      const imageCreditDifference = newImageCredits - originalImageCredits;
+
+      const newPurchasedCredits = Math.max(0, editingUser.purchased_credits + imageCreditDifference);
+
       const { error: creditsError } = await supabase
         .from('user_credits')
         .update({
-          subscription_credits: editingUser.subscription_credits,
-          purchased_credits: editingUser.purchased_credits,
+          purchased_credits: newPurchasedCredits,
           event_credits: editingUser.event_credits,
           images_limit: editingUser.images_limit,
           sms_limit: editingUser.sms_limit,
@@ -264,8 +272,7 @@ const UserManagement: React.FC = () => {
       await supabase
         .from('user_credits')
         .update({
-          subscription_credits: newUser.subscription_credits,
-          purchased_credits: newUser.purchased_credits,
+          purchased_credits: newUser.image_credits,
           event_credits: newUser.event_credits,
           images_limit: newUser.images_limit,
           sms_limit: newUser.sms_limit,
@@ -281,8 +288,7 @@ const UserManagement: React.FC = () => {
         full_name: '',
         role: 'user',
         subscription_tier_id: null,
-        subscription_credits: 0,
-        purchased_credits: 0,
+        image_credits: 0,
         event_credits: 0,
         images_limit: 10,
         sms_limit: 5,
@@ -353,7 +359,8 @@ const UserManagement: React.FC = () => {
                 <th className="px-4 py-3 text-left text-sm font-bold text-slate-900">User</th>
                 <th className="px-4 py-3 text-left text-sm font-bold text-slate-900">Role</th>
                 <th className="px-4 py-3 text-left text-sm font-bold text-slate-900">Subscription</th>
-                <th className="px-4 py-3 text-left text-sm font-bold text-slate-900">Credits</th>
+                <th className="px-4 py-3 text-left text-sm font-bold text-slate-900">Image Credits</th>
+                <th className="px-4 py-3 text-left text-sm font-bold text-slate-900">Event Credits</th>
                 <th className="px-4 py-3 text-left text-sm font-bold text-slate-900">Joined</th>
                 <th className="px-4 py-3 text-right text-sm font-bold text-slate-900">Actions</th>
               </tr>
@@ -397,11 +404,13 @@ const UserManagement: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    <div className="text-xs text-slate-600 space-y-1">
-                      <div className="font-medium text-slate-900">Total: {user.subscription_credits + user.purchased_credits + user.event_credits}</div>
-                      <div>Sub: {user.subscription_credits}</div>
-                      <div>Purchased: {user.purchased_credits}</div>
-                      <div>Event: {user.event_credits}</div>
+                    <div className="text-sm font-medium text-slate-900">
+                      {user.image_credits}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="text-sm font-medium text-slate-900">
+                      {user.event_credits}
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -527,29 +536,19 @@ const UserManagement: React.FC = () => {
 
               <div className="border-t-2 border-slate-300 pt-6">
                 <h4 className="text-lg font-bold text-slate-900 mb-4">Credits</h4>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">Subscription Credits</label>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Image Credits</label>
                     <input
                       type="number"
-                      value={editingUser.subscription_credits}
-                      onChange={(e) => setEditingUser({ ...editingUser, subscription_credits: parseInt(e.target.value) || 0 })}
+                      value={editingUser.image_credits}
+                      onChange={(e) => setEditingUser({ ...editingUser, image_credits: parseInt(e.target.value) || 0 })}
                       className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                       min="0"
                     />
-                    <p className="text-xs text-slate-500 mt-1">From monthly/annual subscription</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">Purchased Credits</label>
-                    <input
-                      type="number"
-                      value={editingUser.purchased_credits}
-                      onChange={(e) => setEditingUser({ ...editingUser, purchased_credits: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                      min="0"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">From one-time purchases</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Breakdown: {editingUser.subscription_credits} subscription + {editingUser.purchased_credits} purchased
+                    </p>
                   </div>
 
                   <div>
@@ -561,51 +560,7 @@ const UserManagement: React.FC = () => {
                       className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                       min="0"
                     />
-                    <p className="text-xs text-slate-500 mt-1">From event passes</p>
-                  </div>
-                </div>
-
-                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-6">
-                  <p className="text-sm font-bold text-green-900">
-                    Total Credits Available: {editingUser.subscription_credits + editingUser.purchased_credits + editingUser.event_credits}
-                  </p>
-                </div>
-
-                <h4 className="text-lg font-bold text-slate-900 mb-4 mt-6">Legacy Limits (Deprecated)</h4>
-                <div className="grid grid-cols-3 gap-4 opacity-60">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">Images Limit</label>
-                    <input
-                      type="number"
-                      value={editingUser.images_limit}
-                      onChange={(e) => setEditingUser({ ...editingUser, images_limit: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                      min="0"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">Used: {editingUser.images_used}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">SMS Limit</label>
-                    <input
-                      type="number"
-                      value={editingUser.sms_limit}
-                      onChange={(e) => setEditingUser({ ...editingUser, sms_limit: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                      min="0"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">Used: {editingUser.sms_used}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">Events Limit</label>
-                    <input
-                      type="number"
-                      value={editingUser.events_limit}
-                      onChange={(e) => setEditingUser({ ...editingUser, events_limit: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                      min="0"
-                    />
+                    <p className="text-xs text-slate-500 mt-1">For creating/managing events</p>
                   </div>
                 </div>
               </div>
@@ -709,27 +664,17 @@ const UserManagement: React.FC = () => {
 
               <div className="border-t-2 border-slate-300 pt-6">
                 <h4 className="text-lg font-bold text-slate-900 mb-4">Initial Credits</h4>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">Subscription Credits</label>
+                    <label className="block text-sm font-bold text-slate-900 mb-2">Image Credits</label>
                     <input
                       type="number"
-                      value={newUser.subscription_credits}
-                      onChange={(e) => setNewUser({ ...newUser, subscription_credits: parseInt(e.target.value) || 0 })}
+                      value={newUser.image_credits}
+                      onChange={(e) => setNewUser({ ...newUser, image_credits: parseInt(e.target.value) || 0 })}
                       className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                       min="0"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">Purchased Credits</label>
-                    <input
-                      type="number"
-                      value={newUser.purchased_credits}
-                      onChange={(e) => setNewUser({ ...newUser, purchased_credits: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                      min="0"
-                    />
+                    <p className="text-xs text-slate-500 mt-1">For generating AI images</p>
                   </div>
 
                   <div>
@@ -741,42 +686,7 @@ const UserManagement: React.FC = () => {
                       className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                       min="0"
                     />
-                  </div>
-                </div>
-
-                <h4 className="text-lg font-bold text-slate-900 mb-4 mt-6">Legacy Limits (Optional)</h4>
-                <div className="grid grid-cols-3 gap-4 opacity-60">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">Images Limit</label>
-                    <input
-                      type="number"
-                      value={newUser.images_limit}
-                      onChange={(e) => setNewUser({ ...newUser, images_limit: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                      min="0"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">SMS Limit</label>
-                    <input
-                      type="number"
-                      value={newUser.sms_limit}
-                      onChange={(e) => setNewUser({ ...newUser, sms_limit: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                      min="0"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-900 mb-2">Events Limit</label>
-                    <input
-                      type="number"
-                      value={newUser.events_limit}
-                      onChange={(e) => setNewUser({ ...newUser, events_limit: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                      min="0"
-                    />
+                    <p className="text-xs text-slate-500 mt-1">For creating/managing events</p>
                   </div>
                 </div>
               </div>
