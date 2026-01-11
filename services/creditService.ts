@@ -46,10 +46,9 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
     };
   }
 
+  // Use SECURITY DEFINER function to bypass RLS (required for anonymous kiosk users)
   const { data, error } = await supabase
-    .from('user_credits')
-    .select('subscription_credits, purchased_credits, event_credits')
-    .eq('user_id', userId)
+    .rpc('get_user_credit_balance', { p_user_id: userId })
     .maybeSingle();
 
   console.log('📊 Database response:', { data, error });
@@ -76,25 +75,14 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
     };
   }
 
-  const subscription_credits = data.subscription_credits || 0;
-  const purchased_credits = data.purchased_credits || 0;
-  const event_credits = data.event_credits || 0;
-  const image_credits = subscription_credits + purchased_credits;
-
-  console.log('📊 Calculated credits:', {
-    subscription_credits,
-    purchased_credits,
-    event_credits,
-    image_credits,
-    total: image_credits + event_credits,
-  });
+  console.log('📊 Credit balance from function:', data);
 
   return {
-    subscription_credits,
-    purchased_credits,
-    event_credits,
-    image_credits,
-    total: image_credits + event_credits,
+    subscription_credits: data.subscription_credits || 0,
+    purchased_credits: data.purchased_credits || 0,
+    event_credits: data.event_credits || 0,
+    image_credits: data.image_credits || 0,
+    total: data.total_credits || 0,
   };
 };
 
