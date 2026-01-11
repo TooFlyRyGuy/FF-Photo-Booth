@@ -436,19 +436,22 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   useEffect(() => {
     const loadSettings = async () => {
       try {
+        console.log('🔄 Loading settings for event:', event.id, 'userId:', event.userId);
         const [userSettingsData, globalSettingsData] = await Promise.all([
           getUserSettingsByUserId(event.userId),
-          getGlobalSettings()
+          getGlobalSettings(true)
         ]);
         console.log('⚙️ Settings loaded:', {
           hasGeminiKey: !!globalSettingsData.geminiApiKey,
           geminiKeyLength: globalSettingsData.geminiApiKey?.length,
           geminiEnabled: globalSettingsData.geminiEnabled,
+          geminiModel: globalSettingsData.geminiModel,
+          geminiResolution: globalSettingsData.geminiResolution,
         });
         setUserSettings(userSettingsData);
         setGlobalSettings(globalSettingsData);
       } catch (err) {
-        console.error('Failed to load settings:', err);
+        console.error('❌ Failed to load settings:', err);
         setErrorMsg('Failed to load configuration. Please contact support.');
       }
     };

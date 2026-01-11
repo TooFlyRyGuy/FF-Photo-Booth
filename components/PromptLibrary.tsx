@@ -474,10 +474,17 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setTestGeneratedImage('');
 
     try {
-      const { data: settings } = await supabase
+      const { data: settings, error } = await supabase
         .from('global_settings')
-        .select('gemini_api_key, gemini_model_name, gemini_resolution')
+        .select('gemini_api_key, gemini_model, gemini_resolution')
         .maybeSingle();
+
+      console.log('🔍 PromptLibrary fetching global settings:', { settings, error });
+
+      if (error) {
+        console.error('❌ Error fetching global settings:', error);
+        throw new Error(`Failed to fetch settings: ${error.message}`);
+      }
 
       if (!settings?.gemini_api_key) {
         throw new Error('Gemini API key not configured. Please add it in Settings.');
@@ -491,7 +498,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         settings.gemini_api_key,
         referenceImage,
         'square',
-        settings.gemini_model_name || 'gemini-3-pro-image-preview',
+        settings.gemini_model || 'gemini-3-pro-image-preview',
         settings.gemini_resolution || '1K'
       );
 
