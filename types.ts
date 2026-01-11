@@ -31,6 +31,11 @@ export interface UserCredits {
   sms_used: number;
   events_limit: number;
   reset_date: string;
+  subscription_credits: number;
+  purchased_credits: number;
+  event_credits: number;
+  image_credits: number;
+  total_credits: number;
   createdAt: string;
   updatedAt: string;
 }

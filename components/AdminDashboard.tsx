@@ -663,7 +663,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     );
   }
 
-  const usagePercent = (userCredits.images_used / userCredits.images_limit) * 100;
   const isAdmin = userProfile.role?.toLowerCase() === 'admin';
 
   return (
@@ -815,10 +814,12 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             <div>
               <div className="flex justify-between text-xs text-slate-600 mb-1">
                 <span>Credits</span>
-                <span>{userCredits.images_used} / {userCredits.images_limit}</span>
+                <span>{userCredits.image_credits} / {userCredits.event_credits}</span>
               </div>
-              <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-green-700" style={{ width: `${usagePercent}%` }}></div>
+              <div className="text-xs text-slate-500 mt-1">
+                <div>Subscription: {userCredits.subscription_credits}</div>
+                <div>Purchased: {userCredits.purchased_credits}</div>
+                <div>Event: {userCredits.event_credits}</div>
               </div>
             </div>
           )}

@@ -262,6 +262,12 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     creditsData = newCredits;
   }
 
+  const subscription_credits = creditsData.subscription_credits || 0;
+  const purchased_credits = creditsData.purchased_credits || 0;
+  const event_credits = creditsData.event_credits || 0;
+  const image_credits = subscription_credits + purchased_credits;
+  const total_credits = image_credits + event_credits;
+
   return {
     id: creditsData.id,
     userId: creditsData.user_id,
@@ -271,6 +277,11 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     sms_used: creditsData.sms_used,
     events_limit: creditsData.events_limit,
     reset_date: creditsData.reset_date,
+    subscription_credits,
+    purchased_credits,
+    event_credits,
+    image_credits,
+    total_credits,
     createdAt: creditsData.created_at,
     updatedAt: creditsData.updated_at,
   };
