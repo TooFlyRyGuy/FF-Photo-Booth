@@ -46,15 +46,72 @@ CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles(role);
 -- STEP 2: Update user_settings table - Keep only Dropbox fields
 -- ============================================================================
 
--- Drop non-Dropbox columns from user_settings
-ALTER TABLE user_settings DROP COLUMN IF EXISTS twilio_account_sid CASCADE;
-ALTER TABLE user_settings DROP COLUMN IF EXISTS twilio_auth_token CASCADE;
-ALTER TABLE user_settings DROP COLUMN IF EXISTS twilio_phone_number CASCADE;
-ALTER TABLE user_settings DROP COLUMN IF EXISTS twilio_enabled CASCADE;
-ALTER TABLE user_settings DROP COLUMN IF EXISTS gemini_api_key CASCADE;
-ALTER TABLE user_settings DROP COLUMN IF EXISTS gemini_enabled CASCADE;
-ALTER TABLE user_settings DROP COLUMN IF EXISTS gemini_model CASCADE;
-ALTER TABLE user_settings DROP COLUMN IF EXISTS gemini_resolution CASCADE;
+-- Drop non-Dropbox columns from user_settings (if table exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'user_settings'
+  ) THEN
+    -- Drop Twilio columns if they exist
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'user_settings' AND column_name = 'twilio_account_sid'
+    ) THEN
+      ALTER TABLE user_settings DROP COLUMN twilio_account_sid CASCADE;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'user_settings' AND column_name = 'twilio_auth_token'
+    ) THEN
+      ALTER TABLE user_settings DROP COLUMN twilio_auth_token CASCADE;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'user_settings' AND column_name = 'twilio_phone_number'
+    ) THEN
+      ALTER TABLE user_settings DROP COLUMN twilio_phone_number CASCADE;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'user_settings' AND column_name = 'twilio_enabled'
+    ) THEN
+      ALTER TABLE user_settings DROP COLUMN twilio_enabled CASCADE;
+    END IF;
+
+    -- Drop Gemini columns if they exist
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'user_settings' AND column_name = 'gemini_api_key'
+    ) THEN
+      ALTER TABLE user_settings DROP COLUMN gemini_api_key CASCADE;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'user_settings' AND column_name = 'gemini_enabled'
+    ) THEN
+      ALTER TABLE user_settings DROP COLUMN gemini_enabled CASCADE;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'user_settings' AND column_name = 'gemini_model'
+    ) THEN
+      ALTER TABLE user_settings DROP COLUMN gemini_model CASCADE;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'user_settings' AND column_name = 'gemini_resolution'
+    ) THEN
+      ALTER TABLE user_settings DROP COLUMN gemini_resolution CASCADE;
+    END IF;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- STEP 3: Ensure global_settings has all necessary fields
