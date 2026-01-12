@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer } from 'lucide-react';
 import Settings from './Settings';
@@ -85,6 +85,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [grantingAccess, setGrantingAccess] = useState(false);
   const [eventAccessList, setEventAccessList] = useState<Array<{ userId: string; email: string; fullName: string | null; grantedAt: string }>>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [generationBreakdown, setGenerationBreakdown] = useState<EventGenerationBreakdown[] | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showGenerationModal, setShowGenerationModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -219,6 +222,21 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }).catch(() => {
       alert(`Kiosk URL:\n${url}\n\n(Copy this link to share with guests)`);
     });
+  };
+
+  const handleBarClick = async (data: any) => {
+    if (!data || !data.date) return;
+
+    setSelectedDate(data.date);
+    setShowGenerationModal(true);
+
+    try {
+      const breakdown = await getGenerationsByDateAndEvent(data.date);
+      setGenerationBreakdown(breakdown);
+    } catch (error) {
+      console.error('Failed to load generation breakdown:', error);
+      setGenerationBreakdown([]);
+    }
   };
 
   const printQRCode = (event: Event) => {
@@ -915,9 +933,12 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
             {/* Chart */}
             <div className="bg-white p-6 rounded-xl border-2 border-slate-300 h-80">
-              <h3 className="text-lg font-semibold mb-4 text-black">Generation Activity (Last 30 Days)</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-black">Generation Activity (Last 30 Days)</h3>
+                <p className="text-sm text-slate-500 italic">Click bars for event breakdown</p>
+              </div>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
+                <BarChart data={chartData} onClick={(e) => e && e.activePayload && e.activePayload[0] && handleBarClick(e.activePayload[0].payload)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
                   <XAxis dataKey="date" stroke="#475569" />
                   <YAxis stroke="#475569" />
@@ -925,7 +946,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1' }}
                     itemStyle={{ color: '#0f172a' }}
                   />
-                  <Bar dataKey="generations" fill="#15803d" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="generations" fill="#15803d" radius={[4, 4, 0, 0]} cursor="pointer" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -2087,6 +2108,93 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     setEventAccessList([]);
                   }}
                   className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generation Breakdown Modal */}
+      {showGenerationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border-2 border-slate-300 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Generation Breakdown</h2>
+                  {selectedDate && (
+                    <p className="text-slate-600 mt-1">
+                      {new Date(selectedDate).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowGenerationModal(false);
+                    setGenerationBreakdown(null);
+                    setSelectedDate(null);
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X size={24} className="text-slate-600" />
+                </button>
+              </div>
+
+              {generationBreakdown === null ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <RefreshCw className="animate-spin mx-auto mb-4 text-green-700" size={32} />
+                    <p className="text-slate-600">Loading breakdown...</p>
+                  </div>
+                </div>
+              ) : generationBreakdown.length === 0 ? (
+                <div className="text-center py-12">
+                  <ImageIcon size={48} className="mx-auto mb-4 text-slate-400" />
+                  <p className="text-slate-600">No generations found for this date</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {generationBreakdown.map((item, index) => (
+                    <div
+                      key={item.eventId}
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border-2 border-slate-200 hover:border-green-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 bg-green-700 text-white rounded-full font-bold text-sm">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">{item.eventName}</p>
+                          <p className="text-sm text-slate-600">Event ID: {item.eventId.slice(0, 8)}...</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-green-700">{item.count}</p>
+                          <p className="text-xs text-slate-600">generations</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6 pt-4 border-t-2 border-slate-300">
+                <button
+                  onClick={() => {
+                    setShowGenerationModal(false);
+                    setGenerationBreakdown(null);
+                    setSelectedDate(null);
+                  }}
+                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold transition-colors"
                 >
                   Close
                 </button>

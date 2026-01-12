@@ -1252,7 +1252,7 @@ export const transferEventOwnership = async (eventId: string, newOwnerId: string
   clearEventsCache();
 };
 
-interface DashboardStats {
+export interface DashboardStats {
   totalImages: number;
   totalSms: number;
   totalEvents: number;
@@ -1337,7 +1337,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
   };
 };
 
-interface ChartDataPoint {
+export interface ChartDataPoint {
   date: string;
   generations: number;
 }
@@ -1379,6 +1379,61 @@ export const getDashboardChartData = async (): Promise<ChartDataPoint[]> => {
   return Array.from(dateCounts.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, generations]) => ({ date, generations }));
+};
+
+export interface EventGenerationBreakdown {
+  eventId: string;
+  eventName: string;
+  count: number;
+}
+
+export const getGenerationsByDateAndEvent = async (date: string): Promise<EventGenerationBreakdown[]> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    return [];
+  }
+
+  const { data: events } = await supabase
+    .from('events')
+    .select('id, name')
+    .eq('user_id', userId);
+
+  const eventIds = events?.map(e => e.id) || [];
+
+  if (eventIds.length === 0) {
+    return [];
+  }
+
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const { data: images } = await supabase
+    .from('generated_images')
+    .select('event_id')
+    .in('event_id', eventIds)
+    .gte('created_at', startOfDay.toISOString())
+    .lte('created_at', endOfDay.toISOString());
+
+  const eventCounts = new Map<string, number>();
+
+  images?.forEach(img => {
+    if (img.event_id) {
+      eventCounts.set(img.event_id, (eventCounts.get(img.event_id) || 0) + 1);
+    }
+  });
+
+  const eventsMap = new Map(events?.map(e => [e.id, e.name]) || []);
+
+  return Array.from(eventCounts.entries())
+    .map(([eventId, count]) => ({
+      eventId,
+      eventName: eventsMap.get(eventId) || 'Unknown Event',
+      count
+    }))
+    .sort((a, b) => b.count - a.count);
 };
 
 export const getAllUsers = async (): Promise<any[]> => {
