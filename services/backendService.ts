@@ -1158,6 +1158,32 @@ export const getEventAnalytics = async (eventId: string): Promise<EventAnalytics
   };
 };
 
+export const getEventChartData = async (eventId: string): Promise<ChartDataPoint[]> => {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const { data: images, error } = await supabase
+    .from('generated_images')
+    .select('created_at')
+    .eq('event_id', eventId)
+    .gte('created_at', thirtyDaysAgo.toISOString());
+
+  if (error) {
+    throw new Error(`Failed to fetch chart data: ${error.message}`);
+  }
+
+  const dateCounts = new Map<string, number>();
+
+  images?.forEach(img => {
+    const date = new Date(img.created_at).toISOString().split('T')[0];
+    dateCounts.set(date, (dateCounts.get(date) || 0) + 1);
+  });
+
+  return Array.from(dateCounts.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, generations]) => ({ date, generations }));
+};
+
 export const deleteEvent = async (eventId: string): Promise<void> => {
   const { error } = await supabase
     .from('events')

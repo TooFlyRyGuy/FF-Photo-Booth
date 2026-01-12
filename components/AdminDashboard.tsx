@@ -938,7 +938,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <p className="text-sm text-slate-500 italic">Click bars for event breakdown</p>
               </div>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} onClick={(e) => e && e.activePayload && e.activePayload[0] && handleBarClick(e.activePayload[0].payload)}>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
                   <XAxis dataKey="date" stroke="#475569" />
                   <YAxis stroke="#475569" />
@@ -946,7 +946,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1' }}
                     itemStyle={{ color: '#0f172a' }}
                   />
-                  <Bar dataKey="generations" fill="#15803d" radius={[4, 4, 0, 0]} cursor="pointer" />
+                  <Bar
+                    dataKey="generations"
+                    fill="#15803d"
+                    radius={[4, 4, 0, 0]}
+                    cursor="pointer"
+                    onClick={(data) => handleBarClick(data)}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
