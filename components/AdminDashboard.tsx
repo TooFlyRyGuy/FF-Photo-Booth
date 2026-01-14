@@ -831,7 +831,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
         <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
           {!sidebarCollapsed && user && (
-            <CreditDisplay userId={user.id} compact={false} />
+            <CreditDisplay userId={user.id} sidebar={true} />
           )}
           {!sidebarCollapsed ? (
             <>
