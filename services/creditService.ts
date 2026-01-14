@@ -6,6 +6,10 @@ export interface CreditBalance {
   event_credits: number;
   image_credits: number;
   total: number;
+  subscription_sms_credits: number;
+  purchased_sms_credits: number;
+  event_sms_credits: number;
+  total_sms_credits: number;
 }
 
 export interface CreditLedgerEntry {
@@ -43,6 +47,10 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
       event_credits: 0,
       image_credits: 0,
       total: 0,
+      subscription_sms_credits: 0,
+      purchased_sms_credits: 0,
+      event_sms_credits: 0,
+      total_sms_credits: 0,
     };
   }
 
@@ -61,6 +69,10 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
       event_credits: 0,
       image_credits: 0,
       total: 0,
+      subscription_sms_credits: 0,
+      purchased_sms_credits: 0,
+      event_sms_credits: 0,
+      total_sms_credits: 0,
     };
   }
 
@@ -72,6 +84,10 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
       event_credits: 0,
       image_credits: 0,
       total: 0,
+      subscription_sms_credits: 0,
+      purchased_sms_credits: 0,
+      event_sms_credits: 0,
+      total_sms_credits: 0,
     };
   }
 
@@ -83,6 +99,10 @@ export const getCreditBalance = async (userId: string): Promise<CreditBalance> =
     event_credits: data.event_credits || 0,
     image_credits: data.image_credits || 0,
     total: data.total_credits || 0,
+    subscription_sms_credits: data.subscription_sms_credits || 0,
+    purchased_sms_credits: data.purchased_sms_credits || 0,
+    event_sms_credits: data.event_sms_credits || 0,
+    total_sms_credits: data.total_sms_credits || 0,
   };
 };
 
