@@ -56,6 +56,8 @@ const CreditDisplay: React.FC<CreditDisplayProps> = ({ userId, compact = false, 
 
     return (
       <div className="space-y-2">
+        <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Available Credits</h4>
+
         {(isLowImage || isLowSMS) && (
           <div className="flex items-center gap-1.5 p-2 bg-amber-50 border border-amber-200 rounded-md">
             <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
