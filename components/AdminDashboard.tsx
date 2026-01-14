@@ -88,6 +88,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [generationBreakdown, setGenerationBreakdown] = useState<EventGenerationBreakdown[] | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showGenerationModal, setShowGenerationModal] = useState(false);
+  const [showInactiveEvents, setShowInactiveEvents] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -992,8 +993,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               />
             </div>
 
-            <div className="grid gap-4 md:gap-6">
-              {filteredEvents.map(event => (
+            {(() => {
+              const activeEvents = filteredEvents.filter(event => {
+                const status = getEventStatus(event);
+                return status.status === 'active' || status.status === 'upcoming';
+              });
+              const inactiveEvents = filteredEvents.filter(event => {
+                const status = getEventStatus(event);
+                return status.status === 'ended';
+              });
+
+              return (
+                <>
+                  <div className="grid gap-4 md:gap-6">
+                    {activeEvents.map(event => (
                 <div key={event.id} className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden group hover:border-green-700/50 hover:shadow-lg transition-all">
                   <div className="p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -1102,8 +1115,150 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                    ))}
+                  </div>
+
+                  {/* Inactive Events Collapsible Section */}
+                  {inactiveEvents.length > 0 && (
+                    <div className="mt-8">
+                      <button
+                        onClick={() => setShowInactiveEvents(!showInactiveEvents)}
+                        className="w-full bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 rounded-lg px-6 py-4 flex items-center justify-between transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-slate-200 rounded-lg">
+                            <Calendar size={20} className="text-slate-600" />
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-lg font-bold text-slate-900">Inactive Events</h3>
+                            <p className="text-sm text-slate-600">{inactiveEvents.length} event{inactiveEvents.length !== 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                        <ChevronLeft
+                          size={24}
+                          className={`text-slate-600 transition-transform ${showInactiveEvents ? 'rotate-90' : '-rotate-90'}`}
+                        />
+                      </button>
+
+                      {showInactiveEvents && (
+                        <div className="grid gap-4 md:gap-6 mt-4">
+                          {inactiveEvents.map(event => (
+                            <div key={event.id} className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden opacity-75 hover:opacity-100 transition-all">
+                              <div className="p-4 sm:p-6">
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start gap-3 mb-2">
+                                      <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg sm:text-xl font-bold text-black truncate">
+                                          {event.name}
+                                        </h3>
+                                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                                          {(() => {
+                                            const eventStatus = getEventStatus(event);
+                                            return (
+                                              <span className={`text-xs ${eventStatus.colorClass} px-2 py-0.5 rounded-full font-medium`}>
+                                                {eventStatus.label}
+                                              </span>
+                                            );
+                                          })()}
+                                          <span className="text-slate-600 text-sm">{event.city}</span>
+                                          <span className="text-slate-400">•</span>
+                                          <span className="text-slate-600 text-sm">{event.date}</span>
+                                        </div>
+                                        {isAdmin && event.userEmail && (
+                                          <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded">
+                                            <UserIcon size={12} />
+                                            <span className="font-medium">{event.userName}</span>
+                                            <span className="text-slate-400">({event.userEmail})</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-slate-500 text-xs mt-3 bg-slate-50 px-3 py-2 rounded-lg">
+                                      <ExternalLink size={14} className="flex-shrink-0" />
+                                      <span className="font-mono truncate">/?kiosk={event.passcode}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="border-t-2 border-slate-200 bg-slate-50 p-3 sm:p-4">
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => handleLaunchKiosk(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold shadow-md shadow-green-900/20 transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <Camera size={16} /> Launch Kiosk
+                                  </button>
+
+                                  {event.smugmugGalleryUrl && (
+                                    <a
+                                      href={event.smugmugGalleryUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-blue-600 bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                    >
+                                      <Images size={16} /> View Gallery
+                                    </a>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleViewAnalytics(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <BarChart3 size={16} /> Analytics
+                                  </button>
+
+                                  <button
+                                    onClick={() => copyKioskLink(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <Link2 size={16} /> <span className="hidden sm:inline">Copy Link</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => printQRCode(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                    title="Print QR Code"
+                                  >
+                                    <Printer size={16} /> <span className="hidden sm:inline">Print QR</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleEditEvent(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <Pencil size={16} /> <span className="hidden sm:inline">Edit</span>
+                                  </button>
+
+                                  {userProfile?.role === 'admin' && (
+                                    <button
+                                      onClick={() => openAccessModal(event)}
+                                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-700 hover:bg-green-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                      title="Manage access"
+                                    >
+                                      <UserIcon size={16} /> <span className="hidden sm:inline">Access</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleDeleteEvent(event)}
+                                    className="px-4 py-2.5 rounded-lg border-2 border-red-600 text-red-600 hover:bg-red-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                    title="Delete event"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 
