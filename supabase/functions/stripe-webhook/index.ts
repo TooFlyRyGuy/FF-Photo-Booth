@@ -122,6 +122,7 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
     const eventPassTierId = metadata.event_pass_tier_id;
     const eventId = metadata.event_id || null;
     const expirationHours = parseInt(metadata.expiration_hours || '24');
+    const smsCredits = parseInt(metadata.sms_credits || '0');
 
     const { error: passError } = await supabase
       .from('purchased_event_passes')
@@ -132,6 +133,8 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
         stripe_payment_intent_id: payment_intent as string,
         credits_allocated: parseInt(metadata.credits || '0'),
         credits_used: 0,
+        sms_credits_allocated: smsCredits,
+        sms_credits_used: 0,
         prompt_limit: parseInt(metadata.prompt_limit || '0'),
         prompts_used: 0,
         expires_at: new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString(),
@@ -143,23 +146,70 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
       return;
     }
 
+    // Grant SMS credits if included in the event pass
+    if (smsCredits > 0) {
+      // Get current SMS credits
+      const { data: currentCredits } = await supabase
+        .from('user_credits')
+        .select('event_sms_credits')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const newSmsCredits = (currentCredits?.event_sms_credits || 0) + smsCredits;
+
+      const { error: smsError } = await supabase
+        .from('user_credits')
+        .update({
+          event_sms_credits: newSmsCredits,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      if (smsError) {
+        console.error('Error granting event pass SMS credits:', smsError);
+      } else {
+        console.info(`Granted ${smsCredits} SMS credits from event pass to user ${userId}`);
+      }
+    }
+
     console.info(`Successfully created event pass for user ${userId}`);
   } else if (metadata?.purchase_type === 'credit_topup' || metadata?.type === 'credit_topup') {
     const creditsGranted = parseInt(metadata.credits_granted || metadata.credits || '0');
+    const smsCreditsGranted = parseInt(metadata.sms_credits_granted || metadata.sms_credits || '0');
 
-    const { error: creditError } = await supabase.rpc('add_purchased_credits', {
-      p_user_id: userId,
-      p_credits: creditsGranted,
-      p_stripe_session_id: checkout_session_id,
-      p_stripe_payment_intent_id: payment_intent as string,
-    });
+    // Add image credits
+    if (creditsGranted > 0) {
+      const { error: creditError } = await supabase.rpc('add_purchased_credits', {
+        p_user_id: userId,
+        p_credits: creditsGranted,
+        p_stripe_session_id: checkout_session_id,
+        p_stripe_payment_intent_id: payment_intent as string,
+      });
 
-    if (creditError) {
-      console.error('Error adding purchased credits:', creditError);
-      return;
+      if (creditError) {
+        console.error('Error adding purchased credits:', creditError);
+        return;
+      }
+
+      console.info(`Successfully added ${creditsGranted} purchased credits for user ${userId}`);
     }
 
-    console.info(`Successfully added ${creditsGranted} purchased credits for user ${userId} from ${metadata.type || metadata.purchase_type}`);
+    // Add SMS credits
+    if (smsCreditsGranted > 0) {
+      const { error: smsError } = await supabase.rpc('add_purchased_sms_credits', {
+        p_user_id: userId,
+        p_sms_credits: smsCreditsGranted,
+        p_stripe_session_id: checkout_session_id,
+        p_stripe_payment_intent_id: payment_intent as string,
+      });
+
+      if (smsError) {
+        console.error('Error adding purchased SMS credits:', smsError);
+        return;
+      }
+
+      console.info(`Successfully added ${smsCreditsGranted} purchased SMS credits for user ${userId}`);
+    }
   }
 
   const { error: orderError } = await supabase.from('stripe_orders').insert({
@@ -258,6 +308,7 @@ async function syncCustomerFromStripe(customerId: string) {
       if (isActive) {
         const isAnnual = tier.plan_type === 'annual';
 
+        // Reset subscription credits (NO ROLLOVER) and grant new period credits
         const { error: creditsError } = await supabase
           .from('user_credits')
           .update({
@@ -265,6 +316,7 @@ async function syncCustomerFromStripe(customerId: string) {
             subscription_tier_id: tier.id,
             images_limit: tier.credits_per_period,
             subscription_credits: tier.credits_per_period,
+            subscription_sms_credits: tier.sms_credits_per_period || 0,
             annual_credits_total: isAnnual ? tier.credits_per_period : null,
             billing_period_start: currentPeriodStart.toISOString(),
             billing_period_end: currentPeriodEnd.toISOString(),
@@ -275,6 +327,8 @@ async function syncCustomerFromStripe(customerId: string) {
 
         if (creditsError) {
           console.error('Error updating user credits:', creditsError);
+        } else {
+          console.info(`Granted ${tier.credits_per_period} image credits and ${tier.sms_credits_per_period || 0} SMS credits for subscription renewal`);
         }
       }
 

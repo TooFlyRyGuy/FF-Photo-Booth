@@ -118,6 +118,7 @@ Deno.serve(async (req: Request) => {
           const billingPeriod = price.recurring?.interval === 'year' ? 'annual' : 'monthly';
           const tier = product.metadata?.tier || 'starter';
           const creditsPerPeriod = parseInt(product.metadata?.credits_per_period || '100');
+          const smsCreditsPerPeriod = parseInt(product.metadata?.sms_credits_per_period || '0');
           const promptsLimit = product.metadata?.prompts_limit ? parseInt(product.metadata.prompts_limit) : null;
           const rolloverEnabled = product.metadata?.rollover_enabled === 'true';
           const features = product.description ? product.description.split('\n').filter(f => f.trim()) : [];
@@ -130,6 +131,7 @@ Deno.serve(async (req: Request) => {
               tier: tier,
               price_cents: priceCents,
               credits_per_period: creditsPerPeriod,
+              sms_credits_per_period: smsCreditsPerPeriod,
               prompts_limit: promptsLimit,
               rollover_enabled: rolloverEnabled,
               features: features,
@@ -150,12 +152,14 @@ Deno.serve(async (req: Request) => {
         } else if (productType === 'credit_topup') {
           // Sync to credit_topup_products
           const credits = parseInt(product.metadata?.credits || '0');
+          const smsCredits = parseInt(product.metadata?.sms_credits || '0');
 
           const { data, error } = await supabase
             .from('credit_topup_products')
             .upsert({
               name: product.name,
               credits: credits,
+              sms_credits: smsCredits,
               price_cents: priceCents,
               stripe_price_id: price.id,
               stripe_product_id: product.id,
@@ -174,6 +178,7 @@ Deno.serve(async (req: Request) => {
         } else if (productType === 'event_pass') {
           // Sync to event_passes
           const credits = parseInt(product.metadata?.credits || '0');
+          const smsCredits = parseInt(product.metadata?.sms_credits || '0');
           const durationHours = parseInt(product.metadata?.duration_hours || '4');
           const setupIncluded = product.metadata?.setup_included === 'true';
           const promptsLimit = product.metadata?.prompts_limit ? parseInt(product.metadata.prompts_limit) : null;
@@ -185,6 +190,7 @@ Deno.serve(async (req: Request) => {
               name: product.name,
               price_cents: priceCents,
               credits: credits,
+              sms_credits: smsCredits,
               duration_hours: durationHours,
               setup_included: setupIncluded,
               prompts_limit: promptsLimit,
