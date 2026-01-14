@@ -19,7 +19,7 @@ interface AdminProps {
   user: User | null;
 }
 
-type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'plans' | 'revenue';
+type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'plans' | 'reports';
 
 const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'; label: string; colorClass: string } => {
   const now = new Date();
@@ -200,7 +200,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   };
 
   useEffect(() => {
-    if (userProfile?.role === 'admin' && (activeTab === 'users' || activeTab === 'revenue')) {
+    if (userProfile?.role === 'admin' && (activeTab === 'users' || activeTab === 'reports')) {
       loadAdminData();
     }
   }, [activeTab, userProfile?.role]);
@@ -814,14 +814,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </button>
               <button
                 onClick={() => {
-                  setActiveTab('revenue');
+                  setActiveTab('reports');
                   setMobileMenuOpen(false);
                 }}
-                className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'revenue' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
-                title={sidebarCollapsed ? 'Revenue' : ''}
+                className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'reports' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+                title={sidebarCollapsed ? 'Reports' : ''}
               >
-                <DollarSign size={20} />
-                {!sidebarCollapsed && 'Revenue'}
+                <BarChart3 size={20} />
+                {!sidebarCollapsed && 'Reports'}
               </button>
             </>
           )}
@@ -1775,11 +1775,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           <PlanManagement />
         )}
 
-        {/* REVENUE VIEW */}
-        {activeTab === 'revenue' && isAdmin && (
+        {/* REPORTS VIEW */}
+        {activeTab === 'reports' && isAdmin && (
           <div className="space-y-6">
             <header className="mb-8">
-              <h2 className="text-3xl font-bold text-black">Revenue Reports</h2>
+              <h2 className="text-3xl font-bold text-black">System Reports</h2>
               <p className="text-slate-600 mt-2">View financial metrics and system statistics</p>
             </header>
 
@@ -1790,7 +1790,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <p className="text-slate-600 text-sm">Total Revenue</p>
                     <h3 className="text-3xl font-bold mt-1 text-black">
-                      ${revenueStats?.total_revenue ? (revenueStats.total_revenue / 100).toFixed(2) : '0.00'}
+                      ${revenueStats?.totalRevenue ? revenueStats.totalRevenue.toFixed(2) : '0.00'}
                     </h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
@@ -1804,7 +1804,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <p className="text-slate-600 text-sm">Monthly Revenue</p>
                     <h3 className="text-3xl font-bold mt-1 text-black">
-                      ${revenueStats?.monthly_revenue ? (revenueStats.monthly_revenue / 100).toFixed(2) : '0.00'}
+                      ${revenueStats?.monthlyRevenue ? revenueStats.monthlyRevenue.toFixed(2) : '0.00'}
                     </h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
@@ -1818,7 +1818,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <p className="text-slate-600 text-sm">Total Orders</p>
                     <h3 className="text-3xl font-bold mt-1 text-black">
-                      {revenueStats?.total_orders || 0}
+                      {revenueStats?.orderCount || 0}
                     </h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
@@ -1835,7 +1835,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <p className="text-slate-600 text-sm">Total Users</p>
                     <h3 className="text-3xl font-bold mt-1 text-black">
-                      {adminStats?.total_users || 0}
+                      {adminStats?.totalUsers || 0}
                     </h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
@@ -1849,7 +1849,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <p className="text-slate-600 text-sm">Active Users</p>
                     <h3 className="text-3xl font-bold mt-1 text-black">
-                      {adminStats?.active_users || 0}
+                      {adminStats?.activeUsers || 0}
                     </h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
@@ -1863,7 +1863,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <p className="text-slate-600 text-sm">Total Events</p>
                     <h3 className="text-3xl font-bold mt-1 text-black">
-                      {adminStats?.total_events || 0}
+                      {adminStats?.totalEvents || 0}
                     </h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
@@ -1877,7 +1877,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <p className="text-slate-600 text-sm">Total Images</p>
                     <h3 className="text-3xl font-bold mt-1 text-black">
-                      {adminStats?.total_images || 0}
+                      {adminStats?.totalImages || 0}
                     </h3>
                   </div>
                   <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
@@ -1891,7 +1891,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div>
                     <p className="text-slate-600 text-sm">Recent Images</p>
                     <h3 className="text-3xl font-bold mt-1 text-black">
-                      {adminStats?.recent_images || 0}
+                      {adminStats?.recentImages || 0}
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">Last 30 days</p>
                   </div>
