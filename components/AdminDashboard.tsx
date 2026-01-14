@@ -8,6 +8,7 @@ import SubscriptionManager from './SubscriptionManager';
 import PromptLibrary from './PromptLibrary';
 import UserManagement from './UserManagement';
 import PlanManagement from './PlanManagement';
+import CreditDisplay from './CreditDisplay';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -829,18 +830,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         </nav>
 
         <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
-          {!sidebarCollapsed && (
-            <div>
-              <div className="flex justify-between text-xs text-slate-600 mb-1">
-                <span>Credits</span>
-                <span>{userCredits.image_credits} / {userCredits.event_credits}</span>
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                <div>Subscription: {userCredits.subscription_credits}</div>
-                <div>Purchased: {userCredits.purchased_credits}</div>
-                <div>Event: {userCredits.event_credits}</div>
-              </div>
-            </div>
+          {!sidebarCollapsed && user && (
+            <CreditDisplay userId={user.id} compact={false} />
           )}
           {!sidebarCollapsed ? (
             <>
