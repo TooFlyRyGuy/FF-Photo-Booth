@@ -78,16 +78,19 @@ Use this checklist to complete your Stripe integration. For detailed instruction
 - [ ] **Platinum Annual** - $2999/yr
   - Metadata: `type: subscription`, `tier: platinum`, `credits_per_period: 12000`, `sms_credits_per_period: 9000`, `prompts_limit: 12`
 
-### Event Passes (3 products)
+### Event Passes (4 products)
 
-- [ ] **Event Pass – 150 Generations** - $150
-  - Metadata: `type: event_pass`, `credits: 150`, `sms_credits: 150`, `duration_hours: 24`, `prompts_limit: 10`
+- [ ] **Starter Event** - $150
+  - Metadata: `type: event_pass`, `credits: 250`, `sms_credits: 200`, `duration_hours: 24`, `prompts_limit: 3`
 
-- [ ] **Event Pass – Mid Tier** - $300
-  - Metadata: `type: event_pass`, `credits: 300`, `sms_credits: 300`, `duration_hours: 48`, `prompts_limit: 15`
+- [ ] **Pro Event** - $280
+  - Metadata: `type: event_pass`, `credits: 500`, `sms_credits: 400`, `duration_hours: 48`, `prompts_limit: 6`
 
-- [ ] **Event Pass – Platinum** - $600
-  - Metadata: `type: event_pass`, `credits: 600`, `sms_credits: 650`, `duration_hours: 72`, `prompts_limit: 20`
+- [ ] **Premium Event** - $520
+  - Metadata: `type: event_pass`, `credits: 1000`, `sms_credits: 800`, `duration_hours: 72`, `prompts_limit: null`
+
+- [ ] **Platinum Event** - $900
+  - Metadata: `type: event_pass`, `credits: 2000`, `sms_credits: 1600`, `duration_hours: 96`, `prompts_limit: null`
 
 ### Credit Top-ups (4 products)
 
@@ -217,7 +220,7 @@ Use this checklist to complete your Stripe integration. For detailed instruction
 
 ---
 
-**Total Products to Create**: 19 (8 subscriptions + 3 event passes + 4 credit packs + 4 add-ons if needed)
+**Total Products to Create**: 20 (8 subscriptions + 4 event passes + 4 credit packs + 4 add-ons if needed)
 
 **Estimated Setup Time**: 2-3 hours (first time), 30-45 minutes (if you've done it before)
 

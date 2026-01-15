@@ -99,9 +99,10 @@ Credits are consumed in this order:
 - **Platinum**: $2,999/yr
 
 ### Event Passes
-- **150 Generations**: $150 (24 hours)
-- **Mid Tier**: $300 (48 hours)
-- **Platinum**: $600 (72 hours)
+- **Starter Event**: $150 (250 images, 200 SMS, 3 prompts, 24 hours)
+- **Pro Event**: $280 (500 images, 400 SMS, 6 prompts, 48 hours)
+- **Premium Event**: $520 (1,000 images, 800 SMS, unlimited prompts, 72 hours)
+- **Platinum Event**: $900 (2,000 images, 1,600 SMS, unlimited prompts, 96 hours)
 
 ### Credit Top-ups
 - **Small Boost**: $49 (150 images + 100 SMS)

@@ -275,69 +275,94 @@ Create 4 annual subscription products:
 
 ### C. Event Pass Products
 
-Create 3 event pass products:
+Create 4 event pass products:
 
-#### 1. Event Pass – 150 Generations
-- **Name**: `Event Pass – 150 Generations`
+#### 1. Starter Event
+- **Name**: `Starter Event`
 - **Description**:
   ```
-  150 AI image generations
-  150 SMS messages
+  250 AI image generations
+  200 SMS messages
   24-hour access
-  Perfect for single events
-  No long-term commitment
+  3 custom prompts
+  Best for small parties, private events
   ```
 - **Pricing**: One-time, **$150.00 USD**
 - **Metadata**:
   ```
   type: event_pass
-  credits: 150
-  sms_credits: 150
+  credits: 250
+  sms_credits: 200
   duration_hours: 24
-  prompts_limit: 10
+  prompts_limit: 3
   display_order: 1
   ```
 
-#### 2. Event Pass – Mid Tier
-- **Name**: `Event Pass – Mid Tier`
+#### 2. Pro Event
+- **Name**: `Pro Event`
 - **Description**:
   ```
-  300 AI image generations
-  300 SMS messages
+  500 AI image generations
+  400 SMS messages
   48-hour access
-  Great for weekend events
-  Extended duration
+  6 custom prompts
+  Best for weddings, corporate mixers
   ```
-- **Pricing**: One-time, **$300.00 USD**
+- **Pricing**: One-time, **$280.00 USD**
 - **Metadata**:
   ```
   type: event_pass
-  credits: 300
-  sms_credits: 300
+  credits: 500
+  sms_credits: 400
   duration_hours: 48
-  prompts_limit: 15
+  prompts_limit: 6
   display_order: 2
   ```
 
-#### 3. Event Pass – Platinum
-- **Name**: `Event Pass – Platinum`
+#### 3. Premium Event
+- **Name**: `Premium Event`
 - **Description**:
   ```
-  600+ AI image generations
-  650 SMS messages
+  1,000 AI image generations
+  800 SMS messages
   72-hour access
-  Perfect for multi-day events
-  Premium features
+  Unlimited custom prompts
+  Deterministic Seeds
+  Priority Queue
+  Best for large receptions, festivals
   ```
-- **Pricing**: One-time, **$600.00 USD**
+- **Pricing**: One-time, **$520.00 USD**
 - **Metadata**:
   ```
   type: event_pass
-  credits: 600
-  sms_credits: 650
+  credits: 1000
+  sms_credits: 800
   duration_hours: 72
-  prompts_limit: 20
+  prompts_limit: null
   display_order: 3
+  ```
+
+#### 4. Platinum Event
+- **Name**: `Platinum Event`
+- **Description**:
+  ```
+  2,000 AI image generations
+  1,600 SMS messages
+  96-hour access
+  Unlimited custom prompts
+  Deterministic Seeds
+  Priority Queue
+  Best for enterprise, brand activations
+  ```
+- **Pricing**: One-time, **$900.00 USD**
+- **Metadata**:
+  ```
+  type: event_pass
+  credits: 2000
+  sms_credits: 1600
+  duration_hours: 96
+  prompts_limit: null
+  display_order: 4
   ```
 
 ---
