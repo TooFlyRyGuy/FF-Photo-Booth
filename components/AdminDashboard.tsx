@@ -938,13 +938,19 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             {/* Chart */}
             <div className="bg-white p-6 rounded-xl border-2 border-slate-300 h-80">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-black">Generation Activity (Last 30 Days)</h3>
+                <h3 className="text-lg font-semibold text-black">Generation Activity (Last 7 Days)</h3>
                 <p className="text-sm text-slate-500 italic">Click bars for event breakdown</p>
               </div>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
+                <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
-                  <XAxis dataKey="date" stroke="#475569" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#475569"
+                    tick={{ fontSize: 12 }}
+                    height={50}
+                    tickMargin={8}
+                  />
                   <YAxis stroke="#475569" />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1' }}

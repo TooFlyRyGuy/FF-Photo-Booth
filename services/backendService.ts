@@ -1375,36 +1375,58 @@ export const getDashboardChartData = async (): Promise<ChartDataPoint[]> => {
     return [];
   }
 
-  const { data: events } = await supabase
-    .from('events')
-    .select('id')
-    .eq('user_id', userId);
+  const userProfile = await getUserProfile();
+  const isAdmin = userProfile.role?.toLowerCase() === 'admin';
 
-  const eventIds = events?.map(e => e.id) || [];
+  let eventIds: string[] = [];
 
-  if (eventIds.length === 0) {
-    return [];
+  if (isAdmin) {
+    const { data: events } = await supabase
+      .from('events')
+      .select('id');
+    eventIds = events?.map(e => e.id) || [];
+  } else {
+    const { data: events } = await supabase
+      .from('events')
+      .select('id')
+      .eq('user_id', userId);
+    eventIds = events?.map(e => e.id) || [];
   }
 
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
 
   const { data: images } = await supabase
     .from('generated_images')
     .select('created_at')
-    .in('event_id', eventIds)
-    .gte('created_at', thirtyDaysAgo.toISOString());
+    .in('event_id', eventIds.length > 0 ? eventIds : ['00000000-0000-0000-0000-000000000000'])
+    .gte('created_at', sevenDaysAgo.toISOString())
+    .lte('created_at', today.toISOString());
 
   const dateCounts = new Map<string, number>();
 
   images?.forEach(img => {
-    const date = new Date(img.created_at).toISOString().split('T')[0];
+    const date = new Date(img.created_at).toLocaleDateString('en-CA');
     dateCounts.set(date, (dateCounts.get(date) || 0) + 1);
   });
 
-  return Array.from(dateCounts.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, generations]) => ({ date, generations }));
+  const result: ChartDataPoint[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toLocaleDateString('en-CA');
+    const shortDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    result.push({
+      date: shortDate,
+      generations: dateCounts.get(dateStr) || 0
+    });
+  }
+
+  return result;
 };
 
 export interface EventGenerationBreakdown {
@@ -1420,27 +1442,40 @@ export const getGenerationsByDateAndEvent = async (date: string): Promise<EventG
     return [];
   }
 
-  const { data: events } = await supabase
-    .from('events')
-    .select('id, name')
-    .eq('user_id', userId);
+  const userProfile = await getUserProfile();
+  const isAdmin = userProfile.role?.toLowerCase() === 'admin';
 
-  const eventIds = events?.map(e => e.id) || [];
+  let eventsData;
+
+  if (isAdmin) {
+    const { data } = await supabase
+      .from('events')
+      .select('id, name');
+    eventsData = data;
+  } else {
+    const { data } = await supabase
+      .from('events')
+      .select('id, name')
+      .eq('user_id', userId);
+    eventsData = data;
+  }
+
+  const eventIds = eventsData?.map(e => e.id) || [];
 
   if (eventIds.length === 0) {
     return [];
   }
 
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(date);
+  const targetDate = new Date(date + ' ' + new Date().getFullYear());
+  targetDate.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(targetDate);
   endOfDay.setHours(23, 59, 59, 999);
 
   const { data: images } = await supabase
     .from('generated_images')
     .select('event_id')
     .in('event_id', eventIds)
-    .gte('created_at', startOfDay.toISOString())
+    .gte('created_at', targetDate.toISOString())
     .lte('created_at', endOfDay.toISOString());
 
   const eventCounts = new Map<string, number>();
@@ -1451,7 +1486,7 @@ export const getGenerationsByDateAndEvent = async (date: string): Promise<EventG
     }
   });
 
-  const eventsMap = new Map(events?.map(e => [e.id, e.name]) || []);
+  const eventsMap = new Map(eventsData?.map(e => [e.id, e.name]) || []);
 
   return Array.from(eventCounts.entries())
     .map(([eventId, count]) => ({
