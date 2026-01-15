@@ -107,7 +107,7 @@ const PlanManagement: React.FC = () => {
   const loadTiers = async () => {
     try {
       const { data, error } = await supabase
-        .from('subscription_tiers')
+        .from('subscription_tiers_new')
         .select('*')
         .order('display_order');
 
@@ -235,7 +235,7 @@ const PlanManagement: React.FC = () => {
     try {
       if (isCreating) {
         const { error } = await supabase
-          .from('subscription_tiers')
+          .from('subscription_tiers_new')
           .insert([{
             name: editingTier.name,
             billing_period: editingTier.billing_period,
@@ -253,7 +253,7 @@ const PlanManagement: React.FC = () => {
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('subscription_tiers')
+          .from('subscription_tiers_new')
           .update({
             name: editingTier.name,
             billing_period: editingTier.billing_period,
@@ -286,7 +286,7 @@ const PlanManagement: React.FC = () => {
 
     try {
       const { error } = await supabase
-        .from('subscription_tiers')
+        .from('subscription_tiers_new')
         .delete()
         .eq('id', tier.id);
 

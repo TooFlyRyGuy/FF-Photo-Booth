@@ -59,7 +59,7 @@ export interface UserCredits {
 
 export const getSubscriptionTiers = async (): Promise<SubscriptionTier[]> => {
   const { data, error } = await supabase
-    .from('subscription_tiers')
+    .from('subscription_tiers_new')
     .select('*')
     .eq('is_active', true)
     .order('display_order', { ascending: true });
@@ -76,7 +76,7 @@ export const getUserSubscription = async (userId: string): Promise<UserSubscript
     .from('user_subscriptions')
     .select(`
       *,
-      tier:subscription_tiers(*)
+      tier:subscription_tiers_new(*)
     `)
     .eq('user_id', userId)
     .in('status', ['active', 'past_due'])
@@ -213,7 +213,7 @@ export const activateSubscription = async (
   currentPeriodEnd: Date
 ): Promise<void> => {
   const { data: tier, error: tierError } = await supabase
-    .from('subscription_tiers')
+    .from('subscription_tiers_new')
     .select('*')
     .eq('id', tierId)
     .maybeSingle();
