@@ -1297,20 +1297,34 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     };
   }
 
-  const { data: ownedEvents } = await supabase
-    .from('events')
-    .select('id, is_active, start_datetime, end_datetime')
-    .eq('user_id', userId);
+  const userProfile = await getUserProfile();
+  const isAdmin = userProfile.role?.toLowerCase() === 'admin';
 
-  const { data: sharedEventAccess } = await supabase
-    .from('event_access')
-    .select('event_id, events(id, is_active, start_datetime, end_datetime)')
-    .eq('user_id', userId);
+  let allEvents: any[] = [];
+  let eventIds: string[] = [];
 
-  const sharedEvents = sharedEventAccess?.map(access => access.events).filter(Boolean) || [];
+  if (isAdmin) {
+    const { data: allEventsData } = await supabase
+      .from('events')
+      .select('id, is_active, start_datetime, end_datetime');
+    allEvents = allEventsData || [];
+    eventIds = allEvents.map(e => e.id);
+  } else {
+    const { data: ownedEvents } = await supabase
+      .from('events')
+      .select('id, is_active, start_datetime, end_datetime')
+      .eq('user_id', userId);
 
-  const allEvents = [...(ownedEvents || []), ...sharedEvents];
-  const eventIds = allEvents.map(e => e.id);
+    const { data: sharedEventAccess } = await supabase
+      .from('event_access')
+      .select('event_id, events(id, is_active, start_datetime, end_datetime)')
+      .eq('user_id', userId);
+
+    const sharedEvents = sharedEventAccess?.map(access => access.events).filter(Boolean) || [];
+
+    allEvents = [...(ownedEvents || []), ...sharedEvents];
+    eventIds = allEvents.map(e => e.id);
+  }
 
   let imagesCount = 0;
   let smsCount = 0;
