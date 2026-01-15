@@ -687,7 +687,7 @@ const PlanManagement: React.FC = () => {
 
         {expandedSections.subscriptions && (
           <div className="p-6 pt-0 border-t-2 border-slate-200">
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-end mb-6">
               <button
                 onClick={handleCreateNew}
                 className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-medium"
@@ -697,99 +697,206 @@ const PlanManagement: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {tiers.map((tier) => (
-          <div
-            key={tier.id}
-            className={`bg-white border-2 rounded-xl p-6 ${
-              tier.is_active ? 'border-slate-300' : 'border-slate-200 opacity-60'
-            }`}
-          >
-            <div className="flex justify-between items-start mb-4">
+            <div className="space-y-8">
+              {/* Monthly Plans */}
               <div>
-                <h3 className="text-xl font-bold text-slate-900">{tier.name}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <Calendar size={14} className="text-slate-500" />
-                  <span className="text-sm text-slate-600 capitalize">{tier.billing_period}</span>
-                </div>
-              </div>
-              {!tier.is_active && (
-                <span className="px-2 py-1 text-xs font-medium bg-slate-200 text-slate-600 rounded">
-                  Inactive
-                </span>
-              )}
-            </div>
-
-            <div className="mb-4">
-              {tier.price_cents === -1 ? (
-                <div className="text-center py-2">
-                  <span className="text-xl font-bold text-green-900">CONTACT US</span>
-                </div>
-              ) : (
-                <div className="flex items-baseline gap-1">
-                  <DollarSign size={24} className="text-green-700" />
-                  <span className="text-3xl font-bold text-slate-900">
-                    {(tier.price_cents / 100).toFixed(2)}
-                  </span>
-                  <span className="text-slate-600">
-                    /{tier.billing_period === 'monthly' ? 'mo' : 'yr'}
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar size={20} className="text-green-700" />
+                  <h3 className="text-lg font-bold text-slate-900">Monthly Subscriptions</h3>
+                  <span className="text-sm text-slate-500">
+                    ({tiers.filter(t => t.billing_period === 'monthly').length} plans)
                   </span>
                 </div>
-              )}
-            </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {tiers
+                    .filter(tier => tier.billing_period === 'monthly')
+                    .map((tier) => (
+                      <div
+                        key={tier.id}
+                        className={`bg-white border-2 rounded-lg p-4 transition-all hover:shadow-md ${
+                          tier.is_active ? 'border-green-200' : 'border-slate-200 opacity-50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h4 className="text-lg font-bold text-slate-900 mb-1">{tier.name}</h4>
+                            <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded capitalize">
+                              {tier.tier_category}
+                            </span>
+                          </div>
+                          {!tier.is_active && (
+                            <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
 
-            <div className="space-y-2 mb-4">
-              <div className="text-sm">
-                <span className="font-medium text-slate-900">{tier.credits_per_period >= 999999 ? 'Unlimited' : tier.credits_per_period}</span>
-                <span className="text-slate-600"> image credits per period</span>
-              </div>
-              <div className="text-sm">
-                <span className="font-medium text-slate-900">{tier.sms_credits_per_period >= 999999 ? 'Unlimited' : tier.sms_credits_per_period}</span>
-                <span className="text-slate-600"> SMS credits per period</span>
-              </div>
-              <div className="text-sm">
-                <span className="font-medium text-slate-900">{tier.prompts_limit === null || tier.prompts_limit === 0 ? 'Unlimited' : tier.prompts_limit}</span>
-                <span className="text-slate-600"> prompts per event</span>
-              </div>
-              <div className="text-sm">
-                <span className="font-medium text-slate-900">{tier.concurrent_events >= 999 ? 'Unlimited' : tier.concurrent_events}</span>
-                <span className="text-slate-600"> concurrent events</span>
-              </div>
-              <div className="text-sm text-slate-600">
-                Category: <span className="capitalize">{tier.tier_category}</span>
-              </div>
-            </div>
+                        <div className="mb-3 pb-3 border-b border-slate-200">
+                          {tier.price_cents === -1 ? (
+                            <div className="text-center py-1">
+                              <span className="text-lg font-bold text-green-700">Contact Sales</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-baseline gap-0.5">
+                              <span className="text-sm text-slate-600">$</span>
+                              <span className="text-2xl font-bold text-slate-900">
+                                {(tier.price_cents / 100).toFixed(0)}
+                              </span>
+                              <span className="text-sm text-slate-600">/mo</span>
+                            </div>
+                          )}
+                        </div>
 
-            {tier.features && tier.features.length > 0 && (
-              <div className="mb-4 pt-4 border-t border-slate-200">
-                <p className="text-xs font-medium text-slate-700 mb-2">Features:</p>
-                <ul className="space-y-1">
-                  {tier.features.map((feature, idx) => (
-                    <li key={idx} className="text-xs text-slate-600">
-                      • {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                        <div className="space-y-1.5 mb-3 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Image Credits:</span>
+                            <span className="font-semibold text-slate-900">
+                              {tier.credits_per_period >= 999999 ? '∞' : tier.credits_per_period.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">SMS Credits:</span>
+                            <span className="font-semibold text-slate-900">
+                              {tier.sms_credits_per_period >= 999999 ? '∞' : tier.sms_credits_per_period.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Prompts:</span>
+                            <span className="font-semibold text-slate-900">
+                              {tier.prompts_limit === null || tier.prompts_limit === 0 ? '∞' : tier.prompts_limit}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Events:</span>
+                            <span className="font-semibold text-slate-900">
+                              {tier.concurrent_events >= 999 ? '∞' : tier.concurrent_events}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Order:</span>
+                            <span className="font-semibold text-slate-900">#{tier.display_order}</span>
+                          </div>
+                        </div>
 
-            <div className="flex gap-2 pt-4 border-t border-slate-200">
-              <button
-                onClick={() => handleEdit(tier)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium"
-              >
-                <Edit size={16} />
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(tier)}
-                className="px-3 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
+                        <div className="flex gap-2 pt-3 border-t border-slate-200">
+                          <button
+                            onClick={() => handleEdit(tier)}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-medium transition-colors"
+                          >
+                            <Edit size={14} />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tier)}
+                            className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-md text-xs font-medium transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Annual Plans */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar size={20} className="text-blue-600" />
+                  <h3 className="text-lg font-bold text-slate-900">Annual Subscriptions</h3>
+                  <span className="text-sm text-slate-500">
+                    ({tiers.filter(t => t.billing_period === 'annual').length} plans)
+                  </span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {tiers
+                    .filter(tier => tier.billing_period === 'annual')
+                    .map((tier) => (
+                      <div
+                        key={tier.id}
+                        className={`bg-white border-2 rounded-lg p-4 transition-all hover:shadow-md ${
+                          tier.is_active ? 'border-blue-200' : 'border-slate-200 opacity-50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h4 className="text-lg font-bold text-slate-900 mb-1">{tier.name}</h4>
+                            <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded capitalize">
+                              {tier.tier_category}
+                            </span>
+                          </div>
+                          {!tier.is_active && (
+                            <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mb-3 pb-3 border-b border-slate-200">
+                          {tier.price_cents === -1 ? (
+                            <div className="text-center py-1">
+                              <span className="text-lg font-bold text-blue-600">Contact Sales</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-baseline gap-0.5">
+                              <span className="text-sm text-slate-600">$</span>
+                              <span className="text-2xl font-bold text-slate-900">
+                                {(tier.price_cents / 100).toFixed(0)}
+                              </span>
+                              <span className="text-sm text-slate-600">/yr</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5 mb-3 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Image Credits:</span>
+                            <span className="font-semibold text-slate-900">
+                              {tier.credits_per_period >= 999999 ? '∞' : tier.credits_per_period.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">SMS Credits:</span>
+                            <span className="font-semibold text-slate-900">
+                              {tier.sms_credits_per_period >= 999999 ? '∞' : tier.sms_credits_per_period.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Prompts:</span>
+                            <span className="font-semibold text-slate-900">
+                              {tier.prompts_limit === null || tier.prompts_limit === 0 ? '∞' : tier.prompts_limit}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Events:</span>
+                            <span className="font-semibold text-slate-900">
+                              {tier.concurrent_events >= 999 ? '∞' : tier.concurrent_events}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Order:</span>
+                            <span className="font-semibold text-slate-900">#{tier.display_order}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-3 border-t border-slate-200">
+                          <button
+                            onClick={() => handleEdit(tier)}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-medium transition-colors"
+                          >
+                            <Edit size={14} />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tier)}
+                            className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-md text-xs font-medium transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
