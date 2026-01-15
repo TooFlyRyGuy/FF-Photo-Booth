@@ -119,8 +119,8 @@ const PlanManagement: React.FC = () => {
       const { data, error } = await supabase
         .from('subscription_tiers_new')
         .select('*')
-        .order('tier_category', { ascending: true, nullsFirst: true })
-        .order('display_order', { ascending: true });
+        .order('display_order', { ascending: true })
+        .order('billing_period', { ascending: true });
 
       if (error) throw error;
       setTiers(data || []);
@@ -134,7 +134,7 @@ const PlanManagement: React.FC = () => {
       const { data, error } = await supabase
         .from('add_ons')
         .select('*')
-        .order('created_at');
+        .order('name', { ascending: true });
 
       if (error) throw error;
       setAddOns(data || []);
