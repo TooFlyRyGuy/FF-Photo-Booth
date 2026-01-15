@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, MessageSquare, AlertCircle } from 'lucide-react';
+import { Zap, Ticket, MessageSquare, AlertCircle } from 'lucide-react';
 import { getCreditBalance, CreditBalance } from '../services/creditService';
 
 interface CreditDisplayProps {
@@ -74,6 +74,14 @@ const CreditDisplay: React.FC<CreditDisplayProps> = ({ userId, compact = false, 
             <span className="text-sm font-bold text-green-800">{balance.image_credits}</span>
           </div>
 
+          <div className="flex items-center justify-between py-1.5 px-2 bg-blue-50/50 rounded-md">
+            <div className="flex items-center gap-2">
+              <Ticket size={14} className="text-blue-700" />
+              <span className="text-xs font-medium text-slate-700">Events</span>
+            </div>
+            <span className="text-sm font-bold text-blue-800">{balance.event_credits}</span>
+          </div>
+
           <div className="flex items-center justify-between py-1.5 px-2 bg-purple-50/50 rounded-md">
             <div className="flex items-center gap-2">
               <MessageSquare size={14} className="text-purple-700" />
@@ -116,6 +124,16 @@ const CreditDisplay: React.FC<CreditDisplayProps> = ({ userId, compact = false, 
             <span className="text-sm font-medium text-slate-900">Image Credits</span>
           </div>
           <span className="text-xl font-bold text-green-900">{balance.image_credits}</span>
+        </div>
+
+        <div className="flex items-center justify-between py-3 px-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Ticket size={20} className="text-blue-700" />
+            </div>
+            <span className="text-sm font-medium text-slate-900">Event Credits</span>
+          </div>
+          <span className="text-xl font-bold text-blue-900">{balance.event_credits}</span>
         </div>
 
         <div className="flex items-center justify-between py-3 px-4 bg-purple-50 rounded-lg border border-purple-200">
