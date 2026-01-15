@@ -5,11 +5,19 @@ import { CreditCard, Plus, Edit, Save, X, Trash2, DollarSign, Calendar, Zap, Clo
 interface SubscriptionTier {
   id: string;
   name: string;
-  plan_type: 'monthly' | 'annual';
-  tier: 'starter' | 'pro' | 'premium' | 'agency';
+  billing_period: 'monthly' | 'annual';
+  tier_category: 'standard' | 'activation' | 'enterprise';
   price_cents: number;
   credits_per_period: number;
-  features: string[];
+  sms_credits_per_period: number;
+  prompts_limit: number | null;
+  concurrent_events: number;
+  rollover_enabled: boolean;
+  deterministic_seeds: boolean;
+  priority_queue: boolean;
+  brand_controls: boolean;
+  team_accounts: boolean;
+  features: any;
   is_active: boolean;
   display_order: number;
   description?: string;
@@ -216,11 +224,19 @@ const PlanManagement: React.FC = () => {
   const handleCreateNew = () => {
     setEditingTier({
       name: '',
-      plan_type: 'monthly',
-      tier: 'starter',
+      billing_period: 'monthly',
+      tier_category: 'standard',
       price_cents: 0,
       credits_per_period: 0,
-      features: [],
+      sms_credits_per_period: 0,
+      prompts_limit: null,
+      concurrent_events: 1,
+      rollover_enabled: false,
+      deterministic_seeds: false,
+      priority_queue: false,
+      brand_controls: false,
+      team_accounts: false,
+      features: {},
       is_active: true,
       display_order: tiers.length,
     });
@@ -242,11 +258,18 @@ const PlanManagement: React.FC = () => {
           .insert([{
             name: editingTier.name,
             billing_period: editingTier.billing_period,
+            tier_category: editingTier.tier_category || 'standard',
             price_cents: editingTier.price_cents,
             credits_per_period: editingTier.credits_per_period,
+            sms_credits_per_period: editingTier.sms_credits_per_period || 0,
             rollover_enabled: editingTier.rollover_enabled || false,
-            features: editingTier.features || [],
+            features: editingTier.features || {},
             prompts_limit: editingTier.prompts_limit,
+            concurrent_events: editingTier.concurrent_events || 1,
+            deterministic_seeds: editingTier.deterministic_seeds || false,
+            priority_queue: editingTier.priority_queue || false,
+            brand_controls: editingTier.brand_controls || false,
+            team_accounts: editingTier.team_accounts || false,
             is_active: editingTier.is_active !== false,
             display_order: editingTier.display_order || 0,
             stripe_price_id: editingTier.stripe_price_id || null,
@@ -260,11 +283,18 @@ const PlanManagement: React.FC = () => {
           .update({
             name: editingTier.name,
             billing_period: editingTier.billing_period,
+            tier_category: editingTier.tier_category || 'standard',
             price_cents: editingTier.price_cents,
             credits_per_period: editingTier.credits_per_period,
+            sms_credits_per_period: editingTier.sms_credits_per_period || 0,
             rollover_enabled: editingTier.rollover_enabled || false,
-            features: editingTier.features || [],
+            features: editingTier.features || {},
             prompts_limit: editingTier.prompts_limit,
+            concurrent_events: editingTier.concurrent_events || 1,
+            deterministic_seeds: editingTier.deterministic_seeds || false,
+            priority_queue: editingTier.priority_queue || false,
+            brand_controls: editingTier.brand_controls || false,
+            team_accounts: editingTier.team_accounts || false,
             is_active: editingTier.is_active !== false,
             display_order: editingTier.display_order || 0,
             stripe_price_id: editingTier.stripe_price_id || null,
@@ -431,6 +461,7 @@ const PlanManagement: React.FC = () => {
       name: '',
       price_cents: 0,
       credits: 0,
+      sms_credits: 0,
       duration_hours: 4,
       setup_included: false,
       prompts_limit: null,
@@ -457,6 +488,7 @@ const PlanManagement: React.FC = () => {
             name: editingEventPass.name,
             price_cents: editingEventPass.price_cents,
             credits: editingEventPass.credits,
+            sms_credits: editingEventPass.sms_credits || 0,
             duration_hours: editingEventPass.duration_hours,
             setup_included: editingEventPass.setup_included || false,
             prompts_limit: editingEventPass.prompts_limit,
@@ -475,6 +507,7 @@ const PlanManagement: React.FC = () => {
             name: editingEventPass.name,
             price_cents: editingEventPass.price_cents,
             credits: editingEventPass.credits,
+            sms_credits: editingEventPass.sms_credits || 0,
             duration_hours: editingEventPass.duration_hours,
             setup_included: editingEventPass.setup_included || false,
             prompts_limit: editingEventPass.prompts_limit,
@@ -519,6 +552,7 @@ const PlanManagement: React.FC = () => {
     setEditingCreditTopup({
       name: '',
       credits: 0,
+      sms_credits: 0,
       price_cents: 0,
       is_active: true,
       display_order: creditTopups.length,
@@ -541,6 +575,7 @@ const PlanManagement: React.FC = () => {
           .insert([{
             name: editingCreditTopup.name,
             credits: editingCreditTopup.credits,
+            sms_credits: editingCreditTopup.sms_credits || 0,
             price_cents: editingCreditTopup.price_cents,
             is_active: editingCreditTopup.is_active !== false,
             display_order: editingCreditTopup.display_order || 0,
@@ -555,6 +590,7 @@ const PlanManagement: React.FC = () => {
           .update({
             name: editingCreditTopup.name,
             credits: editingCreditTopup.credits,
+            sms_credits: editingCreditTopup.sms_credits || 0,
             price_cents: editingCreditTopup.price_cents,
             is_active: editingCreditTopup.is_active !== false,
             display_order: editingCreditTopup.display_order || 0,
@@ -705,14 +741,22 @@ const PlanManagement: React.FC = () => {
             <div className="space-y-2 mb-4">
               <div className="text-sm">
                 <span className="font-medium text-slate-900">{tier.credits_per_period >= 999999 ? 'Unlimited' : tier.credits_per_period}</span>
-                <span className="text-slate-600"> credits per period</span>
+                <span className="text-slate-600"> image credits per period</span>
               </div>
               <div className="text-sm">
-                <span className="font-medium text-slate-900">{tier.prompts_limit === null ? 'Unlimited' : tier.prompts_limit}</span>
+                <span className="font-medium text-slate-900">{tier.sms_credits_per_period >= 999999 ? 'Unlimited' : tier.sms_credits_per_period}</span>
+                <span className="text-slate-600"> SMS credits per period</span>
+              </div>
+              <div className="text-sm">
+                <span className="font-medium text-slate-900">{tier.prompts_limit === null || tier.prompts_limit === 0 ? 'Unlimited' : tier.prompts_limit}</span>
                 <span className="text-slate-600"> prompts per event</span>
               </div>
+              <div className="text-sm">
+                <span className="font-medium text-slate-900">{tier.concurrent_events >= 999 ? 'Unlimited' : tier.concurrent_events}</span>
+                <span className="text-slate-600"> concurrent events</span>
+              </div>
               <div className="text-sm text-slate-600">
-                Rollover: {tier.rollover_enabled ? 'Enabled' : 'Disabled'}
+                Category: <span className="capitalize">{tier.tier_category}</span>
               </div>
             </div>
 
@@ -1125,7 +1169,35 @@ const PlanManagement: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">Credits per Period</label>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Tier Category</label>
+                  <select
+                    value={editingTier.tier_category || 'standard'}
+                    onChange={(e) =>
+                      setEditingTier({ ...editingTier, tier_category: e.target.value as 'standard' | 'activation' | 'enterprise' })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="activation">Activation</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
+                  <input
+                    type="number"
+                    value={editingTier.display_order || 0}
+                    onChange={(e) => setEditingTier({ ...editingTier, display_order: parseInt(e.target.value) || 0 })}
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Image Credits per Period</label>
                   <input
                     type="number"
                     value={editingTier.credits_per_period || 0}
@@ -1138,9 +1210,24 @@ const PlanManagement: React.FC = () => {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">SMS Credits per Period</label>
+                  <input
+                    type="number"
+                    value={editingTier.sms_credits_per_period || 0}
+                    onChange={(e) =>
+                      setEditingTier({ ...editingTier, sms_credits_per_period: parseInt(e.target.value) || 0 })
+                    }
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-bold text-slate-900 mb-2">
                     Prompts per Event
-                    <span className="text-xs font-normal text-slate-500 ml-2">(leave empty for unlimited)</span>
+                    <span className="text-xs font-normal text-slate-500 ml-2">(0 or empty for unlimited)</span>
                   </label>
                   <input
                     type="number"
@@ -1156,41 +1243,87 @@ const PlanManagement: React.FC = () => {
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Concurrent Events</label>
                   <input
                     type="number"
-                    value={editingTier.display_order || 0}
-                    onChange={(e) => setEditingTier({ ...editingTier, display_order: parseInt(e.target.value) || 0 })}
-                    min="0"
+                    value={editingTier.concurrent_events || 1}
+                    onChange={(e) =>
+                      setEditingTier({ ...editingTier, concurrent_events: parseInt(e.target.value) || 1 })
+                    }
+                    min="1"
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={editingTier.rollover_enabled || false}
-                    onChange={(e) => setEditingTier({ ...editingTier, rollover_enabled: e.target.checked })}
-                    className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
-                  />
-                  <span className="text-sm font-medium text-slate-900">Enable Credit Rollover</span>
-                </label>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editingTier.rollover_enabled || false}
+                      onChange={(e) => setEditingTier({ ...editingTier, rollover_enabled: e.target.checked })}
+                      className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Credit Rollover</span>
+                  </label>
 
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={editingTier.is_active !== false}
-                    onChange={(e) => setEditingTier({ ...editingTier, is_active: e.target.checked })}
-                    className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
-                  />
-                  <span className="text-sm font-medium text-slate-900">Active</span>
-                </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editingTier.deterministic_seeds || false}
+                      onChange={(e) => setEditingTier({ ...editingTier, deterministic_seeds: e.target.checked })}
+                      className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Deterministic Seeds</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editingTier.priority_queue || false}
+                      onChange={(e) => setEditingTier({ ...editingTier, priority_queue: e.target.checked })}
+                      className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Priority Queue</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editingTier.brand_controls || false}
+                      onChange={(e) => setEditingTier({ ...editingTier, brand_controls: e.target.checked })}
+                      className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Brand Controls</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editingTier.team_accounts || false}
+                      onChange={(e) => setEditingTier({ ...editingTier, team_accounts: e.target.checked })}
+                      className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Team Accounts</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editingTier.is_active !== false}
+                      onChange={(e) => setEditingTier({ ...editingTier, is_active: e.target.checked })}
+                      className="w-5 h-5 text-green-700 border-2 border-slate-300 rounded focus:ring-2 focus:ring-green-700"
+                    />
+                    <span className="text-sm font-medium text-slate-900">Active</span>
+                  </label>
+                </div>
               </div>
 
               <div>
@@ -1427,12 +1560,38 @@ const PlanManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">Credits</label>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
+                  <input
+                    type="number"
+                    value={editingEventPass.display_order || 0}
+                    onChange={(e) => setEditingEventPass({ ...editingEventPass, display_order: parseInt(e.target.value) || 0 })}
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Image Credits</label>
                   <input
                     type="number"
                     value={editingEventPass.credits || 0}
                     onChange={(e) =>
                       setEditingEventPass({ ...editingEventPass, credits: parseInt(e.target.value) || 0 })
+                    }
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">SMS Credits</label>
+                  <input
+                    type="number"
+                    value={editingEventPass.sms_credits || 0}
+                    onChange={(e) =>
+                      setEditingEventPass({ ...editingEventPass, sms_credits: parseInt(e.target.value) || 0 })
                     }
                     min="0"
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
@@ -1457,7 +1616,7 @@ const PlanManagement: React.FC = () => {
                 <div>
                   <label className="block text-sm font-bold text-slate-900 mb-2">
                     Prompts per Event
-                    <span className="text-xs font-normal text-slate-500 ml-2">(leave empty for unlimited)</span>
+                    <span className="text-xs font-normal text-slate-500 ml-2">(0 or empty for unlimited)</span>
                   </label>
                   <input
                     type="number"
@@ -1470,19 +1629,6 @@ const PlanManagement: React.FC = () => {
                     }
                     min="0"
                     placeholder="Unlimited"
-                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
-                  <input
-                    type="number"
-                    value={editingEventPass.display_order || 0}
-                    onChange={(e) => setEditingEventPass({ ...editingEventPass, display_order: parseInt(e.target.value) || 0 })}
-                    min="0"
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                   />
                 </div>
@@ -1612,7 +1758,20 @@ const PlanManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">Credits</label>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
+                  <input
+                    type="number"
+                    value={editingCreditTopup.display_order || 0}
+                    onChange={(e) => setEditingCreditTopup({ ...editingCreditTopup, display_order: parseInt(e.target.value) || 0 })}
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">Image Credits</label>
                   <input
                     type="number"
                     value={editingCreditTopup.credits || 0}
@@ -1623,17 +1782,19 @@ const PlanManagement: React.FC = () => {
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
-                <input
-                  type="number"
-                  value={editingCreditTopup.display_order || 0}
-                  onChange={(e) => setEditingCreditTopup({ ...editingCreditTopup, display_order: parseInt(e.target.value) || 0 })}
-                  min="0"
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                />
+                <div>
+                  <label className="block text-sm font-bold text-slate-900 mb-2">SMS Credits</label>
+                  <input
+                    type="number"
+                    value={editingCreditTopup.sms_credits || 0}
+                    onChange={(e) =>
+                      setEditingCreditTopup({ ...editingCreditTopup, sms_credits: parseInt(e.target.value) || 0 })
+                    }
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-4">
