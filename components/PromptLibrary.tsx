@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, AlertTriangle } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
+import { checkCreditAvailability, consumeCredit } from '../services/creditService';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const LOAD_BATCH_SIZE = 6;
@@ -52,13 +53,25 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [loadOffset, setLoadOffset] = useState(0);
   const [hasMoreToLoad, setHasMoreToLoad] = useState(true);
   const hasLoadedRef = useRef(false);
+  const [userCredits, setUserCredits] = useState<number>(0);
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
       loadPrompts();
+      checkUserCredits();
     }
   }, [userId]);
+
+  const checkUserCredits = async () => {
+    try {
+      const creditCheck = await checkCreditAvailability(userId, 'image');
+      setUserCredits(creditCheck.available ? creditCheck.remaining : 0);
+    } catch (error) {
+      console.error('Error checking credits:', error);
+      setUserCredits(0);
+    }
+  };
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -469,6 +482,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const handleRunTest = async () => {
     if (!testingPrompt || !testSourceImage) return;
 
+    const creditCheck = await checkCreditAvailability(userId, 'image');
+    if (!creditCheck.available) {
+      setGenerationError(creditCheck.reason || 'Insufficient image credits. Please purchase more credits to test this prompt.');
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationError('');
     setTestGeneratedImage('');
@@ -502,7 +521,13 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         settings.gemini_resolution || '1K'
       );
 
+      const consumeResult = await consumeCredit(userId, 1);
+      if (!consumeResult.success) {
+        console.warn('Failed to consume credit, but image was generated:', consumeResult.error);
+      }
+
       setTestGeneratedImage(generatedImage);
+      await checkUserCredits();
     } catch (error: any) {
       console.error('Test generation error:', error);
       setGenerationError(error.message || 'Failed to generate image');
@@ -943,10 +968,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                           </button>
                           <button
                             onClick={() => handleTestPrompt(prompt)}
-                            className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg font-medium text-sm"
-                            title="Test this prompt"
+                            className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg font-medium text-sm flex items-center gap-1"
+                            title="Test this prompt (uses 1 image credit)"
                           >
                             <Sparkles size={14} />
+                            <span className="hidden md:inline text-xs">Test</span>
                           </button>
                           <button
                             onClick={() => handleDelete(prompt.id)}
@@ -990,20 +1016,37 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       {testingPrompt && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 md:p-6 border-b-2 border-slate-300 flex justify-between items-start gap-4 sticky top-0 bg-white z-10">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-lg md:text-2xl font-bold text-slate-900 flex items-center gap-2">
-                  <Sparkles className="text-green-700 flex-shrink-0" size={20} />
-                  <span className="truncate">Test: {testingPrompt.name}</span>
-                </h2>
-                <p className="text-sm md:text-base text-slate-600 mt-1">Upload images to test this AI prompt</p>
+            <div className="p-4 md:p-6 border-b-2 border-slate-300 sticky top-0 bg-white z-10">
+              <div className="flex justify-between items-start gap-4 mb-4">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg md:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    <Sparkles className="text-green-700 flex-shrink-0" size={20} />
+                    <span className="truncate">Test Prompt: {testingPrompt.name}</span>
+                  </h2>
+                  <p className="text-sm md:text-base text-slate-600 mt-1">Upload images to test this AI prompt</p>
+                </div>
+                <button
+                  onClick={closeTestModal}
+                  className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
+                >
+                  ×
+                </button>
               </div>
-              <button
-                onClick={closeTestModal}
-                className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
-              >
-                ×
-              </button>
+
+              <div className="bg-amber-50 border-2 border-amber-500 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={24} />
+                  <div className="flex-1">
+                    <h3 className="font-bold text-amber-900 text-base mb-1">
+                      Testing This Prompt WILL Use 1 Image Credit
+                    </h3>
+                    <p className="text-sm text-amber-800">
+                      Each test generation consumes one image credit from your account.
+                      This is a real AI image generation and uses the same resources as creating photos in your events.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="p-4 md:p-6 space-y-6">
@@ -1124,18 +1167,23 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 <button
                   onClick={handleRunTest}
                   disabled={!testSourceImage || isGenerating}
-                  className="flex-1 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                  className="flex-1 py-4 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold"
                 >
                   {isGenerating ? (
-                    <>
+                    <div className="flex items-center justify-center gap-2">
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Generating...
-                    </>
+                      <span>Generating...</span>
+                    </div>
                   ) : (
-                    <>
-                      <Sparkles size={18} />
-                      Generate Test Image
-                    </>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={18} />
+                        <span>Generate Test Image</span>
+                      </div>
+                      <span className="text-xs font-normal opacity-90">
+                        (Uses 1 Image Credit)
+                      </span>
+                    </div>
                   )}
                 </button>
                 <button
