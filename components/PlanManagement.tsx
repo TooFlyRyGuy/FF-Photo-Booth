@@ -772,10 +772,6 @@ const PlanManagement: React.FC = () => {
                               {tier.concurrent_events >= 999 ? '∞' : tier.concurrent_events}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Order:</span>
-                            <span className="font-semibold text-slate-900">#{tier.display_order}</span>
-                          </div>
                         </div>
 
                         <div className="flex gap-2 pt-3 border-t border-slate-200">
@@ -871,10 +867,6 @@ const PlanManagement: React.FC = () => {
                             <span className="font-semibold text-slate-900">
                               {tier.concurrent_events >= 999 ? '∞' : tier.concurrent_events}
                             </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Order:</span>
-                            <span className="font-semibold text-slate-900">#{tier.display_order}</span>
                           </div>
                         </div>
 
@@ -1289,17 +1281,6 @@ const PlanManagement: React.FC = () => {
                     <option value="enterprise">Enterprise</option>
                   </select>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
-                  <input
-                    type="number"
-                    value={editingTier.display_order || 0}
-                    onChange={(e) => setEditingTier({ ...editingTier, display_order: parseInt(e.target.value) || 0 })}
-                    min="0"
-                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1665,17 +1646,6 @@ const PlanManagement: React.FC = () => {
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
-                  <input
-                    type="number"
-                    value={editingEventPass.display_order || 0}
-                    onChange={(e) => setEditingEventPass({ ...editingEventPass, display_order: parseInt(e.target.value) || 0 })}
-                    min="0"
-                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1859,17 +1829,6 @@ const PlanManagement: React.FC = () => {
                       setEditingCreditTopup({ ...editingCreditTopup, price_cents: parseFloat(e.target.value) * 100 || 0 })
                     }
                     step="0.01"
-                    min="0"
-                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-slate-900 mb-2">Display Order</label>
-                  <input
-                    type="number"
-                    value={editingCreditTopup.display_order || 0}
-                    onChange={(e) => setEditingCreditTopup({ ...editingCreditTopup, display_order: parseInt(e.target.value) || 0 })}
                     min="0"
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                   />
