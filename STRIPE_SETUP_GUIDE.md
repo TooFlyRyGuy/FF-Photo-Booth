@@ -86,12 +86,13 @@ You need to create products in Stripe for each tier, event pass, and credit pack
 Create 4 monthly subscription products with these exact specifications:
 
 #### 1. Starter Monthly
-- **Name**: `Starter`
+- **Name**: `Starter Monthly`
 - **Description**:
   ```
   60 AI image generations per month
   50 SMS messages per month
   3 prompt slots per event
+  1 concurrent event
   Basic support
   Monthly reset
   ```
@@ -100,19 +101,22 @@ Create 4 monthly subscription products with these exact specifications:
   ```
   type: subscription
   tier: starter
+  billing_period: monthly
   credits_per_period: 60
   sms_credits_per_period: 50
   prompts_limit: 3
-  display_order: 1
+  concurrent_events: 1
+  display_order: 10
   ```
 
 #### 2. Pro Monthly
-- **Name**: `Pro`
+- **Name**: `Pro Monthly`
 - **Description**:
   ```
   200 AI image generations per month
   150 SMS messages per month
   6 prompt slots per event
+  1 concurrent event
   Priority support
   Monthly reset
   ```
@@ -121,19 +125,22 @@ Create 4 monthly subscription products with these exact specifications:
   ```
   type: subscription
   tier: pro
+  billing_period: monthly
   credits_per_period: 200
   sms_credits_per_period: 150
   prompts_limit: 6
-  display_order: 2
+  concurrent_events: 1
+  display_order: 20
   ```
 
 #### 3. Premium Monthly
-- **Name**: `Premium`
+- **Name**: `Premium Monthly`
 - **Description**:
   ```
   450 AI image generations per month
   300 SMS messages per month
   9 prompt slots per event
+  1 concurrent event
   Priority support
   Advanced features
   Monthly reset
@@ -143,19 +150,22 @@ Create 4 monthly subscription products with these exact specifications:
   ```
   type: subscription
   tier: premium
+  billing_period: monthly
   credits_per_period: 450
   sms_credits_per_period: 300
   prompts_limit: 9
-  display_order: 3
+  concurrent_events: 1
+  display_order: 30
   ```
 
 #### 4. Platinum Monthly
-- **Name**: `Platinum`
+- **Name**: `Platinum Monthly`
 - **Description**:
   ```
   1,000 AI image generations per month
   750 SMS messages per month
   12 prompt slots per event
+  1 concurrent event
   Dedicated support
   All features
   Monthly reset
@@ -165,10 +175,12 @@ Create 4 monthly subscription products with these exact specifications:
   ```
   type: subscription
   tier: platinum
+  billing_period: monthly
   credits_per_period: 1000
   sms_credits_per_period: 750
   prompts_limit: 12
-  display_order: 4
+  concurrent_events: 1
+  display_order: 40
   ```
 
 ---
@@ -178,7 +190,7 @@ Create 4 monthly subscription products with these exact specifications:
 Create 4 annual subscription products:
 
 #### 1. Starter Annual
-- **Name**: `Starter (Annual)`
+- **Name**: `Starter Annual`
 - **Description**:
   ```
   720 AI image generations per year
@@ -186,6 +198,7 @@ Create 4 annual subscription products:
   ~60 images per month
   ~50 SMS per month
   3 prompt slots per event
+  1 concurrent event
   Basic support
   Save with annual billing
   ```
@@ -194,14 +207,16 @@ Create 4 annual subscription products:
   ```
   type: subscription
   tier: starter
+  billing_period: annual
   credits_per_period: 720
   sms_credits_per_period: 600
   prompts_limit: 3
-  display_order: 5
+  concurrent_events: 1
+  display_order: 10
   ```
 
 #### 2. Pro Annual
-- **Name**: `Pro (Annual)`
+- **Name**: `Pro Annual`
 - **Description**:
   ```
   2,400 AI image generations per year
@@ -209,6 +224,7 @@ Create 4 annual subscription products:
   ~200 images per month
   ~150 SMS per month
   6 prompt slots per event
+  1 concurrent event
   Priority support
   Save with annual billing
   ```
@@ -217,14 +233,16 @@ Create 4 annual subscription products:
   ```
   type: subscription
   tier: pro
+  billing_period: annual
   credits_per_period: 2400
   sms_credits_per_period: 1800
   prompts_limit: 6
-  display_order: 6
+  concurrent_events: 1
+  display_order: 20
   ```
 
 #### 3. Premium Annual
-- **Name**: `Premium (Annual)`
+- **Name**: `Premium Annual`
 - **Description**:
   ```
   5,400 AI image generations per year
@@ -232,6 +250,7 @@ Create 4 annual subscription products:
   ~450 images per month
   ~300 SMS per month
   9 prompt slots per event
+  1 concurrent event
   Priority support
   Advanced features
   Save with annual billing
@@ -241,14 +260,16 @@ Create 4 annual subscription products:
   ```
   type: subscription
   tier: premium
+  billing_period: annual
   credits_per_period: 5400
   sms_credits_per_period: 3600
   prompts_limit: 9
-  display_order: 7
+  concurrent_events: 1
+  display_order: 30
   ```
 
 #### 4. Platinum Annual
-- **Name**: `Platinum (Annual)`
+- **Name**: `Platinum Annual`
 - **Description**:
   ```
   12,000 AI image generations per year
@@ -256,6 +277,7 @@ Create 4 annual subscription products:
   ~1,000 images per month
   ~750 SMS per month
   12 prompt slots per event
+  1 concurrent event
   Dedicated support
   All features
   Save with annual billing
@@ -265,15 +287,82 @@ Create 4 annual subscription products:
   ```
   type: subscription
   tier: platinum
+  billing_period: annual
   credits_per_period: 12000
   sms_credits_per_period: 9000
   prompts_limit: 12
-  display_order: 8
+  concurrent_events: 1
+  display_order: 40
   ```
 
 ---
 
-### C. Event Pass Products
+### C. Activation Plans (Enterprise Subscriptions)
+
+Create 2 activation plan products:
+
+#### 1. Activation 2.5K
+- **Name**: `Activation 2.5K`
+- **Description**:
+  ```
+  2,500 AI image generations per month
+  2,000 SMS messages per month
+  Up to 5 concurrent events
+  Unlimited prompts
+  Deterministic seeds
+  Priority queue
+  Always-on event access
+  ```
+- **Pricing**: Recurring, Monthly, **$699.00 USD**
+- **Metadata**:
+  ```
+  type: subscription
+  tier: activation_2.5k
+  billing_period: monthly
+  credits_per_period: 2500
+  sms_credits_per_period: 2000
+  prompts_limit: 0
+  concurrent_events: 5
+  deterministic_seeds: true
+  priority_queue: true
+  display_order: 100
+  ```
+
+#### 2. Activation 5K
+- **Name**: `Activation 5K`
+- **Description**:
+  ```
+  5,000 AI image generations per month
+  4,000 SMS messages per month
+  Unlimited concurrent events
+  Unlimited prompts
+  Deterministic seeds
+  Brand controls
+  Team accounts
+  Highest priority queue
+  Always-on event access
+  Dedicated support
+  ```
+- **Pricing**: Recurring, Monthly, **$1,299.00 USD**
+- **Metadata**:
+  ```
+  type: subscription
+  tier: activation_5k
+  billing_period: monthly
+  credits_per_period: 5000
+  sms_credits_per_period: 4000
+  prompts_limit: 0
+  concurrent_events: 999
+  deterministic_seeds: true
+  priority_queue: true
+  brand_controls: true
+  team_accounts: true
+  display_order: 101
+  ```
+
+---
+
+### D. Event Pass Products
 
 Create 4 event pass products:
 
@@ -281,8 +370,8 @@ Create 4 event pass products:
 - **Name**: `Starter Event`
 - **Description**:
   ```
-  250 AI image generations
-  200 SMS messages
+  100 AI image generations
+  150 SMS messages
   24-hour access
   3 custom prompts
   Best for small parties, private events
@@ -291,8 +380,8 @@ Create 4 event pass products:
 - **Metadata**:
   ```
   type: event_pass
-  credits: 250
-  sms_credits: 200
+  credits: 100
+  sms_credits: 150
   duration_hours: 24
   prompts_limit: 3
   display_order: 1
@@ -302,8 +391,8 @@ Create 4 event pass products:
 - **Name**: `Pro Event`
 - **Description**:
   ```
-  500 AI image generations
-  400 SMS messages
+  200 AI image generations
+  300 SMS messages
   48-hour access
   6 custom prompts
   Best for weddings, corporate mixers
@@ -312,8 +401,8 @@ Create 4 event pass products:
 - **Metadata**:
   ```
   type: event_pass
-  credits: 500
-  sms_credits: 400
+  credits: 200
+  sms_credits: 300
   duration_hours: 48
   prompts_limit: 6
   display_order: 2
@@ -323,22 +412,20 @@ Create 4 event pass products:
 - **Name**: `Premium Event`
 - **Description**:
   ```
-  1,000 AI image generations
-  800 SMS messages
+  400 AI image generations
+  600 SMS messages
   72-hour access
   Unlimited custom prompts
-  Deterministic Seeds
-  Priority Queue
   Best for large receptions, festivals
   ```
 - **Pricing**: One-time, **$520.00 USD**
 - **Metadata**:
   ```
   type: event_pass
-  credits: 1000
-  sms_credits: 800
+  credits: 400
+  sms_credits: 600
   duration_hours: 72
-  prompts_limit: null
+  prompts_limit: 0
   display_order: 3
   ```
 
@@ -346,76 +433,74 @@ Create 4 event pass products:
 - **Name**: `Platinum Event`
 - **Description**:
   ```
-  2,000 AI image generations
-  1,600 SMS messages
+  750 AI image generations
+  1,200 SMS messages
   96-hour access
   Unlimited custom prompts
-  Deterministic Seeds
-  Priority Queue
   Best for enterprise, brand activations
   ```
 - **Pricing**: One-time, **$900.00 USD**
 - **Metadata**:
   ```
   type: event_pass
-  credits: 2000
-  sms_credits: 1600
+  credits: 750
+  sms_credits: 1200
   duration_hours: 96
-  prompts_limit: null
+  prompts_limit: 0
   display_order: 4
   ```
 
 ---
 
-### D. Credit Top-up Products
+### E. Credit Top-up Products
 
 Create 4 credit pack products:
 
 #### 1. Small Boost
 - **Name**: `Small Boost`
-- **Description**: `Emergency refill for light users - credits never expire`
+- **Description**: `120 image credits + 120 SMS credits - Emergency refill for light users - credits never expire`
 - **Pricing**: One-time, **$49.00 USD**
 - **Metadata**:
   ```
   type: credit_topup
-  credits: 150
-  sms_credits: 100
+  credits: 120
+  sms_credits: 120
   display_order: 1
   ```
 
 #### 2. Creator Pack
 - **Name**: `Creator Pack`
-- **Description**: `Perfect for regular creators and small events - credits never expire`
+- **Description**: `350 image credits + 350 SMS credits - Perfect for regular creators and small events - credits never expire`
 - **Pricing**: One-time, **$129.00 USD**
 - **Metadata**:
   ```
   type: credit_topup
-  credits: 450
-  sms_credits: 300
+  credits: 350
+  sms_credits: 350
   display_order: 2
   ```
 
 #### 3. Pro Boost
 - **Name**: `Pro Boost`
-- **Description**: `Power users and multi-event support - credits never expire`
+- **Description**: `900 image credits + 900 SMS credits - Power users and multi-event support - credits never expire`
 - **Pricing**: One-time, **$279.00 USD**
 - **Metadata**:
   ```
   type: credit_topup
-  credits: 1050
-  sms_credits: 700
+  credits: 900
+  sms_credits: 900
   display_order: 3
   ```
 
 #### 4. Power Pack
 - **Name**: `Power Pack`
-- **Description**: `Agencies and high-volume usage - credits never expire`
+- **Description**: `1,800 image credits + 1,800 SMS credits - Agencies and high-volume usage - credits never expire`
 - **Pricing**: One-time, **$499.00 USD**
 - **Metadata**:
   ```
   type: credit_topup
-  credits: 2100
-  sms_credits: 1400
+  credits: 1800
+  sms_credits: 1800
   display_order: 4
   ```
 
@@ -515,7 +600,7 @@ Once testing is complete, switch to live mode:
 
 1. **Subscription Credits**: Reset monthly/annually, no rollover
 2. **Purchased Credits**: Never expire, stack with subscriptions
-3. **Event Credits**: Expire when event pass expires
+3. **Event Credits**: Included with event passes
 
 ### Consumption Order
 
@@ -528,8 +613,8 @@ Credits are consumed in this order:
 
 - Subscription credits do NOT roll over on renewal
 - Purchased credits survive subscription cancellation
-- Event credits expire with the event pass
 - All credits stack across types
+- Image credits and SMS credits are tracked separately
 
 ---
 
@@ -588,14 +673,24 @@ Credits are consumed in this order:
 
 ## Quick Reference: Metadata Fields
 
-### Subscriptions
+### Subscriptions (Monthly/Annual)
 ```
 type: subscription
-tier: [starter|pro|premium|platinum]
+tier: [starter|pro|premium|platinum|activation_2.5k|activation_5k]
+billing_period: [monthly|annual]
 credits_per_period: [number]
 sms_credits_per_period: [number]
-prompts_limit: [number]
+prompts_limit: [number] (0 = unlimited)
+concurrent_events: [number]
 display_order: [number]
+```
+
+### Activation Plans (Additional Fields)
+```
+deterministic_seeds: [true|false]
+priority_queue: [true|false]
+brand_controls: [true|false]
+team_accounts: [true|false]
 ```
 
 ### Event Passes
@@ -604,7 +699,7 @@ type: event_pass
 credits: [number]
 sms_credits: [number]
 duration_hours: [number]
-prompts_limit: [number]
+prompts_limit: [number] (0 = unlimited)
 display_order: [number]
 ```
 
@@ -632,5 +727,13 @@ After completing this setup:
 8. Go live when ready!
 
 ---
+
+**Total Products to Create**: 18 products
+- 8 Standard Subscriptions (4 monthly + 4 annual)
+- 2 Activation Plans
+- 4 Event Passes
+- 4 Credit Top-ups
+
+**Estimated Setup Time**: 2-3 hours (first time), 45-60 minutes (experienced)
 
 **Questions or issues?** Check the Stripe webhook logs first, then review the edge function logs in Supabase. Most issues are related to incorrect metadata or webhook configuration.

@@ -10,26 +10,21 @@
 ### 1. **Stripe is the Source of Truth**
 All prices must match Stripe product configuration exactly.
 
-### 2. **Three Distinct Systems - DO NOT MERGE**
+### 2. **Two Distinct Credit Systems - DO NOT MERGE**
 
-#### Image Credits → Fuel (Never Expire)
-- Used to generate AI images
+#### Image Credits → AI Generation Fuel
+- Used to generate AI images (1 credit = 1 image)
 - Purchased through Credit Top-Ups
-- Included as starter buffers in Event Passes
+- Included in Event Passes
 - Allocated monthly/annually via Subscriptions and Activations
+- Never expire when purchased, reset monthly for subscriptions
 
-#### SMS Credits → Delivery (Never Expire)
-- Used to send photos via text message
+#### SMS Credits → Delivery System
+- Used to send photos via text message (1 credit = 1 SMS)
 - Purchased through Credit Top-Ups
-- Included as starter buffers in Event Passes
+- Included in Event Passes
 - Allocated monthly/annually via Subscriptions and Activations
-
-#### Event Access → Time-Bound Permissions
-- Required to create and activate events
-- Purchased through Event Passes
-- Included in Activation Plans (always-on)
-- **Credit Top-Ups DO NOT grant event access**
-- **Event Passes DO NOT exist to provide cheap credits**
+- Never expire when purchased, reset monthly for subscriptions
 
 ---
 
@@ -39,55 +34,67 @@ All prices must match Stripe product configuration exactly.
 
 **Key Rules:**
 - Credits never expire
-- Can be used across any event (if event access exists)
-- Stack cumulatively
+- Can be used across any event
+- Stack cumulatively with subscription credits
 - Do not grant event creation rights
 
 ### Products
 
 #### Small Boost - $49
 ```yaml
-Price: $49.00 ($4,900 cents)
+Price: $49.00 (4,900 cents)
 Image Credits: 120
 SMS Credits: 120
 Expiration: Never
 Use Case: Small events, trial customers
+Stripe Metadata:
+  type: credit_topup
+  credits: 120
+  sms_credits: 120
+  display_order: 1
 ```
 
 #### Creator Pack - $129
 ```yaml
-Price: $129.00 ($12,900 cents)
+Price: $129.00 (12,900 cents)
 Image Credits: 350
 SMS Credits: 350
 Expiration: Never
 Use Case: Medium events, regular users
+Stripe Metadata:
+  type: credit_topup
+  credits: 350
+  sms_credits: 350
+  display_order: 2
 ```
 
 #### Pro Boost - $279
 ```yaml
-Price: $279.00 ($27,900 cents)
+Price: $279.00 (27,900 cents)
 Image Credits: 900
 SMS Credits: 900
 Expiration: Never
 Use Case: Large events, power users
+Stripe Metadata:
+  type: credit_topup
+  credits: 900
+  sms_credits: 900
+  display_order: 3
 ```
 
 #### Power Pack - $499
 ```yaml
-Price: $499.00 ($49,900 cents)
+Price: $499.00 (49,900 cents)
 Image Credits: 1,800
 SMS Credits: 1,800
 Expiration: Never
 Use Case: Multiple events, agencies
+Stripe Metadata:
+  type: credit_topup
+  credits: 1800
+  sms_credits: 1800
+  display_order: 4
 ```
-
-### UI Copy Templates
-
-**Heading:** "Credit Top-Ups - Fuel That Never Expires"
-
-**Subheading:** "Purchase credits to power your events. Credits never expire and can be used across all your events."
-
-**Important Note:** "Top-ups provide credits only. You need an Event Pass or Activation Plan to create events."
 
 ---
 
@@ -98,115 +105,82 @@ Use Case: Multiple events, agencies
 **Key Rules:**
 - Required to create or activate events
 - Expire at end of event window
-- Include starter credits as buffers (not the primary value)
+- Include starter credits as buffers
 - Can use additional Credit Top-Up credits during event
 
 ### Products
 
 #### Starter Event - $150
 ```yaml
-Price: $150.00 ($15,000 cents)
+Price: $150.00 (15,000 cents)
 Events Allowed: 1
 Event Window: 24 hours
 Prompt Limit: 3 prompts per event
 Included Image Credits: 100
 Included SMS Credits: 150
-Features:
-  - 1 event allowed
-  - 24-hour event window
-  - 3 prompt limit
-  - 100 image credits included
-  - 150 SMS credits included
-  - Standard generation queue
-Advanced Features:
-  - Deterministic Seeds: ❌
-  - Priority Queue: ❌
-  - Prompt Locking: ❌
-  - Admin Controls: ❌
-  - Brand Locking: ❌
+Best For: Small parties, private events
+Stripe Metadata:
+  type: event_pass
+  credits: 100
+  sms_credits: 150
+  duration_hours: 24
+  prompts_limit: 3
+  display_order: 1
 ```
 
 #### Pro Event - $280
 ```yaml
-Price: $280.00 ($28,000 cents)
+Price: $280.00 (28,000 cents)
 Events Allowed: 1
 Event Window: 48 hours
 Prompt Limit: 6 prompts per event
 Included Image Credits: 200
 Included SMS Credits: 300
-Features:
-  - 1 event allowed
-  - 48-hour event window
-  - 6 prompt limit
-  - 200 image credits included
-  - 300 SMS credits included
-  - Priority generation queue
-Advanced Features:
-  - Deterministic Seeds: ❌
-  - Priority Queue: ✅
-  - Prompt Locking: ❌
-  - Admin Controls: ❌
-  - Brand Locking: ❌
+Best For: Weddings, corporate mixers
+Stripe Metadata:
+  type: event_pass
+  credits: 200
+  sms_credits: 300
+  duration_hours: 48
+  prompts_limit: 6
+  display_order: 2
 ```
 
 #### Premium Event - $520
 ```yaml
-Price: $520.00 ($52,000 cents)
+Price: $520.00 (52,000 cents)
 Events Allowed: 1
 Event Window: 72 hours
-Prompt Limit: Unlimited
+Prompt Limit: Unlimited (0)
 Included Image Credits: 400
 Included SMS Credits: 600
-Features:
-  - 1 event allowed
-  - 72-hour event window
-  - Unlimited prompts
-  - 400 image credits included
-  - 600 SMS credits included
-  - Deterministic seeds
-  - Prompt locking
-  - Priority generation queue
-Advanced Features:
-  - Deterministic Seeds: ✅
-  - Priority Queue: ✅
-  - Prompt Locking: ✅
-  - Admin Controls: ❌
-  - Brand Locking: ❌
+Best For: Large receptions, festivals
+Stripe Metadata:
+  type: event_pass
+  credits: 400
+  sms_credits: 600
+  duration_hours: 72
+  prompts_limit: 0
+  display_order: 3
 ```
 
 #### Platinum Event - $900
 ```yaml
-Price: $900.00 ($90,000 cents)
+Price: $900.00 (90,000 cents)
 Events Allowed: 1
 Event Window: 96 hours
-Prompt Limit: Unlimited
+Prompt Limit: Unlimited (0)
 Included Image Credits: 750
 Included SMS Credits: 1,200
-Features:
-  - 1 event allowed
-  - 96-hour event window
-  - Unlimited prompts
-  - 750 image credits included
-  - 1,200 SMS credits included
-  - Deterministic seeds
-  - Advanced admin controls
-  - Brand locking
-  - Highest priority queue
-Advanced Features:
-  - Deterministic Seeds: ✅
-  - Priority Queue: ✅ (Highest)
-  - Prompt Locking: ✅
-  - Admin Controls: ✅
-  - Brand Locking: ✅
+Best For: Enterprise, brand activations
+Stripe Metadata:
+  type: event_pass
+  credits: 750
+  sms_credits: 1200
+  duration_hours: 96
+  prompts_limit: 0
+  display_order: 4
 ```
-
-### UI Copy Templates
-
-**Heading:** "Event Passes - Host Your Event"
-
-**Subheading:** "Purchase an event pass to create and host your event. Each pass includes starter credits and advanced features."
-
-**Important Note:** "Event passes grant event access and controls. Purchase Credit Top-Ups if you need more generation fuel."
 
 ---
 
@@ -215,50 +189,191 @@ Advanced Features:
 **Purpose:** Regular credit allocation for ongoing users
 
 **Key Rules:**
-- Credits reset each billing period
+- Credits reset each billing period (no rollover)
 - Do not grant event access by themselves
 - Prompt limits enforced per event
 - Must purchase Event Pass to host events
 
-### Subscription Tiers & Prompt Limits
-
-All subscriptions exist in both Monthly and Annual variants:
-
-#### Starter Tier
+### Free Tier
 ```yaml
-Prompt Limit: 3 prompts per event
-Monthly Variant: (Existing Stripe pricing)
-Annual Variant: (Existing Stripe pricing)
+Name: Free
+Price: $0.00 (0 cents)
+Billing Period: Monthly
+Image Credits: 10 per month
+SMS Credits: 0 per month
+Max Events: 1 concurrent
+Prompts Per Event: 3
+Features: Basic access
+Stripe Metadata: Not in Stripe (free tier)
 ```
 
-#### Pro Tier
+### Starter Tier
+
+#### Starter Monthly - $29/month
 ```yaml
-Prompt Limit: 6 prompts per event
-Monthly Variant: (Existing Stripe pricing)
-Annual Variant: (Existing Stripe pricing)
+Price: $29.00 (2,900 cents)
+Billing Period: Monthly
+Image Credits: 60 per month
+SMS Credits: 50 per month
+Max Events: 1 concurrent
+Prompts Per Event: 3
+Features: Basic support
+Stripe Metadata:
+  type: subscription
+  tier: starter
+  billing_period: monthly
+  credits_per_period: 60
+  sms_credits_per_period: 50
+  prompts_limit: 3
+  concurrent_events: 1
+  display_order: 10
 ```
 
-#### Premium Tier
+#### Starter Annual - $299/year
 ```yaml
-Prompt Limit: 9 prompts per event
-Monthly Variant: (Existing Stripe pricing)
-Annual Variant: (Existing Stripe pricing)
+Price: $299.00 (29,900 cents)
+Billing Period: Annual
+Image Credits: 720 per year (~60/month)
+SMS Credits: 600 per year (~50/month)
+Max Events: 1 concurrent
+Prompts Per Event: 3
+Features: Basic support, save with annual billing
+Stripe Metadata:
+  type: subscription
+  tier: starter
+  billing_period: annual
+  credits_per_period: 720
+  sms_credits_per_period: 600
+  prompts_limit: 3
+  concurrent_events: 1
+  display_order: 10
 ```
 
-#### Platinum Tier
+### Pro Tier
+
+#### Pro Monthly - $79/month
 ```yaml
-Prompt Limit: 12 prompts per event
-Monthly Variant: (Existing Stripe pricing)
-Annual Variant: (Existing Stripe pricing)
+Price: $79.00 (7,900 cents)
+Billing Period: Monthly
+Image Credits: 200 per month
+SMS Credits: 150 per month
+Max Events: 1 concurrent
+Prompts Per Event: 6
+Features: Priority support
+Stripe Metadata:
+  type: subscription
+  tier: pro
+  billing_period: monthly
+  credits_per_period: 200
+  sms_credits_per_period: 150
+  prompts_limit: 6
+  concurrent_events: 1
+  display_order: 20
 ```
 
-### UI Copy Templates
+#### Pro Annual - $799/year
+```yaml
+Price: $799.00 (79,900 cents)
+Billing Period: Annual
+Image Credits: 2,400 per year (~200/month)
+SMS Credits: 1,800 per year (~150/month)
+Max Events: 1 concurrent
+Prompts Per Event: 6
+Features: Priority support, save with annual billing
+Stripe Metadata:
+  type: subscription
+  tier: pro
+  billing_period: annual
+  credits_per_period: 2400
+  sms_credits_per_period: 1800
+  prompts_limit: 6
+  concurrent_events: 1
+  display_order: 20
+```
 
-**Heading:** "Monthly & Annual Plans"
+### Premium Tier
 
-**Subheading:** "Get regular credit allocations for ongoing use. Subscriptions provide credits but you'll need an Event Pass to host events."
+#### Premium Monthly - $149/month
+```yaml
+Price: $149.00 (14,900 cents)
+Billing Period: Monthly
+Image Credits: 450 per month
+SMS Credits: 300 per month
+Max Events: 1 concurrent
+Prompts Per Event: 9
+Features: Priority support, advanced features
+Stripe Metadata:
+  type: subscription
+  tier: premium
+  billing_period: monthly
+  credits_per_period: 450
+  sms_credits_per_period: 300
+  prompts_limit: 9
+  concurrent_events: 1
+  display_order: 30
+```
 
-**Important Note:** "Subscriptions give you monthly/annual credits. To create events, purchase an Event Pass."
+#### Premium Annual - $1,499/year
+```yaml
+Price: $1,499.00 (149,900 cents)
+Billing Period: Annual
+Image Credits: 5,400 per year (~450/month)
+SMS Credits: 3,600 per year (~300/month)
+Max Events: 1 concurrent
+Prompts Per Event: 9
+Features: Priority support, advanced features, save with annual billing
+Stripe Metadata:
+  type: subscription
+  tier: premium
+  billing_period: annual
+  credits_per_period: 5400
+  sms_credits_per_period: 3600
+  prompts_limit: 9
+  concurrent_events: 1
+  display_order: 30
+```
+
+### Platinum Tier
+
+#### Platinum Monthly - $299/month
+```yaml
+Price: $299.00 (29,900 cents)
+Billing Period: Monthly
+Image Credits: 1,000 per month
+SMS Credits: 750 per month
+Max Events: 1 concurrent
+Prompts Per Event: 12
+Features: Dedicated support, all features
+Stripe Metadata:
+  type: subscription
+  tier: platinum
+  billing_period: monthly
+  credits_per_period: 1000
+  sms_credits_per_period: 750
+  prompts_limit: 12
+  concurrent_events: 1
+  display_order: 40
+```
+
+#### Platinum Annual - $2,999/year
+```yaml
+Price: $2,999.00 (299,900 cents)
+Billing Period: Annual
+Image Credits: 12,000 per year (~1,000/month)
+SMS Credits: 9,000 per year (~750/month)
+Max Events: 1 concurrent
+Prompts Per Event: 12
+Features: Dedicated support, all features, save with annual billing
+Stripe Metadata:
+  type: subscription
+  tier: platinum
+  billing_period: annual
+  credits_per_period: 12000
+  sms_credits_per_period: 9000
+  prompts_limit: 12
+  concurrent_events: 1
+  display_order: 40
+```
 
 ---
 
@@ -276,74 +391,59 @@ Annual Variant: (Existing Stripe pricing)
 
 #### Activation 2.5K - $699/month
 ```yaml
-Price: $699.00/month ($69,900 cents)
+Price: $699.00 (69,900 cents)
+Billing Period: Monthly
 Image Credits: 2,500 per month
 SMS Credits: 2,000 per month
-Concurrent Events: Up to 5
+Max Events: 5 concurrent
 Event Duration: Always-on (no time limit)
-Prompt Limit: Unlimited
+Prompts Per Event: Unlimited (0)
 Features:
-  - 2,500 image credits per month
-  - 2,000 SMS credits per month
-  - Up to 5 concurrent events
-  - Always-on event duration
-  - Unlimited prompts
-  - Deterministic seeds
-  - Priority generation queue
-  - Admin dashboard
-Advanced Features:
-  - Deterministic Seeds: ✅
-  - Priority Queue: ✅
-  - Brand Controls: ❌
-  - Team Accounts: ❌
-  - Prompt Governance: ❌
+  - Deterministic seeds: ✅
+  - Priority queue: ✅
+  - Brand controls: ❌
+  - Team accounts: ❌
+Stripe Metadata:
+  type: subscription
+  tier: activation_2.5k
+  billing_period: monthly
+  credits_per_period: 2500
+  sms_credits_per_period: 2000
+  prompts_limit: 0
+  concurrent_events: 5
+  deterministic_seeds: true
+  priority_queue: true
+  display_order: 100
 ```
 
 #### Activation 5K - $1,299/month
 ```yaml
-Price: $1,299.00/month ($129,900 cents)
+Price: $1,299.00 (129,900 cents)
+Billing Period: Monthly
 Image Credits: 5,000 per month
 SMS Credits: 4,000 per month
-Concurrent Events: Unlimited
+Max Events: Unlimited (999)
 Event Duration: Always-on (no time limit)
-Prompt Limit: Unlimited
+Prompts Per Event: Unlimited (0)
 Features:
-  - 5,000 image credits per month
-  - 4,000 SMS credits per month
-  - Unlimited concurrent events
-  - Always-on event duration
-  - Unlimited prompts
-  - Deterministic seeds
-  - Brand controls & governance
-  - Team accounts
-  - Highest priority queue
-  - Dedicated support
-Advanced Features:
-  - Deterministic Seeds: ✅
-  - Priority Queue: ✅ (Highest)
-  - Brand Controls: ✅
-  - Team Accounts: ✅
-  - Prompt Governance: ✅
-```
-
-### UI Copy Templates
-
-**Heading:** "Activation Plans - Enterprise Solutions"
-
-**Subheading:** "Always-on access for recurring brand activations. High volume credits, unlimited events, and enterprise controls."
-
-**Important Note:** "Activation plans include event access, high-volume credits, and team features. Perfect for agencies and ongoing campaigns."
-
----
-
-## 🎨 5. ADD-ONS (Optional Services)
-
-### Branded Photo Gallery - $49
-```yaml
-Price: $49.00 ($4,900 cents)
-Description: Professional branded photo gallery with custom branding, domain, and premium features
-Delivery: Email
-Type: One-time service
+  - Deterministic seeds: ✅
+  - Priority queue: ✅ (Highest)
+  - Brand controls: ✅
+  - Team accounts: ✅
+  - Dedicated support: ✅
+Stripe Metadata:
+  type: subscription
+  tier: activation_5k
+  billing_period: monthly
+  credits_per_period: 5000
+  sms_credits_per_period: 4000
+  prompts_limit: 0
+  concurrent_events: 999
+  deterministic_seeds: true
+  priority_queue: true
+  brand_controls: true
+  team_accounts: true
+  display_order: 101
 ```
 
 ---
@@ -362,7 +462,7 @@ When a user generates an image or sends an SMS, credits are consumed in this ord
 2. **Purchased SMS Credits** (from Credit Top-Ups) - consumed second
 3. **Event SMS Credits** (included with Event Pass) - consumed last
 
-**Rationale:** Subscription credits reset monthly, so use them first. Purchased credits never expire, so save them. Event credits are starter buffers and expire with the event.
+**Rationale:** Subscription credits reset monthly, so use them first. Purchased credits never expire, so save them. Event credits are starter buffers.
 
 ---
 
@@ -435,16 +535,6 @@ Returns: prompt limit based on event pass or subscription tier
 - Implying subscriptions grant event access
 - Any "unlimited" language (except where true)
 
-### Event Creation Screen Requirements
-
-**Before Creating Event:**
-- Check if user has event access
-- If no access, show modal:
-  - "Event Pass Required"
-  - Explain what event passes provide
-  - Link to purchase event pass
-  - Show activation plans as alternative
-
 ### Credit Display Requirements
 
 **Dashboard Must Show:**
@@ -456,7 +546,7 @@ SMS Credits: [subscription] + [purchased] + [event] = [total]
 **Tooltips:**
 - Subscription: "Resets monthly/annually"
 - Purchased: "Never expires"
-- Event: "Expires with event pass"
+- Event: "Included with event pass"
 
 ---
 
@@ -476,25 +566,6 @@ Before deploying pricing changes:
 - [ ] No legacy pricing visible anywhere
 - [ ] Marketing copy updated
 - [ ] Help documentation updated
-
----
-
-## 🚫 DEPRECATED CONCEPTS (DO NOT USE)
-
-### ❌ Old Event Pass Model
-- Event passes as cheap credit packs
-- Unlimited usage language
-- Confusing credit + access bundling
-
-### ❌ Old Subscription Model
-- Subscriptions granting event access
-- Unclear prompt limits
-- "Pay for credits, get events free" model
-
-### ❌ Legacy Pricing
-- Any prices not listed in this document
-- Three-tier event pass system
-- Mixed credit + event pricing
 
 ---
 
@@ -524,6 +595,27 @@ Before deploying pricing changes:
 
 ---
 
-**Document Version:** 1.0
+## 📋 COMPLETE PRODUCT SUMMARY
+
+### Total Products: 19
+- **1** Free Tier (no Stripe product)
+- **8** Standard Subscriptions (4 monthly + 4 annual)
+- **2** Activation Plans
+- **4** Event Passes
+- **4** Credit Top-ups
+
+### Tier Display Order
+1. Free (display_order: 1)
+2. Starter (display_order: 10)
+3. Pro (display_order: 20)
+4. Premium (display_order: 30)
+5. Platinum (display_order: 40)
+6. Activation 2.5K (display_order: 100)
+7. Activation 5K (display_order: 101)
+8. Enterprise (display_order: 999) - Contact Us
+
+---
+
+**Document Version:** 2.0
 **Authority Level:** CANONICAL - All application code must reference this
 **Next Review:** Before any pricing change

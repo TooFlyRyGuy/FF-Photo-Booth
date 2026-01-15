@@ -53,58 +53,66 @@ Use this checklist to complete your Stripe integration. For detailed instruction
 ### Monthly Subscriptions (4 products)
 
 - [ ] **Starter Monthly** - $29/mo
-  - Metadata: `type: subscription`, `tier: starter`, `credits_per_period: 60`, `sms_credits_per_period: 50`, `prompts_limit: 3`
+  - Metadata: `type: subscription`, `tier: starter`, `billing_period: monthly`, `credits_per_period: 60`, `sms_credits_per_period: 50`, `prompts_limit: 3`, `concurrent_events: 1`, `display_order: 10`
 
 - [ ] **Pro Monthly** - $79/mo
-  - Metadata: `type: subscription`, `tier: pro`, `credits_per_period: 200`, `sms_credits_per_period: 150`, `prompts_limit: 6`
+  - Metadata: `type: subscription`, `tier: pro`, `billing_period: monthly`, `credits_per_period: 200`, `sms_credits_per_period: 150`, `prompts_limit: 6`, `concurrent_events: 1`, `display_order: 20`
 
 - [ ] **Premium Monthly** - $149/mo
-  - Metadata: `type: subscription`, `tier: premium`, `credits_per_period: 450`, `sms_credits_per_period: 300`, `prompts_limit: 9`
+  - Metadata: `type: subscription`, `tier: premium`, `billing_period: monthly`, `credits_per_period: 450`, `sms_credits_per_period: 300`, `prompts_limit: 9`, `concurrent_events: 1`, `display_order: 30`
 
 - [ ] **Platinum Monthly** - $299/mo
-  - Metadata: `type: subscription`, `tier: platinum`, `credits_per_period: 1000`, `sms_credits_per_period: 750`, `prompts_limit: 12`
+  - Metadata: `type: subscription`, `tier: platinum`, `billing_period: monthly`, `credits_per_period: 1000`, `sms_credits_per_period: 750`, `prompts_limit: 12`, `concurrent_events: 1`, `display_order: 40`
 
 ### Annual Subscriptions (4 products)
 
 - [ ] **Starter Annual** - $299/yr
-  - Metadata: `type: subscription`, `tier: starter`, `credits_per_period: 720`, `sms_credits_per_period: 600`, `prompts_limit: 3`
+  - Metadata: `type: subscription`, `tier: starter`, `billing_period: annual`, `credits_per_period: 720`, `sms_credits_per_period: 600`, `prompts_limit: 3`, `concurrent_events: 1`, `display_order: 10`
 
 - [ ] **Pro Annual** - $799/yr
-  - Metadata: `type: subscription`, `tier: pro`, `credits_per_period: 2400`, `sms_credits_per_period: 1800`, `prompts_limit: 6`
+  - Metadata: `type: subscription`, `tier: pro`, `billing_period: annual`, `credits_per_period: 2400`, `sms_credits_per_period: 1800`, `prompts_limit: 6`, `concurrent_events: 1`, `display_order: 20`
 
 - [ ] **Premium Annual** - $1499/yr
-  - Metadata: `type: subscription`, `tier: premium`, `credits_per_period: 5400`, `sms_credits_per_period: 3600`, `prompts_limit: 9`
+  - Metadata: `type: subscription`, `tier: premium`, `billing_period: annual`, `credits_per_period: 5400`, `sms_credits_per_period: 3600`, `prompts_limit: 9`, `concurrent_events: 1`, `display_order: 30`
 
 - [ ] **Platinum Annual** - $2999/yr
-  - Metadata: `type: subscription`, `tier: platinum`, `credits_per_period: 12000`, `sms_credits_per_period: 9000`, `prompts_limit: 12`
+  - Metadata: `type: subscription`, `tier: platinum`, `billing_period: annual`, `credits_per_period: 12000`, `sms_credits_per_period: 9000`, `prompts_limit: 12`, `concurrent_events: 1`, `display_order: 40`
+
+### Activation Plans (2 products)
+
+- [ ] **Activation 2.5K** - $699/mo
+  - Metadata: `type: subscription`, `tier: activation_2.5k`, `billing_period: monthly`, `credits_per_period: 2500`, `sms_credits_per_period: 2000`, `prompts_limit: 0`, `concurrent_events: 5`, `deterministic_seeds: true`, `priority_queue: true`, `display_order: 100`
+
+- [ ] **Activation 5K** - $1299/mo
+  - Metadata: `type: subscription`, `tier: activation_5k`, `billing_period: monthly`, `credits_per_period: 5000`, `sms_credits_per_period: 4000`, `prompts_limit: 0`, `concurrent_events: 999`, `deterministic_seeds: true`, `priority_queue: true`, `brand_controls: true`, `team_accounts: true`, `display_order: 101`
 
 ### Event Passes (4 products)
 
 - [ ] **Starter Event** - $150
-  - Metadata: `type: event_pass`, `credits: 250`, `sms_credits: 200`, `duration_hours: 24`, `prompts_limit: 3`
+  - Metadata: `type: event_pass`, `credits: 100`, `sms_credits: 150`, `duration_hours: 24`, `prompts_limit: 3`, `display_order: 1`
 
 - [ ] **Pro Event** - $280
-  - Metadata: `type: event_pass`, `credits: 500`, `sms_credits: 400`, `duration_hours: 48`, `prompts_limit: 6`
+  - Metadata: `type: event_pass`, `credits: 200`, `sms_credits: 300`, `duration_hours: 48`, `prompts_limit: 6`, `display_order: 2`
 
 - [ ] **Premium Event** - $520
-  - Metadata: `type: event_pass`, `credits: 1000`, `sms_credits: 800`, `duration_hours: 72`, `prompts_limit: null`
+  - Metadata: `type: event_pass`, `credits: 400`, `sms_credits: 600`, `duration_hours: 72`, `prompts_limit: 0`, `display_order: 3`
 
 - [ ] **Platinum Event** - $900
-  - Metadata: `type: event_pass`, `credits: 2000`, `sms_credits: 1600`, `duration_hours: 96`, `prompts_limit: null`
+  - Metadata: `type: event_pass`, `credits: 750`, `sms_credits: 1200`, `duration_hours: 96`, `prompts_limit: 0`, `display_order: 4`
 
 ### Credit Top-ups (4 products)
 
 - [ ] **Small Boost** - $49
-  - Metadata: `type: credit_topup`, `credits: 150`, `sms_credits: 100`
+  - Metadata: `type: credit_topup`, `credits: 120`, `sms_credits: 120`, `display_order: 1`
 
 - [ ] **Creator Pack** - $129
-  - Metadata: `type: credit_topup`, `credits: 450`, `sms_credits: 300`
+  - Metadata: `type: credit_topup`, `credits: 350`, `sms_credits: 350`, `display_order: 2`
 
 - [ ] **Pro Boost** - $279
-  - Metadata: `type: credit_topup`, `credits: 1050`, `sms_credits: 700`
+  - Metadata: `type: credit_topup`, `credits: 900`, `sms_credits: 900`, `display_order: 3`
 
 - [ ] **Power Pack** - $499
-  - Metadata: `type: credit_topup`, `credits: 2100`, `sms_credits: 1400`
+  - Metadata: `type: credit_topup`, `credits: 1800`, `sms_credits: 1800`, `display_order: 4`
 
 ---
 
@@ -185,8 +193,8 @@ Use this checklist to complete your Stripe integration. For detailed instruction
 - `customer.subscription.updated`
 
 ### Common Metadata Fields
-- Subscriptions: `type`, `tier`, `credits_per_period`, `sms_credits_per_period`, `prompts_limit`
-- Event Passes: `type`, `credits`, `sms_credits`, `duration_hours`
+- Subscriptions: `type`, `tier`, `billing_period`, `credits_per_period`, `sms_credits_per_period`, `prompts_limit`, `concurrent_events`
+- Event Passes: `type`, `credits`, `sms_credits`, `duration_hours`, `prompts_limit`
 - Credit Packs: `type`, `credits`, `sms_credits`
 
 ---
@@ -214,14 +222,15 @@ Use this checklist to complete your Stripe integration. For detailed instruction
 ## 📚 Full Documentation
 
 - **Complete Setup Guide**: `STRIPE_SETUP_GUIDE.md`
+- **Pricing Structure**: `PRICING_STRUCTURE.md`
 - **SMS Credits Reference**: `SMS_CREDITS_TECHNICAL_REFERENCE.md`
 - **Stripe API Docs**: https://stripe.com/docs
 - **Supabase Functions**: https://supabase.com/docs/guides/functions
 
 ---
 
-**Total Products to Create**: 20 (8 subscriptions + 4 event passes + 4 credit packs + 4 add-ons if needed)
+**Total Products to Create**: 18 products (8 subscriptions + 2 activations + 4 event passes + 4 credit packs)
 
-**Estimated Setup Time**: 2-3 hours (first time), 30-45 minutes (if you've done it before)
+**Estimated Setup Time**: 2-3 hours (first time), 45-60 minutes (experienced)
 
-**When You're Done**: You'll have a fully functional payment system with subscriptions, event passes, and credit top-ups! 🎉
+**When You're Done**: You'll have a fully functional payment system with subscriptions, activation plans, event passes, and credit top-ups!
