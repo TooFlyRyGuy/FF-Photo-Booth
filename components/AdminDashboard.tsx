@@ -10,6 +10,7 @@ import UserManagement from './UserManagement';
 import PlanManagement from './PlanManagement';
 import CreditDisplay from './CreditDisplay';
 import ProfileManagement from './ProfileManagement';
+import TidioWidget from './TidioWidget';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -2380,6 +2381,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </div>
         </div>
       )}
+
+      <TidioWidget />
     </div>
   );
 };
