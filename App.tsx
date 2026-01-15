@@ -4,6 +4,7 @@ import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
 import { getEventByPasscode, clearUserCache } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
+import TidioWidget from './components/TidioWidget';
 
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const KioskMode = lazy(() => import('./components/KioskMode'));
@@ -413,6 +414,8 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <TidioWidget />
     </div>
   );
 };
