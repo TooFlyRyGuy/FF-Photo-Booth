@@ -346,51 +346,51 @@ Create 3 event pass products:
 
 Create 4 credit pack products:
 
-#### 1. Small Credit Pack
-- **Name**: `Small Credit Pack`
-- **Description**: `Emergency credit top-off - never expires`
-- **Pricing**: One-time, **$25.00 USD**
-- **Metadata**:
-  ```
-  type: credit_topup
-  credits: 50
-  sms_credits: 25
-  display_order: 1
-  ```
-
-#### 2. Medium Credit Pack
-- **Name**: `Medium Credit Pack`
-- **Description**: `Most popular credit pack - never expires`
-- **Pricing**: One-time, **$59.00 USD**
+#### 1. Small Boost
+- **Name**: `Small Boost`
+- **Description**: `Emergency refill for light users - credits never expire`
+- **Pricing**: One-time, **$49.00 USD**
 - **Metadata**:
   ```
   type: credit_topup
   credits: 150
-  sms_credits: 75
+  sms_credits: 100
+  display_order: 1
+  ```
+
+#### 2. Creator Pack
+- **Name**: `Creator Pack`
+- **Description**: `Perfect for regular creators and small events - credits never expire`
+- **Pricing**: One-time, **$129.00 USD**
+- **Metadata**:
+  ```
+  type: credit_topup
+  credits: 450
+  sms_credits: 300
   display_order: 2
   ```
 
-#### 3. Large Credit Pack
-- **Name**: `Large Credit Pack`
-- **Description**: `High-volume events and agencies - never expires`
-- **Pricing**: One-time, **$99.00 USD**
+#### 3. Pro Boost
+- **Name**: `Pro Boost`
+- **Description**: `Power users and multi-event support - credits never expire`
+- **Pricing**: One-time, **$279.00 USD**
 - **Metadata**:
   ```
   type: credit_topup
-  credits: 300
-  sms_credits: 150
+  credits: 1050
+  sms_credits: 700
   display_order: 3
   ```
 
-#### 4. XL Credit Pack
-- **Name**: `XL Credit Pack`
-- **Description**: `Maximum value pack - never expires`
-- **Pricing**: One-time, **$199.00 USD**
+#### 4. Power Pack
+- **Name**: `Power Pack`
+- **Description**: `Agencies and high-volume usage - credits never expire`
+- **Pricing**: One-time, **$499.00 USD**
 - **Metadata**:
   ```
   type: credit_topup
-  credits: 700
-  sms_credits: 350
+  credits: 2100
+  sms_credits: 1400
   display_order: 4
   ```
 

@@ -104,10 +104,10 @@ Credits are consumed in this order:
 - **Platinum**: $600 (72 hours)
 
 ### Credit Top-ups
-- **Small**: $25 (50 images + 25 SMS)
-- **Medium**: $59 (150 images + 75 SMS)
-- **Large**: $99 (300 images + 150 SMS)
-- **XL**: $199 (700 images + 350 SMS)
+- **Small Boost**: $49 (150 images + 100 SMS)
+- **Creator Pack**: $129 (450 images + 300 SMS)
+- **Pro Boost**: $279 (1,050 images + 700 SMS)
+- **Power Pack**: $499 (2,100 images + 1,400 SMS)
 
 ## Support
 

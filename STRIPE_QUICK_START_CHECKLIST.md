@@ -91,17 +91,17 @@ Use this checklist to complete your Stripe integration. For detailed instruction
 
 ### Credit Top-ups (4 products)
 
-- [ ] **Small Credit Pack** - $25
-  - Metadata: `type: credit_topup`, `credits: 50`, `sms_credits: 25`
+- [ ] **Small Boost** - $49
+  - Metadata: `type: credit_topup`, `credits: 150`, `sms_credits: 100`
 
-- [ ] **Medium Credit Pack** - $59
-  - Metadata: `type: credit_topup`, `credits: 150`, `sms_credits: 75`
+- [ ] **Creator Pack** - $129
+  - Metadata: `type: credit_topup`, `credits: 450`, `sms_credits: 300`
 
-- [ ] **Large Credit Pack** - $99
-  - Metadata: `type: credit_topup`, `credits: 300`, `sms_credits: 150`
+- [ ] **Pro Boost** - $279
+  - Metadata: `type: credit_topup`, `credits: 1050`, `sms_credits: 700`
 
-- [ ] **XL Credit Pack** - $199
-  - Metadata: `type: credit_topup`, `credits: 700`, `sms_credits: 350`
+- [ ] **Power Pack** - $499
+  - Metadata: `type: credit_topup`, `credits: 2100`, `sms_credits: 1400`
 
 ---
 

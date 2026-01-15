@@ -284,10 +284,10 @@ INSERT INTO credit_ledger (
 ) VALUES (
   '550e8400-e29b-41d4-a716-446655440000',
   'credit_pack',
-  50,
-  150,
+  300,
+  450,
   'Purchased SMS credits',
-  '{"type": "sms", "product": "Medium Credit Pack"}'::jsonb
+  '{"type": "sms", "product": "Creator Pack"}'::jsonb
 );
 ```
 
