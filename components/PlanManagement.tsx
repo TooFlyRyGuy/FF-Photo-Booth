@@ -38,6 +38,7 @@ interface EventPass {
   stripe_product_id?: string;
   price_cents: number;
   credits: number;
+  sms_credits: number;
   duration_hours: number;
   setup_included: boolean;
   prompts_limit: number | null;
@@ -51,6 +52,7 @@ interface CreditTopupProduct {
   id: string;
   name: string;
   credits: number;
+  sms_credits: number;
   price_cents: number;
   stripe_price_id?: string;
   stripe_product_id?: string;
@@ -109,7 +111,8 @@ const PlanManagement: React.FC = () => {
       const { data, error } = await supabase
         .from('subscription_tiers_new')
         .select('*')
-        .order('display_order');
+        .order('tier_category', { ascending: true, nullsFirst: true })
+        .order('display_order', { ascending: true });
 
       if (error) throw error;
       setTiers(data || []);
@@ -778,7 +781,7 @@ const PlanManagement: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {eventPasses.map((eventPass) => (
                 <div
                   key={eventPass.id}
@@ -815,7 +818,11 @@ const PlanManagement: React.FC = () => {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Ticket size={16} className="text-slate-500" />
-                      <span>{eventPass.credits >= 999999 ? 'Unlimited' : eventPass.credits} credits</span>
+                      <span>{eventPass.credits >= 999999 ? 'Unlimited' : eventPass.credits} image credits</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Ticket size={16} className="text-slate-500" />
+                      <span>{eventPass.sms_credits >= 999999 ? 'Unlimited' : eventPass.sms_credits} SMS credits</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Clock size={16} className="text-slate-500" />
@@ -823,7 +830,7 @@ const PlanManagement: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Zap size={16} className="text-slate-500" />
-                      <span>{eventPass.prompts_limit === null ? 'Unlimited' : eventPass.prompts_limit} prompts</span>
+                      <span>{eventPass.prompts_limit === null || eventPass.prompts_limit === 0 ? 'Unlimited' : eventPass.prompts_limit} prompts</span>
                     </div>
                     {eventPass.setup_included && (
                       <div className="flex items-center gap-2 text-sm text-green-700">
@@ -1026,7 +1033,11 @@ const PlanManagement: React.FC = () => {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Zap size={16} className="text-slate-500" />
-                      <span>{product.credits} credits</span>
+                      <span>{product.credits} image credits</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Zap size={16} className="text-slate-500" />
+                      <span>{product.sms_credits} SMS credits</span>
                     </div>
                   </div>
 
