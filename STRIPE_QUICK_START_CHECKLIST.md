@@ -59,10 +59,10 @@ Use this checklist to complete your Stripe integration. For detailed instruction
   - Metadata: `type: subscription`, `tier: pro`, `billing_period: monthly`, `credits_per_period: 200`, `sms_credits_per_period: 150`, `prompts_limit: 6`, `concurrent_events: 1`, `display_order: 20`
 
 - [ ] **Premium Monthly** - $149/mo
-  - Metadata: `type: subscription`, `tier: premium`, `billing_period: monthly`, `credits_per_period: 450`, `sms_credits_per_period: 300`, `prompts_limit: 9`, `concurrent_events: 1`, `display_order: 30`
+  - Metadata: `type: subscription`, `tier: premium`, `billing_period: monthly`, `credits_per_period: 450`, `sms_credits_per_period: 300`, `prompts_limit: 9`, `concurrent_events: 2`, `display_order: 30`
 
 - [ ] **Platinum Monthly** - $299/mo
-  - Metadata: `type: subscription`, `tier: platinum`, `billing_period: monthly`, `credits_per_period: 1000`, `sms_credits_per_period: 750`, `prompts_limit: 12`, `concurrent_events: 1`, `display_order: 40`
+  - Metadata: `type: subscription`, `tier: platinum`, `billing_period: monthly`, `credits_per_period: 1000`, `sms_credits_per_period: 750`, `prompts_limit: 12`, `concurrent_events: 2`, `display_order: 40`
 
 ### Annual Subscriptions (4 products)
 
