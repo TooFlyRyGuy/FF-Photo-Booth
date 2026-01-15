@@ -8,6 +8,7 @@ interface SubscriptionTier {
   billing_period: string;
   price_cents: number;
   credits_per_period: number;
+  sms_credits_per_period: number;
   rollover_enabled: boolean;
   features: string[] | null;
   prompts_limit: number | null;
@@ -20,6 +21,7 @@ interface EventPass {
   name: string;
   price_cents: number;
   credits: number;
+  sms_credits: number;
   duration_hours: number;
   prompts_limit: number | null;
   features: string[] | null;
@@ -39,6 +41,7 @@ interface CreditTopup {
   id: string;
   name: string;
   credits: number;
+  sms_credits: number;
   price_cents: number;
   is_active: boolean;
   display_order: number;
@@ -584,7 +587,11 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                     <ul className="space-y-3 mb-6 flex-grow">
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        {topup.credits} AI-generated photos
+                        {topup.credits} image credits
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                        {topup.sms_credits} SMS credits
                       </li>
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
