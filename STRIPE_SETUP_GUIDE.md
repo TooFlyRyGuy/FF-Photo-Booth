@@ -154,7 +154,7 @@ Create 4 monthly subscription products with these exact specifications:
   credits_per_period: 450
   sms_credits_per_period: 300
   prompts_limit: 9
-  concurrent_events: 1
+  concurrent_events: 3
   display_order: 30
   ```
 
