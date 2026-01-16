@@ -14,6 +14,8 @@ interface SubscriptionTier {
   prompts_limit: number | null;
   is_active: boolean;
   display_order: number;
+  stripe_price_id: string | null;
+  stripe_product_id: string | null;
 }
 
 interface EventPass {
@@ -27,6 +29,8 @@ interface EventPass {
   features: string[] | null;
   is_active: boolean;
   display_order: number;
+  stripe_price_id: string | null;
+  stripe_product_id: string | null;
 }
 
 interface AddOn {
@@ -35,6 +39,8 @@ interface AddOn {
   description: string | null;
   price_cents: number;
   is_active: boolean;
+  stripe_price_id: string | null;
+  stripe_product_id: string | null;
 }
 
 interface CreditTopup {
@@ -45,6 +51,8 @@ interface CreditTopup {
   price_cents: number;
   is_active: boolean;
   display_order: number;
+  stripe_price_id: string | null;
+  stripe_product_id: string | null;
 }
 
 interface UserProfile {
@@ -132,13 +140,83 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   };
 
   const handleSubscribe = async (tierId: string) => {
-    alert(
-      'Stripe integration is not yet configured. To enable payments:\n\n' +
-      '1. Create a Stripe account at https://dashboard.stripe.com/register\n' +
-      '2. Get your Stripe secret key from the Developers section\n' +
-      '3. Add it to your environment configuration\n\n' +
-      'Visit https://bolt.new/setup/stripe for detailed instructions.'
-    );
+    try {
+      const tier = tiers.find(t => t.id === tierId);
+      const pass = eventPasses.find(p => p.id === tierId);
+      const addon = addOns.find(a => a.id === tierId);
+      const topup = creditTopups.find(t => t.id === tierId);
+
+      let priceId: string | null = null;
+      let mode: 'subscription' | 'payment' = 'subscription';
+
+      if (tier) {
+        priceId = tier.stripe_price_id;
+        mode = 'subscription';
+      } else if (pass) {
+        priceId = pass.stripe_price_id;
+        mode = 'payment';
+      } else if (addon) {
+        priceId = addon.stripe_price_id;
+        mode = 'payment';
+      } else if (topup) {
+        priceId = topup.stripe_price_id;
+        mode = 'payment';
+      }
+
+      if (!priceId) {
+        alert(
+          'Stripe integration is not yet configured for this product.\n\n' +
+          'To enable payments:\n' +
+          '1. Create a Stripe product in your dashboard\n' +
+          '2. Update the database with the Stripe Price ID\n\n' +
+          'See STRIPE_TESTING_GUIDE.md for detailed instructions.'
+        );
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Please log in to subscribe');
+        return;
+      }
+
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) {
+        alert('Authentication error. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({
+          price_id: priceId,
+          mode: mode,
+          success_url: `${window.location.origin}?checkout=success`,
+          cancel_url: `${window.location.origin}?checkout=cancelled`
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create checkout session');
+      }
+
+      const { url } = await response.json();
+
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      alert(`Failed to start checkout: ${error.message}`);
+    }
   };
 
   const getTierIcon = (tierName: string) => {
