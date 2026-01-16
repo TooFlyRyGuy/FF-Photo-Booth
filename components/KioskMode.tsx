@@ -14,7 +14,7 @@ interface KioskProps {
   onExit: () => void;
 }
 
-type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery';
+type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits';
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [view, setView] = useState<KioskState>('attract');
@@ -62,6 +62,21 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     accent: event.accentColor || '#ec4899',
     background: event.backgroundColor || '#f8fafc',
   });
+
+  const handleTapToStart = async () => {
+    if (!event.userId) {
+      setErrorMsg('Event owner not found. Please contact the administrator.');
+      return;
+    }
+
+    const creditCheck = await checkCreditAvailability(event.userId, 'image');
+
+    if (!creditCheck.available) {
+      setView('no-credits');
+    } else {
+      setView('prompt-select');
+    }
+  };
 
   const getAspectRatioDimensions = (ratio: string = 'square'): { width: number; height: number } => {
     const baseSize = 1024;
@@ -617,7 +632,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
     return (
       <div
-        onClick={() => setView('prompt-select')}
+        onClick={handleTapToStart}
         className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center cursor-pointer overflow-hidden"
       >
         <div className="absolute inset-0 opacity-20">
@@ -652,7 +667,95 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     );
   }
 
-  // 2. PROMPT SELECT
+  // 2. NO CREDITS WARNING
+  if (view === 'no-credits') {
+    const colors = getBrandingColors();
+    return (
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden px-4">
+        <div className="absolute inset-0 opacity-10">
+          <div className="w-full h-full bg-gradient-to-br from-red-700 to-red-900"></div>
+        </div>
+
+        {event.logoUrl && !event.hideLogo && (
+          <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+            <img src={event.logoUrl} alt={event.name} className="h-12 md:h-24 object-contain" />
+          </div>
+        )}
+
+        <div className="z-10 text-center space-y-6 md:space-y-8 max-w-2xl">
+          <div
+            className="h-20 w-20 md:h-32 md:w-32 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-lg"
+            style={{
+              backgroundColor: '#ef4444',
+              boxShadow: '0 10px 30px rgba(239, 68, 68, 0.5)',
+            }}
+          >
+            <span className="text-4xl md:text-6xl">⚠️</span>
+          </div>
+
+          <h1
+            className="text-3xl md:text-5xl lg:text-7xl font-display font-bold"
+            style={{ color: colors.secondary }}
+          >
+            OUT OF CREDITS
+          </h1>
+
+          <p className="text-lg md:text-2xl text-slate-900 font-light">
+            This event has run out of image generation credits
+          </p>
+
+          <div className="mt-8 space-y-4 md:space-y-6">
+            <p className="text-base md:text-lg text-slate-700 mb-6">
+              Please upgrade your subscription or purchase additional credits to continue using the photo booth.
+            </p>
+
+            <div className="space-y-3 md:space-y-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`${window.location.origin}?view=subscription`, '_blank');
+                }}
+                className="w-full max-w-md mx-auto text-white font-bold text-base md:text-xl py-4 md:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 shadow-lg"
+                style={{
+                  backgroundColor: colors.primary,
+                  boxShadow: `0 10px 25px ${colors.primary}50`,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+              >
+                Upgrade Subscription
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`${window.location.origin}?view=topup`, '_blank');
+                }}
+                className="w-full max-w-md mx-auto bg-slate-900 text-white font-bold text-base md:text-xl py-4 md:py-5 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 shadow-lg"
+              >
+                Purchase Credits
+              </button>
+            </div>
+
+            <div className="mt-8 p-4 md:p-6 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
+              <p className="text-sm md:text-base text-slate-700">
+                <strong>Need help?</strong><br />
+                Contact the event organizer or visit your account dashboard to manage your credits and subscription.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+          <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
+            Exit Kiosk
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. PROMPT SELECT
   if (view === 'prompt-select') {
     return (
       <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
@@ -694,7 +797,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     );
   }
 
-  // 3. CAMERA & CAPTURE
+  // 4. CAMERA & CAPTURE
   if (view === 'camera') {
     const colors = getBrandingColors();
     const getAspectRatioClass = () => {
@@ -777,7 +880,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     );
   }
 
-  // 4. PROCESSING (AI)
+  // 5. PROCESSING (AI)
   if (view === 'processing') {
     const colors = getBrandingColors();
     return (
@@ -806,7 +909,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     );
   }
 
-  // 5. REVIEW CAPTURE (Before Sending to AI)
+  // 6. REVIEW CAPTURE (Before Sending to AI)
   if (view === 'review') {
       const colors = getBrandingColors();
       return (
@@ -841,7 +944,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       )
   }
 
-  // 6. RESULT & DELIVERY
+  // 7. RESULT & DELIVERY
   if (view === 'result' || view === 'delivery') {
     const colors = getBrandingColors();
     return (
