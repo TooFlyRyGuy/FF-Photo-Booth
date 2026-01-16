@@ -237,7 +237,7 @@ Create 4 annual subscription products:
   credits_per_period: 2400
   sms_credits_per_period: 1800
   prompts_limit: 6
-  concurrent_events: 1
+  concurrent_events: 2
   display_order: 20
   ```
 
