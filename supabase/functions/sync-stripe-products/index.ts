@@ -124,11 +124,10 @@ Deno.serve(async (req: Request) => {
           const features = product.description ? product.description.split('\n').filter(f => f.trim()) : [];
 
           const { data, error } = await supabase
-            .from('subscription_tiers')
+            .from('subscription_tiers_new')
             .upsert({
               name: product.name,
               billing_period: billingPeriod,
-              tier: tier,
               price_cents: priceCents,
               credits_per_period: creditsPerPeriod,
               sms_credits_per_period: smsCreditsPerPeriod,

@@ -276,7 +276,7 @@ async function syncCustomerFromStripe(customerId: string) {
     const priceId = subscription.items.data[0].price.id;
 
     const { data: tier } = await supabase
-      .from('subscription_tiers')
+      .from('subscription_tiers_new')
       .select('*')
       .eq('stripe_price_id', priceId)
       .maybeSingle();
@@ -306,13 +306,13 @@ async function syncCustomerFromStripe(customerId: string) {
       }
 
       if (isActive) {
-        const isAnnual = tier.plan_type === 'annual';
+        const isAnnual = tier.billing_period === 'annual';
 
         // Reset subscription credits (NO ROLLOVER) and grant new period credits
         const { error: creditsError } = await supabase
           .from('user_credits')
           .update({
-            plan_type: tier.plan_type,
+            plan_type: tier.billing_period,
             subscription_tier_id: tier.id,
             images_limit: tier.credits_per_period,
             subscription_credits: tier.credits_per_period,
@@ -329,6 +329,24 @@ async function syncCustomerFromStripe(customerId: string) {
           console.error('Error updating user credits:', creditsError);
         } else {
           console.info(`Granted ${tier.credits_per_period} image credits and ${tier.sms_credits_per_period || 0} SMS credits for subscription renewal`);
+        }
+
+        // Update user_profiles with subscription tier
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .update({
+            subscription_tier_id: tier.id,
+            subscription_status: 'active',
+            subscription_start_date: currentPeriodStart.toISOString(),
+            subscription_end_date: currentPeriodEnd.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+
+        if (profileError) {
+          console.error('Error updating user profile:', profileError);
+        } else {
+          console.info(`Updated user profile with tier ${tier.name}`);
         }
       }
 

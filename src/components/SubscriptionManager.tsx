@@ -66,7 +66,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   const loadTiers = async () => {
     try {
       const { data, error } = await supabase
-        .from('subscription_tiers')
+        .from('subscription_tiers_new')
         .select('*')
         .eq('is_active', true)
         .not('stripe_price_id', 'is', null)
