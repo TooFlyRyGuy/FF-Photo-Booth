@@ -1,4 +1,4 @@
-import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
 
@@ -788,6 +788,16 @@ export const saveEvent = async (event: Event): Promise<Event> => {
 
   const isUpdate = Boolean(event.id);
 
+  const userProfile = await getUserProfile();
+  const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
+
+  let eventSource: 'subscription' | 'event_pass' | 'admin' = 'subscription';
+  if (isAdmin) {
+    eventSource = 'admin';
+  } else if (event.passId) {
+    eventSource = 'event_pass';
+  }
+
   const eventData = {
     name: event.name,
     city: event.city,
@@ -811,6 +821,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     smugmug_gallery_key: event.smugmugGalleryKey,
     smugmug_gallery_url: event.smugmugGalleryUrl,
     upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
+    event_source: isUpdate ? undefined : eventSource,
   };
 
   let eventId = event.id;
@@ -1911,10 +1922,41 @@ export const getUserSubscriptionType = async (): Promise<UserSubscriptionType> =
   };
 };
 
+export const getConcurrentEventLimit = async (eventId?: string): Promise<ConcurrentEventLimit> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase.rpc('can_create_concurrent_event', {
+    p_user_id: userId,
+    p_event_id: eventId || null,
+    p_event_source: 'subscription'
+  });
+
+  if (error) {
+    throw new Error(`Failed to check concurrent event limit: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('No result returned from concurrent event check');
+  }
+
+  const result = data[0];
+  return {
+    canCreate: result.can_create,
+    currentCount: result.current_count,
+    limitCount: result.limit_count,
+    errorMessage: result.error_message,
+  };
+};
+
 export const validateEventTimeRestrictions = async (
   startDatetime?: string,
   endDatetime?: string,
-  passId?: string
+  passId?: string,
+  eventId?: string
 ): Promise<EventTimeValidation> => {
   const userId = await getUserId();
 
@@ -1927,6 +1969,7 @@ export const validateEventTimeRestrictions = async (
     p_start_datetime: startDatetime || null,
     p_end_datetime: endDatetime || null,
     p_pass_id: passId || null,
+    p_event_id: eventId || null,
   });
 
   if (error) {

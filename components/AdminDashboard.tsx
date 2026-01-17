@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent } from '../services/backendService';
-import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit } from '../services/backendService';
+import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
@@ -93,6 +93,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showGenerationModal, setShowGenerationModal] = useState(false);
   const [showInactiveEvents, setShowInactiveEvents] = useState(false);
+  const [concurrentEventLimit, setConcurrentEventLimit] = useState<ConcurrentEventLimit | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -174,6 +175,15 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
+  const loadConcurrentEventLimit = async (eventId?: string) => {
+    try {
+      const limit = await getConcurrentEventLimit(eventId);
+      setConcurrentEventLimit(limit);
+    } catch (error) {
+      console.error('Failed to load concurrent event limit:', error);
+    }
+  };
+
   const loadDashboardData = async () => {
     try {
       const [stats, chart] = await Promise.all([
@@ -182,6 +192,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       ]);
       setDashboardStats(stats);
       setChartData(chart);
+
+      await loadConcurrentEventLimit();
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     }
@@ -368,7 +380,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     return passcode;
   };
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
+    await loadConcurrentEventLimit();
     setEditingEvent({
       id: '',
       name: '',
@@ -439,7 +452,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       const validation = await validateEventTimeRestrictions(
         editingEvent.startDatetime,
         editingEvent.endDatetime,
-        (editingEvent as any).passId
+        (editingEvent as any).passId,
+        editingEvent.id
       );
 
       if (!validation.isValid) {
@@ -449,6 +463,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
       await saveEvent(editingEvent as Event);
       await loadData();
+      await loadConcurrentEventLimit();
       setActiveTab('events');
     } catch (error: any) {
       alert(`Failed to save event: ${error.message}`);
@@ -1293,6 +1308,51 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </button>
               <h2 className="text-2xl font-bold text-black">{activeTab === 'create_event' ? 'Create New Event' : 'Edit Event'}</h2>
             </header>
+
+            {concurrentEventLimit && !isAdmin && activeTab === 'create_event' && concurrentEventLimit.limitCount < 999999 && (
+              <div className={`p-4 rounded-lg border-2 ${
+                concurrentEventLimit.canCreate
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Calendar className={concurrentEventLimit.canCreate ? 'text-green-700' : 'text-red-700'} size={20} />
+                    <div>
+                      <p className={`text-sm font-semibold ${concurrentEventLimit.canCreate ? 'text-green-900' : 'text-red-900'}`}>
+                        Concurrent Events: {concurrentEventLimit.currentCount} / {concurrentEventLimit.limitCount}
+                      </p>
+                      <p className={`text-xs ${concurrentEventLimit.canCreate ? 'text-green-700' : 'text-red-700'}`}>
+                        {concurrentEventLimit.canCreate
+                          ? `You can create ${concurrentEventLimit.limitCount - concurrentEventLimit.currentCount} more concurrent ${concurrentEventLimit.limitCount - concurrentEventLimit.currentCount === 1 ? 'event' : 'events'}.`
+                          : concurrentEventLimit.errorMessage
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  {concurrentEventLimit.canCreate && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-green-200 rounded-full h-2">
+                        <div
+                          className="bg-green-700 h-2 rounded-full transition-all"
+                          style={{ width: `${(concurrentEventLimit.currentCount / concurrentEventLimit.limitCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {!concurrentEventLimit.canCreate && (
+                  <div className="mt-3 p-3 bg-white rounded border border-red-200">
+                    <p className="text-sm text-gray-700 font-medium mb-2">Options:</p>
+                    <ul className="text-sm text-gray-600 space-y-1 ml-4 list-disc">
+                      <li>Deactivate an existing event to free up a slot</li>
+                      <li>Upgrade your subscription plan for more concurrent events</li>
+                      <li>Purchase an event pass for time-limited events</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="bg-white p-8 rounded-xl border-2 border-slate-300 space-y-6">
               {/* Event Details Form */}

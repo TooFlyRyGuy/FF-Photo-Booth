@@ -108,6 +108,13 @@ export interface EventTimeValidation {
   restrictionType: string;
 }
 
+export interface ConcurrentEventLimit {
+  canCreate: boolean;
+  currentCount: number;
+  limitCount: number;
+  errorMessage?: string;
+}
+
 export interface UserSettings {
   dropboxAppKey?: string | null;
   dropboxAppSecret?: string | null;
@@ -179,6 +186,7 @@ export interface Event {
   uploadOriginalsToGallery?: boolean;
   passId?: string;
   passExpiresAt?: string;
+  eventSource?: 'subscription' | 'event_pass' | 'admin';
 }
 
 export interface GeneratedImage {
