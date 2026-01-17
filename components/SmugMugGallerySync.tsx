@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, ExternalLink, RefreshCw } from 'lucide-react';
+import { Link, ExternalLink, RefreshCw, ShieldAlert } from 'lucide-react';
 
 interface SmugMugGallerySyncProps {
   eventId: string;
@@ -8,6 +8,7 @@ interface SmugMugGallerySyncProps {
   currentGalleryUrl?: string;
   onSync: (galleryKey: string, galleryUrl: string) => Promise<void>;
   onCreateNew: () => Promise<{ galleryKey: string; galleryUrl: string }>;
+  isAdmin: boolean;
 }
 
 export function SmugMugGallerySync({
@@ -17,6 +18,7 @@ export function SmugMugGallerySync({
   currentGalleryUrl,
   onSync,
   onCreateNew,
+  isAdmin,
 }: SmugMugGallerySyncProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -25,6 +27,20 @@ export function SmugMugGallerySync({
   const [showManualSync, setShowManualSync] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  if (!isAdmin) {
+    return (
+      <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldAlert className="text-gray-400" size={20} />
+          <h3 className="text-lg font-semibold text-gray-600">SmugMug Gallery Management</h3>
+        </div>
+        <p className="text-sm text-gray-500">
+          SmugMug gallery management is only available to administrators.
+        </p>
+      </div>
+    );
+  }
 
   const handleCreateNew = async () => {
     setIsCreating(true);

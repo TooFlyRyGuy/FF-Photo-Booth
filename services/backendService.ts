@@ -1,4 +1,4 @@
-import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
 
@@ -1876,4 +1876,90 @@ export const createSmugMugGalleryForEvent = async (
     galleryKey: galleryId,
     galleryUrl: galleryUrl,
   };
+};
+
+export const getUserSubscriptionType = async (): Promise<UserSubscriptionType> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase.rpc('get_user_subscription_type', {
+    p_user_id: userId
+  });
+
+  if (error) {
+    throw new Error(`Failed to get subscription type: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    return {
+      subscriptionType: 'free',
+      tierName: 'Free',
+      hasActiveSub: false,
+      hasAvailablePasses: false,
+    };
+  }
+
+  const result = data[0];
+  return {
+    subscriptionType: result.subscription_type,
+    tierName: result.tier_name,
+    hasActiveSub: result.has_active_sub,
+    hasAvailablePasses: result.has_available_passes,
+  };
+};
+
+export const validateEventTimeRestrictions = async (
+  startDatetime?: string,
+  endDatetime?: string,
+  passId?: string
+): Promise<EventTimeValidation> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase.rpc('validate_event_time_restrictions', {
+    p_user_id: userId,
+    p_start_datetime: startDatetime || null,
+    p_end_datetime: endDatetime || null,
+    p_pass_id: passId || null,
+  });
+
+  if (error) {
+    throw new Error(`Failed to validate event restrictions: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('No validation result returned');
+  }
+
+  const result = data[0];
+  return {
+    isValid: result.is_valid,
+    errorMessage: result.error_message,
+    restrictionType: result.restriction_type,
+  };
+};
+
+export const hasActiveSubscription = async (): Promise<boolean> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    return false;
+  }
+
+  const { data, error } = await supabase.rpc('has_active_subscription', {
+    p_user_id: userId
+  });
+
+  if (error) {
+    console.error('Failed to check subscription status:', error);
+    return false;
+  }
+
+  return data === true;
 };

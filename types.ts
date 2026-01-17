@@ -95,6 +95,19 @@ export interface UserEventPass {
   isActive: boolean;
 }
 
+export interface UserSubscriptionType {
+  subscriptionType: 'subscription' | 'event_pass' | 'free';
+  tierName: string;
+  hasActiveSub: boolean;
+  hasAvailablePasses: boolean;
+}
+
+export interface EventTimeValidation {
+  isValid: boolean;
+  errorMessage?: string;
+  restrictionType: string;
+}
+
 export interface UserSettings {
   dropboxAppKey?: string | null;
   dropboxAppSecret?: string | null;

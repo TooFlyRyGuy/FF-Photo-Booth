@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Ticket, Clock, Calendar } from 'lucide-react';
-import { UserEventPass } from '../types';
-import { getAvailableEventPasses } from '../services/backendService';
+import { Ticket, Clock, Calendar, CheckCircle } from 'lucide-react';
+import { UserEventPass, UserSubscriptionType } from '../types';
+import { getAvailableEventPasses, getUserSubscriptionType } from '../services/backendService';
 import { formatDuration, formatDateTimeInTimezone, addHours } from '../services/timezoneService';
 
 interface EventPassSelectorProps {
@@ -18,22 +18,28 @@ export function EventPassSelector({
   startDatetime,
 }: EventPassSelectorProps) {
   const [passes, setPasses] = useState<UserEventPass[]>([]);
+  const [subscriptionType, setSubscriptionType] = useState<UserSubscriptionType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadPasses();
+    loadData();
   }, []);
 
-  const loadPasses = async () => {
+  const loadData = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const availablePasses = await getAvailableEventPasses();
-      setPasses(availablePasses);
+      const subType = await getUserSubscriptionType();
+      setSubscriptionType(subType);
+
+      if (!subType.hasActiveSub) {
+        const availablePasses = await getAvailableEventPasses();
+        setPasses(availablePasses);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load passes');
+      setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -70,37 +76,70 @@ export function EventPassSelector({
       <div className="bg-white p-6 rounded-lg border border-gray-200">
         <div className="flex items-center gap-2 mb-4">
           <Ticket className="text-blue-600" size={20} />
-          <h3 className="text-lg font-semibold">Event Pass</h3>
+          <h3 className="text-lg font-semibold">Event Duration</h3>
         </div>
         <p className="text-sm text-red-600">{error}</p>
       </div>
     );
   }
 
+  if (subscriptionType?.hasActiveSub) {
+    return (
+      <div className="bg-green-50 p-6 rounded-lg border-2 border-green-200">
+        <div className="flex items-center gap-2 mb-4">
+          <CheckCircle className="text-green-600" size={24} />
+          <h3 className="text-lg font-semibold text-green-900">Active Subscription</h3>
+        </div>
+        <p className="text-sm text-green-800 mb-3">
+          You have an active <strong>{subscriptionType.tierName}</strong> subscription.
+        </p>
+        <div className="bg-white p-4 rounded-lg border border-green-200">
+          <p className="text-sm text-gray-700">
+            <strong>Unlimited Event Duration:</strong> Your events will run continuously without time restrictions.
+            You don't need to use event passes.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (passes.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-lg border border-gray-200">
+      <div className="bg-yellow-50 p-6 rounded-lg border-2 border-yellow-200">
         <div className="flex items-center gap-2 mb-4">
-          <Ticket className="text-blue-600" size={20} />
-          <h3 className="text-lg font-semibold">Event Pass</h3>
+          <Ticket className="text-yellow-600" size={20} />
+          <h3 className="text-lg font-semibold text-yellow-900">Event Pass Required</h3>
         </div>
-        <p className="text-sm text-gray-600">
-          You don't have any available event passes. Event passes can be purchased separately or included with certain subscription tiers.
+        <p className="text-sm text-yellow-800 mb-3">
+          You don't have any available event passes.
         </p>
+        <div className="bg-white p-4 rounded-lg border border-yellow-200">
+          <p className="text-sm text-gray-700 mb-2">
+            To create events, you can:
+          </p>
+          <ul className="text-sm text-gray-700 space-y-1 ml-4 list-disc">
+            <li>Purchase an event pass for time-limited events</li>
+            <li>Subscribe to a monthly/yearly plan for unlimited event duration</li>
+          </ul>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg border border-gray-200">
+    <div className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200">
       <div className="flex items-center gap-2 mb-4">
         <Ticket className="text-blue-600" size={20} />
-        <h3 className="text-lg font-semibold">Event Pass (Optional)</h3>
+        <h3 className="text-lg font-semibold text-blue-900">Select Event Pass</h3>
       </div>
 
-      <p className="text-sm text-gray-600 mb-4">
-        Use an event pass to create a time-limited event. The event will automatically deactivate when the pass expires.
-      </p>
+      <div className="bg-white p-4 rounded-lg border border-blue-200 mb-4">
+        <p className="text-sm text-gray-700">
+          <strong>Event Pass Events:</strong> Select an event pass to create a time-limited event.
+          The event will automatically deactivate when the pass expires. For unlimited event duration,
+          consider subscribing to a monthly or yearly plan.
+        </p>
+      </div>
 
       <div className="space-y-3">
         {passes.map(pass => {
