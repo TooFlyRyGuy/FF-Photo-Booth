@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle } from 'lucide-react';
 import Settings from './Settings';
@@ -11,6 +11,8 @@ import PlanManagement from './PlanManagement';
 import CreditDisplay from './CreditDisplay';
 import ProfileManagement from './ProfileManagement';
 import TidioWidget from './TidioWidget';
+import { EventPassSelector } from './EventPassSelector';
+import { SmugMugGallerySync } from './SmugMugGallerySync';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -435,6 +437,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
 
     try {
+      const validation = await validateEventTimeRestrictions(
+        editingEvent.startDatetime,
+        editingEvent.endDatetime,
+        (editingEvent as any).passId
+      );
+
+      if (!validation.isValid) {
+        alert(validation.errorMessage || 'Event validation failed');
+        return;
+      }
+
       await saveEvent(editingEvent as Event);
       await loadData();
       setActiveTab('events');
@@ -1358,6 +1371,23 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </div>
 
+              {/* Event Pass Selector */}
+              <div className="pt-6">
+                <EventPassSelector
+                  timezone={userProfile?.timezone || 'UTC'}
+                  selectedPassId={(editingEvent as any).passId}
+                  startDatetime={editingEvent.startDatetime}
+                  onSelectPass={(passId, expiresAt) => {
+                    setEditingEvent({
+                      ...editingEvent,
+                      passId: passId as any,
+                      passExpiresAt: expiresAt as any,
+                      endDatetime: expiresAt,
+                    });
+                  }}
+                />
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
                 <div className="grid grid-cols-5 gap-3">
@@ -1647,6 +1677,34 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </p>
                 </div>
               </div>
+
+              {/* SmugMug Gallery Management - Admin Only */}
+              {editingEvent.id && (
+                <div className="pt-8 border-t border-slate-300">
+                  <SmugMugGallerySync
+                    eventId={editingEvent.id}
+                    eventName={editingEvent.name}
+                    currentGalleryKey={editingEvent.smugmugGalleryKey}
+                    currentGalleryUrl={editingEvent.smugmugGalleryUrl}
+                    isAdmin={userProfile?.role === 'admin'}
+                    onSync={async (galleryKey, galleryUrl) => {
+                      await syncSmugMugGallery(editingEvent.id, galleryKey, galleryUrl);
+                      const updatedEvent = await getEventById(editingEvent.id);
+                      setEditingEvent(updatedEvent);
+                    }}
+                    onCreateNew={async () => {
+                      const result = await createSmugMugGalleryForEvent(
+                        editingEvent.id,
+                        editingEvent.name,
+                        editingEvent.city || ''
+                      );
+                      const updatedEvent = await getEventById(editingEvent.id);
+                      setEditingEvent(updatedEvent);
+                      return result;
+                    }}
+                  />
+                </div>
+              )}
 
               {/* Prompt Selection Section */}
               <div className="pt-8 border-t border-slate-300">
