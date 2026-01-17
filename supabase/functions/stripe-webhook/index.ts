@@ -163,6 +163,32 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
         is_active: true,
       });
 
+    // Grant image credits from event pass
+    if (creditsAllocated > 0) {
+      // Get current credits
+      const { data: currentCredits } = await supabase
+        .from('user_credits')
+        .select('event_credits')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const newEventCredits = (currentCredits?.event_credits || 0) + creditsAllocated;
+
+      const { error: creditsError } = await supabase
+        .from('user_credits')
+        .update({
+          event_credits: newEventCredits,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      if (creditsError) {
+        console.error('Error granting event pass image credits:', creditsError);
+      } else {
+        console.info(`Granted ${creditsAllocated} image credits from event pass to user ${userId}`);
+      }
+    }
+
     // Grant SMS credits if included in the event pass
     if (smsCredits > 0) {
       // Get current SMS credits
