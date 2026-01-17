@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, Upload, Save, X, Camera, Mail, UserCircle } from 'lucide-react';
+import { User, Upload, Save, X, Camera, Mail, UserCircle, Globe } from 'lucide-react';
+import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface UserProfile {
   id: string;
@@ -10,6 +11,7 @@ interface UserProfile {
   profile_picture_url: string | null;
   bio: string | null;
   role: string;
+  timezone?: string | null;
 }
 
 interface ProfileManagementProps {
@@ -21,6 +23,7 @@ const ProfileManagement: React.FC<ProfileManagementProps> = ({ userProfile, onPr
   const [displayName, setDisplayName] = useState(userProfile.display_name || userProfile.full_name || '');
   const [bio, setBio] = useState(userProfile.bio || '');
   const [profilePictureUrl, setProfilePictureUrl] = useState(userProfile.profile_picture_url || '');
+  const [timezone, setTimezone] = useState(userProfile.timezone || detectUserTimezone());
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -87,6 +90,7 @@ const ProfileManagement: React.FC<ProfileManagementProps> = ({ userProfile, onPr
           display_name: displayName.trim() || null,
           bio: bio.trim() || null,
           profile_picture_url: profilePictureUrl || null,
+          timezone: timezone,
           updated_at: new Date().toISOString(),
         })
         .eq('id', userProfile.id);
@@ -240,6 +244,43 @@ const ProfileManagement: React.FC<ProfileManagementProps> = ({ userProfile, onPr
               <p className="text-xs text-slate-500">Optional</p>
               <p className="text-xs text-slate-500">{bio.length}/500</p>
             </div>
+          </div>
+
+          {/* Timezone */}
+          <div>
+            <label className="block text-sm font-bold text-slate-900 mb-2">
+              <div className="flex items-center gap-2">
+                <Globe size={16} />
+                Time Zone
+              </div>
+            </label>
+            <select
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 transition-colors"
+            >
+              {COMMON_TIMEZONES.reduce((acc, tz) => {
+                if (!acc.find(group => group.label === tz.group)) {
+                  acc.push({ label: tz.group, options: [] });
+                }
+                const group = acc.find(g => g.label === tz.group);
+                if (group) {
+                  group.options.push(tz);
+                }
+                return acc;
+              }, [] as Array<{ label: string; options: typeof COMMON_TIMEZONES }>).map(group => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map(tz => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label} ({getTimezoneAbbreviation(tz.value)})
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">
+              This timezone will be used for all date and time displays throughout the app
+            </p>
           </div>
 
           {/* Error Message */}

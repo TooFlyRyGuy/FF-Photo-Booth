@@ -12,10 +12,12 @@ import CreditDisplay from './CreditDisplay';
 import ProfileManagement from './ProfileManagement';
 import { EventPassSelector } from './EventPassSelector';
 import { SmugMugGallerySync } from './SmugMugGallerySync';
+import { TimezoneDateTimePicker } from './TimezoneDateTimePicker';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { QRCodeSVG } from 'qrcode.react';
+import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface AdminProps {
   onLogout: () => void;
@@ -94,6 +96,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [showGenerationModal, setShowGenerationModal] = useState(false);
   const [showInactiveEvents, setShowInactiveEvents] = useState(false);
   const [concurrentEventLimit, setConcurrentEventLimit] = useState<ConcurrentEventLimit | null>(null);
+  const [eventTimezone, setEventTimezone] = useState<string>('');
 
   useEffect(() => {
     if (user) {
@@ -160,10 +163,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       setUserCredits(creditsData);
       setEvents(eventsData || []);
 
+      const userTz = profileData.timezone || detectUserTimezone();
+      setEventTimezone(userTz);
+
       console.log('Loaded data successfully:', {
         userId: profileData?.id || 'unknown',
         role: profileData?.role || 'user',
-        events: (eventsData || []).length
+        events: (eventsData || []).length,
+        timezone: userTz
       });
 
       setIsLoading(false);
@@ -1408,32 +1415,61 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </div>
                   <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Start Date & Time (Optional)</label>
-                  <input
-                    type="datetime-local"
-                    value={editingEvent.startDatetime ? new Date(editingEvent.startDatetime).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => setEditingEvent({...editingEvent, startDatetime: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                  />
-                  <p className="text-xs text-slate-500">Kiosk will be locked before this time</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">End Date & Time (Optional)</label>
-                  <input
-                    type="datetime-local"
-                    value={editingEvent.endDatetime ? new Date(editingEvent.endDatetime).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => setEditingEvent({...editingEvent, endDatetime: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                  />
-                  <p className="text-xs text-slate-500">Kiosk will be locked after this time</p>
-                </div>
+              </div>
+
+              {/* Timezone Selector */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Time Zone</label>
+                <select
+                  value={eventTimezone}
+                  onChange={(e) => setEventTimezone(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                >
+                  {COMMON_TIMEZONES.reduce((acc, tz) => {
+                    if (!acc.find(group => group.label === tz.group)) {
+                      acc.push({ label: tz.group, options: [] });
+                    }
+                    const group = acc.find(g => g.label === tz.group);
+                    if (group) {
+                      group.options.push(tz);
+                    }
+                    return acc;
+                  }, [] as Array<{ label: string; options: typeof COMMON_TIMEZONES }>).map(group => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.options.map(tz => (
+                        <option key={tz.value} value={tz.value}>
+                          {tz.label} ({getTimezoneAbbreviation(tz.value)})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">All event times will be displayed in this timezone</p>
+              </div>
+
+              {/* Event Time Restrictions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <TimezoneDateTimePicker
+                  label="Start Date & Time (Optional)"
+                  value={editingEvent.startDatetime}
+                  timezone={eventTimezone}
+                  onChange={(isoString) => setEditingEvent({...editingEvent, startDatetime: isoString || undefined})}
+                  helperText="Kiosk will be locked before this time"
+                />
+                <TimezoneDateTimePicker
+                  label="End Date & Time (Optional)"
+                  value={editingEvent.endDatetime}
+                  timezone={eventTimezone}
+                  onChange={(isoString) => setEditingEvent({...editingEvent, endDatetime: isoString || undefined})}
+                  minDate={editingEvent.startDatetime}
+                  helperText="Kiosk will be locked after this time"
+                />
               </div>
 
               {/* Event Pass Selector */}
               <div className="pt-6">
                 <EventPassSelector
-                  timezone={userProfile?.timezone || 'UTC'}
+                  timezone={eventTimezone}
                   selectedPassId={(editingEvent as any).passId}
                   startDatetime={editingEvent.startDatetime}
                   userRole={userProfile?.role}

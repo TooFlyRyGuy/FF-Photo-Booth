@@ -4,6 +4,41 @@ export interface TimezoneInfo {
   offset: string;
 }
 
+export const COMMON_TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)', group: 'US' },
+  { value: 'America/Chicago', label: 'Central Time (CT)', group: 'US' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)', group: 'US' },
+  { value: 'America/Phoenix', label: 'Arizona (MST)', group: 'US' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)', group: 'US' },
+  { value: 'America/Anchorage', label: 'Alaska Time (AKT)', group: 'US' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HST)', group: 'US' },
+  { value: 'America/Toronto', label: 'Toronto', group: 'Canada' },
+  { value: 'America/Vancouver', label: 'Vancouver', group: 'Canada' },
+  { value: 'America/Mexico_City', label: 'Mexico City', group: 'Mexico' },
+  { value: 'Europe/London', label: 'London', group: 'Europe' },
+  { value: 'Europe/Paris', label: 'Paris', group: 'Europe' },
+  { value: 'Europe/Berlin', label: 'Berlin', group: 'Europe' },
+  { value: 'Europe/Rome', label: 'Rome', group: 'Europe' },
+  { value: 'Europe/Madrid', label: 'Madrid', group: 'Europe' },
+  { value: 'Europe/Amsterdam', label: 'Amsterdam', group: 'Europe' },
+  { value: 'Europe/Brussels', label: 'Brussels', group: 'Europe' },
+  { value: 'Europe/Vienna', label: 'Vienna', group: 'Europe' },
+  { value: 'Europe/Warsaw', label: 'Warsaw', group: 'Europe' },
+  { value: 'Europe/Athens', label: 'Athens', group: 'Europe' },
+  { value: 'Europe/Moscow', label: 'Moscow', group: 'Europe' },
+  { value: 'Asia/Dubai', label: 'Dubai', group: 'Middle East' },
+  { value: 'Asia/Kolkata', label: 'India', group: 'Asia' },
+  { value: 'Asia/Singapore', label: 'Singapore', group: 'Asia' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong', group: 'Asia' },
+  { value: 'Asia/Shanghai', label: 'Shanghai', group: 'Asia' },
+  { value: 'Asia/Tokyo', label: 'Tokyo', group: 'Asia' },
+  { value: 'Asia/Seoul', label: 'Seoul', group: 'Asia' },
+  { value: 'Australia/Sydney', label: 'Sydney', group: 'Australia' },
+  { value: 'Australia/Melbourne', label: 'Melbourne', group: 'Australia' },
+  { value: 'Pacific/Auckland', label: 'Auckland', group: 'New Zealand' },
+  { value: 'UTC', label: 'UTC (Coordinated Universal Time)', group: 'Other' },
+];
+
 export function detectUserTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
