@@ -1982,6 +1982,19 @@ export const getConcurrentEventLimit = async (eventId?: string): Promise<Concurr
   };
 };
 
+export const hasActivatedEventPass = async (eventId: string): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('has_activated_event_pass', {
+    p_event_id: eventId
+  });
+
+  if (error) {
+    console.error('Error checking if event has activated pass:', error);
+    return false;
+  }
+
+  return data === true;
+};
+
 export const validateEventTimeRestrictions = async (
   startDatetime?: string,
   endDatetime?: string,

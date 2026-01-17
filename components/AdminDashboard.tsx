@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle, Copy } from 'lucide-react';
 import Settings from './Settings';
@@ -99,6 +99,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [showInactiveEvents, setShowInactiveEvents] = useState(false);
   const [concurrentEventLimit, setConcurrentEventLimit] = useState<ConcurrentEventLimit | null>(null);
   const [eventTimezone, setEventTimezone] = useState<string>('');
+  const [isStartTimeLocked, setIsStartTimeLocked] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -391,6 +392,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   const handleCreateEvent = async () => {
     await loadConcurrentEventLimit();
+    setIsStartTimeLocked(false); // New events don't have locked start times
     setEditingEvent({
       id: '',
       name: '',
@@ -408,6 +410,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const handleEditEvent = async (event: Event) => {
     try {
       const eventWithPrompts = await getEventById(event.id);
+
+      // Check if event has an activated pass (which locks start time)
+      const hasActivatedPass = await hasActivatedEventPass(event.id);
+      setIsStartTimeLocked(hasActivatedPass);
+
       setEditingEvent({ ...eventWithPrompts });
       setActiveTab('edit_event');
     } catch (error) {
@@ -1487,13 +1494,33 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
 
                 {/* Event Time Restrictions */}
+                {isStartTimeLocked && (
+                  <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="text-yellow-600 mt-0.5">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-yellow-800 mb-1">Start Time Locked</h4>
+                        <p className="text-sm text-yellow-700">
+                          The start time for this event cannot be changed because an event pass has been activated.
+                          The pass duration countdown began when you selected the start time, and modifying it would affect the pass expiration.
+                          The end time is automatically set based on the pass duration.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
                   <TimezoneDateTimePicker
                     label="Start Date & Time (Optional)"
                     value={editingEvent.startDatetime}
                     timezone={eventTimezone}
                     onChange={(isoString) => setEditingEvent({...editingEvent, startDatetime: isoString || undefined})}
-                    helperText="Kiosk will be locked before this time"
+                    disabled={isStartTimeLocked}
+                    helperText={isStartTimeLocked ? "Locked: Event pass activated" : "Kiosk will be locked before this time"}
                   />
                   <TimezoneDateTimePicker
                     label="End Date & Time (Optional)"
