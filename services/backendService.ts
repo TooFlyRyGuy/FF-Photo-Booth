@@ -1,5 +1,6 @@
-import { Event, Prompt, UserProfile, UserCredits, GlobalSettings } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass } from '../types';
 import { supabase } from '../lib/supabase';
+import { addHours } from './timezoneService';
 
 let cachedUserId: string | null = null;
 let cacheTimestamp: number | null = null;
@@ -214,6 +215,7 @@ export const getUserProfile = async (): Promise<UserProfile> => {
       stripeSubscriptionId: profileData.stripe_subscription_id,
       subscriptionStartDate: profileData.subscription_start_date,
       subscriptionEndDate: profileData.subscription_end_date,
+      timezone: profileData.timezone || 'UTC',
       createdAt: profileData.created_at,
       updatedAt: profileData.updated_at,
     };
@@ -793,6 +795,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     passcode: event.passcode,
     is_active: event.isActive,
     user_id: userId,
+    created_by: userId,
     aspect_ratio: event.aspectRatio || 'square',
     background_image_url: event.backgroundImageUrl,
     logo_url: event.logoUrl,
@@ -1682,5 +1685,195 @@ export const getRevenueStats = async (): Promise<any> => {
     totalRevenue: totalRevenue / 100,
     monthlyRevenue: monthlyRevenue / 100,
     orderCount: data?.length || 0
+  };
+};
+
+export const getAvailableEventPasses = async (): Promise<UserEventPass[]> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase.rpc('get_available_passes', {
+    p_user_id: userId
+  });
+
+  if (error) {
+    throw new Error(`Failed to fetch available passes: ${error.message}`);
+  }
+
+  return (data || []).map((pass: any) => ({
+    id: pass.id,
+    userId,
+    tierId: pass.tier_id,
+    tierName: pass.tier_name,
+    durationHours: pass.duration_hours,
+    purchasedAt: pass.purchased_at,
+    activatedAt: null,
+    eventId: null,
+    expiresAt: null,
+    isActive: false,
+  }));
+};
+
+export const activateEventPass = async (
+  passId: string,
+  eventId: string
+): Promise<{ success: boolean; expiresAt?: string; message: string }> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase.rpc('activate_pass', {
+    p_pass_id: passId,
+    p_event_id: eventId,
+    p_user_id: userId
+  });
+
+  if (error) {
+    throw new Error(`Failed to activate pass: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Failed to activate pass: No response from server');
+  }
+
+  const result = data[0];
+  return {
+    success: result.success,
+    expiresAt: result.expires_at,
+    message: result.message,
+  };
+};
+
+export const getUserEventPass = async (passId: string): Promise<UserEventPass | null> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase
+    .from('user_event_passes')
+    .select(`
+      *,
+      subscription_tiers(name, event_pass_duration_hours)
+    `)
+    .eq('id', passId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch pass: ${error.message}`);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const tierData = data.subscription_tiers as any;
+  let expiresAt: string | undefined;
+
+  if (data.activated_at && tierData?.event_pass_duration_hours) {
+    const activatedDate = new Date(data.activated_at);
+    const expirationDate = addHours(activatedDate, tierData.event_pass_duration_hours);
+    expiresAt = expirationDate.toISOString();
+  }
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    tierId: data.tier_id,
+    tierName: tierData?.name || '',
+    durationHours: tierData?.event_pass_duration_hours || 0,
+    purchasedAt: data.purchased_at,
+    activatedAt: data.activated_at || undefined,
+    eventId: data.event_id || undefined,
+    expiresAt,
+    isActive: expiresAt ? new Date() < new Date(expiresAt) : false,
+  };
+};
+
+export const updateUserTimezone = async (timezone: string): Promise<void> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ timezone })
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update timezone: ${error.message}`);
+  }
+};
+
+export const syncSmugMugGallery = async (
+  eventId: string,
+  galleryKey: string,
+  galleryUrl: string
+): Promise<void> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { error } = await supabase
+    .from('events')
+    .update({
+      smugmug_gallery_key: galleryKey,
+      smugmug_gallery_url: galleryUrl,
+    })
+    .eq('id', eventId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to sync SmugMug gallery: ${error.message}`);
+  }
+};
+
+export const createSmugMugGalleryForEvent = async (
+  eventId: string,
+  eventName: string,
+  city?: string
+): Promise<{ galleryKey: string; galleryUrl: string }> => {
+  const globalSettings = await getGlobalSettings();
+
+  if (globalSettings.smugmugConnectionStatus !== 'connected') {
+    throw new Error('SmugMug is not connected. Please connect SmugMug in settings first.');
+  }
+
+  const { createSmugMugGallery } = await import('./smugmugService');
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const galleryName = city ? `${eventName} - ${city}` : eventName;
+
+  const { galleryId, galleryUrl } = await createSmugMugGallery(
+    galleryName,
+    'public',
+    anonKey
+  );
+
+  const { error: updateError } = await supabase
+    .from('events')
+    .update({
+      smugmug_gallery_key: galleryId,
+      smugmug_gallery_url: galleryUrl,
+    })
+    .eq('id', eventId);
+
+  if (updateError) {
+    throw new Error(`Gallery created but failed to link to event: ${updateError.message}`);
+  }
+
+  return {
+    galleryKey: galleryId,
+    galleryUrl: galleryUrl,
   };
 };

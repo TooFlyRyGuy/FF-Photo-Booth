@@ -21,6 +21,7 @@ export interface UserProfile {
   dropbox_app_secret?: string;
   dropbox_access_token?: string;
   dropbox_refresh_token?: string;
+  timezone?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,6 +80,19 @@ export interface EventPass {
   stripeProductId?: string;
   isActive: boolean;
   displayOrder: number;
+}
+
+export interface UserEventPass {
+  id: string;
+  userId: string;
+  tierId: string;
+  tierName: string;
+  durationHours: number;
+  purchasedAt: string;
+  activatedAt?: string;
+  eventId?: string;
+  expiresAt?: string;
+  isActive: boolean;
 }
 
 export interface UserSettings {
@@ -150,6 +164,8 @@ export interface Event {
   smugmugGalleryKey?: string;
   smugmugGalleryUrl?: string;
   uploadOriginalsToGallery?: boolean;
+  passId?: string;
+  passExpiresAt?: string;
 }
 
 export interface GeneratedImage {
