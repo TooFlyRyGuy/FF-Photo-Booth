@@ -1316,6 +1316,22 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               <h2 className="text-2xl font-bold text-black">{activeTab === 'create_event' ? 'Create New Event' : 'Edit Event'}</h2>
             </header>
 
+            {/* Event Creation Date Display */}
+            {activeTab === 'create_event' && (
+              <div className="bg-slate-50 border-2 border-slate-300 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">Event Creation Date</span>
+                  <span className="text-base font-bold text-slate-900">
+                    {new Date().toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {concurrentEventLimit && !isAdmin && activeTab === 'create_event' && concurrentEventLimit.limitCount < 999999 && (
               <div className={`p-4 rounded-lg border-2 ${
                 concurrentEventLimit.canCreate
@@ -1385,13 +1401,32 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Event Date</label>
-                  <input
-                    type="date"
-                    value={editingEvent.date}
-                    onChange={(e) => setEditingEvent({...editingEvent, date: e.target.value})}
+                  <label className="text-sm font-medium text-slate-700">Time Zone</label>
+                  <select
+                    value={eventTimezone}
+                    onChange={(e) => setEventTimezone(e.target.value)}
                     className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                  />
+                  >
+                    {COMMON_TIMEZONES.reduce((acc, tz) => {
+                      if (!acc.find(group => group.label === tz.group)) {
+                        acc.push({ label: tz.group, options: [] });
+                      }
+                      const group = acc.find(g => g.label === tz.group);
+                      if (group) {
+                        group.options.push(tz);
+                      }
+                      return acc;
+                    }, [] as Array<{ label: string; options: typeof COMMON_TIMEZONES }>).map(group => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.options.map(tz => (
+                          <option key={tz.value} value={tz.value}>
+                            {tz.label} ({getTimezoneAbbreviation(tz.value)})
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500">All event times will be displayed in this timezone</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Kiosk Passcode</label>
@@ -1415,36 +1450,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </div>
                   <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
                 </div>
-              </div>
-
-              {/* Timezone Selector */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Time Zone</label>
-                <select
-                  value={eventTimezone}
-                  onChange={(e) => setEventTimezone(e.target.value)}
-                  className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                >
-                  {COMMON_TIMEZONES.reduce((acc, tz) => {
-                    if (!acc.find(group => group.label === tz.group)) {
-                      acc.push({ label: tz.group, options: [] });
-                    }
-                    const group = acc.find(g => g.label === tz.group);
-                    if (group) {
-                      group.options.push(tz);
-                    }
-                    return acc;
-                  }, [] as Array<{ label: string; options: typeof COMMON_TIMEZONES }>).map(group => (
-                    <optgroup key={group.label} label={group.label}>
-                      {group.options.map(tz => (
-                        <option key={tz.value} value={tz.value}>
-                          {tz.label} ({getTimezoneAbbreviation(tz.value)})
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500">All event times will be displayed in this timezone</p>
               </div>
 
               {/* Event Time Restrictions */}
