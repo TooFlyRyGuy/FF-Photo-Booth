@@ -1557,7 +1557,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                       <ImageIcon size={16} />
-                      Background Image
+                      Kiosk Background Image
                     </label>
                     {editingEvent.backgroundImageUrl && (editingEvent.backgroundImageUrl.startsWith('data:') || editingEvent.backgroundImageUrl.startsWith('http')) ? (
                       <div className="relative">
@@ -1600,7 +1600,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                       <ImageIcon size={16} />
-                      Logo Image
+                      Kiosk Logo Image
                     </label>
                     {editingEvent.logoUrl && (editingEvent.logoUrl.startsWith('data:') || editingEvent.logoUrl.startsWith('http')) ? (
                       <div className="relative">
@@ -1643,7 +1643,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                       <ImageIcon size={16} />
-                      Overlay Image (Transparent PNG)
+                      Photo Overlay Image (Transparent PNG)
                     </label>
                     {editingEvent.overlayImageUrl && (editingEvent.overlayImageUrl.startsWith('data:') || editingEvent.overlayImageUrl.startsWith('http')) ? (
                       <div className="relative">
