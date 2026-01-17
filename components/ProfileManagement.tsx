@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, Upload, Save, X, Camera, Mail, UserCircle, Globe } from 'lucide-react';
+import { User, Upload, Save, X, Camera, Mail, UserCircle, Globe, Receipt } from 'lucide-react';
 import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
+import BillingHistory from './BillingHistory';
 
 interface UserProfile {
   id: string;
@@ -20,6 +21,7 @@ interface ProfileManagementProps {
 }
 
 const ProfileManagement: React.FC<ProfileManagementProps> = ({ userProfile, onProfileUpdate }) => {
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
   const [displayName, setDisplayName] = useState(userProfile.display_name || userProfile.full_name || '');
   const [bio, setBio] = useState(userProfile.bio || '');
   const [profilePictureUrl, setProfilePictureUrl] = useState(userProfile.profile_picture_url || '');
@@ -120,17 +122,37 @@ const ProfileManagement: React.FC<ProfileManagementProps> = ({ userProfile, onPr
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="bg-white border-2 border-slate-300 rounded-xl p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <User className="text-green-700" size={28} />
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Profile Settings</h2>
-            <p className="text-sm text-slate-600">Manage your personal information and profile picture</p>
-          </div>
+      {/* Tabs */}
+      <div className="bg-white border-2 border-slate-300 rounded-xl">
+        <div className="flex border-b-2 border-slate-300">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center gap-2 px-6 py-4 font-bold transition-colors ${
+              activeTab === 'profile'
+                ? 'text-green-700 border-b-4 border-green-700 -mb-[2px]'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <User size={20} />
+            Profile Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('billing')}
+            className={`flex items-center gap-2 px-6 py-4 font-bold transition-colors ${
+              activeTab === 'billing'
+                ? 'text-green-700 border-b-4 border-green-700 -mb-[2px]'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Receipt size={20} />
+            Billing History
+          </button>
         </div>
 
-        <div className="space-y-6">
-          {/* Profile Picture Section */}
+        <div className="p-8">
+          {activeTab === 'profile' ? (
+            <div className="space-y-6">
+              {/* Profile Picture Section */}
           <div className="pb-6 border-b border-slate-200">
             <label className="block text-sm font-bold text-slate-900 mb-4">Profile Picture</label>
             <div className="flex items-start gap-6">
@@ -318,21 +340,25 @@ const ProfileManagement: React.FC<ProfileManagementProps> = ({ userProfile, onPr
               )}
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Account Info Card */}
-      <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">Account Information</h3>
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-slate-600">Role:</span>
-            <span className="font-semibold text-slate-900 capitalize">{userProfile.role}</span>
+          {/* Account Info Section */}
+          <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Account Information</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Role:</span>
+                <span className="font-semibold text-slate-900 capitalize">{userProfile.role}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">User ID:</span>
+                <span className="font-mono text-xs text-slate-700">{userProfile.id}</span>
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-slate-600">User ID:</span>
-            <span className="font-mono text-xs text-slate-700">{userProfile.id}</span>
-          </div>
+            </div>
+          ) : (
+            <BillingHistory userId={userProfile.id} />
+          )}
         </div>
       </div>
     </div>
