@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Lock, Mail, User as UserIcon, AlertCircle, Chrome, Check } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, AlertCircle, Chrome, Check, Eye, EyeOff } from 'lucide-react';
 
 interface SignupProps {
   onSuccess: () => void;
@@ -15,6 +15,7 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,14 +165,22 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
             <div className="relative">
               <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border-2 border-slate-300 text-slate-900 pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-green-700 focus:outline-none"
+                className="w-full bg-slate-50 border-2 border-slate-300 text-slate-900 pl-10 pr-12 py-3 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-green-700 focus:outline-none"
                 required
                 minLength={6}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
             <p className="text-xs text-slate-500 mt-1">Minimum 6 characters</p>
           </div>
