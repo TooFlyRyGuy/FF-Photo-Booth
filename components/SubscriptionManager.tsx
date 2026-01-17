@@ -186,6 +186,25 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
         return;
       }
 
+      const requestBody: any = {
+        price_id: priceId,
+        mode: mode,
+        success_url: `${window.location.origin}?checkout=success`,
+        cancel_url: `${window.location.origin}?checkout=cancelled`
+      };
+
+      // Add metadata for event passes
+      if (pass) {
+        requestBody.metadata = {
+          purchase_type: 'event_pass',
+          event_pass_id: pass.id,
+          credits: pass.credits.toString(),
+          sms_credits: (pass.sms_credits || 0).toString(),
+          expiration_hours: pass.duration_hours.toString(),
+          prompt_limit: (pass.prompts_limit || 0).toString()
+        };
+      }
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
         method: 'POST',
         headers: {
@@ -193,12 +212,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
           'Content-Type': 'application/json',
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
         },
-        body: JSON.stringify({
-          price_id: priceId,
-          mode: mode,
-          success_url: `${window.location.origin}?checkout=success`,
-          cancel_url: `${window.location.origin}?checkout=cancelled`
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {

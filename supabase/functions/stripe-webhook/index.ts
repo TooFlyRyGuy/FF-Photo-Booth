@@ -119,19 +119,41 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
   const userId = customer.user_id;
 
   if (metadata?.purchase_type === 'event_pass') {
-    const eventPassTierId = metadata.event_pass_tier_id;
+    const eventPassId = metadata.event_pass_id || metadata.event_pass_tier_id;
     const eventId = metadata.event_id || null;
     const expirationHours = parseInt(metadata.expiration_hours || '24');
     const smsCredits = parseInt(metadata.sms_credits || '0');
+    const creditsAllocated = parseInt(metadata.credits || '0');
 
+    // Insert into user_event_passes (the active table)
     const { error: passError } = await supabase
+      .from('user_event_passes')
+      .insert({
+        user_id: userId,
+        event_pass_id: eventPassId,
+        stripe_payment_id: payment_intent as string,
+        credits_allocated: creditsAllocated,
+        credits_used: 0,
+        activated_at: null, // Not activated yet - will be activated when user creates event
+        expires_at: null, // Will be set when activated
+        is_active: false, // Not active until activated
+        event_id: null, // Will be set when activated
+      });
+
+    if (passError) {
+      console.error('Error creating event pass:', passError);
+      return;
+    }
+
+    // Also insert into purchased_event_passes for historical tracking
+    await supabase
       .from('purchased_event_passes')
       .insert({
         user_id: userId,
         event_id: eventId,
-        event_pass_tier_id: eventPassTierId,
+        event_pass_tier_id: eventPassId,
         stripe_payment_intent_id: payment_intent as string,
-        credits_allocated: parseInt(metadata.credits || '0'),
+        credits_allocated: creditsAllocated,
         credits_used: 0,
         sms_credits_allocated: smsCredits,
         sms_credits_used: 0,
@@ -140,11 +162,6 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
         expires_at: new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString(),
         is_active: true,
       });
-
-    if (passError) {
-      console.error('Error creating event pass:', passError);
-      return;
-    }
 
     // Grant SMS credits if included in the event pass
     if (smsCredits > 0) {
