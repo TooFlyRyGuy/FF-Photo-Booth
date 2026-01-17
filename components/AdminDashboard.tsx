@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle, Copy } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -491,6 +491,21 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     } catch (error: any) {
       alert(`Failed to delete event: ${error.message}`);
       console.error('Delete event error:', error);
+    }
+  };
+
+  const handleDuplicateEvent = async (event: Event) => {
+    if (!confirm(`Duplicate "${event.name}"? This will create a new event with the same settings, prompts, and a new SmugMug gallery.`)) {
+      return;
+    }
+
+    try {
+      const newEvent = await duplicateEvent(event.id);
+      await loadData();
+      alert(`Event duplicated successfully! New kiosk code: ${newEvent.passcode}`);
+    } catch (error: any) {
+      alert(`Failed to duplicate event: ${error.message}`);
+      console.error('Duplicate event error:', error);
     }
   };
 
@@ -1141,6 +1156,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         <Pencil size={16} /> <span className="hidden sm:inline">Edit</span>
                       </button>
 
+                      <button
+                        onClick={() => handleDuplicateEvent(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        title="Duplicate event"
+                      >
+                        <Copy size={16} /> <span className="hidden sm:inline">Duplicate</span>
+                      </button>
+
                       {userProfile?.role === 'admin' && (
                         <button
                           onClick={() => openAccessModal(event)}
@@ -1275,6 +1298,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                                     className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
                                   >
                                     <Pencil size={16} /> <span className="hidden sm:inline">Edit</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDuplicateEvent(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                    title="Duplicate event"
+                                  >
+                                    <Copy size={16} /> <span className="hidden sm:inline">Duplicate</span>
                                   </button>
 
                                   {userProfile?.role === 'admin' && (

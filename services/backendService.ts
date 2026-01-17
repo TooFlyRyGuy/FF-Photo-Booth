@@ -1211,6 +1211,36 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
   clearEventsCache();
 };
 
+export const duplicateEvent = async (eventId: string): Promise<Event> => {
+  const originalEvent = await getEventById(eventId);
+
+  const generatePasscode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  const newPasscode = generatePasscode();
+  const today = new Date();
+  const formattedDate = today.toISOString().split('T')[0];
+
+  const duplicatedEvent: Event = {
+    ...originalEvent,
+    id: '',
+    name: `${originalEvent.name} (Copy)`,
+    passcode: newPasscode,
+    date: formattedDate,
+    isActive: false,
+    smugmugGalleryKey: '',
+    smugmugGalleryUrl: '',
+    startDatetime: null,
+    endDatetime: null,
+  };
+
+  const savedEvent = await saveEvent(duplicatedEvent);
+  clearEventsCache();
+
+  return savedEvent;
+};
+
 export const grantEventAccess = async (eventId: string, userId: string): Promise<void> => {
   const { error } = await supabase
     .from('event_access')
