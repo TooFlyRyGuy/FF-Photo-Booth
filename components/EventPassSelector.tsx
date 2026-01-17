@@ -150,7 +150,7 @@ export function EventPassSelector({
             <button
               key={pass.id}
               type="button"
-              onClick={() => isSelected ? handleClearSelection() : handleSelectPass(pass.id, pass.durationHours)}
+              onClick={() => handleSelectPass(pass.id, pass.durationHours)}
               className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                 isSelected
                   ? 'border-blue-600 bg-blue-50'
@@ -211,8 +211,17 @@ export function EventPassSelector({
       </div>
 
       {selectedPassId && (
-        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
-          <strong>Note:</strong> This pass will be activated when you create the event and cannot be reused.
+        <div className="mt-4 space-y-3">
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+            <strong>Note:</strong> This pass will be activated when you create the event and cannot be reused.
+          </div>
+          <button
+            type="button"
+            onClick={handleClearSelection}
+            className="w-full py-2 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Clear Selection
+          </button>
         </div>
       )}
     </div>
