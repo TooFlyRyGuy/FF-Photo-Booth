@@ -4,7 +4,6 @@ import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
 import { getEventByPasscode, clearUserCache } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
-import TidioWidget from './components/TidioWidget';
 
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const KioskMode = lazy(() => import('./components/KioskMode'));
@@ -187,56 +186,44 @@ const App: React.FC = () => {
   // 2. ADMIN MODE
   if (view === 'admin') {
     return (
-      <>
-        <Suspense fallback={<LoadingSpinner />}>
-          <AdminDashboard onLogout={handleLogout} onLaunchKiosk={launchKiosk} user={user} />
-        </Suspense>
-        <TidioWidget />
-      </>
+      <Suspense fallback={<LoadingSpinner />}>
+        <AdminDashboard onLogout={handleLogout} onLaunchKiosk={launchKiosk} user={user} />
+      </Suspense>
     );
   }
 
   // 3. LOGIN MODE
   if (view === 'login') {
     return (
-      <>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Login
-            onSuccess={() => setView('admin')}
-            onSwitchToSignup={() => setView('signup')}
-            onBackToLanding={() => setView('landing')}
-          />
-        </Suspense>
-        <TidioWidget />
-      </>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Login
+          onSuccess={() => setView('admin')}
+          onSwitchToSignup={() => setView('signup')}
+          onBackToLanding={() => setView('landing')}
+        />
+      </Suspense>
     );
   }
 
   // 4. SIGNUP MODE
   if (view === 'signup') {
     return (
-      <>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Signup
-            onSuccess={() => setView('admin')}
-            onSwitchToLogin={() => setView('login')}
-            onBackToLanding={() => setView('landing')}
-          />
-        </Suspense>
-        <TidioWidget />
-      </>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Signup
+          onSuccess={() => setView('admin')}
+          onSwitchToLogin={() => setView('login')}
+          onBackToLanding={() => setView('landing')}
+        />
+      </Suspense>
     );
   }
 
   // 5. MARKETING PAGE (Admin Only)
   if (view === 'marketing') {
     return (
-      <>
-        <Suspense fallback={<LoadingSpinner />}>
-          <MarketingPage />
-        </Suspense>
-        <TidioWidget />
-      </>
+      <Suspense fallback={<LoadingSpinner />}>
+        <MarketingPage />
+      </Suspense>
     );
   }
 
@@ -426,8 +413,6 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
-
-      <TidioWidget />
     </div>
   );
 };
