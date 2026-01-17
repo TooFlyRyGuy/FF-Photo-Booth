@@ -10,7 +10,6 @@ import UserManagement from './UserManagement';
 import PlanManagement from './PlanManagement';
 import CreditDisplay from './CreditDisplay';
 import ProfileManagement from './ProfileManagement';
-import TidioWidget from './TidioWidget';
 import { EventPassSelector } from './EventPassSelector';
 import { SmugMugGallerySync } from './SmugMugGallerySync';
 import { User } from '@supabase/supabase-js';
@@ -2439,8 +2438,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </div>
         </div>
       )}
-
-      <TidioWidget />
     </div>
   );
 };

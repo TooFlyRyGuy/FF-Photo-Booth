@@ -187,44 +187,56 @@ const App: React.FC = () => {
   // 2. ADMIN MODE
   if (view === 'admin') {
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <AdminDashboard onLogout={handleLogout} onLaunchKiosk={launchKiosk} user={user} />
-      </Suspense>
+      <>
+        <Suspense fallback={<LoadingSpinner />}>
+          <AdminDashboard onLogout={handleLogout} onLaunchKiosk={launchKiosk} user={user} />
+        </Suspense>
+        <TidioWidget />
+      </>
     );
   }
 
   // 3. LOGIN MODE
   if (view === 'login') {
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <Login
-          onSuccess={() => setView('admin')}
-          onSwitchToSignup={() => setView('signup')}
-          onBackToLanding={() => setView('landing')}
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={<LoadingSpinner />}>
+          <Login
+            onSuccess={() => setView('admin')}
+            onSwitchToSignup={() => setView('signup')}
+            onBackToLanding={() => setView('landing')}
+          />
+        </Suspense>
+        <TidioWidget />
+      </>
     );
   }
 
   // 4. SIGNUP MODE
   if (view === 'signup') {
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <Signup
-          onSuccess={() => setView('admin')}
-          onSwitchToLogin={() => setView('login')}
-          onBackToLanding={() => setView('landing')}
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={<LoadingSpinner />}>
+          <Signup
+            onSuccess={() => setView('admin')}
+            onSwitchToLogin={() => setView('login')}
+            onBackToLanding={() => setView('landing')}
+          />
+        </Suspense>
+        <TidioWidget />
+      </>
     );
   }
 
   // 5. MARKETING PAGE (Admin Only)
   if (view === 'marketing') {
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <MarketingPage />
-      </Suspense>
+      <>
+        <Suspense fallback={<LoadingSpinner />}>
+          <MarketingPage />
+        </Suspense>
+        <TidioWidget />
+      </>
     );
   }
 
