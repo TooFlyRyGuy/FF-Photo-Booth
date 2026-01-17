@@ -1376,6 +1376,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   timezone={userProfile?.timezone || 'UTC'}
                   selectedPassId={(editingEvent as any).passId}
                   startDatetime={editingEvent.startDatetime}
+                  userRole={userProfile?.role}
                   onSelectPass={(passId, expiresAt) => {
                     setEditingEvent({
                       ...editingEvent,

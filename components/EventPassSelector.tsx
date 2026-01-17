@@ -9,6 +9,7 @@ interface EventPassSelectorProps {
   selectedPassId?: string;
   onSelectPass: (passId: string | undefined, expiresAt?: string) => void;
   startDatetime?: string;
+  userRole?: string;
 }
 
 export function EventPassSelector({
@@ -16,6 +17,7 @@ export function EventPassSelector({
   selectedPassId,
   onSelectPass,
   startDatetime,
+  userRole,
 }: EventPassSelectorProps) {
   const [passes, setPasses] = useState<UserEventPass[]>([]);
   const [subscriptionType, setSubscriptionType] = useState<UserSubscriptionType | null>(null);
@@ -79,6 +81,29 @@ export function EventPassSelector({
           <h3 className="text-lg font-semibold">Event Duration</h3>
         </div>
         <p className="text-sm text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  // Check if user is admin
+  const isAdmin = userRole?.toLowerCase() === 'admin';
+
+  if (isAdmin) {
+    return (
+      <div className="bg-purple-50 p-6 rounded-lg border-2 border-purple-200">
+        <div className="flex items-center gap-2 mb-4">
+          <CheckCircle className="text-purple-600" size={24} />
+          <h3 className="text-lg font-semibold text-purple-900">Administrator Access</h3>
+        </div>
+        <p className="text-sm text-purple-800 mb-3">
+          As an administrator, you have unlimited event creation privileges.
+        </p>
+        <div className="bg-white p-4 rounded-lg border border-purple-200">
+          <p className="text-sm text-gray-700">
+            <strong>Unlimited Access:</strong> You don't need event passes or subscriptions to create events.
+            You can create unlimited duration events without any restrictions.
+          </p>
+        </div>
       </div>
     );
   }
