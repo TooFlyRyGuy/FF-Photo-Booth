@@ -36,10 +36,9 @@ export function EventPassSelector({
       const subType = await getUserSubscriptionType();
       setSubscriptionType(subType);
 
-      if (!subType.hasActiveSub) {
-        const availablePasses = await getAvailableEventPasses();
-        setPasses(availablePasses);
-      }
+      // Always load passes to check if user has any (regardless of subscription status)
+      const availablePasses = await getAvailableEventPasses();
+      setPasses(availablePasses);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -85,47 +84,15 @@ export function EventPassSelector({
     );
   }
 
-  // Check if user is admin
+  // Check if user is admin - don't show event pass section for admins
   const isAdmin = userRole?.toLowerCase() === 'admin';
-
   if (isAdmin) {
-    return (
-      <div className="bg-purple-50 p-6 rounded-lg border-2 border-purple-200">
-        <div className="flex items-center gap-2 mb-4">
-          <CheckCircle className="text-purple-600" size={24} />
-          <h3 className="text-lg font-semibold text-purple-900">Administrator Access</h3>
-        </div>
-        <p className="text-sm text-purple-800 mb-3">
-          As an administrator, you have unlimited event creation privileges.
-        </p>
-        <div className="bg-white p-4 rounded-lg border border-purple-200">
-          <p className="text-sm text-gray-700">
-            <strong>Unlimited Access:</strong> You don't need event passes or subscriptions to create events.
-            You can create unlimited duration events without any restrictions.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  if (subscriptionType?.hasActiveSub) {
-    return (
-      <div className="bg-green-50 p-6 rounded-lg border-2 border-green-200">
-        <div className="flex items-center gap-2 mb-4">
-          <CheckCircle className="text-green-600" size={24} />
-          <h3 className="text-lg font-semibold text-green-900">Active Subscription</h3>
-        </div>
-        <p className="text-sm text-green-800 mb-3">
-          You have an active <strong>{subscriptionType.tierName}</strong> subscription.
-        </p>
-        <div className="bg-white p-4 rounded-lg border border-green-200">
-          <p className="text-sm text-gray-700">
-            <strong>Unlimited Event Duration:</strong> Your events will run continuously without time restrictions.
-            You don't need to use event passes.
-          </p>
-        </div>
-      </div>
-    );
+  // If user has active subscription and no event passes, hide this section
+  if (subscriptionType?.hasActiveSub && passes.length === 0) {
+    return null;
   }
 
   if (passes.length === 0) {
@@ -160,9 +127,19 @@ export function EventPassSelector({
 
       <div className="bg-white p-4 rounded-lg border border-blue-200 mb-4">
         <p className="text-sm text-gray-700">
-          <strong>Event Pass Events:</strong> Select an event pass to create a time-limited event.
-          The event will automatically deactivate when the pass expires. For unlimited event duration,
-          consider subscribing to a monthly or yearly plan.
+          {subscriptionType?.hasActiveSub ? (
+            <>
+              <strong>Optional Event Pass:</strong> You have an active subscription with unlimited event duration.
+              However, you can use an event pass if you want to create a time-limited event that automatically deactivates
+              after a specific duration.
+            </>
+          ) : (
+            <>
+              <strong>Event Pass Events:</strong> Select an event pass to create a time-limited event.
+              The event will automatically deactivate when the pass expires. For unlimited event duration,
+              consider subscribing to a monthly or yearly plan.
+            </>
+          )}
         </p>
       </div>
 
