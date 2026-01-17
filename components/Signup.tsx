@@ -203,14 +203,19 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
           </div>
         </div>
 
-        <button
-          onClick={handleGoogleSignup}
-          disabled={loading}
-          className="w-full bg-slate-50 hover:bg-slate-100 border-2 border-slate-300 text-slate-900 font-medium py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Chrome size={20} />
-          Google
-        </button>
+        <div className="relative">
+          <button
+            onClick={handleGoogleSignup}
+            disabled={true}
+            className="w-full bg-slate-100 border-2 border-slate-300 text-slate-400 font-medium py-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
+          >
+            <Chrome size={20} />
+            Google
+          </button>
+          <div className="absolute -top-2 right-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+            Coming Soon
+          </div>
+        </div>
 
         <div className="mt-6 text-center space-y-2">
           <p className="text-slate-600 text-sm">
