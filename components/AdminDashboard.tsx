@@ -1759,8 +1759,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </CollapsibleSection>
 
-              {/* Add-Ons Showcase */}
-              <AddOnShowcase />
+              {/* Add-Ons Showcase - Hidden for now */}
+              {/* <AddOnShowcase /> */}
 
               {/* SMS Message Customization */}
               <div className="bg-white p-8 rounded-xl border-2 border-slate-300">

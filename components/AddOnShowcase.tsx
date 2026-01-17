@@ -75,13 +75,17 @@ export function AddOnShowcase() {
           return (
             <div
               key={addOn.id}
-              className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-green-500 hover:shadow-lg transition-all"
+              className="bg-white border-2 border-slate-200 rounded-lg p-4 hover:border-green-500 hover:shadow-lg transition-all relative"
             >
+              <div className="absolute top-2 right-2 bg-orange-600 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg">
+                CONTACT US
+              </div>
+
               <div className="flex items-start gap-3 mb-3">
                 <div className="p-2 bg-green-100 rounded-lg">
                   <Icon className="text-green-700" size={20} />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 pr-20">
                   <h4 className="font-semibold text-black text-sm">{addOn.name}</h4>
                   <p className="text-2xl font-bold text-green-700 mt-1">
                     {formatPrice(addOn.price_cents)}
@@ -108,11 +112,12 @@ export function AddOnShowcase() {
 
               <button
                 type="button"
-                onClick={() => window.open('/settings?tab=billing', '_blank')}
-                className="w-full py-2 px-4 bg-green-700 hover:bg-green-800 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                disabled
+                className="w-full py-2 px-4 bg-slate-300 text-slate-500 rounded-lg text-sm font-semibold cursor-not-allowed flex items-center justify-center gap-2"
+                title="Please contact us to purchase this add-on"
               >
                 <ShoppingCart size={14} />
-                Purchase
+                Contact Us
               </button>
             </div>
           );

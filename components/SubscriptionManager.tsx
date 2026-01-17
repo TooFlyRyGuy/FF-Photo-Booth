@@ -609,8 +609,12 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                 {addOns.map((addon) => (
                   <div
                     key={addon.id}
-                    className="border-2 border-green-700/30 rounded-xl p-6 flex flex-col"
+                    className="border-2 border-green-700/30 rounded-xl p-6 flex flex-col relative"
                   >
+                    <div className="absolute top-4 right-4 bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                      CONTACT US
+                    </div>
+
                     <div className="flex items-center justify-between mb-4">
                       <Package size={24} className="text-green-700" />
                     </div>
@@ -627,10 +631,11 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                     </div>
 
                     <button
-                      onClick={() => handleSubscribe(addon.id)}
-                      className="w-full py-3 rounded-lg font-medium transition-all bg-green-700 hover:bg-green-800 text-white mt-auto"
+                      disabled
+                      className="w-full py-3 rounded-lg font-medium transition-all bg-slate-300 text-slate-500 cursor-not-allowed mt-auto"
+                      title="Please contact us to purchase this add-on"
                     >
-                      Purchase Add-On
+                      Contact Us to Purchase
                     </button>
                   </div>
                 ))}

@@ -1052,12 +1052,16 @@ const PlanManagement: React.FC = () => {
           {addOns.map((addOn) => (
             <div
               key={addOn.id}
-              className={`bg-white border-2 rounded-xl p-6 ${
+              className={`bg-white border-2 rounded-xl p-6 relative ${
                 addOn.is_active ? 'border-slate-300' : 'border-slate-200 opacity-60'
               }`}
             >
+              <div className="absolute top-4 right-4 bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                CONTACT US
+              </div>
+
               <div className="flex justify-between items-start mb-4">
-                <div>
+                <div className="pr-24">
                   <h3 className="text-xl font-bold text-slate-900">{addOn.name}</h3>
                   {addOn.description && (
                     <p className="text-sm text-slate-600 mt-1">{addOn.description}</p>
