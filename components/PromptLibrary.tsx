@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, AlertTriangle } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
@@ -54,11 +54,13 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [hasMoreToLoad, setHasMoreToLoad] = useState(true);
   const hasLoadedRef = useRef(false);
   const [userCredits, setUserCredits] = useState<number>(0);
+  const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
       loadPrompts();
+      loadAllTags();
       checkUserCredits();
     }
   }, [userId]);
@@ -70,6 +72,29 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     } catch (error) {
       console.error('Error checking credits:', error);
       setUserCredits(0);
+    }
+  };
+
+  const loadAllTags = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('tags')
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      const tagSet = new Set<string>();
+      data.forEach(prompt => {
+        if (prompt.tags && Array.isArray(prompt.tags)) {
+          prompt.tags.forEach(tag => tagSet.add(tag));
+        }
+      });
+
+      setAllTags(Array.from(tagSet).sort());
+    } catch (error) {
+      console.error('Error loading tags:', error);
+      setAllTags([]);
     }
   };
 
@@ -119,12 +144,10 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       if (isInitial) {
         setPrompts(newPrompts);
-        extractAllTags(newPrompts);
         extractAllCategories(newPrompts);
       } else {
         const combined = [...prompts, ...newPrompts];
         setPrompts(combined);
-        extractAllTags(combined);
         extractAllCategories(combined);
       }
 
@@ -161,6 +184,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     try {
       const searchTerm = query.toLowerCase().trim();
 
+      // Get all prompts for client-side tag filtering
       let dbQuery = supabase
         .from('prompts')
         .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
@@ -185,6 +209,37 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
       }));
+
+      // Also include results that match tags
+      const tagMatchResults = data
+        .filter(prompt =>
+          prompt.tags &&
+          Array.isArray(prompt.tags) &&
+          prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+        )
+        .map((prompt) => ({
+          id: prompt.id,
+          name: prompt.name,
+          description: prompt.description,
+          category: prompt.category,
+          promptText: '',
+          previewImage: prompt.preview_image_url || '',
+          referenceImage: prompt.reference_image_url || '',
+          tags: prompt.tags || [],
+          isActive: prompt.is_active,
+          usageCount: prompt.usage_count || 0,
+          userId: prompt.user_id,
+        }));
+
+      // Merge and deduplicate results
+      const allResults = [...searchResults];
+      tagMatchResults.forEach(tagResult => {
+        if (!allResults.find(r => r.id === tagResult.id)) {
+          allResults.push(tagResult);
+        }
+      });
+
+      searchResults = allResults;
 
       if (selectedCategory) {
         searchResults = searchResults.filter(prompt => prompt.category === selectedCategory);
@@ -844,24 +899,54 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           </div>
 
           {allTags.length > 0 && (
-            <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Filter by Tags:</label>
-              <div className="flex flex-wrap gap-2">
-                {allTags.map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => toggleTag(tag)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                      selectedTags.includes(tag)
-                        ? 'bg-green-700 text-white'
-                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                    }`}
-                  >
-                    <Tag size={12} className="inline mr-1" />
-                    {tag}
-                  </button>
-                ))}
-              </div>
+            <div className="border-2 border-slate-300 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsTagFilterOpen(!isTagFilterOpen)}
+                className="w-full flex items-center justify-between p-3 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Tag size={16} className="text-slate-700" />
+                  <span className="text-sm font-bold text-slate-900">
+                    Filter by Tags {selectedTags.length > 0 && `(${selectedTags.length} selected)`}
+                  </span>
+                </div>
+                {isTagFilterOpen ? (
+                  <ChevronUp className="text-slate-700" size={20} />
+                ) : (
+                  <ChevronDown className="text-slate-700" size={20} />
+                )}
+              </button>
+              {isTagFilterOpen && (
+                <div className="p-4 bg-white border-t-2 border-slate-300">
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                          selectedTags.includes(tag)
+                            ? 'bg-green-700 text-white'
+                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        }`}
+                      >
+                        <Tag size={12} className="inline mr-1" />
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedTags.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <button
+                        onClick={() => setSelectedTags([])}
+                        className="text-sm text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Clear all tags
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
