@@ -13,6 +13,8 @@ import ProfileManagement from './ProfileManagement';
 import { EventPassSelector } from './EventPassSelector';
 import { SmugMugGallerySync } from './SmugMugGallerySync';
 import { TimezoneDateTimePicker } from './TimezoneDateTimePicker';
+import { CollapsibleSection } from './CollapsibleSection';
+import { AddOnShowcase } from './AddOnShowcase';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -1377,149 +1379,148 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </div>
             )}
 
-            <div className="bg-white p-8 rounded-xl border-2 border-slate-300 space-y-6">
-              {/* Event Details Form */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Event Name</label>
-                  <input
-                    type="text"
-                    value={editingEvent.name}
-                    onChange={(e) => setEditingEvent({...editingEvent, name: e.target.value})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                    placeholder="e.g. Summer Gala 2024"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">City / Venue</label>
-                  <input
-                    type="text"
-                    value={editingEvent.city}
-                    onChange={(e) => setEditingEvent({...editingEvent, city: e.target.value})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                    placeholder="e.g. New York, NY"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Time Zone</label>
-                  <select
-                    value={eventTimezone}
-                    onChange={(e) => setEventTimezone(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                  >
-                    {COMMON_TIMEZONES.reduce((acc, tz) => {
-                      if (!acc.find(group => group.label === tz.group)) {
-                        acc.push({ label: tz.group, options: [] });
-                      }
-                      const group = acc.find(g => g.label === tz.group);
-                      if (group) {
-                        group.options.push(tz);
-                      }
-                      return acc;
-                    }, [] as Array<{ label: string; options: typeof COMMON_TIMEZONES }>).map(group => (
-                      <optgroup key={group.label} label={group.label}>
-                        {group.options.map(tz => (
-                          <option key={tz.value} value={tz.value}>
-                            {tz.label} ({getTimezoneAbbreviation(tz.value)})
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <p className="text-xs text-slate-500">All event times will be displayed in this timezone</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Kiosk Passcode</label>
-                  <div className="flex gap-2">
+            <div className="space-y-6">
+              {/* Event Details Collapsible Section */}
+              <CollapsibleSection title="Event Details" defaultOpen={true}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Event Name</label>
                     <input
                       type="text"
-                      value={editingEvent.passcode}
-                      onChange={(e) => setEditingEvent({...editingEvent, passcode: e.target.value})}
-                      className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
-                      placeholder="e.g. 1234"
-                      maxLength={4}
+                      value={editingEvent.name}
+                      onChange={(e) => setEditingEvent({...editingEvent, name: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                      placeholder="e.g. Summer Gala 2024"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setEditingEvent({...editingEvent, passcode: generateUniquePasscode()})}
-                      className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors flex items-center gap-2"
-                      title="Generate new passcode"
-                    >
-                      <RefreshCw size={16} />
-                    </button>
                   </div>
-                  <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
-                </div>
-              </div>
-
-              {/* Event Time Restrictions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <TimezoneDateTimePicker
-                  label="Start Date & Time (Optional)"
-                  value={editingEvent.startDatetime}
-                  timezone={eventTimezone}
-                  onChange={(isoString) => setEditingEvent({...editingEvent, startDatetime: isoString || undefined})}
-                  helperText="Kiosk will be locked before this time"
-                />
-                <TimezoneDateTimePicker
-                  label="End Date & Time (Optional)"
-                  value={editingEvent.endDatetime}
-                  timezone={eventTimezone}
-                  onChange={(isoString) => setEditingEvent({...editingEvent, endDatetime: isoString || undefined})}
-                  minDate={editingEvent.startDatetime}
-                  helperText="Kiosk will be locked after this time"
-                />
-              </div>
-
-              {/* Event Pass Selector */}
-              <div className="pt-6">
-                <EventPassSelector
-                  timezone={eventTimezone}
-                  selectedPassId={(editingEvent as any).passId}
-                  startDatetime={editingEvent.startDatetime}
-                  userRole={userProfile?.role}
-                  onSelectPass={(passId, expiresAt) => {
-                    setEditingEvent({
-                      ...editingEvent,
-                      passId: passId as any,
-                      passExpiresAt: expiresAt as any,
-                      endDatetime: expiresAt,
-                    });
-                  }}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
-                <div className="grid grid-cols-5 gap-3">
-                  {[
-                    { value: 'square', label: 'Square (1:1)', icon: '⬜' },
-                    { value: '3:4', label: 'Portrait (3:4)', icon: '📱' },
-                    { value: '4:3', label: 'Landscape (4:3)', icon: '🖼️' },
-                    { value: '9:16', label: 'Vertical (9:16)', icon: '📲' },
-                    { value: '16:9', label: 'Wide (16:9)', icon: '🎬' }
-                  ].map((ratio) => (
-                    <button
-                      key={ratio.value}
-                      type="button"
-                      onClick={() => setEditingEvent({...editingEvent, aspectRatio: ratio.value as any})}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        editingEvent.aspectRatio === ratio.value
-                          ? 'border-green-700 bg-green-700/10 text-green-800'
-                          : 'border-slate-300 bg-slate-50 text-slate-600 hover:border-slate-400'
-                      }`}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">City / Venue</label>
+                    <input
+                      type="text"
+                      value={editingEvent.city}
+                      onChange={(e) => setEditingEvent({...editingEvent, city: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                      placeholder="e.g. New York, NY"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Time Zone</label>
+                    <select
+                      value={eventTimezone}
+                      onChange={(e) => setEventTimezone(e.target.value)}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                     >
-                      <div className="text-2xl mb-2">{ratio.icon}</div>
-                      <div className="text-xs font-medium">{ratio.label}</div>
-                    </button>
-                  ))}
+                      {COMMON_TIMEZONES.reduce((acc, tz) => {
+                        if (!acc.find(group => group.label === tz.group)) {
+                          acc.push({ label: tz.group, options: [] });
+                        }
+                        const group = acc.find(g => g.label === tz.group);
+                        if (group) {
+                          group.options.push(tz);
+                        }
+                        return acc;
+                      }, [] as Array<{ label: string; options: typeof COMMON_TIMEZONES }>).map(group => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.options.map(tz => (
+                            <option key={tz.value} value={tz.value}>
+                              {tz.label} ({getTimezoneAbbreviation(tz.value)})
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-500">All event times will be displayed in this timezone</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Kiosk Passcode</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editingEvent.passcode}
+                        onChange={(e) => setEditingEvent({...editingEvent, passcode: e.target.value})}
+                        className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
+                        placeholder="e.g. 1234"
+                        maxLength={4}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditingEvent({...editingEvent, passcode: generateUniquePasscode()})}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors flex items-center gap-2"
+                        title="Generate new passcode"
+                      >
+                        <RefreshCw size={16} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Branding Customization Section */}
-              <div className="pt-8 border-t border-slate-300">
-                <h3 className="text-lg font-bold mb-4 text-black">Kiosk Branding</h3>
-                <p className="text-sm text-slate-600 mb-6">Customize the appearance of the kiosk for this event</p>
+                {/* Event Time Restrictions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                  <TimezoneDateTimePicker
+                    label="Start Date & Time (Optional)"
+                    value={editingEvent.startDatetime}
+                    timezone={eventTimezone}
+                    onChange={(isoString) => setEditingEvent({...editingEvent, startDatetime: isoString || undefined})}
+                    helperText="Kiosk will be locked before this time"
+                  />
+                  <TimezoneDateTimePicker
+                    label="End Date & Time (Optional)"
+                    value={editingEvent.endDatetime}
+                    timezone={eventTimezone}
+                    onChange={(isoString) => setEditingEvent({...editingEvent, endDatetime: isoString || undefined})}
+                    minDate={editingEvent.startDatetime}
+                    helperText="Kiosk will be locked after this time"
+                  />
+                </div>
+
+                {/* Event Pass Selector */}
+                <div className="pt-6">
+                  <EventPassSelector
+                    timezone={eventTimezone}
+                    selectedPassId={(editingEvent as any).passId}
+                    startDatetime={editingEvent.startDatetime}
+                    userRole={userProfile?.role}
+                    onSelectPass={(passId, expiresAt) => {
+                      setEditingEvent({
+                        ...editingEvent,
+                        passId: passId as any,
+                        passExpiresAt: expiresAt as any,
+                        endDatetime: expiresAt,
+                      });
+                    }}
+                  />
+                </div>
+              </CollapsibleSection>
+
+              {/* Branding Collapsible Section */}
+              <CollapsibleSection title="Branding" defaultOpen={false}>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
+                  <div className="grid grid-cols-5 gap-3">
+                    {[
+                      { value: 'square', label: 'Square (1:1)', icon: '⬜' },
+                      { value: '3:4', label: 'Portrait (3:4)', icon: '📱' },
+                      { value: '4:3', label: 'Landscape (4:3)', icon: '🖼️' },
+                      { value: '9:16', label: 'Vertical (9:16)', icon: '📲' },
+                      { value: '16:9', label: 'Wide (16:9)', icon: '🎬' }
+                    ].map((ratio) => (
+                      <button
+                        key={ratio.value}
+                        type="button"
+                        onClick={() => setEditingEvent({...editingEvent, aspectRatio: ratio.value as any})}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          editingEvent.aspectRatio === ratio.value
+                            ? 'border-green-700 bg-green-700/10 text-green-800'
+                            : 'border-slate-300 bg-slate-50 text-slate-600 hover:border-slate-400'
+                        }`}
+                      >
+                        <div className="text-2xl mb-2">{ratio.icon}</div>
+                        <div className="text-xs font-medium">{ratio.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -1756,10 +1757,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     </p>
                   )}
                 </div>
-              </div>
+              </CollapsibleSection>
+
+              {/* Add-Ons Showcase */}
+              <AddOnShowcase />
 
               {/* SMS Message Customization */}
-              <div className="pt-8 border-t border-slate-300">
+              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
                 <h3 className="text-lg font-bold text-black mb-2">SMS Message Settings</h3>
                 <p className="text-sm text-slate-600 mb-4">
                   Customize the text message sent when photos are delivered via SMS
@@ -1808,7 +1812,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               )}
 
               {/* Prompt Selection Section */}
-              <div className="pt-8 border-t border-slate-300">
+              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h3 className="text-lg font-bold text-black">AI Experience Prompts</h3>
@@ -2060,10 +2064,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end pt-6 border-t border-slate-300">
+              <div className="flex justify-end">
                  <button
                   onClick={handleSaveEvent}
-                  className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2"
+                  className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg"
                  >
                    <Save size={20} /> Save Event
                  </button>
