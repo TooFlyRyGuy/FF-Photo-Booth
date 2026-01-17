@@ -1228,7 +1228,7 @@ export const duplicateEvent = async (eventId: string): Promise<Event> => {
     name: `${originalEvent.name} (Copy)`,
     passcode: newPasscode,
     date: formattedDate,
-    isActive: false,
+    isActive: true,
     smugmugGalleryKey: '',
     smugmugGalleryUrl: '',
     startDatetime: null,
