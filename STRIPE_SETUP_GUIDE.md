@@ -220,11 +220,11 @@ Create 4 annual subscription products:
 - **Description**:
   ```
   2,400 AI image generations per year
-  1,800 SMS messages per year
+  2,400 SMS messages per year
   ~200 images per month
   ~150 SMS per month
   6 prompt slots per event
-  1 concurrent event
+  2 concurrent event
   Priority support
   Save with annual billing
   ```
