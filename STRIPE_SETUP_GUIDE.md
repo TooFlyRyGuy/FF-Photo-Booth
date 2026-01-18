@@ -209,7 +209,7 @@ Create 4 annual subscription products:
   tier: starter
   billing_period: annual
   credits_per_period: 720
-  sms_credits_per_period: 600
+  sms_credits_per_period: 720
   prompts_limit: 3
   concurrent_events: 1
   display_order: 10
@@ -246,9 +246,9 @@ Create 4 annual subscription products:
 - **Description**:
   ```
   5,400 AI image generations per year
-  3,600 SMS messages per year
+  5,400 SMS messages per year
   ~450 images per month
-  ~300 SMS per month
+  ~450 SMS per month
   9 prompt slots per event
   1 concurrent event
   Priority support
@@ -262,9 +262,9 @@ Create 4 annual subscription products:
   tier: premium
   billing_period: annual
   credits_per_period: 5400
-  sms_credits_per_period: 3600
+  sms_credits_per_period: 5400
   prompts_limit: 9
-  concurrent_events: 1
+  concurrent_events: 3
   display_order: 30
   ```
 
