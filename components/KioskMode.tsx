@@ -565,7 +565,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             </div>
           )}
         </div>
-        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
           <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
@@ -618,7 +618,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             Thank you for participating!
           </p>
         </div>
-        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
           <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
@@ -660,7 +660,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </h1>
           <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
         </div>
-        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
@@ -746,7 +746,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </div>
         </div>
 
-        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
           <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
             Exit Kiosk
           </button>

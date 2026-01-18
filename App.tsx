@@ -4,6 +4,7 @@ import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
 import { getEventByPasscode, clearUserCache } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
+import TidioWidget from './components/TidioWidget';
 
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const KioskMode = lazy(() => import('./components/KioskMode'));
@@ -28,6 +29,51 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState('');
   const [eventCode, setEventCode] = useState('');
+
+  return (
+    <>
+      <TidioWidget />
+      <AppContent
+        view={view}
+        setView={setView}
+        activeEvent={activeEvent}
+        setActiveEvent={setActiveEvent}
+        user={user}
+        setUser={setUser}
+        error={error}
+        setError={setError}
+        eventCode={eventCode}
+        setEventCode={setEventCode}
+      />
+    </>
+  );
+};
+
+interface AppContentProps {
+  view: ViewState;
+  setView: (view: ViewState) => void;
+  activeEvent: Event | null;
+  setActiveEvent: (event: Event | null) => void;
+  user: User | null;
+  setUser: (user: User | null) => void;
+  error: string;
+  setError: (error: string) => void;
+  eventCode: string;
+  setEventCode: (code: string) => void;
+}
+
+const AppContent: React.FC<AppContentProps> = ({
+  view,
+  setView,
+  activeEvent,
+  setActiveEvent,
+  user,
+  setUser,
+  error,
+  setError,
+  eventCode,
+  setEventCode
+}) => {
 
   const launchKiosk = (event: Event) => {
     setActiveEvent(event);

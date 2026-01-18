@@ -2,11 +2,38 @@ import React, { useEffect } from 'react';
 
 const TidioWidget: React.FC = () => {
   useEffect(() => {
-    // Tidio script is loaded in index.html, so this component just ensures it's present
-    // Check if script already exists
+    // Hide Tidio in kiosk mode or when ?kiosk= parameter is present
+    const urlParams = new URLSearchParams(window.location.search);
+    const isKioskMode = urlParams.has('kiosk');
+
+    if (isKioskMode) {
+      console.log('[TidioWidget] Kiosk mode detected - hiding Tidio');
+      // Hide Tidio widget
+      const style = document.createElement('style');
+      style.id = 'tidio-hide-style';
+      style.innerHTML = `
+        #tidio-chat-iframe,
+        #tidio-chat,
+        iframe[src*="tidio"],
+        div[id^="tidio"] {
+          display: none !important;
+          visibility: hidden !important;
+        }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        // Cleanup: remove hide style when component unmounts
+        const hideStyle = document.getElementById('tidio-hide-style');
+        if (hideStyle) {
+          hideStyle.remove();
+        }
+      };
+    }
+
+    // Normal mode: ensure Tidio is loaded
     const existingScript = document.querySelector('script[src*="tidio.co"]');
 
-    // If script doesn't exist for some reason, add it dynamically as fallback
     if (!existingScript) {
       console.log('[TidioWidget] Script not found, loading dynamically');
       const script = document.createElement('script');
