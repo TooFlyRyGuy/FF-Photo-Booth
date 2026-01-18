@@ -202,6 +202,9 @@ DROP POLICY IF EXISTS "Public can view global settings" ON global_settings;
 DROP POLICY IF EXISTS "System users can manage global settings" ON global_settings;
 DROP POLICY IF EXISTS "Admins can manage global settings" ON global_settings;
 DROP POLICY IF EXISTS "Admins can read all global settings" ON global_settings;
+DROP POLICY IF EXISTS "Admins can read global settings" ON global_settings;
+DROP POLICY IF EXISTS "Admins can update global settings" ON global_settings;
+DROP POLICY IF EXISTS "Admins can insert global settings" ON global_settings;
 
 -- New policies: Admins can read/write, regular users cannot access
 CREATE POLICY "Admins can read global settings"
