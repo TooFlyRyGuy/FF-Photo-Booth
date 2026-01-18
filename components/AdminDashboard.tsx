@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { getTenant, getEvents, getPrompts, saveEvent, savePrompt, updatePrompt, deletePrompt, updateTenantSettings, deleteEvent, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearTenantCache, clearPromptsCache, clearGlobalSettingsCache } from '../services/backendService';
-import { Tenant, Event, Prompt } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw } from 'lucide-react';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass } from '../services/backendService';
+import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle, Copy } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
 import PromptLibrary from './PromptLibrary';
+import UserManagement from './UserManagement';
+import PlanManagement from './PlanManagement';
+import CreditDisplay from './CreditDisplay';
+import ProfileManagement from './ProfileManagement';
+import { EventPassSelector } from './EventPassSelector';
+import { SmugMugGallerySync } from './SmugMugGallerySync';
+import { TimezoneDateTimePicker } from './TimezoneDateTimePicker';
+import { CollapsibleSection } from './CollapsibleSection';
+import { AddOnShowcase } from './AddOnShowcase';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { QRCodeSVG } from 'qrcode.react';
+import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface AdminProps {
   onLogout: () => void;
@@ -16,13 +27,36 @@ interface AdminProps {
   user: User | null;
 }
 
-type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts';
+type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'plans' | 'reports' | 'profile';
+
+const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'; label: string; colorClass: string } => {
+  const now = new Date();
+  const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
+  const endDate = event.endDatetime ? new Date(event.endDatetime) : null;
+
+  if (endDate && now > endDate) {
+    return { status: 'ended', label: 'ENDED', colorClass: 'bg-red-100 text-red-800' };
+  }
+
+  if (startDate && now < startDate) {
+    const formattedDate = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return { status: 'upcoming', label: `Starts ${formattedDate}`, colorClass: 'bg-yellow-100 text-yellow-800' };
+  }
+
+  if (event.isActive) {
+    return { status: 'active', label: 'ACTIVE', colorClass: 'bg-green-700/20 text-green-800' };
+  }
+
+  return { status: 'ended', label: 'INACTIVE', colorClass: 'bg-slate-200 text-slate-600' };
+};
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
-  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
+  const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [userProfile, setUserProfile] = useState<any>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ totalImages: 0, totalSms: 0, totalEvents: 0, activeEvents: 0 });
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
@@ -48,37 +82,98 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [editingPromptData, setEditingPromptData] = useState<Partial<Prompt> | null>(null);
 
+  // Admin State
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [adminStats, setAdminStats] = useState<any>(null);
+  const [revenueStats, setRevenueStats] = useState<any>(null);
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [accessModal, setAccessModal] = useState<{ eventId: string; eventName: string; eventOwnerId: string } | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [grantingAccess, setGrantingAccess] = useState(false);
+  const [eventAccessList, setEventAccessList] = useState<Array<{ userId: string; email: string; fullName: string | null; grantedAt: string }>>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [generationBreakdown, setGenerationBreakdown] = useState<EventGenerationBreakdown[] | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showGenerationModal, setShowGenerationModal] = useState(false);
+  const [showInactiveEvents, setShowInactiveEvents] = useState(false);
+  const [concurrentEventLimit, setConcurrentEventLimit] = useState<ConcurrentEventLimit | null>(null);
+  const [eventTimezone, setEventTimezone] = useState<string>('');
+  const [isStartTimeLocked, setIsStartTimeLocked] = useState(false);
+
   useEffect(() => {
     if (user) {
-      clearTenantCache();
       clearPromptsCache();
       clearGlobalSettingsCache();
       loadData();
       loadDashboardData();
-      loadUserProfile();
     } else {
       setIsLoading(false);
       setLoadError('No user session found');
     }
   }, [user?.id]);
 
+  useEffect(() => {
+    filterEvents();
+  }, [events, eventSearchQuery]);
+
+  const filterEvents = () => {
+    if (!eventSearchQuery.trim()) {
+      setFilteredEvents(events);
+      return;
+    }
+
+    const query = eventSearchQuery.toLowerCase();
+    const filtered = events.filter(event => {
+      const eventDate = new Date(event.date).toLocaleDateString().toLowerCase();
+      const createdByEmail = event.createdByEmail?.toLowerCase() || '';
+      const userName = event.userName?.toLowerCase() || '';
+
+      return (
+        event.name.toLowerCase().includes(query) ||
+        event.city?.toLowerCase().includes(query) ||
+        eventDate.includes(query) ||
+        createdByEmail.includes(query) ||
+        userName.includes(query)
+      );
+    });
+    setFilteredEvents(filtered);
+  };
+
   const loadData = async () => {
     try {
       setIsLoading(true);
       setLoadError(null);
 
-      const tenantData = await getTenant();
-      if (!tenantData) {
-        throw new Error('Unable to load tenant data');
-      }
-      setTenant(tenantData);
+      const profileData = await getUserProfile();
 
-      const eventsData = await getEvents();
+      if (!profileData) {
+        throw new Error('Unable to load user profile');
+      }
+
+      const isAdmin = profileData.role?.toLowerCase() === 'admin';
+
+      const [settingsData, globalData, creditsData, eventsData] = await Promise.all([
+        getUserSettings(),
+        getGlobalSettings(),
+        getUserCredits(),
+        isAdmin ? getAllEvents() : getEvents()
+      ]);
+
+      setUserProfile(profileData);
+      setUserSettings(settingsData);
+      setGlobalSettings(globalData);
+      setUserCredits(creditsData);
       setEvents(eventsData || []);
 
+      const userTz = profileData.timezone || detectUserTimezone();
+      setEventTimezone(userTz);
+
       console.log('Loaded data successfully:', {
-        tenantId: tenantData?.id || 'unknown',
-        events: (eventsData || []).length
+        userId: profileData?.id || 'unknown',
+        role: profileData?.role || 'user',
+        events: (eventsData || []).length,
+        timezone: userTz
       });
 
       setIsLoading(false);
@@ -90,6 +185,15 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
+  const loadConcurrentEventLimit = async (eventId?: string) => {
+    try {
+      const limit = await getConcurrentEventLimit(eventId);
+      setConcurrentEventLimit(limit);
+    } catch (error) {
+      console.error('Failed to load concurrent event limit:', error);
+    }
+  };
+
   const loadDashboardData = async () => {
     try {
       const [stats, chart] = await Promise.all([
@@ -98,21 +202,44 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       ]);
       setDashboardStats(stats);
       setChartData(chart);
+
+      await loadConcurrentEventLimit();
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     }
   };
 
-  const loadUserProfile = async () => {
-    if (!user) return;
+  const loadAdminData = async () => {
+    if (userProfile?.role !== 'admin') return;
 
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
+    try {
+      const [users, stats, revenue] = await Promise.all([
+        getAllUsers(),
+        getAdminStats(),
+        getRevenueStats()
+      ]);
+      setAllUsers(users || []);
+      setAdminStats(stats);
+      setRevenueStats(revenue);
+    } catch (error) {
+      console.error('Failed to load admin data:', error);
+    }
+  };
 
-    setUserProfile(data);
+  useEffect(() => {
+    if (userProfile?.role === 'admin' && (activeTab === 'users' || activeTab === 'reports')) {
+      loadAdminData();
+    }
+  }, [activeTab, userProfile?.role]);
+
+  const handleLaunchKiosk = async (event: Event) => {
+    try {
+      const fullEvent = await getEventById(event.id);
+      onLaunchKiosk(fullEvent);
+    } catch (error) {
+      console.error('Failed to load event for kiosk:', error);
+      alert('Failed to launch kiosk mode. Please try again.');
+    }
   };
 
   const copyKioskLink = (event: Event) => {
@@ -124,8 +251,133 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     });
   };
 
-  const handleSaveSettings = async (updates: Partial<Tenant>) => {
-    await updateTenantSettings(updates);
+  const handleBarClick = async (data: any) => {
+    if (!data || !data.date) return;
+
+    setSelectedDate(data.date);
+    setShowGenerationModal(true);
+
+    try {
+      const breakdown = await getGenerationsByDateAndEvent(data.date);
+      setGenerationBreakdown(breakdown);
+    } catch (error) {
+      console.error('Failed to load generation breakdown:', error);
+      setGenerationBreakdown([]);
+    }
+  };
+
+  const printQRCode = (event: Event) => {
+    const url = `${window.location.origin}/?kiosk=${event.passcode}`;
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Print QR Code - ${event.name}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 40px;
+                background: white;
+              }
+              .container {
+                text-align: center;
+                max-width: 600px;
+              }
+              .logo {
+                max-width: 300px;
+                max-height: 150px;
+                margin-bottom: 32px;
+                object-fit: contain;
+              }
+              h2 {
+                font-size: 36px;
+                font-weight: 700;
+                color: #059669;
+                margin-bottom: 24px;
+              }
+              h1 {
+                font-size: 48px;
+                font-weight: 900;
+                color: #1f2937;
+                margin-bottom: 48px;
+                letter-spacing: -0.5px;
+              }
+              .qr-container {
+                display: inline-block;
+                padding: 32px;
+                background: white;
+                border: 4px solid #1f2937;
+                border-radius: 16px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+              }
+              #qr-code canvas {
+                display: block;
+              }
+              @media print {
+                body {
+                  padding: 0;
+                }
+                .no-print {
+                  display: none;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              ${event.logoUrl ? `<img src="${event.logoUrl}" alt="Event Logo" class="logo" />` : ''}
+              ${!event.hideEventName ? `<h2>${event.name}</h2>` : ''}
+              <h1>SCAN HERE TO USE OUR<br>AI PHOTO BOOTH!</h1>
+              <div class="qr-container">
+                <div id="qr-code"></div>
+              </div>
+            </div>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+            <script>
+              window.addEventListener('load', function() {
+                try {
+                  new QRCode(document.getElementById('qr-code'), {
+                    text: '${url}',
+                    width: 400,
+                    height: 400,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                  });
+                  setTimeout(function() {
+                    window.print();
+                  }, 1000);
+                } catch (error) {
+                  console.error('QR Code generation error:', error);
+                  document.getElementById('qr-code').innerHTML = '<p>Error generating QR code</p>';
+                }
+              });
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
+
+  const handleSaveUserSettings = async (updates: Partial<UserSettings>) => {
+    await updateUserSettings(updates);
+    await loadData();
+  };
+
+  const handleSaveGlobalSettings = async (updates: Partial<GlobalSettings>) => {
+    await updateGlobalSettings(updates);
     await loadData();
   };
 
@@ -138,24 +390,37 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     return passcode;
   };
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
+    await loadConcurrentEventLimit();
+    setIsStartTimeLocked(false); // New events don't have locked start times
     setEditingEvent({
-      id: `evt_${Date.now()}`,
+      id: '',
       name: '',
       city: '',
       date: new Date().toISOString().split('T')[0],
       passcode: generateUniquePasscode(),
       isActive: true,
       prompts: [],
-      tenantId: tenant?.id || '',
+      userId: user?.id || '',
       aspectRatio: 'square'
     });
     setActiveTab('create_event');
   };
 
-  const handleEditEvent = (event: Event) => {
-    setEditingEvent({ ...event });
-    setActiveTab('edit_event');
+  const handleEditEvent = async (event: Event) => {
+    try {
+      const eventWithPrompts = await getEventById(event.id);
+
+      // Check if event has an activated pass (which locks start time)
+      const hasActivatedPass = await hasActivatedEventPass(event.id);
+      setIsStartTimeLocked(hasActivatedPass);
+
+      setEditingEvent({ ...eventWithPrompts });
+      setActiveTab('edit_event');
+    } catch (error) {
+      console.error('Failed to load event details:', error);
+      alert('Failed to load event details. Please try again.');
+    }
   };
 
   const handleViewAnalytics = (event: Event) => {
@@ -200,8 +465,21 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
 
     try {
+      const validation = await validateEventTimeRestrictions(
+        editingEvent.startDatetime,
+        editingEvent.endDatetime,
+        (editingEvent as any).passId,
+        editingEvent.id
+      );
+
+      if (!validation.isValid) {
+        alert(validation.errorMessage || 'Event validation failed');
+        return;
+      }
+
       await saveEvent(editingEvent as Event);
       await loadData();
+      await loadConcurrentEventLimit();
       setActiveTab('events');
     } catch (error: any) {
       alert(`Failed to save event: ${error.message}`);
@@ -220,6 +498,112 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     } catch (error: any) {
       alert(`Failed to delete event: ${error.message}`);
       console.error('Delete event error:', error);
+    }
+  };
+
+  const handleDuplicateEvent = async (event: Event) => {
+    if (!confirm(`Duplicate "${event.name}"? This will create a new event with the same settings, prompts, and a new SmugMug gallery.`)) {
+      return;
+    }
+
+    try {
+      const newEvent = await duplicateEvent(event.id);
+      await loadData();
+      alert(`Event duplicated successfully! New kiosk code: ${newEvent.passcode}`);
+    } catch (error: any) {
+      alert(`Failed to duplicate event: ${error.message}`);
+      console.error('Duplicate event error:', error);
+    }
+  };
+
+  const openAccessModal = async (event: Event) => {
+    setAccessModal({ eventId: event.id, eventName: event.name, eventOwnerId: event.userId || '' });
+    setSelectedUserId('');
+    setUserSearchQuery('');
+
+    try {
+      const [usersData, accessList] = await Promise.all([
+        getAllUsers(),
+        getEventAccessList(event.id)
+      ]);
+
+      console.log('Loaded users:', usersData);
+      setAllUsers(usersData || []);
+      setEventAccessList(accessList);
+    } catch (error) {
+      console.error('Failed to load access data:', error);
+      alert('Failed to load users. Please try again.');
+    }
+  };
+
+  const handleGrantAccess = async () => {
+    if (!accessModal || !selectedUserId) {
+      alert('Please select a user to grant access to.');
+      return;
+    }
+
+    if (selectedUserId === accessModal.eventOwnerId) {
+      alert('This user already owns this event.');
+      return;
+    }
+
+    setGrantingAccess(true);
+    try {
+      await grantEventAccess(accessModal.eventId, selectedUserId);
+      setSelectedUserId('');
+
+      const accessList = await getEventAccessList(accessModal.eventId);
+      setEventAccessList(accessList);
+
+      await loadData();
+    } catch (error: any) {
+      alert(`Failed to grant access: ${error.message}`);
+      console.error('Grant access error:', error);
+    } finally {
+      setGrantingAccess(false);
+    }
+  };
+
+  const handleRevokeAccess = async (userId: string) => {
+    if (!accessModal) return;
+
+    if (!confirm('Are you sure you want to revoke access for this user?')) {
+      return;
+    }
+
+    try {
+      await revokeEventAccess(accessModal.eventId, userId);
+
+      const accessList = await getEventAccessList(accessModal.eventId);
+      setEventAccessList(accessList);
+
+      await loadData();
+    } catch (error: any) {
+      alert(`Failed to revoke access: ${error.message}`);
+      console.error('Revoke access error:', error);
+    }
+  };
+
+  const handleTransferOwnership = async (newOwnerId: string, newOwnerEmail: string) => {
+    if (!accessModal) return;
+
+    if (!confirm(`Are you sure you want to transfer ownership of "${accessModal.eventName}" to ${newOwnerEmail}? This will make the event count against their subscription limits and credits. This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await transferEventOwnership(accessModal.eventId, newOwnerId);
+
+      setAccessModal(null);
+      setSelectedUserId('');
+      setEventAccessList([]);
+
+      await loadData();
+
+      alert('Ownership transferred successfully!');
+    } catch (error: any) {
+      alert(`Failed to transfer ownership: ${error.message}`);
+      console.error('Transfer ownership error:', error);
     }
   };
 
@@ -289,7 +673,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   const handleAddNewPrompt = async () => {
     const newPrompt: Partial<Prompt> = {
-      id: `prompt_${Date.now()}`,
       name: 'New Prompt',
       description: 'Add a description',
       promptText: 'Add your AI prompt text here',
@@ -334,7 +717,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     );
   }
 
-  if (!tenant) {
+  if (!userProfile || !userCredits) {
     return (
       <div className="flex h-screen items-center justify-center text-slate-900 bg-slate-100">
         <div className="text-center">
@@ -360,7 +743,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     );
   }
 
-  const usagePercent = (tenant.usage.imagesUsed / tenant.usage.imagesLimit) * 100;
+  const isAdmin = userProfile.role?.toLowerCase() === 'admin';
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
@@ -410,10 +793,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </h1>
           {userProfile && !sidebarCollapsed && (
             <div className="mt-3 text-xs">
-              <p className="text-slate-600 truncate">{userProfile.email}</p>
-              <p className="text-slate-500 mt-1 uppercase tracking-widest">
-                {userProfile.subscription_tier?.toUpperCase() || 'FREE'} PLAN
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-slate-600 truncate flex-1">{user?.email}</p>
+                {isAdmin && (
+                  <span className="bg-green-700 text-white px-2 py-0.5 rounded text-xs font-bold">
+                    ADMIN
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -463,19 +850,59 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             <SettingsIcon size={20} />
             {!sidebarCollapsed && 'Settings'}
           </button>
+          <button
+            onClick={() => {
+              setActiveTab('profile');
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'profile' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            title={sidebarCollapsed ? 'Profile' : ''}
+          >
+            <UserCircle size={20} />
+            {!sidebarCollapsed && 'Profile'}
+          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => {
+                  setActiveTab('users');
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'users' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+                title={sidebarCollapsed ? 'User Management' : ''}
+              >
+                <Users size={20} />
+                {!sidebarCollapsed && 'User Management'}
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('plans');
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'plans' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+                title={sidebarCollapsed ? 'Products' : ''}
+              >
+                <Package size={20} />
+                {!sidebarCollapsed && 'Products'}
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('reports');
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'reports' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+                title={sidebarCollapsed ? 'Reports' : ''}
+              >
+                <BarChart3 size={20} />
+                {!sidebarCollapsed && 'Reports'}
+              </button>
+            </>
+          )}
         </nav>
 
         <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
-          {!sidebarCollapsed && (
-            <div>
-              <div className="flex justify-between text-xs text-slate-600 mb-1">
-                <span>Credits</span>
-                <span>{tenant.usage.imagesUsed} / {tenant.usage.imagesLimit}</span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-green-700" style={{ width: `${usagePercent}%` }}></div>
-              </div>
-            </div>
+          {!sidebarCollapsed && user && (
+            <CreditDisplay userId={user.id} sidebar={true} />
           )}
           {!sidebarCollapsed ? (
             <>
@@ -569,17 +996,32 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
             {/* Chart */}
             <div className="bg-white p-6 rounded-xl border-2 border-slate-300 h-80">
-              <h3 className="text-lg font-semibold mb-4 text-black">Generation Activity (Last 7 Days)</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-black">Generation Activity (Last 7 Days)</h3>
+                <p className="text-sm text-slate-500 italic">Click bars for event breakdown</p>
+              </div>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
+                <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
-                  <XAxis dataKey="name" stroke="#475569" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#475569"
+                    tick={{ fontSize: 12 }}
+                    height={50}
+                    tickMargin={8}
+                  />
                   <YAxis stroke="#475569" />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1' }}
                     itemStyle={{ color: '#0f172a' }}
                   />
-                  <Bar dataKey="images" fill="#15803d" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="generations"
+                    fill="#15803d"
+                    radius={[4, 4, 0, 0]}
+                    cursor="pointer"
+                    onClick={(data) => handleBarClick(data)}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -590,67 +1032,317 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         {activeTab === 'events' && (
           <div className="space-y-6">
              <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <h2 className="text-3xl font-bold text-black">Your Events</h2>
+              <div>
+                <h2 className="text-3xl font-bold text-black">
+                  {isAdmin ? 'All Events' : 'Your Events'}
+                </h2>
+                {isAdmin && (
+                  <p className="text-sm text-green-700 font-medium mt-1 flex items-center gap-1">
+                    <Users size={14} /> Admin view - Showing all users' events
+                  </p>
+                )}
+              </div>
               <button
                 onClick={handleCreateEvent}
-                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2 whitespace-nowrap"
+                className="bg-green-700 hover:bg-green-800 text-white px-6 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 whitespace-nowrap shadow-lg shadow-green-900/20 transition-all"
               >
-                <Plus size={16} /> Create Event
+                <Plus size={18} /> Create Event
               </button>
             </header>
 
-            <div className="grid gap-4">
-              {events.map(event => (
-                <div key={event.id} className="bg-white p-6 rounded-xl border-2 border-slate-300 flex justify-between items-center group hover:border-green-700/50 transition-colors">
-                  <div>
-                    <h3 className="text-xl font-bold flex items-center gap-2 text-black">
-                      {event.name}
-                      {event.isActive && <span className="text-xs bg-green-700/20 text-green-800 px-2 py-0.5 rounded-full">Active</span>}
-                    </h3>
-                    <p className="text-slate-600 text-sm mt-1">{event.city} • {event.date}</p>
-                    <p className="text-slate-500 text-xs mt-1 flex items-center gap-2">
-                      <ExternalLink size={12} />
-                      <span className="font-mono">/?kiosk={event.passcode}</span>
-                    </p>
+            <div className="relative mb-6">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+              <input
+                type="text"
+                value={eventSearchQuery}
+                onChange={(e) => setEventSearchQuery(e.target.value)}
+                placeholder="Search by event name, date, city, or user..."
+                className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+              />
+            </div>
+
+            {(() => {
+              const activeEvents = filteredEvents.filter(event => {
+                const status = getEventStatus(event);
+                return status.status === 'active' || status.status === 'upcoming';
+              });
+              const inactiveEvents = filteredEvents.filter(event => {
+                const status = getEventStatus(event);
+                return status.status === 'ended';
+              });
+
+              return (
+                <>
+                  <div className="grid gap-4 md:gap-6">
+                    {activeEvents.map(event => (
+                <div key={event.id} className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden group hover:border-green-700/50 hover:shadow-lg transition-all">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg sm:text-xl font-bold text-black truncate">
+                              {event.name}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {(() => {
+                                const eventStatus = getEventStatus(event);
+                                return (
+                                  <span className={`text-xs ${eventStatus.colorClass} px-2 py-0.5 rounded-full font-medium`}>
+                                    {eventStatus.label}
+                                  </span>
+                                );
+                              })()}
+                              <span className="text-slate-600 text-sm">{event.city}</span>
+                              <span className="text-slate-400">•</span>
+                              <span className="text-slate-600 text-sm">{event.date}</span>
+                            </div>
+                            {isAdmin && event.userEmail && (
+                              <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded">
+                                <UserIcon size={12} />
+                                <span className="font-medium">{event.userName}</span>
+                                <span className="text-slate-400">({event.userEmail})</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-500 text-xs mt-3 bg-slate-50 px-3 py-2 rounded-lg">
+                          <ExternalLink size={14} className="flex-shrink-0" />
+                          <span className="font-mono truncate">/?kiosk={event.passcode}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleViewAnalytics(event)}
-                      className="px-4 py-2 rounded-md border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium flex items-center gap-2"
-                      title="View event analytics"
-                    >
-                      <BarChart3 size={16} /> Analytics
-                    </button>
-                    <button
-                      onClick={() => handleEditEvent(event)}
-                      className="px-4 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => copyKioskLink(event)}
-                      className="px-4 py-2 rounded-md border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium flex items-center gap-2"
-                      title="Copy shareable kiosk link"
-                    >
-                      <Link2 size={16} /> Copy Link
-                    </button>
-                    <button
-                      onClick={() => onLaunchKiosk(event)}
-                      className="px-4 py-2 rounded-md bg-green-700 hover:bg-green-800 text-white text-sm font-medium shadow-lg shadow-green-900/20"
-                    >
-                      Launch Kiosk
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEvent(event)}
-                      className="px-4 py-2 rounded-md border-2 border-red-600 text-red-600 hover:bg-red-600/10 text-sm font-medium flex items-center gap-2"
-                      title="Delete event"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+
+                  <div className="border-t-2 border-slate-200 bg-slate-50 p-3 sm:p-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleLaunchKiosk(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold shadow-md shadow-green-900/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Camera size={16} /> Launch Kiosk
+                      </button>
+
+                      {event.smugmugGalleryUrl && (
+                        <a
+                          href={event.smugmugGalleryUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-blue-600 bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        >
+                          <Images size={16} /> View Gallery
+                        </a>
+                      )}
+
+                      <button
+                        onClick={() => handleViewAnalytics(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                      >
+                        <BarChart3 size={16} /> Analytics
+                      </button>
+
+                      <button
+                        onClick={() => copyKioskLink(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                      >
+                        <Link2 size={16} /> <span className="hidden sm:inline">Copy Link</span>
+                      </button>
+
+                      <button
+                        onClick={() => printQRCode(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        title="Print QR Code"
+                      >
+                        <Printer size={16} /> <span className="hidden sm:inline">Print QR</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleEditEvent(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                      >
+                        <Pencil size={16} /> <span className="hidden sm:inline">Edit</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDuplicateEvent(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        title="Duplicate event"
+                      >
+                        <Copy size={16} /> <span className="hidden sm:inline">Duplicate</span>
+                      </button>
+
+                      {userProfile?.role === 'admin' && (
+                        <button
+                          onClick={() => openAccessModal(event)}
+                          className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-700 hover:bg-green-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                          title="Manage access"
+                        >
+                          <UserIcon size={16} /> <span className="hidden sm:inline">Access</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleDeleteEvent(event)}
+                        className="px-4 py-2.5 rounded-lg border-2 border-red-600 text-red-600 hover:bg-red-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        title="Delete event"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                    ))}
+                  </div>
+
+                  {/* Inactive Events Collapsible Section */}
+                  {inactiveEvents.length > 0 && (
+                    <div className="mt-8">
+                      <button
+                        onClick={() => setShowInactiveEvents(!showInactiveEvents)}
+                        className="w-full bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 rounded-lg px-6 py-4 flex items-center justify-between transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-slate-200 rounded-lg">
+                            <Calendar size={20} className="text-slate-600" />
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-lg font-bold text-slate-900">Inactive Events</h3>
+                            <p className="text-sm text-slate-600">{inactiveEvents.length} event{inactiveEvents.length !== 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                        <ChevronLeft
+                          size={24}
+                          className={`text-slate-600 transition-transform ${showInactiveEvents ? 'rotate-90' : '-rotate-90'}`}
+                        />
+                      </button>
+
+                      {showInactiveEvents && (
+                        <div className="grid gap-4 md:gap-6 mt-4">
+                          {inactiveEvents.map(event => (
+                            <div key={event.id} className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden opacity-75 hover:opacity-100 transition-all">
+                              <div className="p-4 sm:p-6">
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start gap-3 mb-2">
+                                      <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg sm:text-xl font-bold text-black truncate">
+                                          {event.name}
+                                        </h3>
+                                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                                          {(() => {
+                                            const eventStatus = getEventStatus(event);
+                                            return (
+                                              <span className={`text-xs ${eventStatus.colorClass} px-2 py-0.5 rounded-full font-medium`}>
+                                                {eventStatus.label}
+                                              </span>
+                                            );
+                                          })()}
+                                          <span className="text-slate-600 text-sm">{event.city}</span>
+                                          <span className="text-slate-400">•</span>
+                                          <span className="text-slate-600 text-sm">{event.date}</span>
+                                        </div>
+                                        {isAdmin && event.userEmail && (
+                                          <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded">
+                                            <UserIcon size={12} />
+                                            <span className="font-medium">{event.userName}</span>
+                                            <span className="text-slate-400">({event.userEmail})</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-slate-500 text-xs mt-3 bg-slate-50 px-3 py-2 rounded-lg">
+                                      <ExternalLink size={14} className="flex-shrink-0" />
+                                      <span className="font-mono truncate">/?kiosk={event.passcode}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="border-t-2 border-slate-200 bg-slate-50 p-3 sm:p-4">
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => handleLaunchKiosk(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold shadow-md shadow-green-900/20 transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <Camera size={16} /> Launch Kiosk
+                                  </button>
+
+                                  {event.smugmugGalleryUrl && (
+                                    <a
+                                      href={event.smugmugGalleryUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-blue-600 bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                    >
+                                      <Images size={16} /> View Gallery
+                                    </a>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleViewAnalytics(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-800 hover:bg-green-700/10 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <BarChart3 size={16} /> Analytics
+                                  </button>
+
+                                  <button
+                                    onClick={() => copyKioskLink(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <Link2 size={16} /> <span className="hidden sm:inline">Copy Link</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => printQRCode(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                    title="Print QR Code"
+                                  >
+                                    <Printer size={16} /> <span className="hidden sm:inline">Print QR</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleEditEvent(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <Pencil size={16} /> <span className="hidden sm:inline">Edit</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDuplicateEvent(event)}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                    title="Duplicate event"
+                                  >
+                                    <Copy size={16} /> <span className="hidden sm:inline">Duplicate</span>
+                                  </button>
+
+                                  {userProfile?.role === 'admin' && (
+                                    <button
+                                      onClick={() => openAccessModal(event)}
+                                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-green-700 text-green-700 hover:bg-green-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                      title="Manage access"
+                                    >
+                                      <UserIcon size={16} /> <span className="hidden sm:inline">Access</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleDeleteEvent(event)}
+                                    className="px-4 py-2.5 rounded-lg border-2 border-red-600 text-red-600 hover:bg-red-50 text-sm font-medium transition-all flex items-center justify-center gap-2"
+                                    title="Delete event"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 
@@ -664,119 +1356,235 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               <h2 className="text-2xl font-bold text-black">{activeTab === 'create_event' ? 'Create New Event' : 'Edit Event'}</h2>
             </header>
 
-            <div className="bg-white p-8 rounded-xl border-2 border-slate-300 space-y-6">
-              {/* Event Details Form */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Event Name</label>
-                  <input
-                    type="text"
-                    value={editingEvent.name}
-                    onChange={(e) => setEditingEvent({...editingEvent, name: e.target.value})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                    placeholder="e.g. Summer Gala 2024"
-                  />
+            {/* Event Creation Date Display */}
+            {activeTab === 'create_event' && (
+              <div className="bg-slate-50 border-2 border-slate-300 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">Event Creation Date</span>
+                  <span className="text-base font-bold text-slate-900">
+                    {new Date().toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">City / Venue</label>
-                  <input
-                    type="text"
-                    value={editingEvent.city}
-                    onChange={(e) => setEditingEvent({...editingEvent, city: e.target.value})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                    placeholder="e.g. New York, NY"
-                  />
+              </div>
+            )}
+
+            {concurrentEventLimit && !isAdmin && activeTab === 'create_event' && concurrentEventLimit.limitCount < 999999 && (
+              <div className={`p-4 rounded-lg border-2 ${
+                concurrentEventLimit.canCreate
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Calendar className={concurrentEventLimit.canCreate ? 'text-green-700' : 'text-red-700'} size={20} />
+                    <div>
+                      <p className={`text-sm font-semibold ${concurrentEventLimit.canCreate ? 'text-green-900' : 'text-red-900'}`}>
+                        Concurrent Events: {concurrentEventLimit.currentCount} / {concurrentEventLimit.limitCount}
+                      </p>
+                      <p className={`text-xs ${concurrentEventLimit.canCreate ? 'text-green-700' : 'text-red-700'}`}>
+                        {concurrentEventLimit.canCreate
+                          ? `You can create ${concurrentEventLimit.limitCount - concurrentEventLimit.currentCount} more concurrent ${concurrentEventLimit.limitCount - concurrentEventLimit.currentCount === 1 ? 'event' : 'events'}.`
+                          : concurrentEventLimit.errorMessage
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  {concurrentEventLimit.canCreate && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-green-200 rounded-full h-2">
+                        <div
+                          className="bg-green-700 h-2 rounded-full transition-all"
+                          style={{ width: `${(concurrentEventLimit.currentCount / concurrentEventLimit.limitCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Event Date</label>
-                  <input
-                    type="date"
-                    value={editingEvent.date}
-                    onChange={(e) => setEditingEvent({...editingEvent, date: e.target.value})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Kiosk Passcode</label>
-                  <div className="flex gap-2">
+                {!concurrentEventLimit.canCreate && (
+                  <div className="mt-3 p-3 bg-white rounded border border-red-200">
+                    <p className="text-sm text-gray-700 font-medium mb-2">Options:</p>
+                    <ul className="text-sm text-gray-600 space-y-1 ml-4 list-disc">
+                      <li>Deactivate an existing event to free up a slot</li>
+                      <li>Upgrade your subscription plan for more concurrent events</li>
+                      <li>Purchase an event pass for time-limited events</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {/* Event Details Collapsible Section */}
+              <CollapsibleSection title="Event Details" defaultOpen={true}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Event Name</label>
                     <input
                       type="text"
-                      value={editingEvent.passcode}
-                      onChange={(e) => setEditingEvent({...editingEvent, passcode: e.target.value})}
-                      className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
-                      placeholder="e.g. 1234"
-                      maxLength={4}
+                      value={editingEvent.name}
+                      onChange={(e) => setEditingEvent({...editingEvent, name: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                      placeholder="e.g. Summer Gala 2024"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setEditingEvent({...editingEvent, passcode: generateUniquePasscode()})}
-                      className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors flex items-center gap-2"
-                      title="Generate new passcode"
-                    >
-                      <RefreshCw size={16} />
-                    </button>
                   </div>
-                  <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Start Date & Time (Optional)</label>
-                  <input
-                    type="datetime-local"
-                    value={editingEvent.startDatetime ? new Date(editingEvent.startDatetime).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => setEditingEvent({...editingEvent, startDatetime: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                  />
-                  <p className="text-xs text-slate-500">Kiosk will be locked before this time</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">End Date & Time (Optional)</label>
-                  <input
-                    type="datetime-local"
-                    value={editingEvent.endDatetime ? new Date(editingEvent.endDatetime).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => setEditingEvent({...editingEvent, endDatetime: e.target.value ? new Date(e.target.value).toISOString() : undefined})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
-                  />
-                  <p className="text-xs text-slate-500">Kiosk will be locked after this time</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
-                <div className="grid grid-cols-5 gap-3">
-                  {[
-                    { value: 'square', label: 'Square (1:1)', icon: '⬜' },
-                    { value: '3:4', label: 'Portrait (3:4)', icon: '📱' },
-                    { value: '4:3', label: 'Landscape (4:3)', icon: '🖼️' },
-                    { value: '9:16', label: 'Vertical (9:16)', icon: '📲' },
-                    { value: '16:9', label: 'Wide (16:9)', icon: '🎬' }
-                  ].map((ratio) => (
-                    <button
-                      key={ratio.value}
-                      type="button"
-                      onClick={() => setEditingEvent({...editingEvent, aspectRatio: ratio.value as any})}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        editingEvent.aspectRatio === ratio.value
-                          ? 'border-green-700 bg-green-700/10 text-green-800'
-                          : 'border-slate-300 bg-slate-50 text-slate-600 hover:border-slate-400'
-                      }`}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">City / Venue</label>
+                    <input
+                      type="text"
+                      value={editingEvent.city}
+                      onChange={(e) => setEditingEvent({...editingEvent, city: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                      placeholder="e.g. New York, NY"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Time Zone</label>
+                    <select
+                      value={eventTimezone}
+                      onChange={(e) => setEventTimezone(e.target.value)}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                     >
-                      <div className="text-2xl mb-2">{ratio.icon}</div>
-                      <div className="text-xs font-medium">{ratio.label}</div>
-                    </button>
-                  ))}
+                      {COMMON_TIMEZONES.reduce((acc, tz) => {
+                        if (!acc.find(group => group.label === tz.group)) {
+                          acc.push({ label: tz.group, options: [] });
+                        }
+                        const group = acc.find(g => g.label === tz.group);
+                        if (group) {
+                          group.options.push(tz);
+                        }
+                        return acc;
+                      }, [] as Array<{ label: string; options: typeof COMMON_TIMEZONES }>).map(group => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.options.map(tz => (
+                            <option key={tz.value} value={tz.value}>
+                              {tz.label} ({getTimezoneAbbreviation(tz.value)})
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-500">All event times will be displayed in this timezone</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Kiosk Passcode</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editingEvent.passcode}
+                        onChange={(e) => setEditingEvent({...editingEvent, passcode: e.target.value})}
+                        className="flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono"
+                        placeholder="e.g. 1234"
+                        maxLength={4}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditingEvent({...editingEvent, passcode: generateUniquePasscode()})}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors flex items-center gap-2"
+                        title="Generate new passcode"
+                      >
+                        <RefreshCw size={16} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Branding Customization Section */}
-              <div className="pt-8 border-t border-slate-300">
-                <h3 className="text-lg font-bold mb-4 text-black">Kiosk Branding</h3>
-                <p className="text-sm text-slate-600 mb-6">Customize the appearance of the kiosk for this event</p>
+                {/* Event Time Restrictions */}
+                {isStartTimeLocked && (
+                  <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="text-yellow-600 mt-0.5">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-yellow-800 mb-1">Start Time Locked</h4>
+                        <p className="text-sm text-yellow-700">
+                          The start time for this event cannot be changed because an event pass has been activated.
+                          The pass duration countdown began when you selected the start time, and modifying it would affect the pass expiration.
+                          The end time is automatically set based on the pass duration.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                  <TimezoneDateTimePicker
+                    label="Start Date & Time (Optional)"
+                    value={editingEvent.startDatetime}
+                    timezone={eventTimezone}
+                    onChange={(isoString) => setEditingEvent({...editingEvent, startDatetime: isoString || undefined})}
+                    disabled={isStartTimeLocked}
+                    helperText={isStartTimeLocked ? "Locked: Event pass activated" : "Kiosk will be locked before this time"}
+                  />
+                  <TimezoneDateTimePicker
+                    label="End Date & Time (Optional)"
+                    value={editingEvent.endDatetime}
+                    timezone={eventTimezone}
+                    onChange={(isoString) => setEditingEvent({...editingEvent, endDatetime: isoString || undefined})}
+                    minDate={editingEvent.startDatetime}
+                    helperText="Kiosk will be locked after this time"
+                  />
+                </div>
+
+                {/* Event Pass Selector */}
+                <div className="pt-6">
+                  <EventPassSelector
+                    timezone={eventTimezone}
+                    selectedPassId={(editingEvent as any).passId}
+                    startDatetime={editingEvent.startDatetime}
+                    userRole={userProfile?.role}
+                    onSelectPass={(passId, expiresAt) => {
+                      setEditingEvent({
+                        ...editingEvent,
+                        passId: passId as any,
+                        passExpiresAt: expiresAt as any,
+                        endDatetime: expiresAt,
+                      });
+                    }}
+                  />
+                </div>
+              </CollapsibleSection>
+
+              {/* Branding Collapsible Section */}
+              <CollapsibleSection title="Branding" defaultOpen={false}>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
+                  <div className="grid grid-cols-5 gap-3">
+                    {[
+                      { value: 'square', label: 'Square (1:1)', icon: '⬜' },
+                      { value: '3:4', label: 'Portrait (3:4)', icon: '📱' },
+                      { value: '4:3', label: 'Landscape (4:3)', icon: '🖼️' },
+                      { value: '9:16', label: 'Vertical (9:16)', icon: '📲' },
+                      { value: '16:9', label: 'Wide (16:9)', icon: '🎬' }
+                    ].map((ratio) => (
+                      <button
+                        key={ratio.value}
+                        type="button"
+                        onClick={() => setEditingEvent({...editingEvent, aspectRatio: ratio.value as any})}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          editingEvent.aspectRatio === ratio.value
+                            ? 'border-green-700 bg-green-700/10 text-green-800'
+                            : 'border-slate-300 bg-slate-50 text-slate-600 hover:border-slate-400'
+                        }`}
+                      >
+                        <div className="text-2xl mb-2">{ratio.icon}</div>
+                        <div className="text-xs font-medium">{ratio.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                       <ImageIcon size={16} />
-                      Background Image
+                      Kiosk Background Image
                     </label>
                     {editingEvent.backgroundImageUrl && (editingEvent.backgroundImageUrl.startsWith('data:') || editingEvent.backgroundImageUrl.startsWith('http')) ? (
                       <div className="relative">
@@ -819,7 +1627,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                       <ImageIcon size={16} />
-                      Logo Image
+                      Kiosk Logo Image
                     </label>
                     {editingEvent.logoUrl && (editingEvent.logoUrl.startsWith('data:') || editingEvent.logoUrl.startsWith('http')) ? (
                       <div className="relative">
@@ -862,7 +1670,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                       <ImageIcon size={16} />
-                      Overlay Image (Transparent PNG)
+                      Photo Overlay Image (Transparent PNG)
                     </label>
                     {editingEvent.overlayImageUrl && (editingEvent.overlayImageUrl.startsWith('data:') || editingEvent.overlayImageUrl.startsWith('http')) ? (
                       <div className="relative">
@@ -983,10 +1791,37 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     </label>
                   </div>
                 </div>
-              </div>
+
+                <div className="pt-6 space-y-4">
+                  <p className="text-sm font-medium text-slate-700">Gallery Upload Options</p>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingEvent.uploadOriginalsToGallery || false}
+                      onChange={(e) => setEditingEvent({...editingEvent, uploadOriginalsToGallery: e.target.checked})}
+                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      disabled={globalSettings?.smugmugConnectionStatus !== 'connected'}
+                    />
+                    <span className="text-black">Upload Original Photos to Gallery</span>
+                  </label>
+                  {globalSettings?.smugmugConnectionStatus !== 'connected' && (
+                    <p className="text-xs text-slate-500 ml-8">
+                      Requires SmugMug to be connected in Settings
+                    </p>
+                  )}
+                  {globalSettings?.smugmugConnectionStatus === 'connected' && (
+                    <p className="text-xs text-slate-500 ml-8">
+                      Original photos will be uploaded to SmugMug gallery after AI generation
+                    </p>
+                  )}
+                </div>
+              </CollapsibleSection>
+
+              {/* Add-Ons Showcase - Hidden for now */}
+              {/* <AddOnShowcase /> */}
 
               {/* SMS Message Customization */}
-              <div className="pt-8 border-t border-slate-300">
+              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
                 <h3 className="text-lg font-bold text-black mb-2">SMS Message Settings</h3>
                 <p className="text-sm text-slate-600 mb-4">
                   Customize the text message sent when photos are delivered via SMS
@@ -1006,8 +1841,36 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </div>
 
+              {/* SmugMug Gallery Management - Admin Only */}
+              {editingEvent.id && (
+                <div className="pt-8 border-t border-slate-300">
+                  <SmugMugGallerySync
+                    eventId={editingEvent.id}
+                    eventName={editingEvent.name}
+                    currentGalleryKey={editingEvent.smugmugGalleryKey}
+                    currentGalleryUrl={editingEvent.smugmugGalleryUrl}
+                    isAdmin={userProfile?.role === 'admin'}
+                    onSync={async (galleryKey, galleryUrl) => {
+                      await syncSmugMugGallery(editingEvent.id, galleryKey, galleryUrl);
+                      const updatedEvent = await getEventById(editingEvent.id);
+                      setEditingEvent(updatedEvent);
+                    }}
+                    onCreateNew={async () => {
+                      const result = await createSmugMugGalleryForEvent(
+                        editingEvent.id,
+                        editingEvent.name,
+                        editingEvent.city || ''
+                      );
+                      const updatedEvent = await getEventById(editingEvent.id);
+                      setEditingEvent(updatedEvent);
+                      return result;
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Prompt Selection Section */}
-              <div className="pt-8 border-t border-slate-300">
+              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h3 className="text-lg font-bold text-black">AI Experience Prompts</h3>
@@ -1029,7 +1892,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     </button>
                     <button
                       onClick={() => {
-                        setPromptLibraryEventContext(editingEvent.id || null);
+                        setPromptLibraryEventContext(editingEvent.id || 'new-event');
                         setShowPromptLibrary(true);
                       }}
                       className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
@@ -1246,7 +2109,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       </button>
                       <button
                         onClick={() => {
-                          setPromptLibraryEventContext(editingEvent.id || null);
+                          setPromptLibraryEventContext(editingEvent.id || 'new-event');
                           setShowPromptLibrary(true);
                         }}
                         className="bg-slate-700 hover:bg-slate-800 text-white px-6 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2"
@@ -1259,10 +2122,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end pt-6 border-t border-slate-300">
+              <div className="flex justify-end">
                  <button
                   onClick={handleSaveEvent}
-                  className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2"
+                  className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg"
                  >
                    <Save size={20} /> Save Event
                  </button>
@@ -1288,16 +2151,168 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </div>
         )}
 
+        {/* USER MANAGEMENT VIEW */}
+        {activeTab === 'users' && isAdmin && (
+          <UserManagement />
+        )}
+
+        {/* PLANS MANAGEMENT VIEW */}
+        {activeTab === 'plans' && isAdmin && (
+          <PlanManagement />
+        )}
+
+        {/* REPORTS VIEW */}
+        {activeTab === 'reports' && isAdmin && (
+          <div className="space-y-6">
+            <header className="mb-8">
+              <h2 className="text-3xl font-bold text-black">System Reports</h2>
+              <p className="text-slate-600 mt-2">View financial metrics and system statistics</p>
+            </header>
+
+            {/* Revenue Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Revenue</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      ${revenueStats?.totalRevenue ? revenueStats.totalRevenue.toFixed(2) : '0.00'}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <DollarSign size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Monthly Revenue</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      ${revenueStats?.monthlyRevenue ? revenueStats.monthlyRevenue.toFixed(2) : '0.00'}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <DollarSign size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Orders</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {revenueStats?.orderCount || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <CreditCard size={20} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Users</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.totalUsers || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Users size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Active Users</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.activeUsers || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Users size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Events</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.totalEvents || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Calendar size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Total Images</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.totalImages || 0}
+                    </h3>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Camera size={20} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border-2 border-slate-300">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-slate-600 text-sm">Recent Images</p>
+                    <h3 className="text-3xl font-bold mt-1 text-black">
+                      {adminStats?.recentImages || 0}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Last 30 days</p>
+                  </div>
+                  <div className="p-2 bg-green-700/10 text-green-800 rounded-lg">
+                    <Camera size={20} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* SETTINGS VIEW */}
-        {tenant && (
+        {userProfile && userSettings && globalSettings && (
           <div className={`space-y-6 ${activeTab === 'settings' ? '' : 'hidden'}`}>
             <header className="mb-8">
               <h2 className="text-3xl font-bold text-black">Integration Settings</h2>
               <p className="text-slate-600 mt-2">Connect your accounts to unlock powerful features</p>
             </header>
 
-            <Settings tenant={tenant} onSave={handleSaveSettings} isAdmin={userProfile?.subscription_tier === 'ADMIN'} />
+            <Settings
+              userSettings={userSettings}
+              globalSettings={globalSettings}
+              userProfile={userProfile}
+              onSaveUserSettings={handleSaveUserSettings}
+              onSaveGlobalSettings={handleSaveGlobalSettings}
+            />
           </div>
+        )}
+
+        {activeTab === 'profile' && userProfile && (
+          <ProfileManagement
+            userProfile={userProfile}
+            onProfileUpdate={loadData}
+          />
         )}
 
       </main>
@@ -1308,14 +2323,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       )}
 
       {/* Prompt Library Modal */}
-      {showPromptLibrary && tenant && (
+      {showPromptLibrary && user && (
         <PromptLibrary
-          tenantId={tenant.id}
+          userId={user.id}
           eventId={promptLibraryEventContext}
+          selectedPrompts={editingEvent.prompts || []}
           onClose={() => {
             setShowPromptLibrary(false);
             setPromptLibraryEventContext(null);
-            loadData();
           }}
           onAddToEvent={(prompt) => {
             if (promptLibraryEventContext) {
@@ -1327,6 +2342,265 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             }
           }}
         />
+      )}
+
+      {/* Event Access Management Modal */}
+      {accessModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center sticky top-0 bg-white z-10">
+              <h3 className="text-xl font-bold text-slate-900">Manage Event Access</h3>
+              <button
+                onClick={() => {
+                  setAccessModal(null);
+                  setSelectedUserId('');
+                  setEventAccessList([]);
+                }}
+                className="text-slate-600 hover:text-slate-900 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <h4 className="text-lg font-bold text-slate-900 mb-2">Event: {accessModal.eventName}</h4>
+                <p className="text-sm text-slate-600">
+                  Grant access to users so this event appears in their account. The owner retains full control.
+                </p>
+              </div>
+
+              <div className="border-t-2 border-slate-300 pt-6">
+                <h4 className="text-md font-bold text-slate-900 mb-4">Grant Access to User</h4>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search users by name or email..."
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                    />
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto border-2 border-slate-300 rounded-lg">
+                    {allUsers
+                      .filter(user => {
+                        if (user.id === accessModal.eventOwnerId) return false;
+                        if (eventAccessList.some(access => access.userId === user.id)) return false;
+
+                        if (!userSearchQuery.trim()) return true;
+
+                        const query = userSearchQuery.toLowerCase();
+                        const email = user.email?.toLowerCase() || '';
+                        const name = user.full_name?.toLowerCase() || '';
+
+                        return email.includes(query) || name.includes(query);
+                      })
+                      .map((user) => (
+                        <button
+                          key={user.id}
+                          onClick={() => setSelectedUserId(user.id)}
+                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-200 last:border-b-0 transition-colors ${
+                            selectedUserId === user.id ? 'bg-green-50 border-l-4 border-l-green-700' : ''
+                          }`}
+                        >
+                          <div className="font-medium text-slate-900">
+                            {user.full_name || user.email}
+                          </div>
+                          <div className="text-sm text-slate-600">{user.email}</div>
+                          {user.role === 'admin' && (
+                            <div className="text-xs text-green-700 font-semibold mt-1">ADMIN</div>
+                          )}
+                        </button>
+                      ))}
+                    {allUsers.filter(user => {
+                      if (user.id === accessModal.eventOwnerId) return false;
+                      if (eventAccessList.some(access => access.userId === user.id)) return false;
+
+                      if (!userSearchQuery.trim()) return true;
+
+                      const query = userSearchQuery.toLowerCase();
+                      const email = user.email?.toLowerCase() || '';
+                      const name = user.full_name?.toLowerCase() || '';
+
+                      return email.includes(query) || name.includes(query);
+                    }).length === 0 && (
+                      <div className="px-4 py-8 text-center text-slate-600">
+                        {userSearchQuery ? 'No users found matching your search' : 'No available users to grant access'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGrantAccess}
+                      disabled={!selectedUserId || grantingAccess}
+                      className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {grantingAccess ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Granting...
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={18} />
+                          Grant Access
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedUserId) {
+                          const selectedUser = allUsers.find(u => u.id === selectedUserId);
+                          if (selectedUser) {
+                            handleTransferOwnership(selectedUserId, selectedUser.email);
+                          }
+                        }
+                      }}
+                      disabled={!selectedUserId || grantingAccess}
+                      className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <UserIcon size={18} />
+                      Transfer Ownership
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-slate-300 pt-6">
+                <h4 className="text-md font-bold text-slate-900 mb-4">Users with Access</h4>
+                {eventAccessList.length === 0 ? (
+                  <p className="text-sm text-slate-600 italic">No users have been granted access yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {eventAccessList.map((access) => (
+                      <div key={access.userId} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                        <div>
+                          <div className="font-medium text-slate-900">
+                            {access.fullName || access.email}
+                          </div>
+                          <div className="text-xs text-slate-600">{access.email}</div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            Granted {new Date(access.grantedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRevokeAccess(access.userId)}
+                          className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-4 border-t-2 border-slate-300">
+                <button
+                  onClick={() => {
+                    setAccessModal(null);
+                    setSelectedUserId('');
+                    setEventAccessList([]);
+                  }}
+                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generation Breakdown Modal */}
+      {showGenerationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border-2 border-slate-300 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Generation Breakdown</h2>
+                  {selectedDate && (
+                    <p className="text-slate-600 mt-1">
+                      {new Date(selectedDate).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowGenerationModal(false);
+                    setGenerationBreakdown(null);
+                    setSelectedDate(null);
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X size={24} className="text-slate-600" />
+                </button>
+              </div>
+
+              {generationBreakdown === null ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <RefreshCw className="animate-spin mx-auto mb-4 text-green-700" size={32} />
+                    <p className="text-slate-600">Loading breakdown...</p>
+                  </div>
+                </div>
+              ) : generationBreakdown.length === 0 ? (
+                <div className="text-center py-12">
+                  <ImageIcon size={48} className="mx-auto mb-4 text-slate-400" />
+                  <p className="text-slate-600">No generations found for this date</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {generationBreakdown.map((item, index) => (
+                    <div
+                      key={item.eventId}
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border-2 border-slate-200 hover:border-green-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 bg-green-700 text-white rounded-full font-bold text-sm">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">{item.eventName}</p>
+                          <p className="text-sm text-slate-600">Event ID: {item.eventId.slice(0, 8)}...</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-green-700">{item.count}</p>
+                          <p className="text-xs text-slate-600">generations</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6 pt-4 border-t-2 border-slate-300">
+                <button
+                  onClick={() => {
+                    setShowGenerationModal(false);
+                    setGenerationBreakdown(null);
+                    setSelectedDate(null);
+                  }}
+                  className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

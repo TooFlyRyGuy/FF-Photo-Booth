@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stripe Checkout Test - Fun Frame Photo AI</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #1a202c;
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+
+    .subtitle {
+      color: #718096;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+
+    .status-box {
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      border-left: 4px solid;
+    }
+
+    .status-box.success {
+      background: #f0fdf4;
+      border-color: #22c55e;
+      color: #166534;
+    }
+
+    .status-box.error {
+      background: #fef2f2;
+      border-color: #ef4444;
+      color: #991b1b;
+    }
+
+    .status-box.info {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      color: #1e40af;
+    }
+
+    .status-box.warning {
+      background: #fefce8;
+      border-color: #eab308;
+      color: #854d0e;
+    }
+
+    .config-section {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .config-section h2 {
+      color: #1a202c;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+
+    .config-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .config-item:last-child {
+      border-bottom: none;
+    }
+
+    .config-label {
+      color: #4a5568;
+      font-weight: 500;
+    }
+
+    .config-value {
+      color: #1a202c;
+      font-family: monospace;
+      font-size: 14px;
+      background: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .plan-card {
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: all 0.2s;
+    }
+
+    .plan-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .plan-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .plan-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a202c;
+    }
+
+    .plan-price {
+      font-size: 32px;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .plan-price span {
+      font-size: 16px;
+      color: #718096;
+    }
+
+    .plan-features {
+      list-style: none;
+      margin: 16px 0;
+    }
+
+    .plan-features li {
+      padding: 8px 0;
+      color: #4a5568;
+      display: flex;
+      align-items: center;
+    }
+
+    .plan-features li::before {
+      content: "✓";
+      color: #22c55e;
+      font-weight: bold;
+      margin-right: 12px;
+      font-size: 18px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .test-button {
+      background: #22c55e;
+      margin-top: 12px;
+    }
+
+    .test-button:hover:not(:disabled) {
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    }
+
+    .logs {
+      background: #1a202c;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 13px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 30px;
+    }
+
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #2d3748;
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-time {
+      color: #a0aec0;
+      margin-right: 12px;
+    }
+
+    .log-success { color: #48bb78; }
+    .log-error { color: #f56565; }
+    .log-info { color: #4299e1; }
+
+    .instructions {
+      background: #fef3c7;
+      border: 1px solid #fbbf24;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 30px;
+    }
+
+    .instructions h3 {
+      color: #78350f;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      color: #78350f;
+    }
+
+    .instructions li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+
+    .instructions code {
+      background: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    .instructions a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .instructions a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Stripe Checkout Test</h1>
+    <p class="subtitle">Test the Starter Monthly subscription checkout flow</p>
+
+    <div id="statusBox" class="status-box info">
+      <strong>Ready to test</strong><br>
+      Click the button below to test the Stripe checkout integration
+    </div>
+
+    <div class="config-section">
+      <h2>Configuration</h2>
+      <div class="config-item">
+        <span class="config-label">Supabase URL</span>
+        <span class="config-value" id="supabaseUrl">Loading...</span>
+      </div>
+      <div class="config-item">
+        <span class="config-label">Stripe Publishable Key</span>
+        <span class="config-value" id="stripeKey">Loading...</span>
+      </div>
+      <div class="config-item">
+        <span class="config-label">Authentication Status</span>
+        <span class="config-value" id="authStatus">Checking...</span>
+      </div>
+    </div>
+
+    <div class="plan-card">
+      <div class="plan-header">
+        <div class="plan-name">Starter Monthly</div>
+        <div class="plan-price">$29<span>/mo</span></div>
+      </div>
+      <ul class="plan-features">
+        <li>60 image generation credits per month</li>
+        <li>50 SMS credits per month</li>
+        <li>Up to 5 prompts per event</li>
+        <li>Basic features included</li>
+        <li>Email support</li>
+      </ul>
+      <button id="checkoutBtn" onclick="testCheckout()">
+        Start Checkout (Test Mode)
+      </button>
+      <button class="test-button" onclick="checkConfig()">
+        🔍 Test Configuration
+      </button>
+    </div>
+
+    <div class="instructions">
+      <h3>⚠️ Setup Required</h3>
+      <p style="margin-bottom: 12px;">To test Stripe checkout, you need to:</p>
+      <ol>
+        <li>Create a Stripe product for "Starter Monthly" in your <a href="https://dashboard.stripe.com/test/products" target="_blank">Stripe Dashboard</a></li>
+        <li>Set the product metadata:
+          <ul style="margin-top: 8px;">
+            <li><code>type</code>: subscription</li>
+            <li><code>tier</code>: starter</li>
+            <li><code>credits_per_period</code>: 60</li>
+            <li><code>sms_credits_per_period</code>: 50</li>
+            <li><code>prompts_limit</code>: 5</li>
+            <li><code>rollover_enabled</code>: false</li>
+          </ul>
+        </li>
+        <li>Create a monthly price of $29.00</li>
+        <li>Copy the Price ID (starts with <code>price_</code>)</li>
+        <li>Update the database with: <code>UPDATE subscription_tiers_new SET stripe_price_id = 'your_price_id' WHERE name = 'Starter' AND billing_period = 'monthly';</code></li>
+      </ol>
+    </div>
+
+    <div class="logs" id="logs">
+      <div class="log-entry">
+        <span class="log-time">[System]</span>
+        <span class="log-info">Test interface loaded. Ready to test checkout.</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const SUPABASE_URL = 'https://siliuqyectcaofwtyutp.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpbGl1cXllY3RjYW9md3R5dXRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzOTU2NDYsImV4cCI6MjA4MDk3MTY0Nn0.59IBZzSEyhPUnHekJD6GMaAM7PFubOllfdCPZRPdiVo';
+    const STRIPE_PUBLISHABLE_KEY = 'pk_test_51SqJic2XEPcAhDfyxR8INIGJvCNud6ghvMPMQCRNnFloTQm8Te19ReUPkGiFlwhOr7SvAbf0R1ZKS2Kde9fYqE1v00nYstJNxq';
+
+    let stripe = null;
+    let currentUser = null;
+
+    // Initialize Stripe
+    try {
+      stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+      log('Stripe initialized successfully', 'success');
+    } catch (error) {
+      log(`Failed to initialize Stripe: ${error.message}`, 'error');
+    }
+
+    // Display config
+    document.getElementById('supabaseUrl').textContent = SUPABASE_URL;
+    document.getElementById('stripeKey').textContent = STRIPE_PUBLISHABLE_KEY.substring(0, 20) + '...';
+
+    // Check auth on load
+    checkAuth();
+
+    function log(message, type = 'info') {
+      const logs = document.getElementById('logs');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">[${time}]</span><span class="log-${type}">${message}</span>`;
+      logs.appendChild(entry);
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    function setStatus(message, type = 'info') {
+      const statusBox = document.getElementById('statusBox');
+      statusBox.className = `status-box ${type}`;
+      statusBox.innerHTML = message;
+    }
+
+    async function checkAuth() {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token') || ''}`
+          }
+        });
+
+        if (response.ok) {
+          currentUser = await response.json();
+          document.getElementById('authStatus').textContent = '✓ Authenticated';
+          document.getElementById('authStatus').style.color = '#22c55e';
+          log('User authenticated successfully', 'success');
+          setStatus('<strong>Ready to test!</strong><br>You are authenticated and can proceed with the checkout test.', 'success');
+        } else {
+          document.getElementById('authStatus').textContent = '✗ Not authenticated';
+          document.getElementById('authStatus').style.color = '#ef4444';
+          log('User not authenticated', 'error');
+          setStatus('<strong>Authentication Required</strong><br>Please log in to your account first. <a href="/">Go to login</a>', 'warning');
+        }
+      } catch (error) {
+        document.getElementById('authStatus').textContent = '✗ Error';
+        document.getElementById('authStatus').style.color = '#ef4444';
+        log(`Auth check failed: ${error.message}`, 'error');
+        setStatus('<strong>Authentication Check Failed</strong><br>Unable to verify authentication status.', 'error');
+      }
+    }
+
+    window.checkConfig = async function() {
+      log('Testing configuration...', 'info');
+      setStatus('Testing configuration...', 'info');
+
+      try {
+        // Check if we can reach Supabase
+        const supabaseResponse = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY
+          }
+        });
+
+        if (supabaseResponse.ok) {
+          log('✓ Supabase connection successful', 'success');
+        } else {
+          log('✗ Supabase connection failed', 'error');
+        }
+
+        // Check if Stripe key works
+        if (stripe) {
+          log('✓ Stripe client initialized', 'success');
+        } else {
+          log('✗ Stripe client not initialized', 'error');
+        }
+
+        // Check for Starter tier
+        const tierResponse = await fetch(`${SUPABASE_URL}/rest/v1/subscription_tiers_new?name=eq.Starter&billing_period=eq.monthly&select=*`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (tierResponse.ok) {
+          const tiers = await tierResponse.json();
+          if (tiers.length > 0) {
+            const tier = tiers[0];
+            log(`✓ Found Starter tier (ID: ${tier.id})`, 'success');
+
+            if (tier.stripe_price_id) {
+              log(`✓ Stripe Price ID configured: ${tier.stripe_price_id}`, 'success');
+              setStatus('<strong>Configuration Valid!</strong><br>All checks passed. You can proceed with testing checkout.', 'success');
+            } else {
+              log('✗ No Stripe Price ID configured for Starter tier', 'error');
+              setStatus('<strong>Setup Incomplete</strong><br>The Starter tier exists but has no Stripe Price ID. Follow the setup instructions below.', 'warning');
+            }
+          } else {
+            log('✗ Starter tier not found in database', 'error');
+            setStatus('<strong>Configuration Error</strong><br>Starter tier not found in database.', 'error');
+          }
+        }
+      } catch (error) {
+        log(`Configuration test failed: ${error.message}`, 'error');
+        setStatus('<strong>Test Failed</strong><br>' + error.message, 'error');
+      }
+    };
+
+    window.testCheckout = async function() {
+      const btn = document.getElementById('checkoutBtn');
+      btn.disabled = true;
+      btn.textContent = 'Initializing...';
+
+      log('Starting checkout test...', 'info');
+      setStatus('Creating checkout session...', 'info');
+
+      try {
+        // Get auth token
+        const token = localStorage.getItem('supabase.auth.token');
+        if (!token) {
+          throw new Error('Not authenticated. Please log in first.');
+        }
+
+        // Fetch the Starter tier
+        const tierResponse = await fetch(`${SUPABASE_URL}/rest/v1/subscription_tiers_new?name=eq.Starter&billing_period=eq.monthly&select=*`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const tiers = await tierResponse.json();
+        if (!tiers.length) {
+          throw new Error('Starter Monthly tier not found');
+        }
+
+        const tier = tiers[0];
+        if (!tier.stripe_price_id) {
+          throw new Error('Stripe Price ID not configured for Starter tier. Please follow the setup instructions.');
+        }
+
+        log(`Using Stripe Price ID: ${tier.stripe_price_id}`, 'info');
+
+        // Create checkout session
+        const checkoutResponse = await fetch(`${SUPABASE_URL}/functions/v1/stripe-checkout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            price_id: tier.stripe_price_id,
+            mode: 'subscription',
+            success_url: `${window.location.origin}?checkout=success`,
+            cancel_url: `${window.location.origin}?checkout=cancelled`
+          })
+        });
+
+        if (!checkoutResponse.ok) {
+          const error = await checkoutResponse.json();
+          throw new Error(error.error || 'Failed to create checkout session');
+        }
+
+        const { sessionId, url } = await checkoutResponse.json();
+        log(`Checkout session created: ${sessionId}`, 'success');
+        log('Redirecting to Stripe Checkout...', 'info');
+
+        // Redirect to Stripe Checkout
+        if (url) {
+          window.location.href = url;
+        } else {
+          const result = await stripe.redirectToCheckout({ sessionId });
+          if (result.error) {
+            throw new Error(result.error.message);
+          }
+        }
+      } catch (error) {
+        log(`Checkout failed: ${error.message}`, 'error');
+        setStatus(`<strong>Checkout Failed</strong><br>${error.message}`, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Start Checkout (Test Mode)';
+      }
+    };
+
+    // Check for return from Stripe
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('checkout') === 'success') {
+      log('Returned from successful checkout!', 'success');
+      setStatus('<strong>✓ Checkout Successful!</strong><br>The test checkout completed successfully. Check your Stripe dashboard for details.', 'success');
+    } else if (urlParams.get('checkout') === 'cancelled') {
+      log('Checkout was cancelled', 'info');
+      setStatus('<strong>Checkout Cancelled</strong><br>The checkout was cancelled by the user.', 'warning');
+    }
+  </script>
+</body>
+</html>

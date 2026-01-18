@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Lock, Mail, AlertCircle, Chrome } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Chrome, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
   onSuccess: () => void;
@@ -13,6 +13,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess, onSwitchToSignup, onBackToLand
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,13 +101,21 @@ const Login: React.FC<LoginProps> = ({ onSuccess, onSwitchToSignup, onBackToLand
             <div className="relative">
               <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border-2 border-slate-300 text-slate-900 pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-green-700 focus:outline-none"
+                className="w-full bg-slate-50 border-2 border-slate-300 text-slate-900 pl-10 pr-12 py-3 rounded-lg focus:ring-2 focus:ring-green-700 focus:border-green-700 focus:outline-none"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
@@ -128,14 +137,19 @@ const Login: React.FC<LoginProps> = ({ onSuccess, onSwitchToSignup, onBackToLand
           </div>
         </div>
 
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="w-full bg-slate-50 hover:bg-slate-100 border-2 border-slate-300 text-slate-900 font-medium py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Chrome size={20} />
-          Google
-        </button>
+        <div className="relative">
+          <button
+            onClick={handleGoogleLogin}
+            disabled={true}
+            className="w-full bg-slate-100 border-2 border-slate-300 text-slate-400 font-medium py-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
+          >
+            <Chrome size={20} />
+            Google
+          </button>
+          <div className="absolute -top-2 right-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+            Coming Soon
+          </div>
+        </div>
 
         <div className="mt-6 text-center space-y-2">
           <p className="text-slate-600 text-sm">

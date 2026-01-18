@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Camera, TrendingUp, Image as ImageIcon } from 'lucide-react';
-import { getEventAnalytics, EventAnalytics as Analytics } from '../services/backendService';
+import { getEventAnalytics, EventAnalytics as Analytics, getEventChartData, ChartDataPoint } from '../services/backendService';
 
 interface EventAnalyticsProps {
   eventId: string;
@@ -12,6 +12,7 @@ const COLORS = ['#15803d', '#166534', '#14532d', '#16a34a', '#22c55e', '#4ade80'
 
 const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName }) => {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [dateChartData, setDateChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -23,8 +24,12 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName }) =
     setLoading(true);
     setError('');
     try {
-      const data = await getEventAnalytics(eventId);
-      setAnalytics(data);
+      const [analyticsData, chartDataResult] = await Promise.all([
+        getEventAnalytics(eventId),
+        getEventChartData(eventId)
+      ]);
+      setAnalytics(analyticsData);
+      setDateChartData(chartDataResult);
     } catch (err: any) {
       setError(err.message || 'Failed to load analytics');
     } finally {
@@ -102,6 +107,28 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName }) =
           </div>
         </div>
       </div>
+
+      {dateChartData.length > 0 && (
+        <div className="bg-white rounded-xl border-2 border-slate-300 p-6">
+          <h3 className="text-xl font-bold text-slate-900 mb-6">Generation Activity (Last 30 Days)</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={dateChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
+              <XAxis dataKey="date" stroke="#475569" />
+              <YAxis stroke="#475569" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  border: '2px solid #cbd5e1',
+                  borderRadius: '8px',
+                }}
+                labelStyle={{ color: '#0f172a' }}
+              />
+              <Bar dataKey="generations" fill="#15803d" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {analytics.promptStats.length > 0 && (
         <div className="bg-white rounded-xl border-2 border-slate-300 p-6">

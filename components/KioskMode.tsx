@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight } from 'lucide-react';
+import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Event, Prompt, GeneratedImage, Tenant } from '../types';
+import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, saveGeneratedImage, getTenantById, getGlobalSetting } from '../services/backendService';
+import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
-import { applyOverlayToImage } from '../services/imageUtils';
+import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
+import { checkCreditAvailability, consumeCredit } from '../services/creditService';
 
 interface KioskProps {
   event: Event;
   onExit: () => void;
 }
 
-type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery';
+type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits';
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [view, setView] = useState<KioskState>('attract');
@@ -21,15 +22,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [finalImage, setFinalImage] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [generatedImageId, setGeneratedImageId] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
   const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
+  const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
   const checkEventTimeStatus = useCallback(() => {
     const now = new Date();
@@ -58,6 +63,21 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     background: event.backgroundColor || '#f8fafc',
   });
 
+  const handleTapToStart = async () => {
+    if (!event.userId) {
+      setErrorMsg('Event owner not found. Please contact the administrator.');
+      return;
+    }
+
+    const creditCheck = await checkCreditAvailability(event.userId, 'image');
+
+    if (!creditCheck.available) {
+      setView('no-credits');
+    } else {
+      setView('prompt-select');
+    }
+  };
+
   const getAspectRatioDimensions = (ratio: string = 'square'): { width: number; height: number } => {
     const baseSize = 1024;
     switch (ratio) {
@@ -73,8 +93,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   // --- CAMERA LOGIC ---
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 1280, height: 720, facingMode: 'user' } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: facingMode }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -83,7 +103,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       console.error("Camera Error", err);
       setErrorMsg("Camera access denied.");
     }
-  }, []);
+  }, [facingMode]);
 
   const stopCamera = useCallback(() => {
     if (videoRef.current && videoRef.current.srcObject) {
@@ -91,6 +111,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       stream.getTracks().forEach(track => track.stop());
     }
   }, []);
+
+  const toggleCamera = useCallback(async () => {
+    stopCamera();
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  }, [stopCamera]);
 
   const takePhoto = () => {
     setCountdown(3);
@@ -133,8 +158,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           sourceY = (video.videoHeight - sourceHeight) / 2;
         }
 
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
+        if (facingMode === 'user') {
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+        }
         ctx.drawImage(
           video,
           sourceX, sourceY, sourceWidth, sourceHeight,
@@ -153,7 +180,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const handleGenerate = async () => {
     if (!capturedImage || !selectedPrompt) return;
 
-    if (!tenant) {
+    if (!globalSettings || !userSettings) {
       setErrorMsg('Configuration not loaded. Please try again.');
       return;
     }
@@ -162,48 +189,52 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setErrorMsg('');
 
     try {
-      const geminiEnabled = await getGlobalSetting('gemini_enabled');
-      const geminiApiKey = await getGlobalSetting('gemini_api_key');
+      console.log('🎯 Event userId being checked:', event.userId);
 
-      if (geminiEnabled !== 'true' || !geminiApiKey) {
+      if (!event.userId) {
+        setErrorMsg('Event owner not found. Please contact the administrator.');
+        setView('camera');
+        return;
+      }
+
+      const creditCheck = await checkCreditAvailability(event.userId);
+
+      if (!creditCheck.available) {
+        setErrorMsg(creditCheck.reason || 'No credits available. Please upgrade your plan or purchase more credits.');
+        setView('camera');
+        return;
+      }
+
+      if (!globalSettings?.geminiEnabled || !globalSettings?.geminiApiKey) {
         setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
         setView('camera');
         return;
       }
 
-      // 1. Upload original image to Dropbox
-      let originalUrl = capturedImage;
-      if (tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
-        try {
-          originalUrl = await uploadImageToDropbox({
-            tenantId: event.tenantId,
-            eventId: event.id,
-            eventName: event.name,
-            imageBase64: capturedImage,
-            imageType: 'original',
-            promptName: selectedPrompt.name,
-          });
-        } catch (dropboxErr) {
-          console.error('Dropbox upload failed for original:', dropboxErr);
-        }
-      }
+      const geminiApiKey = globalSettings.geminiApiKey;
 
-      // 2. Generate with Gemini
+      // 1. Generate with Gemini
       console.log('🔑 Gemini API Key Check:', {
         hasKey: !!geminiApiKey,
         keyLength: geminiApiKey?.length,
         keyPrefix: geminiApiKey?.substring(0, 5),
-        geminiEnabled,
+        geminiEnabled: globalSettings.geminiEnabled,
       });
+
+      let referenceImageBase64 = selectedPrompt.referenceImage;
+      if (referenceImageBase64 && referenceImageBase64.startsWith('http')) {
+        console.log('Converting reference image URL to base64...');
+        referenceImageBase64 = await convertImageUrlToBase64(referenceImageBase64);
+      }
 
       let genImage = await generateBoothImage(
         capturedImage,
         selectedPrompt.promptText,
         geminiApiKey,
-        selectedPrompt.referenceImage,
+        referenceImageBase64,
         event.aspectRatio,
-        tenant.geminiModel,
-        tenant.geminiResolution
+        globalSettings.geminiModel,
+        globalSettings.geminiResolution
       );
 
       if (event.overlayImageUrl) {
@@ -216,14 +247,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       setFinalImage(genImage);
 
-      // 3. Upload generated image to SmugMug or Dropbox
+      // 2. Upload generated image to SmugMug and/or Dropbox
       let generatedUrl = genImage;
-      let uploadedToSmugMug = false;
+      let uploadedGeneratedToSmugMug = false;
 
       if (event.smugmugGalleryKey) {
         try {
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const fileName = `${event.name}-${selectedPrompt.name}-${timestamp}.jpg`;
+          const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
 
           const result = await uploadToSmugMug(
             event.smugmugGalleryKey,
@@ -233,40 +264,93 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           );
 
           generatedUrl = result.imageUrl;
-          uploadedToSmugMug = true;
-          console.log('Uploaded to SmugMug:', generatedUrl);
+          uploadedGeneratedToSmugMug = true;
+          console.log('Uploaded generated to SmugMug:', generatedUrl);
         } catch (smugmugErr) {
-          console.error('SmugMug upload failed, falling back to Dropbox:', smugmugErr);
+          console.error('SmugMug upload failed for generated:', smugmugErr);
         }
       }
 
-      if (!uploadedToSmugMug && tenant.dropboxEnabled && tenant.dropboxAppKey && tenant.dropboxAppSecret) {
+      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
         try {
-          generatedUrl = await uploadImageToDropbox({
-            tenantId: event.tenantId,
+          const dropboxUrl = await uploadImageToDropbox({
+            userId: event.userId,
             eventId: event.id,
             eventName: event.name,
             imageBase64: genImage,
             imageType: 'generated',
             promptName: selectedPrompt.name,
           });
-          console.log('Uploaded to Dropbox:', generatedUrl);
+          if (!uploadedGeneratedToSmugMug) {
+            generatedUrl = dropboxUrl;
+          }
+          console.log('Uploaded generated to Dropbox:', dropboxUrl);
         } catch (dropboxErr) {
           console.error('Dropbox upload failed for generated:', dropboxErr);
         }
       }
 
-      // 4. Save URLs to database
-      await saveGeneratedImage(
+      // 3. Upload original image to SmugMug gallery if enabled
+      let originalUrl = capturedImage;
+      let uploadedOriginalToSmugMug = false;
+
+      if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
+
+          const originalResult = await uploadToSmugMug(
+            event.smugmugGalleryKey,
+            capturedImage,
+            originalFileName,
+            import.meta.env.VITE_SUPABASE_ANON_KEY
+          );
+
+          originalUrl = originalResult.imageUrl;
+          uploadedOriginalToSmugMug = true;
+          console.log('Uploaded original to SmugMug:', originalUrl);
+        } catch (smugmugOrigErr) {
+          console.error('SmugMug upload failed for original:', smugmugOrigErr);
+        }
+      }
+
+      // 4. Upload original to Dropbox if enabled
+      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
+        try {
+          const dropboxOrigUrl = await uploadImageToDropbox({
+            userId: event.userId,
+            eventId: event.id,
+            eventName: event.name,
+            imageBase64: capturedImage,
+            imageType: 'original',
+            promptName: selectedPrompt.name,
+          });
+          if (!uploadedOriginalToSmugMug) {
+            originalUrl = dropboxOrigUrl;
+          }
+          console.log('Uploaded original to Dropbox:', dropboxOrigUrl);
+        } catch (dropboxErr) {
+          console.error('Dropbox upload failed for original:', dropboxErr);
+        }
+      }
+
+      // 5. Save analytics record to database (URLs stored in SmugMug/Dropbox only)
+      const imageId = await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
-        event.tenantId,
-        originalUrl,
-        generatedUrl,
+        null, // originalUrl - stored in SmugMug/Dropbox, not database
+        null, // generatedUrl - stored in SmugMug/Dropbox, not database
+        null,
         'completed'
       );
 
+      const consumed = await consumeCredit(event.userId);
+      if (!consumed) {
+        console.error('Failed to consume credit, but image was generated');
+      }
+
       setGeneratedImageUrl(generatedUrl);
+      setGeneratedImageId(imageId);
       setView('result');
     } catch (err: any) {
       setErrorMsg(err.message || "AI Generation Failed");
@@ -276,7 +360,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   // --- SMS LOGIC ---
   const handleSendSms = async () => {
-    if (phoneNumber.length < 10 || !generatedImageUrl) return;
+    if (phoneNumber.length < 10 || !generatedImageUrl || !generatedImageId) return;
 
     // Check if the URL is a data URL (base64) - cannot be sent via SMS
     if (generatedImageUrl.startsWith('data:')) {
@@ -287,11 +371,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     setIsSending(true);
     setErrorMsg('');
     try {
-      await sendSms(event.tenantId, phoneNumber, generatedImageUrl, event.id);
+      await sendSms(phoneNumber, generatedImageUrl, generatedImageId, event.id);
+      setPhoneNumber('');
+      setDeliveryCountdown(15);
       setView('delivery');
-      setTimeout(() => {
-        resetKiosk();
-      }, 5000);
     } catch (error) {
       console.error('SMS send failed:', error);
       setErrorMsg('Failed to send SMS. Please try again.');
@@ -372,34 +455,69 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     return () => clearInterval(interval);
   }, [checkEventTimeStatus]);
 
-  // Fetch tenant data on mount
+  // Fetch user and global settings on mount
   useEffect(() => {
-    const loadTenant = async () => {
+    const loadSettings = async () => {
       try {
-        const tenantData = await getTenantById(event.tenantId);
-        console.log('🏢 Tenant loaded:', {
-          hasGeminiKey: !!tenantData.geminiApiKey,
-          geminiKeyLength: tenantData.geminiApiKey?.length,
-          geminiEnabled: tenantData.geminiEnabled,
+        console.log('🔄 Loading settings for event:', event.id, 'userId:', event.userId);
+        const [userSettingsData, globalSettingsData] = await Promise.all([
+          getUserSettingsByUserId(event.userId),
+          getGlobalSettings(true)
+        ]);
+        console.log('⚙️ Settings loaded:', {
+          hasGeminiKey: !!globalSettingsData.geminiApiKey,
+          geminiKeyLength: globalSettingsData.geminiApiKey?.length,
+          geminiEnabled: globalSettingsData.geminiEnabled,
+          geminiModel: globalSettingsData.geminiModel,
+          geminiResolution: globalSettingsData.geminiResolution,
         });
-        setTenant(tenantData);
+        setUserSettings(userSettingsData);
+        setGlobalSettings(globalSettingsData);
       } catch (err) {
-        console.error('Failed to load tenant:', err);
+        console.error('❌ Failed to load settings:', err);
         setErrorMsg('Failed to load configuration. Please contact support.');
       }
     };
-    loadTenant();
-  }, [event.tenantId]);
+    loadSettings();
+  }, [event.userId]);
 
   // Handle cleanup on unmount
   useEffect(() => {
     return () => stopCamera();
   }, [stopCamera]);
 
-  // Start camera when entering camera view
+  // Start camera when entering camera view or when facingMode changes
   useEffect(() => {
     if (view === 'camera') startCamera();
-  }, [view, startCamera]);
+  }, [view, facingMode, startCamera]);
+
+  // Handle delivery countdown
+  useEffect(() => {
+    if (view === 'delivery') {
+      const interval = setInterval(() => {
+        setDeliveryCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            resetKiosk();
+            return 15;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [view]);
+
+  // Preload prompt images for faster display
+  useEffect(() => {
+    if (event.prompts && event.prompts.length > 0) {
+      event.prompts.forEach(prompt => {
+        const img = new Image();
+        img.src = prompt.previewImage;
+      });
+    }
+  }, [event.prompts]);
 
   // --- RENDER VIEWS ---
 
@@ -447,7 +565,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             </div>
           )}
         </div>
-        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
           <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
@@ -500,7 +618,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             Thank you for participating!
           </p>
         </div>
-        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
           <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
@@ -514,7 +632,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
     return (
       <div
-        onClick={() => setView('prompt-select')}
+        onClick={handleTapToStart}
         className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center cursor-pointer overflow-hidden"
       >
         <div className="absolute inset-0 opacity-20">
@@ -542,44 +660,144 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </h1>
           <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
         </div>
-        <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50">
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
     );
   }
 
-  // 2. PROMPT SELECT
-  if (view === 'prompt-select') {
+  // 2. NO CREDITS WARNING
+  if (view === 'no-credits') {
+    const colors = getBrandingColors();
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 p-4 md:p-8 flex flex-col">
-        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-8 text-center">Choose Your Style</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 flex-1 overflow-auto no-scrollbar">
-          {event.prompts.map(prompt => (
-            <button
-              key={prompt.id}
-              onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
-              className="relative group rounded-xl md:rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 min-h-[150px]"
-              style={{
-                borderColor: '#cbd5e1',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = getBrandingColors().accent}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
-            >
-              <img src={prompt.previewImage} alt={prompt.name} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-3 md:p-6">
-                <h3 className="text-base md:text-2xl text-white font-bold">{prompt.name}</h3>
-                <p className="text-gray-300 text-xs md:text-sm">{prompt.description}</p>
-              </div>
-            </button>
-          ))}
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden px-4">
+        <div className="absolute inset-0 opacity-10">
+          <div className="w-full h-full bg-gradient-to-br from-red-700 to-red-900"></div>
         </div>
-        <button onClick={() => setView('attract')} className="mt-4 md:mt-8 text-slate-600 hover:text-slate-900 self-center py-2 px-4">Cancel</button>
+
+        {event.logoUrl && !event.hideLogo && (
+          <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+            <img src={event.logoUrl} alt={event.name} className="h-12 md:h-24 object-contain" />
+          </div>
+        )}
+
+        <div className="z-10 text-center space-y-6 md:space-y-8 max-w-2xl">
+          <div
+            className="h-20 w-20 md:h-32 md:w-32 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-lg"
+            style={{
+              backgroundColor: '#ef4444',
+              boxShadow: '0 10px 30px rgba(239, 68, 68, 0.5)',
+            }}
+          >
+            <span className="text-4xl md:text-6xl">⚠️</span>
+          </div>
+
+          <h1
+            className="text-3xl md:text-5xl lg:text-7xl font-display font-bold"
+            style={{ color: colors.secondary }}
+          >
+            OUT OF CREDITS
+          </h1>
+
+          <p className="text-lg md:text-2xl text-slate-900 font-light">
+            This event has run out of image generation credits
+          </p>
+
+          <div className="mt-8 space-y-4 md:space-y-6">
+            <p className="text-base md:text-lg text-slate-700 mb-6">
+              Please upgrade your subscription or purchase additional credits to continue using the photo booth.
+            </p>
+
+            <div className="space-y-3 md:space-y-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`${window.location.origin}?view=subscription`, '_blank');
+                }}
+                className="w-full max-w-md mx-auto text-white font-bold text-base md:text-xl py-4 md:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 shadow-lg"
+                style={{
+                  backgroundColor: colors.primary,
+                  boxShadow: `0 10px 25px ${colors.primary}50`,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+              >
+                Upgrade Subscription
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`${window.location.origin}?view=topup`, '_blank');
+                }}
+                className="w-full max-w-md mx-auto bg-slate-900 text-white font-bold text-base md:text-xl py-4 md:py-5 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 shadow-lg"
+              >
+                Purchase Credits
+              </button>
+            </div>
+
+            <div className="mt-8 p-4 md:p-6 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
+              <p className="text-sm md:text-base text-slate-700">
+                <strong>Need help?</strong><br />
+                Contact the event organizer or visit your account dashboard to manage your credits and subscription.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
+          <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
+            Exit Kiosk
+          </button>
+        </div>
       </div>
     );
   }
 
-  // 3. CAMERA & CAPTURE
+  // 3. PROMPT SELECT
+  if (view === 'prompt-select') {
+    return (
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
+        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">Choose Your Style</h2>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 w-full max-w-7xl mx-auto justify-items-center">
+            {event.prompts.map(prompt => (
+              <button
+                key={prompt.id}
+                onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
+                className="relative group rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 aspect-square w-full max-w-[300px] sm:max-w-[280px] md:max-w-[320px] lg:max-w-[360px]"
+                style={{
+                  borderColor: '#cbd5e1',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = getBrandingColors().accent}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
+              >
+                <img
+                  src={prompt.previewImage}
+                  alt={prompt.name}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col justify-end p-4 md:p-6">
+                  <h3 className="text-lg md:text-2xl text-white font-bold">{prompt.name}</h3>
+                  <p className="text-gray-300 text-sm md:text-base">{prompt.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-shrink-0 text-center pt-2">
+          <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. CAMERA & CAPTURE
   if (view === 'camera') {
     const colors = getBrandingColors();
     const getAspectRatioClass = () => {
@@ -596,14 +814,52 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
     return (
       <div className="h-screen w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
-        <video ref={videoRef} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover transform -scale-x-100" />
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className={`absolute inset-0 h-full w-full object-cover ${facingMode === 'user' ? 'transform -scale-x-100' : ''}`}
+        />
         <canvas ref={canvasRef} className="hidden" />
+
+        <div className="absolute inset-0 pointer-events-none z-30 flex items-center justify-center">
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div
+              className={`relative ${getAspectRatioClass()} max-w-full max-h-full border-4 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]`}
+              style={{
+                width: event.aspectRatio === '9:16' || event.aspectRatio === '3:4' ? 'auto' : '90%',
+                height: event.aspectRatio === '16:9' || event.aspectRatio === '4:3' ? 'auto' : '85%'
+              }}
+            >
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
+                <span className="text-white text-sm font-semibold">
+                  {event.aspectRatio === 'square' ? '1:1 Square' :
+                   event.aspectRatio === '3:4' ? '3:4 Portrait' :
+                   event.aspectRatio === '4:3' ? '4:3 Landscape' :
+                   event.aspectRatio === '9:16' ? '9:16 Portrait' :
+                   event.aspectRatio === '16:9' ? '16:9 Landscape' : '1:1 Square'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {countdown && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-50">
             <span className="text-[200px] font-bold text-white animate-ping">{countdown}</span>
           </div>
         )}
+
+        <div className="fixed top-4 right-4 z-40">
+          <button
+            onClick={toggleCamera}
+            disabled={!!countdown}
+            className="bg-white/90 backdrop-blur text-slate-900 p-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+            title={facingMode === 'user' ? 'Switch to back camera' : 'Switch to front camera'}
+          >
+            <SwitchCamera className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+        </div>
 
         <div className="fixed bottom-20 md:bottom-24 left-0 right-0 z-40 flex justify-center gap-4 md:gap-8 items-center px-4">
            <button onClick={() => setView('prompt-select')} className="bg-white/90 backdrop-blur text-slate-900 px-4 py-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 text-sm md:text-base min-h-[44px] font-semibold">
@@ -624,7 +880,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     );
   }
 
-  // 4. PROCESSING (AI)
+  // 5. PROCESSING (AI)
   if (view === 'processing') {
     const colors = getBrandingColors();
     return (
@@ -653,7 +909,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
     );
   }
 
-  // 5. REVIEW CAPTURE (Before Sending to AI)
+  // 6. REVIEW CAPTURE (Before Sending to AI)
   if (view === 'review') {
       const colors = getBrandingColors();
       return (
@@ -688,7 +944,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       )
   }
 
-  // 6. RESULT & DELIVERY
+  // 7. RESULT & DELIVERY
   if (view === 'result' || view === 'delivery') {
     const colors = getBrandingColors();
     return (
@@ -723,7 +979,33 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                 </div>
                 <h2 className="text-xl md:text-4xl text-slate-900 font-bold">Sent!</h2>
                 <p className="text-sm md:text-base text-slate-600">Check your phone for the link.</p>
-                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-12">Closing in 5 seconds...</p>
+
+                <div className="pt-3 md:pt-6 space-y-2 md:space-y-4">
+                  <button
+                    onClick={handleDownload}
+                    className="w-full text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                    style={{
+                      backgroundColor: colors.primary,
+                      boxShadow: `0 10px 25px ${colors.primary}50`,
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                  >
+                    <Download size={18} className="md:w-6 md:h-6" /> Download Photo
+                  </button>
+
+                  <button
+                    onClick={() => setView('result')}
+                    className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
+                  >
+                    <Smartphone size={18} className="md:w-6 md:h-6" /> Send to Another Number
+                  </button>
+                </div>
+
+                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-8">Starting over in {deliveryCountdown} seconds...</p>
+                <button onClick={resetKiosk} className="text-xs md:text-sm text-slate-600 hover:text-slate-900 py-2">
+                  Start Over Now
+                </button>
              </div>
            ) : (
              <>

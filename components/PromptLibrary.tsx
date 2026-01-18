@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
+import { compressBase64Image } from '../services/imageCompression';
+import { checkCreditAvailability, consumeCredit } from '../services/creditService';
+
+const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+const LOAD_BATCH_SIZE = 6;
 
 interface Prompt {
   id: string;
@@ -14,11 +19,11 @@ interface Prompt {
   tags: string[];
   isActive: boolean;
   usageCount: number;
-  tenantId?: string | null;
+  userId?: string | null;
 }
 
 interface PromptLibraryProps {
-  tenantId: string;
+  userId: string;
   onClose: () => void;
   eventId?: string | null;
   selectedPrompts?: Prompt[];
@@ -26,7 +31,7 @@ interface PromptLibraryProps {
   onAddToEvent?: (prompt: Prompt) => void;
 }
 
-const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventId, selectedPrompts = [], onPromptsSelected, onAddToEvent }) => {
+const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId, selectedPrompts = [], onPromptsSelected, onAddToEvent }) => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [filteredPrompts, setFilteredPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,47 +50,115 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   const [testGeneratedImage, setTestGeneratedImage] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
-  const [displayLimit, setDisplayLimit] = useState(10);
+  const [loadOffset, setLoadOffset] = useState(0);
+  const [hasMoreToLoad, setHasMoreToLoad] = useState(true);
+  const hasLoadedRef = useRef(false);
+  const [userCredits, setUserCredits] = useState<number>(0);
+  const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
 
   useEffect(() => {
-    loadPrompts();
-  }, [tenantId]);
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      loadPrompts();
+      loadAllTags();
+      checkUserCredits();
+    }
+  }, [userId]);
 
-  useEffect(() => {
-    filterPrompts();
-    setDisplayLimit(10);
-  }, [prompts, selectedTags, selectedCategory, searchQuery]);
+  const checkUserCredits = async () => {
+    try {
+      const creditCheck = await checkCreditAvailability(userId, 'image');
+      setUserCredits(creditCheck.available ? creditCheck.remaining : 0);
+    } catch (error) {
+      console.error('Error checking credits:', error);
+      setUserCredits(0);
+    }
+  };
 
-  const loadPrompts = async () => {
-    setLoading(true);
+  const loadAllTags = async () => {
     try {
       const { data, error } = await supabase
         .from('prompts')
-        .select('*')
-        .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
-        .order('usage_count', { ascending: false });
+        .select('tags')
+        .eq('is_active', true);
 
       if (error) throw error;
 
-      const mappedPrompts = (data || []).map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        category: p.category || 'Custom',
-        promptText: p.prompt_text || '',
-        previewImage: p.preview_image_url || '',
-        referenceImage: p.reference_image_url,
-        tags: p.tags || [],
-        isActive: p.is_active,
-        usageCount: p.usage_count || 0,
-        tenantId: p.tenant_id,
+      const tagSet = new Set<string>();
+      data.forEach(prompt => {
+        if (prompt.tags && Array.isArray(prompt.tags)) {
+          prompt.tags.forEach(tag => tagSet.add(tag));
+        }
+      });
+
+      setAllTags(Array.from(tagSet).sort());
+    } catch (error) {
+      console.error('Error loading tags:', error);
+      setAllTags([]);
+    }
+  };
+
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      searchPrompts(searchQuery);
+    } else {
+      filterPrompts();
+    }
+  }, [prompts, selectedTags, selectedCategory, searchQuery]);
+
+  const loadPrompts = async (isInitial: boolean = true) => {
+    if (isInitial) {
+      setLoading(true);
+      setLoadOffset(0);
+      setPrompts([]);
+    }
+
+    const startTime = performance.now();
+    const offset = isInitial ? 0 : loadOffset;
+
+    try {
+      console.log(`[PromptLibrary] Loading ${LOAD_BATCH_SIZE} prompts from offset ${offset}...`);
+
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
+        .eq('is_active', true)
+        .order('usage_count', { ascending: false })
+        .range(offset, offset + LOAD_BATCH_SIZE - 1);
+
+      if (error) throw error;
+
+      const newPrompts = data.map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        description: prompt.description,
+        category: prompt.category,
+        promptText: '',
+        previewImage: prompt.preview_image_url || '',
+        referenceImage: prompt.reference_image_url || '',
+        tags: prompt.tags || [],
+        isActive: prompt.is_active,
+        usageCount: prompt.usage_count || 0,
+        userId: prompt.user_id,
       }));
 
-      setPrompts(mappedPrompts);
-      extractAllTags(mappedPrompts);
-      extractAllCategories(mappedPrompts);
+      if (isInitial) {
+        setPrompts(newPrompts);
+        extractAllCategories(newPrompts);
+      } else {
+        const combined = [...prompts, ...newPrompts];
+        setPrompts(combined);
+        extractAllCategories(combined);
+      }
+
+      setHasMoreToLoad(newPrompts.length === LOAD_BATCH_SIZE);
+      setLoadOffset(offset + LOAD_BATCH_SIZE);
+
+      const totalTime = performance.now() - startTime;
+      console.log(`[PromptLibrary] Load time: ${totalTime.toFixed(2)}ms, loaded ${newPrompts.length} prompts`);
     } catch (error) {
       console.error('Error loading prompts:', error);
+      setHasMoreToLoad(false);
     } finally {
       setLoading(false);
     }
@@ -107,6 +180,84 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setAllCategories(Array.from(categorySet).sort());
   };
 
+  const searchPrompts = async (query: string) => {
+    try {
+      const searchTerm = query.toLowerCase().trim();
+
+      // Get all prompts for client-side tag filtering
+      let dbQuery = supabase
+        .from('prompts')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
+        .eq('is_active', true)
+        .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
+        .order('created_at', { ascending: false });
+
+      const { data, error } = await dbQuery;
+
+      if (error) throw error;
+
+      let searchResults = data.map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        description: prompt.description,
+        category: prompt.category,
+        promptText: '',
+        previewImage: prompt.preview_image_url || '',
+        referenceImage: prompt.reference_image_url || '',
+        tags: prompt.tags || [],
+        isActive: prompt.is_active,
+        usageCount: prompt.usage_count || 0,
+        userId: prompt.user_id,
+      }));
+
+      // Also include results that match tags
+      const tagMatchResults = data
+        .filter(prompt =>
+          prompt.tags &&
+          Array.isArray(prompt.tags) &&
+          prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+        )
+        .map((prompt) => ({
+          id: prompt.id,
+          name: prompt.name,
+          description: prompt.description,
+          category: prompt.category,
+          promptText: '',
+          previewImage: prompt.preview_image_url || '',
+          referenceImage: prompt.reference_image_url || '',
+          tags: prompt.tags || [],
+          isActive: prompt.is_active,
+          usageCount: prompt.usage_count || 0,
+          userId: prompt.user_id,
+        }));
+
+      // Merge and deduplicate results
+      const allResults = [...searchResults];
+      tagMatchResults.forEach(tagResult => {
+        if (!allResults.find(r => r.id === tagResult.id)) {
+          allResults.push(tagResult);
+        }
+      });
+
+      searchResults = allResults;
+
+      if (selectedCategory) {
+        searchResults = searchResults.filter(prompt => prompt.category === selectedCategory);
+      }
+
+      if (selectedTags.length > 0) {
+        searchResults = searchResults.filter(prompt =>
+          selectedTags.some(tag => prompt.tags.includes(tag))
+        );
+      }
+
+      setFilteredPrompts(searchResults);
+    } catch (error) {
+      console.error('Error searching prompts:', error);
+      setFilteredPrompts([]);
+    }
+  };
+
   const filterPrompts = () => {
     let filtered = prompts;
 
@@ -117,15 +268,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     if (selectedTags.length > 0) {
       filtered = filtered.filter(prompt =>
         selectedTags.some(tag => prompt.tags.includes(tag))
-      );
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(prompt =>
-        prompt.name.toLowerCase().includes(query) ||
-        prompt.description.toLowerCase().includes(query) ||
-        prompt.category.toLowerCase().includes(query)
       );
     }
 
@@ -155,20 +297,109 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     setIsPublic(false);
   };
 
-  const handleEdit = (prompt: Prompt) => {
-    setEditingPrompt({ ...prompt });
+  const handleEdit = async (prompt: Prompt) => {
+    if (!prompt.promptText) {
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('prompt_text')
+        .eq('id', prompt.id)
+        .maybeSingle();
+
+      if (data && !error) {
+        const fullPrompt = { ...prompt, promptText: data.prompt_text || '' };
+        setEditingPrompt(fullPrompt);
+        setPrompts(prev => prev.map(p => p.id === prompt.id ? fullPrompt : p));
+      } else {
+        setEditingPrompt({ ...prompt });
+      }
+    } else {
+      setEditingPrompt({ ...prompt });
+    }
     setIsCreating(false);
-    setIsPublic(prompt.tenantId === null);
+    setIsPublic(prompt.userId === null);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditingPrompt(prev => prev ? { ...prev, [field]: reader.result as string } : null);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    try {
+      const timestamp = Date.now();
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${field}_${timestamp}.${fileExtension}`;
+      const filePath = `${userId}/${fileName}`;
+
+      if (field === 'referenceImage') {
+        const { error: uploadError } = await supabase.storage
+          .from('prompt-images')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: file.type
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('prompt-images')
+          .getPublicUrl(filePath);
+
+        setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+      } else {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const img = new Image();
+            img.onload = async () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) throw new Error('Failed to get canvas context');
+
+              ctx.drawImage(img, 0, 0);
+
+              canvas.toBlob(async (blob) => {
+                if (!blob) throw new Error('Failed to convert image to JPG');
+
+                const { error: uploadError } = await supabase.storage
+                  .from('prompt-images')
+                  .upload(filePath, blob, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: 'image/jpeg'
+                  });
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                  .from('prompt-images')
+                  .getPublicUrl(filePath);
+
+                setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+              }, 'image/jpeg', 0.92);
+            };
+
+            img.onerror = () => {
+              throw new Error('Failed to load image');
+            };
+
+            img.src = event.target?.result as string;
+          } catch (error) {
+            console.error('Error processing image:', error);
+            alert('Failed to process image. Please try again.');
+          }
+        };
+
+        reader.onerror = () => {
+          alert('Failed to read image file. Please try again.');
+        };
+
+        reader.readAsDataURL(file);
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image. Please try again.');
     }
   };
 
@@ -188,7 +419,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     try {
       if (isCreating) {
         const { error } = await supabase.from('prompts').insert({
-          tenant_id: isPublic ? null : tenantId,
           name: editingPrompt.name,
           description: editingPrompt.description,
           category: editingPrompt.category,
@@ -197,6 +427,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           reference_image_url: editingPrompt.referenceImage || null,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
+          is_public: isPublic,
+          user_id: userId,
         });
 
         if (error) throw error;
@@ -204,7 +436,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         const { error } = await supabase
           .from('prompts')
           .update({
-            tenant_id: isPublic ? null : tenantId,
             name: editingPrompt.name,
             description: editingPrompt.description,
             category: editingPrompt.category,
@@ -213,6 +444,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
             reference_image_url: editingPrompt.referenceImage || null,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
+            is_public: isPublic,
           })
           .eq('id', editingPrompt.id);
 
@@ -221,10 +453,10 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
 
       setEditingPrompt(null);
       setIsCreating(false);
-      loadPrompts();
-    } catch (error) {
+      loadPrompts(true);
+    } catch (error: any) {
       console.error('Error saving prompt:', error);
-      alert('Failed to save prompt');
+      alert(`Failed to save prompt: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -232,11 +464,29 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
     if (!confirm('Are you sure you want to delete this prompt? This cannot be undone.')) return;
 
     try {
+      // Check if prompt is used in any events
+      const { data: eventUsageData, error: eventUsageError } = await supabase
+        .from('event_prompts')
+        .select('event_id, events(name)')
+        .eq('prompt_id', promptId)
+        .limit(5);
+
+      if (eventUsageError) throw eventUsageError;
+
+      if (eventUsageData && eventUsageData.length > 0) {
+        const eventNames = eventUsageData.map((ep: any) => ep.events?.name || 'Unknown Event').join(', ');
+        const additionalCount = eventUsageData.length > 1 ? ` and ${eventUsageData.length - 1} other event(s)` : '';
+        alert(
+          `Cannot delete this prompt because it is currently being used in the following event(s):\n\n${eventNames}${additionalCount}\n\nPlease remove the prompt from these events first before deleting it.`
+        );
+        return;
+      }
+
       const { error } = await supabase.from('prompts').delete().eq('id', promptId);
 
       if (error) throw error;
 
-      loadPrompts();
+      loadPrompts(true);
     } catch (error) {
       console.error('Error deleting prompt:', error);
       alert('Failed to delete prompt');
@@ -287,15 +537,28 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   const handleRunTest = async () => {
     if (!testingPrompt || !testSourceImage) return;
 
+    const creditCheck = await checkCreditAvailability(userId, 'image');
+    if (!creditCheck.available) {
+      setGenerationError(creditCheck.reason || 'Insufficient image credits. Please purchase more credits to test this prompt.');
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationError('');
     setTestGeneratedImage('');
 
     try {
-      const { data: settings } = await supabase
+      const { data: settings, error } = await supabase
         .from('global_settings')
-        .select('gemini_api_key, gemini_model_name, gemini_resolution')
+        .select('gemini_api_key, gemini_model, gemini_resolution')
         .maybeSingle();
+
+      console.log('🔍 PromptLibrary fetching global settings:', { settings, error });
+
+      if (error) {
+        console.error('❌ Error fetching global settings:', error);
+        throw new Error(`Failed to fetch settings: ${error.message}`);
+      }
 
       if (!settings?.gemini_api_key) {
         throw new Error('Gemini API key not configured. Please add it in Settings.');
@@ -309,11 +572,17 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
         settings.gemini_api_key,
         referenceImage,
         'square',
-        settings.gemini_model_name || 'gemini-3-pro-image-preview',
+        settings.gemini_model || 'gemini-3-pro-image-preview',
         settings.gemini_resolution || '1K'
       );
 
+      const consumeResult = await consumeCredit(userId, 1);
+      if (!consumeResult.success) {
+        console.warn('Failed to consume credit, but image was generated:', consumeResult.error);
+      }
+
       setTestGeneratedImage(generatedImage);
+      await checkUserCredits();
     } catch (error: any) {
       console.error('Test generation error:', error);
       setGenerationError(error.message || 'Failed to generate image');
@@ -331,11 +600,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
   };
 
   const handleLoadMore = () => {
-    setDisplayLimit(prev => prev + 10);
+    loadPrompts(false);
   };
-
-  const displayedPrompts = filteredPrompts.slice(0, displayLimit);
-  const hasMorePrompts = filteredPrompts.length > displayLimit;
 
   if (editingPrompt) {
     return (
@@ -370,12 +636,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 <label className="block text-sm font-bold text-slate-900 mb-2">Category *</label>
                 <input
                   type="text"
+                  list="category-suggestions"
                   value={editingPrompt.category}
                   onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
                   className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  placeholder="Holiday"
+                  placeholder="Select or type a category (e.g., Holiday, Sports, Nature)"
                 />
-                <p className="text-xs text-slate-500 mt-1">Create custom categories or use existing ones</p>
+                <datalist id="category-suggestions">
+                  {allCategories.map(cat => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
+                <p className="text-xs text-slate-500 mt-1">
+                  Select from existing categories or type a new one
+                  {allCategories.length > 0 && ` (${allCategories.length} existing)`}
+                </p>
               </div>
             </div>
 
@@ -448,7 +723,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                     <img
                       src={editingPrompt.referenceImage}
                       alt="AI Style Reference"
-                      className="w-full aspect-video object-cover rounded-lg border-2 border-slate-300"
+                      className="w-full aspect-video object-contain rounded-lg border-2 border-slate-300 bg-slate-100"
                     />
                     <button
                       onClick={() => setEditingPrompt({ ...editingPrompt, referenceImage: null })}
@@ -583,9 +858,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           </div>
           <button
             onClick={onClose}
-            className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
+            className="px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex-shrink-0"
           >
-            ×
+            Finished
           </button>
         </div>
 
@@ -624,24 +899,54 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           </div>
 
           {allTags.length > 0 && (
-            <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">Filter by Tags:</label>
-              <div className="flex flex-wrap gap-2">
-                {allTags.map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => toggleTag(tag)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                      selectedTags.includes(tag)
-                        ? 'bg-green-700 text-white'
-                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                    }`}
-                  >
-                    <Tag size={12} className="inline mr-1" />
-                    {tag}
-                  </button>
-                ))}
-              </div>
+            <div className="border-2 border-slate-300 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsTagFilterOpen(!isTagFilterOpen)}
+                className="w-full flex items-center justify-between p-3 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Tag size={16} className="text-slate-700" />
+                  <span className="text-sm font-bold text-slate-900">
+                    Filter by Tags {selectedTags.length > 0 && `(${selectedTags.length} selected)`}
+                  </span>
+                </div>
+                {isTagFilterOpen ? (
+                  <ChevronUp className="text-slate-700" size={20} />
+                ) : (
+                  <ChevronDown className="text-slate-700" size={20} />
+                )}
+              </button>
+              {isTagFilterOpen && (
+                <div className="p-4 bg-white border-t-2 border-slate-300">
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                          selectedTags.includes(tag)
+                            ? 'bg-green-700 text-white'
+                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        }`}
+                      >
+                        <Tag size={12} className="inline mr-1" />
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedTags.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <button
+                        onClick={() => setSelectedTags([])}
+                        className="text-sm text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Clear all tags
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -665,17 +970,24 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {displayedPrompts.map(prompt => (
+                {filteredPrompts.map(prompt => (
                 <div
                   key={prompt.id}
                   className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden hover:shadow-lg transition-all"
                 >
                   <div className="relative aspect-video bg-slate-200">
-                    <img
-                      src={prompt.previewImage}
-                      alt={prompt.name}
-                      className="w-full h-full object-cover"
-                    />
+                    {prompt.previewImage ? (
+                      <img
+                        src={prompt.previewImage}
+                        alt={prompt.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400">
+                        <ImageIcon size={48} />
+                      </div>
+                    )}
                     {!prompt.isActive && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                         <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -741,10 +1053,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                           </button>
                           <button
                             onClick={() => handleTestPrompt(prompt)}
-                            className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg font-medium text-sm"
-                            title="Test this prompt"
+                            className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg font-medium text-sm flex items-center gap-1"
+                            title="Test this prompt (uses 1 image credit)"
                           >
                             <Sparkles size={14} />
+                            <span className="hidden md:inline text-xs">Test</span>
                           </button>
                           <button
                             onClick={() => handleDelete(prompt.id)}
@@ -761,14 +1074,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 ))}
               </div>
 
-              {hasMorePrompts && (
+              {hasMoreToLoad && !searchQuery && selectedTags.length === 0 && !selectedCategory && (
                 <div className="flex justify-center mt-8">
                   <button
                     onClick={handleLoadMore}
-                    className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center gap-2 transition-colors"
+                    disabled={loading}
+                    className="px-6 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-400 text-white rounded-lg font-bold flex items-center gap-2 transition-colors"
                   >
-                    Load More
-                    <span className="text-sm font-normal">({filteredPrompts.length - displayLimit} remaining)</span>
+                    {loading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      <>Load More ({LOAD_BATCH_SIZE} more)</>
+                    )}
                   </button>
                 </div>
               )}
@@ -781,20 +1101,37 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
       {testingPrompt && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 md:p-6 border-b-2 border-slate-300 flex justify-between items-start gap-4 sticky top-0 bg-white z-10">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-lg md:text-2xl font-bold text-slate-900 flex items-center gap-2">
-                  <Sparkles className="text-green-700 flex-shrink-0" size={20} />
-                  <span className="truncate">Test: {testingPrompt.name}</span>
-                </h2>
-                <p className="text-sm md:text-base text-slate-600 mt-1">Upload images to test this AI prompt</p>
+            <div className="p-4 md:p-6 border-b-2 border-slate-300 sticky top-0 bg-white z-10">
+              <div className="flex justify-between items-start gap-4 mb-4">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg md:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    <Sparkles className="text-green-700 flex-shrink-0" size={20} />
+                    <span className="truncate">Test Prompt: {testingPrompt.name}</span>
+                  </h2>
+                  <p className="text-sm md:text-base text-slate-600 mt-1">Upload images to test this AI prompt</p>
+                </div>
+                <button
+                  onClick={closeTestModal}
+                  className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
+                >
+                  ×
+                </button>
               </div>
-              <button
-                onClick={closeTestModal}
-                className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
-              >
-                ×
-              </button>
+
+              <div className="bg-amber-50 border-2 border-amber-500 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={24} />
+                  <div className="flex-1">
+                    <h3 className="font-bold text-amber-900 text-base mb-1">
+                      Testing This Prompt WILL Use 1 Image Credit
+                    </h3>
+                    <p className="text-sm text-amber-800">
+                      Each test generation consumes one image credit from your account.
+                      This is a real AI image generation and uses the same resources as creating photos in your events.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="p-4 md:p-6 space-y-6">
@@ -851,7 +1188,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                       <img
                         src={testReferenceImage || testingPrompt.referenceImage || ''}
                         alt="Reference"
-                        className="w-full aspect-square object-cover rounded-lg border-2 border-slate-300"
+                        className="w-full aspect-square object-contain rounded-lg border-2 border-slate-300 bg-slate-100"
                       />
                       {testReferenceImage && (
                         <button
@@ -915,18 +1252,23 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ tenantId, onClose, eventI
                 <button
                   onClick={handleRunTest}
                   disabled={!testSourceImage || isGenerating}
-                  className="flex-1 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                  className="flex-1 py-4 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold"
                 >
                   {isGenerating ? (
-                    <>
+                    <div className="flex items-center justify-center gap-2">
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Generating...
-                    </>
+                      <span>Generating...</span>
+                    </div>
                   ) : (
-                    <>
-                      <Sparkles size={18} />
-                      Generate Test Image
-                    </>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={18} />
+                        <span>Generate Test Image</span>
+                      </div>
+                      <span className="text-xs font-normal opacity-90">
+                        (Uses 1 Image Credit)
+                      </span>
+                    </div>
                   )}
                 </button>
                 <button
