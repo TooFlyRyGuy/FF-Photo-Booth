@@ -194,7 +194,7 @@ Create 4 annual subscription products:
 - **Description**:
   ```
   720 AI image generations per year
-  600 SMS messages per year
+  720 SMS messages per year
   ~60 images per month
   ~50 SMS per month
   3 prompt slots per event
