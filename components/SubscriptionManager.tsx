@@ -411,24 +411,6 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
         <div className="p-4 sm:p-6">
           {activeTab === 'subscriptions' && (
             <>
-              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
-                <AlertCircle size={18} className="sm:w-5 sm:h-5 text-green-800 flex-shrink-0 mt-0.5" />
-                <div className="text-xs sm:text-sm text-slate-900">
-                  <p className="font-medium mb-1">Payment Setup Required</p>
-                  <p className="text-slate-700">
-                    To enable subscriptions, configure Stripe by visiting{' '}
-                    <a
-                      href="https://bolt.new/setup/stripe"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline hover:text-green-800"
-                    >
-                      the setup guide
-                    </a>
-                  </p>
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {tiers.map((tier) => {
               const isCurrentTier = userProfile?.subscription_tier_id === tier.id;
