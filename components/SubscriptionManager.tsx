@@ -310,79 +310,80 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b-2 border-slate-300 sticky top-0 bg-white z-10">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Choose Your Plan</h2>
-              <p className="text-slate-600 mt-1">Select the perfect plan for your needs</p>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center overflow-y-auto">
+      <div className="bg-white border-0 sm:border-2 sm:border-slate-300 rounded-none sm:rounded-2xl w-full sm:max-w-7xl min-h-screen sm:min-h-0 sm:max-h-[90vh] sm:my-4 overflow-y-auto">
+        <div className="p-4 sm:p-6 border-b-2 border-slate-200 sticky top-0 bg-white z-10">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-0">
+            <div className="flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Choose Your Plan</h2>
+              <p className="text-sm sm:text-base text-slate-600 mt-1">Select the perfect plan for your needs</p>
             </div>
             <button
               onClick={onClose}
-              className="text-slate-600 hover:text-slate-900 text-2xl"
+              className="absolute top-4 right-4 sm:static text-slate-600 hover:text-slate-900 text-3xl sm:text-2xl w-10 h-10 flex items-center justify-center"
+              aria-label="Close"
             >
               ×
             </button>
           </div>
 
-          <div className="flex justify-center gap-2 mt-6 border-b border-slate-200">
+          <div className="flex overflow-x-auto gap-1 sm:gap-2 mt-4 sm:mt-6 border-b border-slate-200 -mx-4 px-4 sm:mx-0 sm:px-0 sm:justify-center">
             <button
               onClick={() => setActiveTab('subscriptions')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-sm sm:text-base transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'subscriptions'
                   ? 'border-b-2 border-green-700 text-green-700'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Subscription Plans
+              Subscriptions
             </button>
             <button
               onClick={() => setActiveTab('eventPasses')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-sm sm:text-base transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'eventPasses'
                   ? 'border-b-2 border-green-700 text-green-700'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <div className="flex items-center gap-2">
-                <Ticket size={18} />
-                Event Passes
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Ticket size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Event </span>Passes
               </div>
             </button>
             <button
               onClick={() => setActiveTab('addOns')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-sm sm:text-base transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'addOns'
                   ? 'border-b-2 border-green-700 text-green-700'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <div className="flex items-center gap-2">
-                <Package size={18} />
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Package size={16} className="sm:w-[18px] sm:h-[18px]" />
                 Add-Ons
               </div>
             </button>
             <button
               onClick={() => setActiveTab('credits')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-sm sm:text-base transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'credits'
                   ? 'border-b-2 border-green-700 text-green-700'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <div className="flex items-center gap-2">
-                <Zap size={18} />
-                Credit Top-ups
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Zap size={16} className="sm:w-[18px] sm:h-[18px]" />
+                Credits
               </div>
             </button>
           </div>
 
           {activeTab === 'subscriptions' && (
-            <div className="flex items-center justify-center gap-4 mt-6">
+            <div className="flex items-center justify-center gap-2 sm:gap-4 mt-4 sm:mt-6">
               <button
                 onClick={() => setBillingCycle('monthly')}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+              className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg font-medium text-sm sm:text-base transition-all ${
                 billingCycle === 'monthly'
                   ? 'bg-green-700 hover:bg-green-800 text-white'
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900'
@@ -392,14 +393,14 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
             </button>
             <button
               onClick={() => setBillingCycle('annual')}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
+              className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg font-medium text-sm sm:text-base transition-all ${
                 billingCycle === 'annual'
                   ? 'bg-green-700 hover:bg-green-800 text-white'
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900'
               }`}
             >
               Yearly
-              <span className="ml-2 text-xs bg-green-700/20 text-green-800 px-2 py-0.5 rounded-full">
+              <span className="ml-1 sm:ml-2 text-xs bg-green-700/20 text-green-800 px-1.5 sm:px-2 py-0.5 rounded-full">
                 Save 15%
               </span>
             </button>
@@ -407,12 +408,12 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
           )}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {activeTab === 'subscriptions' && (
             <>
-              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
-                <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-slate-900">
+              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
+                <AlertCircle size={18} className="sm:w-5 sm:h-5 text-green-800 flex-shrink-0 mt-0.5" />
+                <div className="text-xs sm:text-sm text-slate-900">
                   <p className="font-medium mb-1">Payment Setup Required</p>
                   <p className="text-slate-700">
                     To enable subscriptions, configure Stripe by visiting{' '}
@@ -428,7 +429,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {tiers.map((tier) => {
               const isCurrentTier = userProfile?.subscription_tier_id === tier.id;
               const isEnterprise = tier.price_cents === -1;
@@ -438,34 +439,34 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
               return (
                 <div
                   key={tier.id}
-                  className={`border-2 ${getTierColor(tier.name)} rounded-xl p-6 flex flex-col ${
+                  className={`border-2 ${getTierColor(tier.name)} rounded-xl p-4 sm:p-5 lg:p-6 flex flex-col min-h-[400px] sm:min-h-[450px] ${
                     isCurrentTier ? 'ring-2 ring-green-700/50' : ''
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
                     {getTierIcon(tier.name)}
                     {isCurrentTier && (
-                      <span className="text-xs bg-green-700/20 text-green-800 px-2 py-1 rounded-full">
-                        Current Plan
+                      <span className="text-xs bg-green-700/20 text-green-800 px-2 py-1 rounded-full font-medium">
+                        Current
                       </span>
                     )}
                   </div>
 
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">{tier.name}</h3>
-                  <p className="text-slate-600 text-xs mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1 sm:mb-2">{tier.name}</h3>
+                  <p className="text-slate-600 text-xs mb-3 sm:mb-4">
                     {tier.billing_period === 'monthly' ? 'Billed monthly' : 'Billed annually'}
                   </p>
 
-                  <div className="mb-6">
+                  <div className="mb-4 sm:mb-6 pb-4 border-b border-slate-200">
                     {isEnterprise ? (
-                      <div className="text-center py-3">
-                        <span className="text-2xl font-bold text-green-900">CONTACT US</span>
+                      <div className="text-center py-2 sm:py-3">
+                        <span className="text-xl sm:text-2xl font-bold text-green-900">CONTACT US</span>
                         <p className="text-xs text-slate-600 mt-1">Custom pricing</p>
                       </div>
                     ) : (
                       <>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold text-slate-900">
+                          <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                             {formatPrice(tier.price_cents)}
                           </span>
                           <span className="text-slate-600 text-sm">
@@ -481,26 +482,26 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                     )}
                   </div>
 
-                  <ul className="space-y-3 mb-6 flex-grow">
+                  <ul className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 flex-grow">
                     <li className="flex items-start gap-2 text-sm text-slate-700">
                       <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                      {tier.credits_per_period >= 999999 ? 'Unlimited' : tier.credits_per_period} credits/
-                      {tier.billing_period === 'monthly' ? 'month' : 'year'}
+                      <span className="leading-snug">{tier.credits_per_period >= 999999 ? 'Unlimited' : tier.credits_per_period} credits/
+                      {tier.billing_period === 'monthly' ? 'month' : 'year'}</span>
                     </li>
                     <li className="flex items-start gap-2 text-sm text-slate-700">
                       <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                      {tier.prompts_limit === null ? 'Unlimited' : tier.prompts_limit} prompts per event
+                      <span className="leading-snug">{tier.prompts_limit === null ? 'Unlimited' : tier.prompts_limit} prompts per event</span>
                     </li>
                     {tier.rollover_enabled && (
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        Credit rollover enabled
+                        <span className="leading-snug">Credit rollover enabled</span>
                       </li>
                     )}
                     {tier.features && Array.isArray(tier.features) && tier.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        {feature}
+                        <span className="leading-snug">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -508,12 +509,12 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                   <button
                     onClick={() => handleSubscribe(tier.id)}
                     disabled={isCurrentTier || isEnterprise}
-                    className={`w-full py-3 rounded-lg font-medium transition-all ${
+                    className={`w-full py-3 sm:py-3.5 rounded-lg font-medium text-sm sm:text-base transition-all min-h-[48px] ${
                       isCurrentTier
                         ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                         : isEnterprise
                         ? 'bg-green-900 hover:bg-green-950 text-white'
-                        : 'bg-green-700 hover:bg-green-800 text-white'
+                        : 'bg-green-700 hover:bg-green-800 text-white active:bg-green-900'
                     }`}
                   >
                     {isCurrentTier ? 'Current Plan' : isEnterprise ? 'Contact Sales' : 'Subscribe'}
@@ -527,9 +528,9 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
           {activeTab === 'eventPasses' && (
             <>
-              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
-                <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-slate-900">
+              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
+                <AlertCircle size={18} className="sm:w-5 sm:h-5 text-green-800 flex-shrink-0 mt-0.5" />
+                <div className="text-xs sm:text-sm text-slate-900">
                   <p className="font-medium mb-1">Event Passes</p>
                   <p className="text-slate-700">
                     Purchase a one-time pass for a single event with temporary access and credits.
@@ -537,53 +538,53 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
                 {eventPasses.map((pass) => (
                   <div
                     key={pass.id}
-                    className="border-2 border-green-700/30 rounded-xl p-6 flex flex-col"
+                    className="border-2 border-green-700/30 rounded-xl p-4 sm:p-5 lg:p-6 flex flex-col min-h-[380px]"
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <Ticket size={24} className="text-green-700" />
-                      <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <Ticket size={20} className="sm:w-6 sm:h-6 text-green-700" />
+                      <span className="text-xs bg-green-100 text-green-800 px-2.5 sm:px-3 py-1 rounded-full font-medium">
                         {pass.duration_hours}h Access
                       </span>
                     </div>
 
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{pass.name}</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1 sm:mb-2">{pass.name}</h3>
 
-                    <div className="mb-6">
+                    <div className="mb-4 sm:mb-6 pb-4 border-b border-slate-200">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-slate-900">
+                        <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                           {formatPrice(pass.price_cents)}
                         </span>
                       </div>
                     </div>
 
-                    <ul className="space-y-3 mb-6 flex-grow">
+                    <ul className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 flex-grow">
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        {pass.credits >= 999999 ? 'Unlimited' : pass.credits} credits
+                        <span className="leading-snug">{pass.credits >= 999999 ? 'Unlimited' : pass.credits} credits</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        {pass.prompts_limit === null ? 'Unlimited' : pass.prompts_limit} prompts
+                        <span className="leading-snug">{pass.prompts_limit === null ? 'Unlimited' : pass.prompts_limit} prompts</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        {pass.duration_hours} hours of access
+                        <span className="leading-snug">{pass.duration_hours} hours of access</span>
                       </li>
                       {pass.features && Array.isArray(pass.features) && pass.features.map((feature, idx) => (
                         <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
                           <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                          {feature}
+                          <span className="leading-snug">{feature}</span>
                         </li>
                       ))}
                     </ul>
 
                     <button
                       onClick={() => handleSubscribe(pass.id)}
-                      className="w-full py-3 rounded-lg font-medium transition-all bg-green-700 hover:bg-green-800 text-white"
+                      className="w-full py-3 sm:py-3.5 rounded-lg font-medium text-sm sm:text-base transition-all bg-green-700 hover:bg-green-800 text-white active:bg-green-900 min-h-[48px]"
                     >
                       Purchase Pass
                     </button>
@@ -595,9 +596,9 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
           {activeTab === 'addOns' && (
             <>
-              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
-                <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-slate-900">
+              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
+                <AlertCircle size={18} className="sm:w-5 sm:h-5 text-green-800 flex-shrink-0 mt-0.5" />
+                <div className="text-xs sm:text-sm text-slate-900">
                   <p className="font-medium mb-1">Premium Add-Ons</p>
                   <p className="text-slate-700">
                     Enhance your events with professional services and premium features.
@@ -605,26 +606,26 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
                 {addOns.map((addon) => (
                   <div
                     key={addon.id}
-                    className="border-2 border-green-700/30 rounded-xl p-6 flex flex-col relative"
+                    className="border-2 border-green-700/30 rounded-xl p-4 sm:p-5 lg:p-6 flex flex-col relative min-h-[320px]"
                   >
-                    <div className="absolute top-4 right-4 bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                    <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-orange-600 text-white px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold shadow-lg">
                       CONTACT US
                     </div>
 
-                    <div className="flex items-center justify-between mb-4">
-                      <Package size={24} className="text-green-700" />
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <Package size={20} className="sm:w-6 sm:h-6 text-green-700" />
                     </div>
 
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{addon.name}</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2 pr-20">{addon.name}</h3>
                     <p className="text-sm text-slate-600 mb-4">{addon.description}</p>
 
-                    <div className="mb-6">
+                    <div className="mb-4 sm:mb-6 pb-4 border-b border-slate-200">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-slate-900">
+                        <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                           {formatPrice(addon.price_cents)}
                         </span>
                       </div>
@@ -632,7 +633,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
                     <button
                       disabled
-                      className="w-full py-3 rounded-lg font-medium transition-all bg-slate-300 text-slate-500 cursor-not-allowed mt-auto"
+                      className="w-full py-3 sm:py-3.5 rounded-lg font-medium text-sm sm:text-base transition-all bg-slate-300 text-slate-500 cursor-not-allowed mt-auto min-h-[48px]"
                       title="Please contact us to purchase this add-on"
                     >
                       Contact Us to Purchase
@@ -645,9 +646,9 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
           {activeTab === 'credits' && (
             <>
-              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-4 mb-6 flex items-start gap-3">
-                <AlertCircle size={20} className="text-green-800 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-slate-900">
+              <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
+                <AlertCircle size={18} className="sm:w-5 sm:h-5 text-green-800 flex-shrink-0 mt-0.5" />
+                <div className="text-xs sm:text-sm text-slate-900">
                   <p className="font-medium mb-1">Credit Top-Ups</p>
                   <p className="text-slate-700">
                     Need more credits? Purchase additional credits anytime to generate more photos.
@@ -655,24 +656,24 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {creditTopups.map((topup) => (
                   <div
                     key={topup.id}
-                    className="border-2 border-green-700/30 rounded-xl p-6 flex flex-col"
+                    className="border-2 border-green-700/30 rounded-xl p-4 sm:p-5 lg:p-6 flex flex-col min-h-[380px]"
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <DollarSign size={24} className="text-green-700" />
-                      <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <DollarSign size={20} className="sm:w-6 sm:h-6 text-green-700" />
+                      <span className="text-xs bg-green-100 text-green-800 px-2.5 sm:px-3 py-1 rounded-full font-medium">
                         {topup.credits} Credits
                       </span>
                     </div>
 
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{topup.name}</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1 sm:mb-2">{topup.name}</h3>
 
-                    <div className="mb-6">
+                    <div className="mb-4 sm:mb-6 pb-4 border-b border-slate-200">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-slate-900">
+                        <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                           {formatPrice(topup.price_cents)}
                         </span>
                       </div>
@@ -681,28 +682,28 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                       </p>
                     </div>
 
-                    <ul className="space-y-3 mb-6 flex-grow">
+                    <ul className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 flex-grow">
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        {topup.credits} image credits
+                        <span className="leading-snug">{topup.credits} image credits</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        {topup.sms_credits} SMS credits
+                        <span className="leading-snug">{topup.sms_credits} SMS credits</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        Never expires
+                        <span className="leading-snug">Never expires</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        Use across all events
+                        <span className="leading-snug">Use across all events</span>
                       </li>
                     </ul>
 
                     <button
                       onClick={() => handleSubscribe(topup.id)}
-                      className="w-full py-3 rounded-lg font-medium transition-all bg-green-700 hover:bg-green-800 text-white"
+                      className="w-full py-3 sm:py-3.5 rounded-lg font-medium text-sm sm:text-base transition-all bg-green-700 hover:bg-green-800 text-white active:bg-green-900 min-h-[48px]"
                     >
                       Buy Credits
                     </button>
