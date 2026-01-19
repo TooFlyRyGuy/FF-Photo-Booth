@@ -15,10 +15,8 @@
   - Set very high limits for admin users (effectively unlimited)
   - Create credits record if it doesn't exist
 
-  ### 3. Create Helper Views
-  - Create view for admin to see all users with their stats
-  - Create view for admin to see all events across users
-  - Create view for admin to see all prompts across users
+  ### 3. Create Admin Helper Function
+  - Create is_current_user_admin() function for RLS policies
 
   ## Security
   - Only users with role='admin' can access admin views
@@ -83,67 +81,11 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 2: Create admin view for all users with stats
+-- STEP 2-4: Admin views (removed - these are dropped in later migrations)
 -- ============================================================================
-
-CREATE OR REPLACE VIEW admin_all_users AS
-SELECT 
-  up.id,
-  up.email,
-  up.full_name,
-  up.role,
-  up.subscription_status,
-  up.subscription_tier_id,
-  up.stripe_customer_id,
-  up.stripe_subscription_id,
-  up.subscription_start_date,
-  up.subscription_end_date,
-  up.created_at,
-  up.updated_at,
-  uc.images_limit,
-  uc.images_used,
-  uc.sms_limit,
-  uc.sms_used,
-  uc.events_limit,
-  uc.reset_date,
-  (SELECT COUNT(*) FROM events WHERE user_id = up.id) as total_events,
-  (SELECT COUNT(*) FROM prompts WHERE user_id = up.id) as total_prompts
-FROM user_profiles up
-LEFT JOIN user_credits uc ON up.id = uc.user_id;
-
--- Grant access to authenticated users (will be filtered by RLS)
-GRANT SELECT ON admin_all_users TO authenticated;
-
--- ============================================================================
--- STEP 3: Create admin view for all events
--- ============================================================================
-
-CREATE OR REPLACE VIEW admin_all_events AS
-SELECT 
-  e.*,
-  up.email as user_email,
-  up.full_name as user_name,
-  (SELECT COUNT(*) FROM generated_images WHERE event_id = e.id) as total_images_generated
-FROM events e
-LEFT JOIN user_profiles up ON e.user_id = up.id;
-
--- Grant access to authenticated users (will be filtered by RLS)
-GRANT SELECT ON admin_all_events TO authenticated;
-
--- ============================================================================
--- STEP 4: Create admin view for all prompts
--- ============================================================================
-
-CREATE OR REPLACE VIEW admin_all_prompts AS
-SELECT 
-  p.*,
-  up.email as user_email,
-  up.full_name as user_name
-FROM prompts p
-LEFT JOIN user_profiles up ON p.user_id = up.id;
-
--- Grant access to authenticated users (will be filtered by RLS)
-GRANT SELECT ON admin_all_prompts TO authenticated;
+-- These view creation statements have been removed as they reference columns
+-- that no longer exist after schema refactoring. The views are properly
+-- removed in migration 20260119041107_remove_security_definer_admin_views.sql
 
 -- ============================================================================
 -- STEP 5: Create function to check if current user is admin
