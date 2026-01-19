@@ -313,43 +313,18 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center overflow-y-auto">
       <div className="bg-white border-0 sm:border-2 sm:border-slate-300 rounded-none sm:rounded-2xl w-full sm:max-w-7xl min-h-screen sm:min-h-0 sm:max-h-[90vh] sm:my-4 overflow-y-auto">
         <div className="p-4 sm:p-6 border-b-2 border-slate-200 sticky top-0 bg-white z-10">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div className="flex-1">
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Choose Your Plan</h2>
               <p className="text-sm sm:text-base text-slate-600 mt-1">Select the perfect plan for your needs</p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3 bg-slate-100 rounded-lg p-1">
-                <button
-                  onClick={() => setBillingCycle('monthly')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    billingCycle === 'monthly'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Monthly
-                </button>
-                <button
-                  onClick={() => setBillingCycle('annual')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    billingCycle === 'annual'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Yearly
-                  <span className="ml-1.5 text-xs text-green-700 font-semibold">Save 15%</span>
-                </button>
-              </div>
-              <button
-                onClick={onClose}
-                className="text-slate-600 hover:text-slate-900 text-2xl w-10 h-10 flex items-center justify-center flex-shrink-0"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 sm:static text-slate-600 hover:text-slate-900 text-2xl w-10 h-10 flex items-center justify-center"
+              aria-label="Close"
+            >
+              ×
+            </button>
           </div>
 
           <div className="flex flex-wrap gap-1 sm:gap-2 mt-4 sm:mt-6 border-b border-slate-200 sm:justify-center">
@@ -403,6 +378,34 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
               </div>
             </button>
           </div>
+
+          {activeTab === 'subscriptions' && (
+            <div className="flex items-center justify-center gap-3 mt-4 sm:mt-6">
+              <div className="flex items-center gap-3 bg-slate-100 rounded-lg p-1">
+                <button
+                  onClick={() => setBillingCycle('monthly')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    billingCycle === 'monthly'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setBillingCycle('annual')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    billingCycle === 'annual'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Yearly
+                  <span className="ml-1.5 text-xs text-green-700 font-semibold">Save 15%</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-4 sm:p-6">
