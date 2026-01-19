@@ -1556,16 +1556,92 @@ export const getGenerationsByDateAndEvent = async (date: string): Promise<EventG
 };
 
 export const getAllUsers = async (): Promise<any[]> => {
-  const { data, error } = await supabase
-    .from('admin_all_users')
-    .select('*')
+  const { data: usersData, error } = await supabase
+    .from('user_profiles')
+    .select(`
+      id,
+      email,
+      full_name,
+      role,
+      subscription_status,
+      subscription_tier_id,
+      stripe_customer_id,
+      stripe_subscription_id,
+      subscription_start_date,
+      subscription_end_date,
+      created_at,
+      updated_at,
+      user_credits (
+        images_limit,
+        images_used,
+        sms_limit,
+        sms_used,
+        events_limit,
+        reset_date
+      )
+    `)
     .order('created_at', { ascending: false });
 
   if (error) {
     throw new Error(`Failed to fetch all users: ${error.message}`);
   }
 
-  return data || [];
+  if (!usersData || usersData.length === 0) {
+    return [];
+  }
+
+  const userIds = usersData.map(u => u.id);
+
+  const { data: eventCounts } = await supabase
+    .from('events')
+    .select('user_id')
+    .in('user_id', userIds);
+
+  const { data: imageCounts } = await supabase
+    .from('generated_images')
+    .select('user_id')
+    .in('user_id', userIds);
+
+  const eventCountMap = new Map<string, number>();
+  eventCounts?.forEach(e => {
+    if (e.user_id) {
+      eventCountMap.set(e.user_id, (eventCountMap.get(e.user_id) || 0) + 1);
+    }
+  });
+
+  const imageCountMap = new Map<string, number>();
+  imageCounts?.forEach(i => {
+    if (i.user_id) {
+      imageCountMap.set(i.user_id, (imageCountMap.get(i.user_id) || 0) + 1);
+    }
+  });
+
+  return usersData.map(user => {
+    const credits = Array.isArray(user.user_credits) ? user.user_credits[0] : user.user_credits;
+
+    return {
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      subscription_status: user.subscription_status,
+      subscription_tier_id: user.subscription_tier_id,
+      stripe_customer_id: user.stripe_customer_id,
+      stripe_subscription_id: user.stripe_subscription_id,
+      subscription_start_date: user.subscription_start_date,
+      subscription_end_date: user.subscription_end_date,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      images_limit: credits?.images_limit || 0,
+      images_used: credits?.images_used || 0,
+      sms_limit: credits?.sms_limit || 0,
+      sms_used: credits?.sms_used || 0,
+      events_limit: credits?.events_limit || 0,
+      reset_date: credits?.reset_date,
+      total_events: eventCountMap.get(user.id) || 0,
+      total_images: imageCountMap.get(user.id) || 0,
+    };
+  });
 };
 
 export const getAllEvents = async (): Promise<Event[]> => {
@@ -1648,26 +1724,51 @@ export const getAllEvents = async (): Promise<Event[]> => {
 
 export const getAllPrompts = async (): Promise<Prompt[]> => {
   const { data, error } = await supabase
-    .from('admin_all_prompts')
-    .select('*')
+    .from('prompts')
+    .select(`
+      id,
+      name,
+      description,
+      category,
+      prompt_text,
+      preview_image_url,
+      reference_image_url,
+      is_active,
+      usage_count,
+      created_at,
+      updated_at,
+      tags,
+      is_public,
+      user_id,
+      user_profiles (
+        email,
+        full_name
+      )
+    `)
     .order('created_at', { ascending: false });
 
   if (error) {
     throw new Error(`Failed to fetch all prompts: ${error.message}`);
   }
 
-  return (data || []).map(p => ({
-    id: p.id,
-    name: p.name,
-    description: p.description || '',
-    previewImage: p.preview_image_url,
-    referenceImage: p.reference_image_url,
-    promptText: p.prompt_text,
-    category: p.category,
-    isPublic: p.is_public || false,
-    userId: p.user_id,
-    tags: p.tags || [],
-  }));
+  return (data || []).map(p => {
+    const userProfile = Array.isArray(p.user_profiles) ? p.user_profiles[0] : p.user_profiles;
+
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.description || '',
+      previewImage: p.preview_image_url,
+      referenceImage: p.reference_image_url,
+      promptText: p.prompt_text,
+      category: p.category,
+      isPublic: p.is_public || false,
+      userId: p.user_id,
+      tags: p.tags || [],
+      userEmail: userProfile?.email,
+      userName: userProfile?.full_name,
+    };
+  });
 };
 
 export const getAdminStats = async (): Promise<any> => {
