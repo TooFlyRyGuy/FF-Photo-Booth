@@ -1,0 +1,15 @@
+/*
+  # Historic Migration - Already Applied
+
+  This migration was previously applied to the remote database.
+  The original migration file was lost or removed during codebase refactoring.
+  This placeholder ensures migration history consistency.
+
+  Migration: remove_unused_compressed_columns
+  Applied: December 27, 2025
+
+  NO CHANGES NEEDED - Database already contains these changes.
+*/
+
+-- Migration already applied to remote database
+SELECT 1;
