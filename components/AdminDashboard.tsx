@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle, Copy } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle, Copy, Crown, Ticket } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -1405,13 +1405,67 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   )}
                 </div>
                 {!concurrentEventLimit.canCreate && (
-                  <div className="mt-3 p-3 bg-white rounded border border-red-200">
-                    <p className="text-sm text-gray-700 font-medium mb-2">Options:</p>
-                    <ul className="text-sm text-gray-600 space-y-1 ml-4 list-disc">
-                      <li>Deactivate an existing event to free up a slot</li>
-                      <li>Upgrade your subscription plan for more concurrent events</li>
-                      <li>Purchase an event pass for time-limited events</li>
-                    </ul>
+                  <div className="mt-3 p-4 bg-white rounded-lg border border-red-200">
+                    <p className="text-sm text-gray-900 font-semibold mb-3">You've reached your event limit. Here are your options:</p>
+
+                    <div className="space-y-3">
+                      {/* Deactivate existing event option */}
+                      <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                        <div className="flex-shrink-0 w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-700 font-semibold text-sm mt-0.5">
+                          1
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700 mb-2">
+                            <span className="font-semibold">Deactivate an existing event</span> to free up a slot
+                          </p>
+                          <button
+                            onClick={() => setActiveTab('events')}
+                            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                          >
+                            <Calendar size={16} />
+                            Manage Events
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Upgrade subscription option */}
+                      <div className="flex items-start gap-3 p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                        <div className="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-semibold text-sm mt-0.5">
+                          2
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700 mb-2">
+                            <span className="font-semibold text-green-800">Upgrade your subscription</span> for more concurrent events and unlimited features
+                          </p>
+                          <button
+                            onClick={() => setShowSubscriptionModal(true)}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+                          >
+                            <Crown size={16} />
+                            View Plans & Upgrade
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Event pass option */}
+                      <div className="flex items-start gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                        <div className="flex-shrink-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm mt-0.5">
+                          3
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700 mb-2">
+                            <span className="font-semibold text-blue-800">Purchase an event pass</span> for time-limited events without affecting your subscription limits
+                          </p>
+                          <button
+                            onClick={() => setShowSubscriptionModal(true)}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+                          >
+                            <Ticket size={16} />
+                            Buy Event Pass
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
