@@ -236,7 +236,14 @@ const Signup: React.FC<SignupProps> = ({ onSuccess, onSwitchToLogin, onBackToLan
         </div>
 
         <p className="text-xs text-slate-500 text-center mt-6">
-          By creating an account, you agree to our Terms of Service and Privacy Policy
+          By creating an account, you agree to our{' '}
+          <a href="/tou.html" target="_blank" rel="noopener noreferrer" className="text-green-700 hover:text-green-800 underline">
+            Terms of Use
+          </a>
+          {' '}and{' '}
+          <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-green-700 hover:text-green-800 underline">
+            Privacy Policy
+          </a>
         </p>
       </div>
     </div>
