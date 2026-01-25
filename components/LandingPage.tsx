@@ -7,15 +7,24 @@ const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       <header className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-        <div className="max-w-6xl mx-auto px-6 py-20 text-center">
-          <div className="mb-8">
+        <div className="max-w-6xl mx-auto px-6 pt-6 pb-4">
+          <div className="flex justify-between items-center">
             <img
               src="/smaller700x200_logo.png"
               alt="Fun Frame Photo"
-              className="h-16 md:h-20 mx-auto mb-8"
+              className="h-12"
             />
+            <div className="flex gap-4">
+              <a href="/pricing.html" className="text-white hover:text-slate-300 font-medium transition-colors hidden sm:block">
+                Pricing
+              </a>
+              <a href={signupUrl} className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-2 rounded-lg transition-all shadow-lg">
+                Sign Up
+              </a>
+            </div>
           </div>
-
+        </div>
+        <div className="max-w-6xl mx-auto px-6 py-16 text-center">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
             Virtual AI Photo Booth
           </h1>
