@@ -32,8 +32,18 @@ Deno.serve(async (req) => {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    const body = await req.text();
-    let event: Stripe.Event;
+    const signature = req.headers.get('stripe-signature');
+
+    if (!signature) {
+      console.error('No Stripe signature found in request headers');
+      return new Response(
+        JSON.stringify({ error: 'No signature found in request' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     if (!stripeWebhookSecret) {
       console.error('CRITICAL: STRIPE_WEBHOOK_SECRET is not configured. Please set it in Supabase project settings.');
@@ -50,30 +60,49 @@ Deno.serve(async (req) => {
       );
     }
 
-    const signature = req.headers.get('stripe-signature');
-
-    if (!signature) {
-      console.error('No Stripe signature found in request headers');
+    // Validate webhook secret format
+    if (!stripeWebhookSecret.startsWith('whsec_')) {
+      console.error(`Invalid STRIPE_WEBHOOK_SECRET format. Expected format: whsec_xxx, Got: ${stripeWebhookSecret.substring(0, 10)}...`);
+      console.error('Please verify you copied the webhook signing secret (not the webhook ID) from Stripe Dashboard > Developers > Webhooks');
       return new Response(
-        JSON.stringify({ error: 'No signature found in request' }),
+        JSON.stringify({
+          error: 'Invalid webhook secret format',
+          message: 'STRIPE_WEBHOOK_SECRET should start with "whsec_". Please verify you copied the correct signing secret from Stripe.'
+        }),
         {
-          status: 400,
+          status: 500,
           headers: { 'Content-Type': 'application/json' }
         }
       );
     }
 
+    const body = await req.text();
+    let event: Stripe.Event;
+
+    console.log('Webhook verification details:');
+    console.log(`- Body length: ${body.length} bytes`);
+    console.log(`- Signature: ${signature.substring(0, 50)}...`);
+    console.log(`- Secret prefix: ${stripeWebhookSecret.substring(0, 10)}...`);
+
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
-      console.log(`Successfully verified webhook event: ${event.type}`);
+      console.log(`✓ Successfully verified webhook event: ${event.type}`);
     } catch (error: any) {
-      console.error(`Webhook signature verification failed: ${error.message}`);
-      console.error(`Signature received: ${signature.substring(0, 50)}...`);
-      console.error(`Webhook secret configured: ${stripeWebhookSecret.substring(0, 10)}...`);
+      console.error(`✗ Webhook signature verification failed: ${error.message}`);
+      console.error('Troubleshooting:');
+      console.error('1. Verify STRIPE_WEBHOOK_SECRET matches the signing secret in Stripe Dashboard');
+      console.error('2. Check that the webhook endpoint URL in Stripe points to this function');
+      console.error('3. Ensure no proxy or firewall is modifying the request body');
+      console.error(`Full error: ${JSON.stringify(error, null, 2)}`);
       return new Response(
         JSON.stringify({
           error: 'Signature verification failed',
-          message: error.message
+          message: error.message,
+          troubleshooting: [
+            'Verify STRIPE_WEBHOOK_SECRET matches the signing secret shown in Stripe Dashboard > Developers > Webhooks',
+            'Ensure the webhook URL in Stripe is correct and points to this function',
+            'Check that no proxy is modifying the request'
+          ]
         }),
         {
           status: 400,
