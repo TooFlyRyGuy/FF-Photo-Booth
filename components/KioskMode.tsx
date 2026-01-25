@@ -1006,6 +1006,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                 <button onClick={resetKiosk} className="text-xs md:text-sm text-slate-600 hover:text-slate-900 py-2">
                   Start Over Now
                 </button>
+
+                <div className="mt-6 pt-6 border-t border-slate-300">
+                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own event?</p>
+                  <a
+                    href="/"
+                    className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
+                  >
+                    Get Your Own Account Now
+                  </a>
+                </div>
              </div>
            ) : (
              <>
@@ -1097,6 +1107,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                 <button onClick={resetKiosk} className="text-center text-xs md:text-base text-slate-600 hover:text-slate-900 active:text-slate-900 py-2">
                     Skip & Start Over
                 </button>
+
+                <div className="mt-6 pt-6 border-t border-slate-300">
+                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own event?</p>
+                  <a
+                    href="/"
+                    className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
+                  >
+                    Get Your Own Account Now
+                  </a>
+                </div>
              </>
            )}
         </div>
