@@ -2,8 +2,17 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
-const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
+const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
+const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+
+if (!stripeSecret) {
+  throw new Error('STRIPE_SECRET_KEY environment variable is not set');
+}
+
+if (!stripeWebhookSecret) {
+  console.error('STRIPE_WEBHOOK_SECRET environment variable is not set');
+}
+
 const stripe = new Stripe(stripeSecret, {
   appInfo: {
     name: 'Bolt Integration',
@@ -23,21 +32,54 @@ Deno.serve(async (req) => {
       return new Response('Method not allowed', { status: 405 });
     }
 
+    const body = await req.text();
+    let event: Stripe.Event;
+
+    if (!stripeWebhookSecret) {
+      console.error('CRITICAL: STRIPE_WEBHOOK_SECRET is not configured. Please set it in Supabase project settings.');
+      console.error('Instructions: https://docs.stripe.com/webhooks/quickstart');
+      return new Response(
+        JSON.stringify({
+          error: 'Webhook secret not configured',
+          message: 'STRIPE_WEBHOOK_SECRET environment variable is missing. Please configure it in Supabase project settings.'
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
-      return new Response('No signature found', { status: 400 });
+      console.error('No Stripe signature found in request headers');
+      return new Response(
+        JSON.stringify({ error: 'No signature found in request' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
-
-    const body = await req.text();
-
-    let event: Stripe.Event;
 
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
+      console.log(`Successfully verified webhook event: ${event.type}`);
     } catch (error: any) {
       console.error(`Webhook signature verification failed: ${error.message}`);
-      return new Response(`Webhook signature verification failed: ${error.message}`, { status: 400 });
+      console.error(`Signature received: ${signature.substring(0, 50)}...`);
+      console.error(`Webhook secret configured: ${stripeWebhookSecret.substring(0, 10)}...`);
+      return new Response(
+        JSON.stringify({
+          error: 'Signature verification failed',
+          message: error.message
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     EdgeRuntime.waitUntil(handleEvent(event));
