@@ -15,8 +15,8 @@ if (!stripeWebhookSecret) {
 
 const stripe = new Stripe(stripeSecret, {
   appInfo: {
-    name: 'Bolt Integration',
-    version: '1.0.0',
+    name: 'FunFrame Photo AI',
+    version: '2.0.0',
   },
 });
 
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
 
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
-      console.log(`✓ Successfully verified webhook event: ${event.type}`);
+      console.log(`✓ Successfully verified webhook event: ${event.type} (${event.id})`);
     } catch (error: any) {
       console.error(`✗ Webhook signature verification failed: ${error.message}`);
       console.error('Troubleshooting:');
@@ -111,42 +111,152 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Log webhook event to database for tracking and debugging
+    await logWebhookEvent(event);
+
+    // Process the event asynchronously
     EdgeRuntime.waitUntil(handleEvent(event));
 
-    return Response.json({ received: true });
+    return Response.json({ received: true, event_id: event.id });
   } catch (error: any) {
     console.error('Error processing webhook:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
 
+async function logWebhookEvent(event: Stripe.Event) {
+  try {
+    const stripeData = event?.data?.object ?? {};
+    const customerId = ('customer' in stripeData) ? stripeData.customer as string : null;
+
+    // Try to find user_id from customer_id
+    let userId = null;
+    if (customerId) {
+      const { data: customer } = await supabase
+        .from('stripe_customers')
+        .select('user_id')
+        .eq('customer_id', customerId)
+        .maybeSingle();
+
+      userId = customer?.user_id || null;
+    }
+
+    // Check if event already exists (for deduplication)
+    const { data: existingEvent } = await supabase
+      .from('webhook_events')
+      .select('id, processing_status')
+      .eq('event_id', event.id)
+      .maybeSingle();
+
+    if (existingEvent) {
+      console.log(`Webhook event ${event.id} already exists with status: ${existingEvent.processing_status}`);
+
+      // If it was failed before, we can retry
+      if (existingEvent.processing_status === 'failed') {
+        await supabase
+          .from('webhook_events')
+          .update({
+            processing_status: 'pending',
+            retry_count: existingEvent.retry_count + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingEvent.id);
+        console.log(`Marking failed event ${event.id} for retry (attempt ${existingEvent.retry_count + 1})`);
+      }
+      return;
+    }
+
+    // Insert new webhook event
+    const { error: insertError } = await supabase
+      .from('webhook_events')
+      .insert({
+        event_id: event.id,
+        event_type: event.type,
+        payload: event as any,
+        processing_status: 'pending',
+        user_id: userId,
+        customer_id: customerId,
+        received_at: new Date().toISOString(),
+        retry_count: 0,
+      });
+
+    if (insertError) {
+      console.error('Error logging webhook event:', insertError);
+      // Don't fail the webhook processing if logging fails
+    } else {
+      console.log(`Successfully logged webhook event ${event.id}`);
+    }
+  } catch (error) {
+    console.error('Error in logWebhookEvent:', error);
+    // Don't fail the webhook processing if logging fails
+  }
+}
+
+async function updateWebhookEventStatus(
+  eventId: string,
+  status: 'processing' | 'completed' | 'failed' | 'skipped',
+  errorMessage?: string
+) {
+  try {
+    const updates: any = {
+      processing_status: status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status === 'processing') {
+      updates.processing_started_at = new Date().toISOString();
+    } else if (status === 'completed' || status === 'failed' || status === 'skipped') {
+      updates.processing_completed_at = new Date().toISOString();
+    }
+
+    if (errorMessage) {
+      updates.error_message = errorMessage;
+    }
+
+    await supabase
+      .from('webhook_events')
+      .update(updates)
+      .eq('event_id', eventId);
+  } catch (error) {
+    console.error('Error updating webhook event status:', error);
+  }
+}
+
 async function handleEvent(event: Stripe.Event) {
-  const stripeData = event?.data?.object ?? {};
+  try {
+    await updateWebhookEventStatus(event.id, 'processing');
 
-  if (!stripeData) {
-    return;
-  }
+    const stripeData = event?.data?.object ?? {};
 
-  if (!('customer' in stripeData)) {
-    return;
-  }
+    if (!stripeData) {
+      await updateWebhookEventStatus(event.id, 'skipped', 'No data in event');
+      return;
+    }
 
-  if (event.type === 'payment_intent.succeeded' && event.data.object.invoice === null) {
-    return;
-  }
+    if (!('customer' in stripeData)) {
+      await updateWebhookEventStatus(event.id, 'skipped', 'No customer in event data');
+      return;
+    }
 
-  const { customer: customerId } = stripeData;
+    // Skip payment intents that are part of a subscription invoice
+    if (event.type === 'payment_intent.succeeded' && event.data.object.invoice !== null) {
+      await updateWebhookEventStatus(event.id, 'skipped', 'Payment intent is part of subscription invoice');
+      return;
+    }
 
-  if (!customerId || typeof customerId !== 'string') {
-    console.error(`No customer received on event: ${JSON.stringify(event)}`);
-  } else {
+    const { customer: customerId } = stripeData;
+
+    if (!customerId || typeof customerId !== 'string') {
+      await updateWebhookEventStatus(event.id, 'failed', `Invalid customer ID: ${JSON.stringify(customerId)}`);
+      console.error(`No valid customer received on event: ${JSON.stringify(event)}`);
+      return;
+    }
+
     let isSubscription = true;
 
     if (event.type === 'checkout.session.completed') {
       const { mode } = stripeData as Stripe.Checkout.Session;
-
       isSubscription = mode === 'subscription';
-
       console.info(`Processing ${isSubscription ? 'subscription' : 'one-time payment'} checkout session`);
     }
 
@@ -155,13 +265,23 @@ async function handleEvent(event: Stripe.Event) {
     if (isSubscription) {
       console.info(`Starting subscription sync for customer: ${customerId}`);
       await syncCustomerFromStripe(customerId);
+      await updateWebhookEventStatus(event.id, 'completed');
     } else if (mode === 'payment' && payment_status === 'paid') {
       try {
         await handleOneTimePayment(stripeData as Stripe.Checkout.Session, customerId);
-      } catch (error) {
+        await updateWebhookEventStatus(event.id, 'completed');
+      } catch (error: any) {
         console.error('Error processing one-time payment:', error);
+        await updateWebhookEventStatus(event.id, 'failed', error.message);
+        throw error;
       }
+    } else {
+      await updateWebhookEventStatus(event.id, 'skipped', `Unhandled event type or payment status: ${event.type}, mode: ${mode}, payment_status: ${payment_status}`);
     }
+  } catch (error: any) {
+    console.error('Error in handleEvent:', error);
+    await updateWebhookEventStatus(event.id, 'failed', error.message);
+    throw error;
   }
 }
 
@@ -176,6 +296,21 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
     metadata,
   } = session;
 
+  console.log(`Processing one-time payment for session: ${checkout_session_id}`);
+  console.log(`Metadata:`, JSON.stringify(metadata, null, 2));
+
+  // Check for duplicate payment processing
+  const { data: existingOrder } = await supabase
+    .from('stripe_orders')
+    .select('id')
+    .eq('checkout_session_id', checkout_session_id)
+    .maybeSingle();
+
+  if (existingOrder) {
+    console.warn(`Order already processed for session ${checkout_session_id}. Skipping duplicate processing.`);
+    return;
+  }
+
   const { data: customer } = await supabase
     .from('stripe_customers')
     .select('user_id')
@@ -183,18 +318,34 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
     .maybeSingle();
 
   if (!customer) {
-    console.error('Customer not found in database');
-    return;
+    throw new Error(`Customer ${customerId} not found in database`);
   }
 
   const userId = customer.user_id;
+  console.log(`Processing payment for user: ${userId}`);
 
+  // Verify user exists in user_profiles
+  const { data: userProfile } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!userProfile) {
+    throw new Error(`User profile not found for user ${userId}`);
+  }
+
+  // Handle Event Pass Purchase
   if (metadata?.purchase_type === 'event_pass') {
+    console.log('Processing event pass purchase...');
     const eventPassId = metadata.event_pass_id || metadata.event_pass_tier_id;
     const eventId = metadata.event_id || null;
     const expirationHours = parseInt(metadata.expiration_hours || '24');
     const smsCredits = parseInt(metadata.sms_credits || '0');
     const creditsAllocated = parseInt(metadata.credits || '0');
+    const promptLimit = parseInt(metadata.prompt_limit || '0');
+
+    console.log(`Event Pass Details: ${creditsAllocated} credits, ${smsCredits} SMS credits, ${expirationHours}h duration`);
 
     // Insert into user_event_passes (the active table)
     const { error: passError } = await supabase
@@ -205,19 +356,19 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
         stripe_payment_id: payment_intent as string,
         credits_allocated: creditsAllocated,
         credits_used: 0,
-        activated_at: null, // Not activated yet - will be activated when user creates event
-        expires_at: null, // Will be set when activated
-        is_active: false, // Not active until activated
-        event_id: null, // Will be set when activated
+        activated_at: null,
+        expires_at: null,
+        is_active: false,
+        event_id: null,
       });
 
     if (passError) {
       console.error('Error creating event pass:', passError);
-      return;
+      throw new Error(`Failed to create event pass: ${passError.message}`);
     }
 
     // Also insert into purchased_event_passes for historical tracking
-    await supabase
+    const { error: purchaseError } = await supabase
       .from('purchased_event_passes')
       .insert({
         user_id: userId,
@@ -228,15 +379,19 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
         credits_used: 0,
         sms_credits_allocated: smsCredits,
         sms_credits_used: 0,
-        prompt_limit: parseInt(metadata.prompt_limit || '0'),
+        prompt_limit: promptLimit,
         prompts_used: 0,
         expires_at: new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString(),
         is_active: true,
       });
 
+    if (purchaseError) {
+      console.error('Error recording purchased event pass:', purchaseError);
+      // Don't throw - this is for historical tracking only
+    }
+
     // Grant image credits from event pass
     if (creditsAllocated > 0) {
-      // Get current credits
       const { data: currentCredits } = await supabase
         .from('user_credits')
         .select('event_credits')
@@ -255,14 +410,31 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
 
       if (creditsError) {
         console.error('Error granting event pass image credits:', creditsError);
-      } else {
-        console.info(`Granted ${creditsAllocated} image credits from event pass to user ${userId}`);
+        throw new Error(`Failed to grant image credits: ${creditsError.message}`);
       }
+
+      // Log to credit ledger
+      const { data: totalCredits } = await supabase.rpc('get_total_credits', { p_user_id: userId });
+
+      await supabase.from('credit_ledger').insert({
+        user_id: userId,
+        source: 'event',
+        amount: creditsAllocated,
+        balance_after: totalCredits || newEventCredits,
+        stripe_session_id: checkout_session_id,
+        stripe_payment_intent_id: payment_intent as string,
+        metadata: {
+          type: 'event_pass',
+          event_pass_id: eventPassId,
+          description: 'Event pass image credits'
+        }
+      });
+
+      console.info(`✓ Granted ${creditsAllocated} image credits from event pass to user ${userId}`);
     }
 
     // Grant SMS credits if included in the event pass
     if (smsCredits > 0) {
-      // Get current SMS credits
       const { data: currentCredits } = await supabase
         .from('user_credits')
         .select('event_sms_credits')
@@ -281,15 +453,54 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
 
       if (smsError) {
         console.error('Error granting event pass SMS credits:', smsError);
-      } else {
-        console.info(`Granted ${smsCredits} SMS credits from event pass to user ${userId}`);
+        throw new Error(`Failed to grant SMS credits: ${smsError.message}`);
       }
+
+      // Log SMS credits to ledger
+      await supabase.from('credit_ledger').insert({
+        user_id: userId,
+        source: 'event',
+        amount: 0,
+        sms_amount: smsCredits,
+        balance_after: 0,
+        sms_balance_after: newSmsCredits,
+        stripe_session_id: checkout_session_id,
+        stripe_payment_intent_id: payment_intent as string,
+        metadata: {
+          type: 'event_pass',
+          event_pass_id: eventPassId,
+          credit_type: 'sms',
+          description: 'Event pass SMS credits'
+        }
+      });
+
+      console.info(`✓ Granted ${smsCredits} SMS credits from event pass to user ${userId}`);
     }
 
-    console.info(`Successfully created event pass for user ${userId}`);
-  } else if (metadata?.purchase_type === 'credit_topup' || metadata?.type === 'credit_topup') {
+    console.info(`✓ Successfully created event pass for user ${userId}`);
+  }
+  // Handle Credit Top-Up Purchase
+  else if (metadata?.purchase_type === 'credit_topup' || metadata?.type === 'credit_topup') {
+    console.log('Processing credit top-up purchase...');
     const creditsGranted = parseInt(metadata.credits_granted || metadata.credits || '0');
     const smsCreditsGranted = parseInt(metadata.sms_credits_granted || metadata.sms_credits || '0');
+
+    console.log(`Credit Top-Up Details: ${creditsGranted} image credits, ${smsCreditsGranted} SMS credits`);
+
+    // Check for duplicate credit grants using payment_intent_id
+    if (payment_intent) {
+      const { data: existingLedger } = await supabase
+        .from('credit_ledger')
+        .select('id')
+        .eq('stripe_payment_intent_id', payment_intent as string)
+        .eq('source', 'credit_pack')
+        .maybeSingle();
+
+      if (existingLedger) {
+        console.warn(`Credits already granted for payment_intent ${payment_intent}. Skipping duplicate grant.`);
+        return;
+      }
+    }
 
     // Add image credits
     if (creditsGranted > 0) {
@@ -302,10 +513,10 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
 
       if (creditError) {
         console.error('Error adding purchased credits:', creditError);
-        return;
+        throw new Error(`Failed to add purchased credits: ${creditError.message}`);
       }
 
-      console.info(`Successfully added ${creditsGranted} purchased credits for user ${userId}`);
+      console.info(`✓ Successfully added ${creditsGranted} purchased credits for user ${userId}`);
     }
 
     // Add SMS credits
@@ -319,13 +530,16 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
 
       if (smsError) {
         console.error('Error adding purchased SMS credits:', smsError);
-        return;
+        throw new Error(`Failed to add purchased SMS credits: ${smsError.message}`);
       }
 
-      console.info(`Successfully added ${smsCreditsGranted} purchased SMS credits for user ${userId}`);
+      console.info(`✓ Successfully added ${smsCreditsGranted} purchased SMS credits for user ${userId}`);
     }
+  } else {
+    console.warn(`Unknown purchase type in metadata: ${JSON.stringify(metadata)}`);
   }
 
+  // Record the order
   const { error: orderError } = await supabase.from('stripe_orders').insert({
     checkout_session_id,
     payment_intent_id: payment_intent,
@@ -339,14 +553,16 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
 
   if (orderError) {
     console.error('Error inserting order:', orderError);
-    return;
+    // Don't throw - order recording is for tracking only
   }
 
-  console.info(`Successfully processed one-time payment for session: ${checkout_session_id}`);
+  console.info(`✓ Successfully processed one-time payment for session: ${checkout_session_id}`);
 }
 
 async function syncCustomerFromStripe(customerId: string) {
   try {
+    console.log(`Syncing customer ${customerId} from Stripe...`);
+
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       limit: 1,
@@ -361,8 +577,7 @@ async function syncCustomerFromStripe(customerId: string) {
       .maybeSingle();
 
     if (!customer) {
-      console.error('Customer not found in database');
-      return;
+      throw new Error(`Customer ${customerId} not found in database`);
     }
 
     const userId = customer.user_id;
@@ -372,7 +587,7 @@ async function syncCustomerFromStripe(customerId: string) {
       const { error: noSubError } = await supabase.from('stripe_subscriptions').upsert(
         {
           customer_id: customerId,
-          subscription_status: 'not_started',
+          status: 'not_started',
         },
         {
           onConflict: 'customer_id',
@@ -389,17 +604,24 @@ async function syncCustomerFromStripe(customerId: string) {
     const subscription = subscriptions.data[0];
     const priceId = subscription.items.data[0].price.id;
 
+    console.log(`Found subscription ${subscription.id} with price ${priceId}, status: ${subscription.status}`);
+
     const { data: tier } = await supabase
       .from('subscription_tiers_new')
       .select('*')
       .eq('stripe_price_id', priceId)
       .maybeSingle();
 
-    if (tier) {
+    if (!tier) {
+      console.warn(`No tier found for price ${priceId}. Syncing subscription status only.`);
+    } else {
       const isActive = subscription.status === 'active' || subscription.status === 'trialing';
       const currentPeriodStart = new Date(subscription.current_period_start * 1000);
       const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
+      console.log(`Tier found: ${tier.name}, Active: ${isActive}`);
+
+      // Update user_subscriptions table
       const { error: userSubError } = await supabase
         .from('user_subscriptions')
         .upsert({
@@ -417,12 +639,13 @@ async function syncCustomerFromStripe(customerId: string) {
 
       if (userSubError) {
         console.error('Error updating user subscription:', userSubError);
+        throw new Error(`Failed to update user subscription: ${userSubError.message}`);
       }
 
       if (isActive) {
         const isAnnual = tier.billing_period === 'annual';
 
-        // Reset subscription credits (NO ROLLOVER) and grant new period credits
+        // Reset subscription credits and grant new period credits
         const { error: creditsError } = await supabase
           .from('user_credits')
           .update({
@@ -441,9 +664,28 @@ async function syncCustomerFromStripe(customerId: string) {
 
         if (creditsError) {
           console.error('Error updating user credits:', creditsError);
-        } else {
-          console.info(`Granted ${tier.credits_per_period} image credits and ${tier.sms_credits_per_period || 0} SMS credits for subscription renewal`);
+          throw new Error(`Failed to update user credits: ${creditsError.message}`);
         }
+
+        // Log subscription credit allocation
+        const { data: totalCredits } = await supabase.rpc('get_total_credits', { p_user_id: userId });
+
+        await supabase.from('credit_ledger').insert({
+          user_id: userId,
+          source: 'subscription',
+          amount: tier.credits_per_period,
+          sms_amount: tier.sms_credits_per_period || 0,
+          balance_after: totalCredits || tier.credits_per_period,
+          sms_balance_after: tier.sms_credits_per_period || 0,
+          metadata: {
+            tier: tier.name,
+            billing_period: tier.billing_period,
+            subscription_id: subscription.id,
+            description: `${tier.name} subscription credits`
+          }
+        });
+
+        console.info(`✓ Granted ${tier.credits_per_period} image credits and ${tier.sms_credits_per_period || 0} SMS credits for subscription`);
 
         // Update user_profiles with subscription tier
         const { error: profileError } = await supabase
@@ -459,14 +701,16 @@ async function syncCustomerFromStripe(customerId: string) {
 
         if (profileError) {
           console.error('Error updating user profile:', profileError);
-        } else {
-          console.info(`Updated user profile with tier ${tier.name}`);
+          throw new Error(`Failed to update user profile: ${profileError.message}`);
         }
+
+        console.info(`✓ Updated user profile with tier ${tier.name}`);
       }
 
-      console.info(`Successfully synced subscription for user ${userId} with tier ${tier.name}`);
+      console.info(`✓ Successfully synced subscription for user ${userId} with tier ${tier.name}`);
     }
 
+    // Update stripe_subscriptions table
     const { error: subError } = await supabase.from('stripe_subscriptions').upsert(
       {
         customer_id: customerId,
@@ -493,8 +737,8 @@ async function syncCustomerFromStripe(customerId: string) {
       throw new Error('Failed to sync subscription in database');
     }
 
-    console.info(`Successfully synced subscription for customer: ${customerId}`);
-  } catch (error) {
+    console.info(`✓ Successfully synced subscription for customer: ${customerId}`);
+  } catch (error: any) {
     console.error(`Failed to sync subscription for customer ${customerId}:`, error);
     throw error;
   }
