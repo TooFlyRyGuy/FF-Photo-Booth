@@ -1426,14 +1426,6 @@ END;
 $function$
 ;
 
-grant delete on table "public"."stripe_customers" to "ryanrobertlee@gmail.com";
-
-grant insert on table "public"."stripe_customers" to "ryanrobertlee@gmail.com";
-
-grant select on table "public"."stripe_customers" to "ryanrobertlee@gmail.com";
-
-grant update on table "public"."stripe_customers" to "ryanrobertlee@gmail.com";
-
 
   create policy "Anyone can view active add-ons"
   on "public"."add_ons"
