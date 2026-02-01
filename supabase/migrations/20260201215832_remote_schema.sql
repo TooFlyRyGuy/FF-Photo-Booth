@@ -1479,8 +1479,6 @@ using (true);
 using (((is_active = true) OR ( SELECT public.user_is_admin() AS user_is_admin)));
 
 
-CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
 
   create policy "Authenticated users can delete prompt images"
   on "storage"."objects"
