@@ -144,7 +144,7 @@ async function logWebhookEvent(event: Stripe.Event) {
     // Check if event already exists (for deduplication)
     const { data: existingEvent } = await supabase
       .from('webhook_events')
-      .select('id, processing_status')
+      .select('id, processing_status, retry_count')
       .eq('event_id', event.id)
       .maybeSingle();
 
@@ -157,11 +157,11 @@ async function logWebhookEvent(event: Stripe.Event) {
           .from('webhook_events')
           .update({
             processing_status: 'pending',
-            retry_count: existingEvent.retry_count + 1,
+            retry_count: (existingEvent.retry_count || 0) + 1,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existingEvent.id);
-        console.log(`Marking failed event ${event.id} for retry (attempt ${existingEvent.retry_count + 1})`);
+        console.log(`Marking failed event ${event.id} for retry (attempt ${(existingEvent.retry_count || 0) + 1})`);
       }
       return;
     }
