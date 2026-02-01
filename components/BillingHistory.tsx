@@ -24,6 +24,16 @@ interface CreditLedgerEntry {
   created_at: string;
 }
 
+interface UserSubscription {
+  id: string;
+  subscription_id: string;
+  status: string;
+  current_period_end: string;
+  subscription_tier_id: string;
+  cancel_at_period_end: boolean;
+  tier_name?: string;
+}
+
 interface BillingHistoryProps {
   userId: string;
 }
@@ -31,8 +41,10 @@ interface BillingHistoryProps {
 const BillingHistory: React.FC<BillingHistoryProps> = ({ userId }) => {
   const [orders, setOrders] = useState<StripeOrder[]>([]);
   const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [canceling, setCanceling] = useState(false);
 
   useEffect(() => {
     loadBillingData();
@@ -70,11 +82,80 @@ const BillingHistory: React.FC<BillingHistoryProps> = ({ userId }) => {
 
       if (ledgerError) throw ledgerError;
       setLedger(ledgerData || []);
+
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from('user_subscriptions')
+        .select(`
+          id,
+          subscription_id,
+          status,
+          current_period_end,
+          subscription_tier_id,
+          cancel_at_period_end,
+          subscription_tiers_new!inner(name)
+        `)
+        .eq('user_id', userId)
+        .in('status', ['active', 'trialing'])
+        .maybeSingle();
+
+      if (subscriptionError && subscriptionError.code !== 'PGRST116') {
+        console.error('Error loading subscription:', subscriptionError);
+      }
+
+      if (subscriptionData) {
+        setSubscription({
+          ...subscriptionData,
+          tier_name: (subscriptionData as any).subscription_tiers_new?.name
+        });
+      }
     } catch (err: any) {
       console.error('Error loading billing data:', err);
       setError(err.message || 'Failed to load billing history');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!subscription) return;
+
+    const confirmMessage = subscription.cancel_at_period_end
+      ? 'Your subscription is already scheduled to cancel at the end of the billing period.'
+      : 'Are you sure you want to cancel your subscription? You will retain access until the end of your billing period.';
+
+    if (subscription.cancel_at_period_end || !window.confirm(confirmMessage)) return;
+
+    setCanceling(true);
+    setError('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cancel-subscription`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to cancel subscription');
+      }
+
+      await loadBillingData();
+      alert('Your subscription has been cancelled. You will retain access until the end of your billing period.');
+    } catch (err: any) {
+      console.error('Error cancelling subscription:', err);
+      setError(err.message || 'Failed to cancel subscription');
+      alert(`Failed to cancel subscription: ${err.message}`);
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -298,6 +379,24 @@ const BillingHistory: React.FC<BillingHistoryProps> = ({ userId }) => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {subscription && (
+        <div className="mt-12 pt-8 border-t border-slate-100">
+          <div className="flex justify-center">
+            <button
+              onClick={handleCancelSubscription}
+              disabled={canceling || subscription.cancel_at_period_end}
+              className="text-[10px] text-slate-400 hover:text-slate-500 disabled:text-slate-300 disabled:cursor-not-allowed transition-colors px-2 py-1"
+            >
+              {canceling
+                ? 'Processing...'
+                : subscription.cancel_at_period_end
+                ? `Subscription ends ${formatDate(subscription.current_period_end)}`
+                : 'Cancel subscription'}
+            </button>
+          </div>
         </div>
       )}
     </div>
