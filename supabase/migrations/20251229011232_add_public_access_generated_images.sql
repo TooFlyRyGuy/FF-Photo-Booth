@@ -16,6 +16,17 @@
     - Anonymous users cannot read other users' images
 */
 
+-- Ensure user_id exists before altering it
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'generated_images' AND column_name = 'user_id'
+  ) THEN
+    ALTER TABLE generated_images ADD COLUMN user_id uuid REFERENCES auth.users(id);
+  END IF;
+END $$;
+
 -- Update generated_images table to allow null user_id
 ALTER TABLE generated_images ALTER COLUMN user_id DROP NOT NULL;
 
