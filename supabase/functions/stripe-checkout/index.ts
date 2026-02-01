@@ -188,13 +188,34 @@ Deno.serve(async (req) => {
 
         const product = price.product as Stripe.Product;
 
+        // Check if this is a credit topup product
         if (product.metadata?.type === 'credit_topup') {
           sessionMetadata = {
             ...sessionMetadata,
+            purchase_type: 'credit_topup',
             type: 'credit_topup',
             credits_granted: product.metadata.credits_granted || '0',
+            sms_credits_granted: product.metadata.sms_credits_granted || '0',
             expires: product.metadata.expires || 'never',
           };
+        } else {
+          // Check credit_topup_products table for credit amounts
+          const { data: topupProduct } = await supabase
+            .from('credit_topup_products')
+            .select('credits, sms_credits')
+            .eq('stripe_price_id', price_id)
+            .maybeSingle();
+
+          if (topupProduct) {
+            sessionMetadata = {
+              ...sessionMetadata,
+              purchase_type: 'credit_topup',
+              type: 'credit_topup',
+              credits_granted: topupProduct.credits.toString(),
+              sms_credits_granted: (topupProduct.sms_credits || 0).toString(),
+              expires: 'never',
+            };
+          }
         }
       } catch (error) {
         console.error('Failed to fetch price metadata:', error);
