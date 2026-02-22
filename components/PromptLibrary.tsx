@@ -560,8 +560,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         throw new Error(`Failed to fetch settings: ${error.message}`);
       }
 
-      if (!settings?.gemini_api_key) {
-        throw new Error('Gemini API key not configured. Please add it in Settings.');
+      if (!settings?.gemini_enabled) {
+        throw new Error('Gemini AI is not enabled. Please enable it in Settings.');
       }
 
       const referenceImage = testReferenceImage || testingPrompt.referenceImage || undefined;
@@ -569,7 +569,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       const generatedImage = await generateBoothImage(
         testSourceImage,
         testingPrompt.promptText,
-        settings.gemini_api_key,
         referenceImage,
         'square',
         settings.gemini_model || 'gemini-3-pro-image-preview',

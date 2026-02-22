@@ -205,20 +205,17 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         return;
       }
 
-      if (!globalSettings?.geminiEnabled || !globalSettings?.geminiApiKey) {
+      if (!globalSettings?.geminiEnabled) {
         setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
         setView('camera');
         return;
       }
 
-      const geminiApiKey = globalSettings.geminiApiKey;
-
       // 1. Generate with Gemini
-      console.log('🔑 Gemini API Key Check:', {
-        hasKey: !!geminiApiKey,
-        keyLength: geminiApiKey?.length,
-        keyPrefix: geminiApiKey?.substring(0, 5),
+      console.log('🎨 Starting Gemini image generation...', {
         geminiEnabled: globalSettings.geminiEnabled,
+        model: globalSettings.geminiModel,
+        resolution: globalSettings.geminiResolution,
       });
 
       let referenceImageBase64 = selectedPrompt.referenceImage;
@@ -230,7 +227,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       let genImage = await generateBoothImage(
         capturedImage,
         selectedPrompt.promptText,
-        geminiApiKey,
         referenceImageBase64,
         event.aspectRatio,
         globalSettings.geminiModel,
@@ -465,8 +461,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           getGlobalSettings(true)
         ]);
         console.log('⚙️ Settings loaded:', {
-          hasGeminiKey: !!globalSettingsData.geminiApiKey,
-          geminiKeyLength: globalSettingsData.geminiApiKey?.length,
           geminiEnabled: globalSettingsData.geminiEnabled,
           geminiModel: globalSettingsData.geminiModel,
           geminiResolution: globalSettingsData.geminiResolution,
