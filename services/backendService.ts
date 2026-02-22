@@ -403,11 +403,26 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
   }
 
   console.log('🔍 Fetching global settings from database...');
-  const { data, error } = await supabase
+
+  // Try to fetch from global_settings table first (admin access)
+  let { data, error } = await supabase
     .from('global_settings')
     .select('*')
     .limit(1)
     .maybeSingle();
+
+  // If access denied (non-admin user), fetch from public view
+  if (error && error.code === 'PGRST116') {
+    console.log('🔓 Fetching non-sensitive settings from public view...');
+    const publicResult = await supabase
+      .from('public_global_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
+
+    data = publicResult.data;
+    error = publicResult.error;
+  }
 
   if (error) {
     console.error('❌ Failed to fetch global settings:', error);
@@ -426,9 +441,8 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
   }
 
   console.log('✅ Global settings fetched successfully:', {
-    hasGeminiKey: !!data.gemini_api_key,
     geminiEnabled: data.gemini_enabled,
-    geminiKeyLength: data.gemini_api_key?.length
+    hasGeminiKey: !!data.gemini_api_key,
   });
 
   const settings: GlobalSettings = {
