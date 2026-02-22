@@ -411,10 +411,14 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     .limit(1)
     .maybeSingle();
 
-  // If access denied (non-admin user), fetch from public view
-  // Common RLS denial codes: PGRST116, 42501
-  if (error && (error.code === 'PGRST116' || error.code === '42501' || error.message?.includes('permission denied'))) {
-    console.log('🔓 Fetching non-sensitive settings from public view...');
+  // If no data returned (RLS denied access silently) or error, try public view
+  if (!data || error) {
+    if (error) {
+      console.log('🔓 Error accessing global_settings, trying public view...', error.code);
+    } else {
+      console.log('🔓 No data from global_settings (likely RLS), trying public view...');
+    }
+
     const publicResult = await supabase
       .from('public_global_settings')
       .select('*')
@@ -433,23 +437,7 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
       details: error.details,
       hint: error.hint
     });
-
-    // If we still have an error, try the public view as a last resort
-    console.log('🔄 Attempting public view as fallback...');
-    const fallbackResult = await supabase
-      .from('public_global_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-
-    if (fallbackResult.data) {
-      data = fallbackResult.data;
-      error = null;
-      console.log('✅ Fallback successful, got settings from public view');
-    } else {
-      console.error('❌ Fallback also failed:', fallbackResult.error);
-      return {};
-    }
+    return {};
   }
 
   if (!data) {
