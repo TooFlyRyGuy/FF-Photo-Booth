@@ -63,23 +63,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Fetch global settings using RPC to bypass RLS
+    // Fetch global settings to get the Gemini API key
     const settingsResponse = await fetch(
-      `${supabaseUrl}/rest/v1/rpc/get_gemini_settings`,
+      `${supabaseUrl}/rest/v1/global_settings?select=gemini_api_key,gemini_enabled,gemini_model,gemini_resolution&limit=1`,
       {
-        method: 'POST',
         headers: {
           'apikey': supabaseServiceKey,
           'Authorization': `Bearer ${supabaseServiceKey}`,
-          'Content-Type': 'application/json',
         }
       }
     );
 
     if (!settingsResponse.ok) {
       const errorText = await settingsResponse.text();
-      console.error('Failed to fetch global settings:', errorText);
-      throw new Error('Failed to fetch global settings');
+      console.error('Failed to fetch global settings:', settingsResponse.status, errorText);
+      throw new Error(`Failed to fetch global settings: ${settingsResponse.status}`);
     }
 
     const settings = await settingsResponse.json();
