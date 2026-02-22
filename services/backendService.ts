@@ -459,7 +459,7 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     twilioEnabled: data.twilio_enabled || false,
     geminiApiKey: data.gemini_api_key,
     geminiEnabled: data.gemini_enabled || false,
-    geminiModel: data.gemini_model || 'gemini-3-pro-image-preview',
+    geminiModel: data.gemini_model || 'gemini-2.5-flash-image',
     geminiResolution: data.gemini_resolution || '1K',
     smugmugOauthToken: data.smugmug_oauth_token,
     smugmugOauthTokenSecret: data.smugmug_oauth_token_secret,

@@ -145,19 +145,16 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const model = modelName || 'gemini-3-pro-image-preview';
+    const model = modelName || 'gemini-2.5-flash-image';
     const geminiAspectRatio = mapAspectRatioToGemini(aspectRatio);
-    const geminiResolution = resolution || '1K';
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
 
-    // Construct prompt
-    let finalPrompt = `
-      Transform the person in the first image into the following style: ${promptTemplate}.
-      Maintain the person's facial features and identity strictly, but change the clothing, background, and artistic style to match the description.
-      CRITICAL: The output image MUST be in ${aspectRatioSpec}. The composition must fit this exact aspect ratio.
-      High quality, photorealistic or stylized as requested.
-    `;
+    // Construct prompt for Gemini image editing
+    let finalPrompt = `Transform the person in this photo into the following style: ${promptTemplate}. `;
+    finalPrompt += `Maintain the person's facial features and identity, but change the clothing, background, and artistic style to match the description. `;
+    finalPrompt += `Output format: ${aspectRatioSpec}.`;
 
+    // Build parts array for multimodal request
     const parts: GeminiPart[] = [
       {
         inlineData: {
@@ -167,7 +164,7 @@ Deno.serve(async (req: Request) => {
       }
     ];
 
-    // If a reference style image exists, add it to the request
+    // Add reference image if provided
     if (cleanRefBase64) {
       parts.push({
         inlineData: {
@@ -175,12 +172,16 @@ Deno.serve(async (req: Request) => {
           data: cleanRefBase64
         }
       });
-      finalPrompt += " Use the second image as a strict style reference for color palette, lighting, and composition.";
+      finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
     }
 
     parts.push({ text: finalPrompt });
 
-    // Call Gemini API
+    console.log('Calling Gemini API with model:', model);
+    console.log('Aspect ratio:', geminiAspectRatio);
+    console.log('Prompt:', finalPrompt);
+
+    // Call Gemini API for image editing
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
@@ -194,8 +195,8 @@ Deno.serve(async (req: Request) => {
             parts: parts
           }],
           generationConfig: {
-            aspectRatio: geminiAspectRatio,
-            resolution: geminiResolution
+            responseModalities: ["image"],
+            aspectRatio: geminiAspectRatio
           }
         })
       }
