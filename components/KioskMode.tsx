@@ -206,6 +206,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       }
 
       if (!globalSettings?.geminiEnabled) {
+        console.error('❌ Gemini check failed:', {
+          globalSettings,
+          geminiEnabled: globalSettings?.geminiEnabled,
+          hasGlobalSettings: !!globalSettings
+        });
         setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
         setView('camera');
         return;
