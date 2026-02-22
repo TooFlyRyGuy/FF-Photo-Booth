@@ -49,7 +49,7 @@ const Settings: React.FC<SettingsProps> = ({
   // Gemini states (global, admin only)
   const [geminiApiKey, setGeminiApiKey] = useState(maskValue(globalSettings.geminiApiKey));
   const [geminiEnabled, setGeminiEnabled] = useState(globalSettings.geminiEnabled || false);
-  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-2.5-flash-image');
+  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
   const [geminiResolution, setGeminiResolution] = useState<'1K' | '2K' | '4K'>(globalSettings.geminiResolution || '1K');
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [geminiKeyChanged, setGeminiKeyChanged] = useState(false);
@@ -74,7 +74,7 @@ const Settings: React.FC<SettingsProps> = ({
     setTwilioPhone(globalSettings.twilioPhoneNumber || '');
     setTwilioEnabled(globalSettings.twilioEnabled || false);
     setGeminiEnabled(globalSettings.geminiEnabled || false);
-    setGeminiModel(globalSettings.geminiModel || 'gemini-2.5-flash-image');
+    setGeminiModel(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
     setGeminiResolution(globalSettings.geminiResolution || '1K');
 
     if (!showTwilioToken) {
@@ -596,8 +596,8 @@ const Settings: React.FC<SettingsProps> = ({
                   onChange={(e) => setGeminiModel(e.target.value)}
                   className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
                 >
-                  <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Recommended)</option>
-                  <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (High Quality)</option>
+                  <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Recommended)</option>
+                  <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Fast)</option>
                 </select>
                 <p className="text-xs text-slate-600 mt-2">
                   Select which Gemini model to use for AI image generation
