@@ -35,11 +35,27 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { imageUrl, displayName }: UploadRequest = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const { imageUrl, displayName }: UploadRequest = body;
+
+    console.log("Received upload request:", { imageUrl: imageUrl ? "present" : "missing", displayName });
 
     if (!imageUrl) {
       return new Response(
-        JSON.stringify({ error: "imageUrl is required" }),
+        JSON.stringify({ error: "imageUrl is required - No file found in request." }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
