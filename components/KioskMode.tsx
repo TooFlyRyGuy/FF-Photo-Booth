@@ -278,8 +278,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       setFinalImage(genImage);
 
-      // 2 & 3. Upload images in parallel (non-blocking for UI)
+      // 2 & 3. Upload images in parallel
       const uploadPromises: Promise<any>[] = [];
+      const backgroundPromises: Promise<any>[] = [];
       let generatedUrl = genImage;
       let originalUrl = capturedImage;
       let uploadedGeneratedToSmugMug = false;
@@ -287,34 +288,37 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-      // Upload generated image to SmugMug (parallel with compression)
+      // Upload generated image to SmugMug (MUST wait for SMS)
+      let smugmugGeneratedPromise: Promise<any> | null = null;
       if (event.smugmugGalleryKey) {
         const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
-        uploadPromises.push(
-          (async () => {
-            const compressedImage = await compressForUpload(genImage);
-            return uploadToSmugMug(
-              event.smugmugGalleryKey,
-              compressedImage,
-              fileName,
-              import.meta.env.VITE_SUPABASE_ANON_KEY
-            );
-          })()
-            .then((result) => {
-              generatedUrl = result.imageUrl;
-              uploadedGeneratedToSmugMug = true;
-              console.log('Uploaded generated to SmugMug:', generatedUrl);
-            })
-            .catch((smugmugErr) => {
-              console.error('SmugMug upload failed for generated:', smugmugErr);
-            })
-        );
+        smugmugGeneratedPromise = (async () => {
+          const compressedImage = await compressForUpload(genImage);
+          return uploadToSmugMug(
+            event.smugmugGalleryKey,
+            compressedImage,
+            fileName,
+            import.meta.env.VITE_SUPABASE_ANON_KEY
+          );
+        })()
+          .then((result) => {
+            generatedUrl = result.imageUrl;
+            uploadedGeneratedToSmugMug = true;
+            console.log('✅ Uploaded generated to SmugMug:', generatedUrl);
+            setGeneratedImageUrl(result.imageUrl);
+            return result;
+          })
+          .catch((smugmugErr) => {
+            console.error('SmugMug upload failed for generated:', smugmugErr);
+            throw smugmugErr;
+          });
+        uploadPromises.push(smugmugGeneratedPromise);
       }
 
-      // Upload original image to SmugMug (parallel with compression)
+      // Upload original image to SmugMug (background, not needed for SMS)
       if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
         const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
-        uploadPromises.push(
+        backgroundPromises.push(
           (async () => {
             const compressedOriginal = await compressForUpload(capturedImage);
             return uploadToSmugMug(
@@ -327,7 +331,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             .then((originalResult) => {
               originalUrl = originalResult.imageUrl;
               uploadedOriginalToSmugMug = true;
-              console.log('Uploaded original to SmugMug:', originalUrl);
+              console.log('✅ Uploaded original to SmugMug:', originalUrl);
             })
             .catch((smugmugOrigErr) => {
               console.error('SmugMug upload failed for original:', smugmugOrigErr);
@@ -335,32 +339,37 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         );
       }
 
-      // Upload generated to Dropbox (parallel)
+      // Upload generated to Dropbox (fallback if no SmugMug)
       if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
-        uploadPromises.push(
-          uploadImageToDropbox({
-            userId: event.userId,
-            eventId: event.id,
-            eventName: event.name,
-            imageBase64: genImage,
-            imageType: 'generated',
-            promptName: selectedPrompt.name,
+        const dropboxPromise = uploadImageToDropbox({
+          userId: event.userId,
+          eventId: event.id,
+          eventName: event.name,
+          imageBase64: genImage,
+          imageType: 'generated',
+          promptName: selectedPrompt.name,
+        })
+          .then((dropboxUrl) => {
+            if (!uploadedGeneratedToSmugMug) {
+              generatedUrl = dropboxUrl;
+              setGeneratedImageUrl(dropboxUrl);
+            }
+            console.log('✅ Uploaded generated to Dropbox:', dropboxUrl);
           })
-            .then((dropboxUrl) => {
-              if (!uploadedGeneratedToSmugMug) {
-                generatedUrl = dropboxUrl;
-              }
-              console.log('Uploaded generated to Dropbox:', dropboxUrl);
-            })
-            .catch((dropboxErr) => {
-              console.error('Dropbox upload failed for generated:', dropboxErr);
-            })
-        );
+          .catch((dropboxErr) => {
+            console.error('Dropbox upload failed for generated:', dropboxErr);
+          });
+
+        if (!event.smugmugGalleryKey) {
+          uploadPromises.push(dropboxPromise);
+        } else {
+          backgroundPromises.push(dropboxPromise);
+        }
       }
 
-      // Upload original to Dropbox (parallel)
+      // Upload original to Dropbox (background)
       if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
-        uploadPromises.push(
+        backgroundPromises.push(
           uploadImageToDropbox({
             userId: event.userId,
             eventId: event.id,
@@ -373,7 +382,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
               if (!uploadedOriginalToSmugMug) {
                 originalUrl = dropboxOrigUrl;
               }
-              console.log('Uploaded original to Dropbox:', dropboxOrigUrl);
+              console.log('✅ Uploaded original to Dropbox:', dropboxOrigUrl);
             })
             .catch((dropboxErr) => {
               console.error('Dropbox upload failed for original:', dropboxErr);
@@ -381,7 +390,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         );
       }
 
-      // Show image to user immediately while uploads continue in background
+      // Save analytics record
       const imageId = await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
@@ -396,17 +405,30 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         console.error('Failed to consume credit, but image was generated');
       }
 
-      setGeneratedImageUrl(generatedUrl);
       setGeneratedImageId(imageId);
+      setFinalImage(genImage);
+
+      // Show image immediately
+      if (!event.smugmugGalleryKey && !userSettings?.dropboxEnabled) {
+        setGeneratedImageUrl(genImage);
+      }
+
       setView('result');
 
-      // Wait for all uploads to complete in background
+      // Wait ONLY for critical uploads needed for SMS
       if (uploadPromises.length > 0) {
-        console.log(`⏳ Waiting for ${uploadPromises.length} parallel uploads to complete...`);
-        Promise.allSettled(uploadPromises).then((results) => {
+        console.log(`⏳ Waiting for ${uploadPromises.length} critical upload(s) for SMS...`);
+        await Promise.allSettled(uploadPromises);
+        console.log('✅ Critical uploads complete, SMS ready');
+      }
+
+      // Background uploads continue without blocking
+      if (backgroundPromises.length > 0) {
+        console.log(`📤 ${backgroundPromises.length} background upload(s) continuing...`);
+        Promise.allSettled(backgroundPromises).then((results) => {
           const succeeded = results.filter(r => r.status === 'fulfilled').length;
           const failed = results.filter(r => r.status === 'rejected').length;
-          console.log(`✅ Uploads complete: ${succeeded} succeeded, ${failed} failed`);
+          console.log(`✅ Background uploads complete: ${succeeded} succeeded, ${failed} failed`);
         });
       }
     } catch (err: any) {
@@ -1138,10 +1160,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
                     <button
                         onClick={handleSendSms}
-                        disabled={isSending || phoneNumber.length < 3}
+                        disabled={isSending || phoneNumber.length < 3 || !generatedImageUrl}
                         className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
+                        {!generatedImageUrl ? 'Preparing link...' : isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
                     </button>
                   </>
                 )}
