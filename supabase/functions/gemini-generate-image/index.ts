@@ -196,7 +196,10 @@ Deno.serve(async (req: Request) => {
           }],
           generationConfig: {
             responseModalities: ["image"],
-            aspectRatio: geminiAspectRatio
+            imageConfig: {
+              aspectRatio: geminiAspectRatio,
+              imageSize: resolution || '2K'
+            }
           }
         })
       }
