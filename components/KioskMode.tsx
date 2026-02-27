@@ -9,6 +9,7 @@ import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
 import { uploadImageWithRetry } from '../services/storageService';
+import { compressForUpload } from '../services/imageCompression';
 
 interface KioskProps {
   event: Event;
@@ -277,99 +278,115 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       setFinalImage(genImage);
 
-      // 2. Upload generated image to SmugMug and/or Dropbox
+      // 2 & 3. Upload images in parallel (non-blocking for UI)
+      const uploadPromises: Promise<any>[] = [];
       let generatedUrl = genImage;
+      let originalUrl = capturedImage;
       let uploadedGeneratedToSmugMug = false;
+      let uploadedOriginalToSmugMug = false;
 
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+      // Upload generated image to SmugMug (parallel with compression)
       if (event.smugmugGalleryKey) {
-        try {
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
-
-          const result = await uploadToSmugMug(
-            event.smugmugGalleryKey,
-            genImage,
-            fileName,
-            import.meta.env.VITE_SUPABASE_ANON_KEY
-          );
-
-          generatedUrl = result.imageUrl;
-          uploadedGeneratedToSmugMug = true;
-          console.log('Uploaded generated to SmugMug:', generatedUrl);
-        } catch (smugmugErr) {
-          console.error('SmugMug upload failed for generated:', smugmugErr);
-        }
+        const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
+        uploadPromises.push(
+          (async () => {
+            const compressedImage = await compressForUpload(genImage);
+            return uploadToSmugMug(
+              event.smugmugGalleryKey,
+              compressedImage,
+              fileName,
+              import.meta.env.VITE_SUPABASE_ANON_KEY
+            );
+          })()
+            .then((result) => {
+              generatedUrl = result.imageUrl;
+              uploadedGeneratedToSmugMug = true;
+              console.log('Uploaded generated to SmugMug:', generatedUrl);
+            })
+            .catch((smugmugErr) => {
+              console.error('SmugMug upload failed for generated:', smugmugErr);
+            })
+        );
       }
 
+      // Upload original image to SmugMug (parallel with compression)
+      if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
+        const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
+        uploadPromises.push(
+          (async () => {
+            const compressedOriginal = await compressForUpload(capturedImage);
+            return uploadToSmugMug(
+              event.smugmugGalleryKey,
+              compressedOriginal,
+              originalFileName,
+              import.meta.env.VITE_SUPABASE_ANON_KEY
+            );
+          })()
+            .then((originalResult) => {
+              originalUrl = originalResult.imageUrl;
+              uploadedOriginalToSmugMug = true;
+              console.log('Uploaded original to SmugMug:', originalUrl);
+            })
+            .catch((smugmugOrigErr) => {
+              console.error('SmugMug upload failed for original:', smugmugOrigErr);
+            })
+        );
+      }
+
+      // Upload generated to Dropbox (parallel)
       if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
-        try {
-          const dropboxUrl = await uploadImageToDropbox({
+        uploadPromises.push(
+          uploadImageToDropbox({
             userId: event.userId,
             eventId: event.id,
             eventName: event.name,
             imageBase64: genImage,
             imageType: 'generated',
             promptName: selectedPrompt.name,
-          });
-          if (!uploadedGeneratedToSmugMug) {
-            generatedUrl = dropboxUrl;
-          }
-          console.log('Uploaded generated to Dropbox:', dropboxUrl);
-        } catch (dropboxErr) {
-          console.error('Dropbox upload failed for generated:', dropboxErr);
-        }
+          })
+            .then((dropboxUrl) => {
+              if (!uploadedGeneratedToSmugMug) {
+                generatedUrl = dropboxUrl;
+              }
+              console.log('Uploaded generated to Dropbox:', dropboxUrl);
+            })
+            .catch((dropboxErr) => {
+              console.error('Dropbox upload failed for generated:', dropboxErr);
+            })
+        );
       }
 
-      // 3. Upload original image to SmugMug gallery if enabled
-      let originalUrl = capturedImage;
-      let uploadedOriginalToSmugMug = false;
-
-      if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
-        try {
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
-
-          const originalResult = await uploadToSmugMug(
-            event.smugmugGalleryKey,
-            capturedImage,
-            originalFileName,
-            import.meta.env.VITE_SUPABASE_ANON_KEY
-          );
-
-          originalUrl = originalResult.imageUrl;
-          uploadedOriginalToSmugMug = true;
-          console.log('Uploaded original to SmugMug:', originalUrl);
-        } catch (smugmugOrigErr) {
-          console.error('SmugMug upload failed for original:', smugmugOrigErr);
-        }
-      }
-
-      // 4. Upload original to Dropbox if enabled
+      // Upload original to Dropbox (parallel)
       if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
-        try {
-          const dropboxOrigUrl = await uploadImageToDropbox({
+        uploadPromises.push(
+          uploadImageToDropbox({
             userId: event.userId,
             eventId: event.id,
             eventName: event.name,
             imageBase64: capturedImage,
             imageType: 'original',
             promptName: selectedPrompt.name,
-          });
-          if (!uploadedOriginalToSmugMug) {
-            originalUrl = dropboxOrigUrl;
-          }
-          console.log('Uploaded original to Dropbox:', dropboxOrigUrl);
-        } catch (dropboxErr) {
-          console.error('Dropbox upload failed for original:', dropboxErr);
-        }
+          })
+            .then((dropboxOrigUrl) => {
+              if (!uploadedOriginalToSmugMug) {
+                originalUrl = dropboxOrigUrl;
+              }
+              console.log('Uploaded original to Dropbox:', dropboxOrigUrl);
+            })
+            .catch((dropboxErr) => {
+              console.error('Dropbox upload failed for original:', dropboxErr);
+            })
+        );
       }
 
-      // 5. Save analytics record to database (URLs stored in SmugMug/Dropbox only)
+      // Show image to user immediately while uploads continue in background
       const imageId = await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
-        null, // originalUrl - stored in SmugMug/Dropbox, not database
-        null, // generatedUrl - stored in SmugMug/Dropbox, not database
+        null,
+        null,
         null,
         'completed'
       );
@@ -382,6 +399,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       setGeneratedImageUrl(generatedUrl);
       setGeneratedImageId(imageId);
       setView('result');
+
+      // Wait for all uploads to complete in background
+      if (uploadPromises.length > 0) {
+        console.log(`⏳ Waiting for ${uploadPromises.length} parallel uploads to complete...`);
+        Promise.allSettled(uploadPromises).then((results) => {
+          const succeeded = results.filter(r => r.status === 'fulfilled').length;
+          const failed = results.filter(r => r.status === 'rejected').length;
+          console.log(`✅ Uploads complete: ${succeeded} succeeded, ${failed} failed`);
+        });
+      }
     } catch (err: any) {
       setErrorMsg(err.message || "AI Generation Failed");
       setView('review');
