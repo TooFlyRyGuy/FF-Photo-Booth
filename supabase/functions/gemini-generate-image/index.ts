@@ -135,9 +135,11 @@ Deno.serve(async (req: Request) => {
 
       console.log(`Image downloaded, size: ${imageBuffer.byteLength} bytes, type: ${mimeType}`);
 
-      // Upload directly to Gemini File API
-      const fileName = `image-${Date.now()}`;
-      const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${gemini_api_key}`;
+      // Upload directly to Gemini File API using resumable upload
+      const fileName = `image-${Date.now()}.jpg`;
+
+      // Step 1: Initiate resumable upload
+      const initiateUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${gemini_api_key}`;
 
       const metadata = {
         file: {
@@ -145,45 +147,49 @@ Deno.serve(async (req: Request) => {
         },
       };
 
-      const boundary = "----WebKitFormBoundary" + Math.random().toString(36).substring(2);
-      const encoder = new TextEncoder();
-      const bodyParts: Uint8Array[] = [];
-
-      bodyParts.push(encoder.encode(`--${boundary}\r\n`));
-      bodyParts.push(encoder.encode('Content-Type: application/json; charset=UTF-8\r\n\r\n'));
-      bodyParts.push(encoder.encode(JSON.stringify(metadata)));
-      bodyParts.push(encoder.encode('\r\n'));
-
-      bodyParts.push(encoder.encode(`--${boundary}\r\n`));
-      bodyParts.push(encoder.encode(`Content-Type: ${mimeType}\r\n\r\n`));
-      bodyParts.push(new Uint8Array(imageBuffer));
-      bodyParts.push(encoder.encode('\r\n'));
-
-      bodyParts.push(encoder.encode(`--${boundary}--\r\n`));
-
-      const totalLength = bodyParts.reduce((sum, part) => sum + part.length, 0);
-      const body = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const part of bodyParts) {
-        body.set(part, offset);
-        offset += part.length;
-      }
-
-      const geminiUploadResponse = await fetch(uploadUrl, {
+      const initiateResponse = await fetch(initiateUrl, {
         method: "POST",
         headers: {
-          "Content-Type": `multipart/related; boundary=${boundary}`,
+          "X-Goog-Upload-Protocol": "resumable",
+          "X-Goog-Upload-Command": "start",
+          "X-Goog-Upload-Header-Content-Length": imageBuffer.byteLength.toString(),
+          "X-Goog-Upload-Header-Content-Type": mimeType,
+          "Content-Type": "application/json",
         },
-        body: body,
+        body: JSON.stringify(metadata),
       });
 
-      if (!geminiUploadResponse.ok) {
-        const errorText = await geminiUploadResponse.text();
-        console.error("Gemini File API error:", errorText);
-        throw new Error(`Gemini File API error: ${geminiUploadResponse.statusText} - ${errorText}`);
+      if (!initiateResponse.ok) {
+        const errorText = await initiateResponse.text();
+        console.error("Gemini File API initiate error:", errorText);
+        throw new Error(`Gemini File API initiate error: ${initiateResponse.statusText} - ${errorText}`);
       }
 
-      const result = await geminiUploadResponse.json();
+      const uploadUrl = initiateResponse.headers.get("X-Goog-Upload-URL");
+      if (!uploadUrl) {
+        throw new Error("No upload URL returned from Gemini API");
+      }
+
+      console.log(`Upload URL received, uploading file data...`);
+
+      // Step 2: Upload the actual file data
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "Content-Length": imageBuffer.byteLength.toString(),
+          "X-Goog-Upload-Offset": "0",
+          "X-Goog-Upload-Command": "upload, finalize",
+        },
+        body: new Uint8Array(imageBuffer),
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error("Gemini File API upload error:", errorText);
+        throw new Error(`Gemini File API upload error: ${uploadResponse.statusText} - ${errorText}`);
+      }
+
+      const result = await uploadResponse.json();
       console.log(`File uploaded successfully: ${result.file.uri}`);
 
       return result.file.uri;
