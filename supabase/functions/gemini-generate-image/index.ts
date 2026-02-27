@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
       throw new Error('Global settings not found');
     }
 
-    const { gemini_api_key, gemini_enabled } = settings[0];
+    const { gemini_api_key, gemini_enabled, gemini_model, gemini_resolution } = settings[0];
 
     if (!gemini_enabled) {
       return new Response(
@@ -145,7 +145,8 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const model = modelName || 'gemini-3.1-flash-image-preview';
+    const model = modelName || gemini_model || 'gemini-3.1-flash-image-preview';
+    const imageResolution = resolution || gemini_resolution || '2K';
     const geminiAspectRatio = mapAspectRatioToGemini(aspectRatio);
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
 
@@ -198,7 +199,7 @@ Deno.serve(async (req: Request) => {
             responseModalities: ["image"],
             imageConfig: {
               aspectRatio: geminiAspectRatio,
-              imageSize: resolution || '2K'
+              imageSize: imageResolution
             }
           }
         })

@@ -597,6 +597,7 @@ const Settings: React.FC<SettingsProps> = ({
                   className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
                 >
                   <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Recommended)</option>
+                  <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image (Fast)</option>
                   <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Fast)</option>
                 </select>
                 <p className="text-xs text-slate-600 mt-2">
