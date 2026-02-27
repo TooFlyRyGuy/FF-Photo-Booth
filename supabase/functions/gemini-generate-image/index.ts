@@ -119,24 +119,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Helper function to upload image URL to Gemini File API
-    async function uploadUrlToGemini(url: string): Promise<string> {
-      const uploadResponse = await fetch(`${supabaseUrl}/functions/v1/gemini-file-upload`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authHeader,
-        },
-        body: JSON.stringify({ imageUrl: url }),
-      });
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Failed to upload to Gemini: ${errorText}`);
+    // Helper function to convert image URL to base64
+    async function urlToBase64(url: string): Promise<string> {
+      console.log(`Downloading image from URL: ${url}`);
+      const imageResponse = await fetch(url);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to download image: ${imageResponse.statusText}`);
       }
 
-      const uploadResult = await uploadResponse.json();
-      return uploadResult.fileUri;
+      const imageBlob = await imageResponse.blob();
+      const imageBuffer = await imageBlob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+      console.log(`Image converted to base64, size: ${base64.length} chars`);
+      return base64;
     }
 
     // Sanitize base64 strings (for backward compatibility)
@@ -190,20 +185,12 @@ Deno.serve(async (req: Request) => {
     // Build parts array for multimodal request
     const parts: GeminiPart[] = [];
 
-    // Add original image - prioritize fileUri > URL > base64
+    // Add original image - prioritize fileUri > base64 > URL
     if (imageFileUri) {
       parts.push({
         fileData: {
           mimeType: 'image/jpeg',
           fileUri: imageFileUri
-        }
-      });
-    } else if (imageUrl) {
-      const fileUri = await uploadUrlToGemini(imageUrl);
-      parts.push({
-        fileData: {
-          mimeType: 'image/jpeg',
-          fileUri: fileUri
         }
       });
     } else if (cleanBase64) {
@@ -213,9 +200,17 @@ Deno.serve(async (req: Request) => {
           data: cleanBase64
         }
       });
+    } else if (imageUrl) {
+      const base64Data = await urlToBase64(imageUrl);
+      parts.push({
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: base64Data
+        }
+      });
     }
 
-    // Add reference image if provided - prioritize fileUri > URL > base64
+    // Add reference image if provided - prioritize fileUri > base64 > URL
     if (referenceFileUri) {
       parts.push({
         fileData: {
@@ -224,20 +219,20 @@ Deno.serve(async (req: Request) => {
         }
       });
       finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
-    } else if (referenceImageUrl) {
-      const fileUri = await uploadUrlToGemini(referenceImageUrl);
-      parts.push({
-        fileData: {
-          mimeType: 'image/jpeg',
-          fileUri: fileUri
-        }
-      });
-      finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
     } else if (cleanRefBase64) {
       parts.push({
         inlineData: {
           mimeType: 'image/jpeg',
           data: cleanRefBase64
+        }
+      });
+      finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
+    } else if (referenceImageUrl) {
+      const base64Data = await urlToBase64(referenceImageUrl);
+      parts.push({
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: base64Data
         }
       });
       finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
