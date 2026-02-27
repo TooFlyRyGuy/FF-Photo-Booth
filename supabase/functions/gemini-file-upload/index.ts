@@ -47,17 +47,53 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!geminiApiKey) {
-      console.error("GEMINI_API_KEY not configured");
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    const settingsResponse = await fetch(
+      `${supabaseUrl}/rest/v1/global_settings?select=gemini_api_key,gemini_enabled&limit=1`,
+      {
+        headers: {
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        }
+      }
+    );
+
+    if (!settingsResponse.ok) {
+      const errorText = await settingsResponse.text();
+      console.error('Failed to fetch global settings:', settingsResponse.status, errorText);
+      throw new Error(`Failed to fetch global settings: ${settingsResponse.status}`);
+    }
+
+    const settings = await settingsResponse.json();
+    if (!settings || settings.length === 0) {
+      throw new Error('Global settings not found');
+    }
+
+    const { gemini_api_key, gemini_enabled } = settings[0];
+
+    if (!gemini_enabled) {
       return new Response(
-        JSON.stringify({ error: "Gemini API not configured" }),
+        JSON.stringify({ error: 'Gemini AI is currently disabled' }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (!gemini_api_key || gemini_api_key.trim() === '') {
+      return new Response(
+        JSON.stringify({ error: 'Gemini API Key not configured. Please contact administrator.' }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
+
+    const geminiApiKey = gemini_api_key;
 
     console.log(`Downloading image from: ${imageUrl}`);
     const imageResponse = await fetch(imageUrl);
