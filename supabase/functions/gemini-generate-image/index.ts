@@ -145,7 +145,7 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const model = modelName || 'gemini-3-pro-image-preview';
+    const model = modelName || 'gemini-3.1-pro-preview';
     const geminiAspectRatio = mapAspectRatioToGemini(aspectRatio);
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
 
