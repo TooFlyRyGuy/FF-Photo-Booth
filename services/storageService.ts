@@ -169,7 +169,8 @@ export async function uploadImageWithRetry(
     lastError = result.error;
 
     if (attempt < maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      const delay = Math.min(250 * Math.pow(2, attempt - 1), 2000);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 

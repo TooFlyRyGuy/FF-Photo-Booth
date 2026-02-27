@@ -22,6 +22,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [view, setView] = useState<KioskState>('attract');
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImageBlob, setCapturedImageBlob] = useState<Blob | null>(null);
   const [capturedImageStorageUrl, setCapturedImageStorageUrl] = useState<string | null>(null);
   const [finalImage, setFinalImage] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
@@ -39,6 +40,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [isCheckingCredits, setIsCheckingCredits] = useState(false);
 
   const checkEventTimeStatus = useCallback(() => {
     const now = new Date();
@@ -73,12 +75,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       return;
     }
 
-    const creditCheck = await checkCreditAvailability(event.userId, 'image');
+    setIsCheckingCredits(true);
 
-    if (!creditCheck.available) {
-      setView('no-credits');
-    } else {
-      setView('prompt-select');
+    try {
+      const creditCheck = await checkCreditAvailability(event.userId, 'image');
+
+      if (!creditCheck.available) {
+        setView('no-credits');
+      } else {
+        setView('prompt-select');
+      }
+    } finally {
+      setIsCheckingCredits(false);
     }
   };
 
@@ -177,6 +185,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
             if (blob) {
               const dataUrl = URL.createObjectURL(blob);
               setCapturedImage(dataUrl);
+              setCapturedImageBlob(blob);
               setView('review');
               stopCamera();
             }
@@ -209,14 +218,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         return;
       }
 
-      const creditCheck = await checkCreditAvailability(event.userId);
-
-      if (!creditCheck.available) {
-        setErrorMsg(creditCheck.reason || 'No credits available. Please upgrade your plan or purchase more credits.');
-        setView('camera');
-        return;
-      }
-
       if (!globalSettings?.geminiEnabled) {
         console.error('❌ Gemini check failed:', {
           globalSettings,
@@ -235,8 +236,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       let uploadedImageUrl = capturedImageStorageUrl;
 
       if (!uploadedImageUrl) {
-        const blob = await fetch(capturedImage).then(r => r.blob());
-        const uploadResult = await uploadImageWithRetry(blob, 'booth-captures');
+        if (!capturedImageBlob) {
+          throw new Error('No image blob available for upload');
+        }
+
+        const uploadResult = await uploadImageWithRetry(capturedImageBlob, 'booth-captures');
 
         if (uploadResult.error) {
           throw new Error(`Failed to upload image: ${uploadResult.error}`);
@@ -546,7 +550,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         console.log('🔄 Loading settings for event:', event.id, 'userId:', event.userId);
         const [userSettingsData, globalSettingsData] = await Promise.all([
           getUserSettingsByUserId(event.userId),
-          getGlobalSettings(true)
+          getGlobalSettings()
         ]);
         console.log('⚙️ Settings loaded:', {
           geminiEnabled: globalSettingsData.geminiEnabled,
@@ -733,14 +737,23 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </div>
         )}
 
-        <div className="z-10 text-center space-y-4 md:space-y-6 animate-bounce px-4">
-          <h1
-            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold"
-            style={{ color: colors.secondary }}
-          >
-            TAP TO START
-          </h1>
-          <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
+        <div className="z-10 text-center space-y-4 md:space-y-6 px-4">
+          {isCheckingCredits ? (
+            <>
+              <div className="animate-spin rounded-full h-16 w-16 md:h-24 md:w-24 border-b-4 mx-auto" style={{ borderColor: colors.secondary }}></div>
+              <p className="text-xl md:text-3xl text-slate-900 font-light">Checking credits...</p>
+            </>
+          ) : (
+            <>
+              <h1
+                className="text-4xl md:text-6xl lg:text-8xl font-display font-bold animate-bounce"
+                style={{ color: colors.secondary }}
+              >
+                TAP TO START
+              </h1>
+              <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
+            </>
+          )}
         </div>
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
