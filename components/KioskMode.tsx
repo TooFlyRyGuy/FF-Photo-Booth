@@ -1007,7 +1007,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                 </button>
 
                 <div className="mt-6 pt-6 border-t border-slate-300">
-                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own event?</p>
+                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own prompts and events?</p>
                   <a
                     href="/"
                     className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
@@ -1108,7 +1108,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                 </button>
 
                 <div className="mt-6 pt-6 border-t border-slate-300">
-                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own event?</p>
+                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own prompts and events?</p>
                   <a
                     href="/"
                     className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
