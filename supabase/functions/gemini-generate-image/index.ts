@@ -7,9 +7,13 @@ const corsHeaders = {
 };
 
 interface GenerateImageRequest {
-  imageBase64: string;
+  imageBase64?: string;
+  imageUrl?: string;
+  imageFileUri?: string;
   promptTemplate: string;
   referenceImageBase64?: string;
+  referenceImageUrl?: string;
+  referenceFileUri?: string;
   aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | 'square';
   modelName?: string;
   resolution?: '1K' | '2K' | '4K';
@@ -19,6 +23,10 @@ interface GeminiPart {
   inlineData?: {
     mimeType: string;
     data: string;
+  };
+  fileData?: {
+    mimeType: string;
+    fileUri: string;
   };
   text?: string;
 }
@@ -45,17 +53,21 @@ Deno.serve(async (req: Request) => {
     // Parse request body
     const {
       imageBase64,
+      imageUrl,
+      imageFileUri,
       promptTemplate,
       referenceImageBase64,
+      referenceImageUrl,
+      referenceFileUri,
       aspectRatio,
       modelName,
       resolution
     }: GenerateImageRequest = await req.json();
 
     // Validate required parameters
-    if (!imageBase64 || !promptTemplate) {
+    if ((!imageBase64 && !imageUrl && !imageFileUri) || !promptTemplate) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters: imageBase64 and promptTemplate' }),
+        JSON.stringify({ error: 'Missing required parameters: (imageBase64, imageUrl, or imageFileUri) and promptTemplate' }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -107,8 +119,28 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Sanitize base64 strings
-    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+    // Helper function to upload image URL to Gemini File API
+    async function uploadUrlToGemini(url: string): Promise<string> {
+      const uploadResponse = await fetch(`${supabaseUrl}/functions/v1/gemini-file-upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader,
+        },
+        body: JSON.stringify({ imageUrl: url }),
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Failed to upload to Gemini: ${errorText}`);
+      }
+
+      const uploadResult = await uploadResponse.json();
+      return uploadResult.fileUri;
+    }
+
+    // Sanitize base64 strings (for backward compatibility)
+    const cleanBase64 = imageBase64?.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
     const cleanRefBase64 = referenceImageBase64?.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
     // Map AspectRatio to Gemini API format
@@ -156,17 +188,52 @@ Deno.serve(async (req: Request) => {
     finalPrompt += `Output format: ${aspectRatioSpec}.`;
 
     // Build parts array for multimodal request
-    const parts: GeminiPart[] = [
-      {
+    const parts: GeminiPart[] = [];
+
+    // Add original image - prioritize fileUri > URL > base64
+    if (imageFileUri) {
+      parts.push({
+        fileData: {
+          mimeType: 'image/jpeg',
+          fileUri: imageFileUri
+        }
+      });
+    } else if (imageUrl) {
+      const fileUri = await uploadUrlToGemini(imageUrl);
+      parts.push({
+        fileData: {
+          mimeType: 'image/jpeg',
+          fileUri: fileUri
+        }
+      });
+    } else if (cleanBase64) {
+      parts.push({
         inlineData: {
           mimeType: 'image/jpeg',
           data: cleanBase64
         }
-      }
-    ];
+      });
+    }
 
-    // Add reference image if provided
-    if (cleanRefBase64) {
+    // Add reference image if provided - prioritize fileUri > URL > base64
+    if (referenceFileUri) {
+      parts.push({
+        fileData: {
+          mimeType: 'image/jpeg',
+          fileUri: referenceFileUri
+        }
+      });
+      finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
+    } else if (referenceImageUrl) {
+      const fileUri = await uploadUrlToGemini(referenceImageUrl);
+      parts.push({
+        fileData: {
+          mimeType: 'image/jpeg',
+          fileUri: fileUri
+        }
+      });
+      finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
+    } else if (cleanRefBase64) {
       parts.push({
         inlineData: {
           mimeType: 'image/jpeg',

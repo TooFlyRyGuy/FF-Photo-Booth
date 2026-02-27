@@ -8,6 +8,7 @@ import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
+import { uploadImageWithRetry } from '../services/storageService';
 
 interface KioskProps {
   event: Event;
@@ -20,6 +21,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [view, setView] = useState<KioskState>('attract');
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImageStorageUrl, setCapturedImageStorageUrl] = useState<string | null>(null);
   const [finalImage, setFinalImage] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generatedImageId, setGeneratedImageId] = useState<string | null>(null);
@@ -30,6 +32,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
   const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
   const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -168,10 +171,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           0, 0, canvas.width, canvas.height
         );
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        setCapturedImage(dataUrl);
-        setView('review');
-        stopCamera();
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const dataUrl = URL.createObjectURL(blob);
+              setCapturedImage(dataUrl);
+              setView('review');
+              stopCamera();
+            }
+          },
+          'image/jpeg',
+          0.9
+        );
       }
     }
   };
@@ -216,27 +227,45 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         return;
       }
 
-      // 1. Generate with Gemini
+      // 1. Upload captured image to Supabase Storage
+      setUploadProgress('Uploading image...');
+      console.log('📤 Uploading captured image to storage...');
+
+      let uploadedImageUrl = capturedImageStorageUrl;
+
+      if (!uploadedImageUrl) {
+        const blob = await fetch(capturedImage).then(r => r.blob());
+        const uploadResult = await uploadImageWithRetry(blob, 'booth-captures');
+
+        if (uploadResult.error) {
+          throw new Error(`Failed to upload image: ${uploadResult.error}`);
+        }
+
+        uploadedImageUrl = uploadResult.url;
+        setCapturedImageStorageUrl(uploadedImageUrl);
+        console.log('✅ Image uploaded to storage:', uploadedImageUrl);
+      }
+
+      // 2. Generate with Gemini using URL
+      setUploadProgress('Generating AI image...');
       console.log('🎨 Starting Gemini image generation...', {
         geminiEnabled: globalSettings.geminiEnabled,
         model: globalSettings.geminiModel,
         resolution: globalSettings.geminiResolution,
       });
 
-      let referenceImageBase64 = selectedPrompt.referenceImage;
-      if (referenceImageBase64 && referenceImageBase64.startsWith('http')) {
-        console.log('Converting reference image URL to base64...');
-        referenceImageBase64 = await convertImageUrlToBase64(referenceImageBase64);
-      }
+      let referenceImageUrl = selectedPrompt.referenceImage;
 
       let genImage = await generateBoothImage(
-        capturedImage,
+        uploadedImageUrl,
         selectedPrompt.promptText,
-        referenceImageBase64,
+        referenceImageUrl,
         event.aspectRatio,
         globalSettings.geminiModel,
         globalSettings.geminiResolution
       );
+
+      setUploadProgress('');
 
       if (event.overlayImageUrl) {
         try {
@@ -386,11 +415,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   const resetKiosk = () => {
     setView('attract');
+    if (capturedImage && capturedImage.startsWith('blob:')) {
+      URL.revokeObjectURL(capturedImage);
+    }
     setCapturedImage(null);
+    setCapturedImageStorageUrl(null);
     setFinalImage(null);
     setGeneratedImageUrl(null);
     setSelectedPrompt(null);
     setPhoneNumber('');
+    setUploadProgress('');
     stopCamera();
   };
 
@@ -903,7 +937,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </div>
         </div>
         <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>Creating Magic...</h2>
-        <p className="text-sm md:text-base text-slate-600 text-center">Applying {selectedPrompt?.name} style</p>
+        <p className="text-sm md:text-base text-slate-600 text-center">
+          {uploadProgress || `Applying ${selectedPrompt?.name} style`}
+        </p>
       </div>
     );
   }

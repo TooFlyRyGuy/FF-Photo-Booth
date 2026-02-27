@@ -3,24 +3,40 @@ import { resizeImageToAspectRatio } from './imageUtils';
 import { supabase } from '../lib/supabase';
 
 export const generateBoothImage = async (
-  imageBase64: string,
+  imageUrlOrBase64: string,
   promptTemplate: string,
-  referenceImageBase64?: string,
+  referenceImageUrlOrBase64?: string,
   aspectRatio?: AspectRatio,
   modelName?: string,
   resolution?: '1K' | '2K' | '4K'
 ): Promise<string> => {
   try {
-    // Call the Supabase Edge Function to generate the image
-    const { data, error } = await supabase.functions.invoke('gemini-generate-image', {
-      body: {
-        imageBase64,
-        promptTemplate,
-        referenceImageBase64,
-        aspectRatio,
-        modelName,
-        resolution
+    const isImageUrl = imageUrlOrBase64.startsWith('http://') || imageUrlOrBase64.startsWith('https://');
+    const isReferenceUrl = referenceImageUrlOrBase64?.startsWith('http://') || referenceImageUrlOrBase64?.startsWith('https://');
+
+    const body: any = {
+      promptTemplate,
+      aspectRatio,
+      modelName,
+      resolution
+    };
+
+    if (isImageUrl) {
+      body.imageUrl = imageUrlOrBase64;
+    } else {
+      body.imageBase64 = imageUrlOrBase64;
+    }
+
+    if (referenceImageUrlOrBase64) {
+      if (isReferenceUrl) {
+        body.referenceImageUrl = referenceImageUrlOrBase64;
+      } else {
+        body.referenceImageBase64 = referenceImageUrlOrBase64;
       }
+    }
+
+    const { data, error } = await supabase.functions.invoke('gemini-generate-image', {
+      body
     });
 
     if (error) {
