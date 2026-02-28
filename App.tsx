@@ -14,11 +14,11 @@ const MarketingPage = lazy(() => import('./components/MarketingPage'));
 
 type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'marketing' | 'loading';
 
-const LoadingSpinner: React.FC = () => (
+const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
   <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center">
     <div className="text-center space-y-4">
       <div className="w-16 h-16 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto"></div>
-      <p className="text-slate-900 text-xl">Loading...</p>
+      <p className="text-slate-900 text-xl">{message}</p>
     </div>
   </div>
 );
@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState('');
   const [eventCode, setEventCode] = useState('');
+  const [isLoadingKiosk, setIsLoadingKiosk] = useState(false);
 
   return (
     <>
@@ -44,6 +45,8 @@ const App: React.FC = () => {
         setError={setError}
         eventCode={eventCode}
         setEventCode={setEventCode}
+        isLoadingKiosk={isLoadingKiosk}
+        setIsLoadingKiosk={setIsLoadingKiosk}
       />
     </>
   );
@@ -60,6 +63,8 @@ interface AppContentProps {
   setError: (error: string) => void;
   eventCode: string;
   setEventCode: (code: string) => void;
+  isLoadingKiosk: boolean;
+  setIsLoadingKiosk: (loading: boolean) => void;
 }
 
 const AppContent: React.FC<AppContentProps> = ({
@@ -72,10 +77,13 @@ const AppContent: React.FC<AppContentProps> = ({
   error,
   setError,
   eventCode,
-  setEventCode
+  setEventCode,
+  isLoadingKiosk,
+  setIsLoadingKiosk
 }) => {
 
   const launchKiosk = (event: Event) => {
+    setIsLoadingKiosk(true);
     setActiveEvent(event);
     setView('kiosk');
   };
@@ -91,16 +99,19 @@ const AppContent: React.FC<AppContentProps> = ({
     }
 
     setError('');
+    setIsLoadingKiosk(true);
     try {
       const event = await getEventByPasscode(eventCode.trim());
       if (event) {
         launchKiosk(event);
       } else {
         setError('Invalid event code. Please try again.');
+        setIsLoadingKiosk(false);
       }
     } catch (err) {
       console.error('Error loading event:', err);
       setError('Failed to load event. Please try again.');
+      setIsLoadingKiosk(false);
     }
   };
 
@@ -223,10 +234,19 @@ const AppContent: React.FC<AppContentProps> = ({
   // 1. KIOSK MODE
   if (view === 'kiosk' && activeEvent) {
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <KioskMode event={activeEvent} onExit={exitKiosk} />
+      <Suspense fallback={<LoadingSpinner message="Loading Event..." />}>
+        <KioskMode
+          event={activeEvent}
+          onExit={exitKiosk}
+          onLoaded={() => setIsLoadingKiosk(false)}
+        />
       </Suspense>
     );
+  }
+
+  // LOADING KIOSK
+  if (isLoadingKiosk) {
+    return <LoadingSpinner message="Loading Event..." />;
   }
 
   // 2. ADMIN MODE

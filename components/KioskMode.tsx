@@ -14,11 +14,12 @@ import { compressForUpload } from '../services/imageCompression';
 interface KioskProps {
   event: Event;
   onExit: () => void;
+  onLoaded?: () => void;
 }
 
 type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits';
 
-const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
+const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [view, setView] = useState<KioskState>('attract');
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -559,13 +560,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         });
         setUserSettings(userSettingsData);
         setGlobalSettings(globalSettingsData);
+        onLoaded?.();
       } catch (err) {
         console.error('❌ Failed to load settings:', err);
         setErrorMsg('Failed to load configuration. Please contact support.');
+        onLoaded?.();
       }
     };
     loadSettings();
-  }, [event.userId]);
+  }, [event.userId, onLoaded]);
 
   // Handle cleanup on unmount
   useEffect(() => {
