@@ -1,15 +1,16 @@
 import React, { useEffect } from 'react';
 
-const TidioWidget: React.FC = () => {
-  useEffect(() => {
-    // Hide Tidio in kiosk mode or when ?kiosk= parameter is present
-    const urlParams = new URLSearchParams(window.location.search);
-    const isKioskMode = urlParams.has('kiosk');
-    const hasCheckoutParam = urlParams.has('checkout');
+interface TidioWidgetProps {
+  disabled?: boolean;
+}
 
-    if (isKioskMode) {
-      console.log('[TidioWidget] Kiosk mode detected - hiding Tidio');
-      // Hide Tidio widget
+const TidioWidget: React.FC<TidioWidgetProps> = ({ disabled = false }) => {
+  useEffect(() => {
+    // If disabled (kiosk mode), don't load Tidio at all
+    if (disabled) {
+      console.log('[TidioWidget] Disabled in kiosk mode - not loading Tidio');
+
+      // Hide and remove any existing Tidio elements
       const style = document.createElement('style');
       style.id = 'tidio-hide-style';
       style.innerHTML = `
@@ -24,13 +25,16 @@ const TidioWidget: React.FC = () => {
       document.head.appendChild(style);
 
       return () => {
-        // Cleanup: remove hide style when component unmounts
         const hideStyle = document.getElementById('tidio-hide-style');
         if (hideStyle) {
           hideStyle.remove();
         }
       };
     }
+
+    // Check for checkout parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasCheckoutParam = urlParams.has('checkout');
 
     // Normal mode: ensure Tidio is loaded and visible
     const existingScript = document.querySelector('script[src*="tidio.co"]');
@@ -88,7 +92,7 @@ const TidioWidget: React.FC = () => {
     }
 
     // Don't cleanup - let Tidio persist across route changes
-  }, []);
+  }, [disabled]);
 
   return null;
 };

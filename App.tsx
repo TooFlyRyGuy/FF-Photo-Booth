@@ -31,9 +31,11 @@ const App: React.FC = () => {
   const [eventCode, setEventCode] = useState('');
   const [isLoadingKiosk, setIsLoadingKiosk] = useState(false);
 
+  const isKioskMode = view === 'kiosk';
+
   return (
     <>
-      <TidioWidget />
+      <TidioWidget disabled={isKioskMode} />
       <AppContent
         view={view}
         setView={setView}
