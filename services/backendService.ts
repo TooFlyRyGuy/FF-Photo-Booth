@@ -12,7 +12,7 @@ const PROMPTS_CACHE_TTL = 300000;
 
 let cachedEvents: Event[] | null = null;
 let eventsCacheTimestamp: number | null = null;
-const EVENTS_CACHE_TTL = 30000;
+const EVENTS_CACHE_TTL = 120000;
 
 let cachedGlobalSettings: GlobalSettings | null = null;
 let globalSettingsCacheTimestamp: number | null = null;
@@ -540,7 +540,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('*')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -614,9 +614,6 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       prompts,
       userId: event.user_id,
       aspectRatio: event.aspect_ratio,
-      backgroundImageUrl: event.background_image_url,
-      logoUrl: event.logo_url,
-      overlayImageUrl: event.overlay_image_url,
       primaryColor: event.primary_color,
       secondaryColor: event.secondary_color,
       accentColor: event.accent_color,
@@ -1666,7 +1663,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('*')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1723,9 +1720,6 @@ export const getAllEvents = async (): Promise<Event[]> => {
       userEmail: userProfile?.email || '',
       createdByEmail: userProfile?.email || '',
       aspectRatio: e.aspect_ratio,
-      backgroundImageUrl: e.background_image_url,
-      logoUrl: e.logo_url,
-      overlayImageUrl: e.overlay_image_url,
       primaryColor: e.primary_color,
       secondaryColor: e.secondary_color,
       accentColor: e.accent_color,
