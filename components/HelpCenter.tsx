@@ -707,27 +707,35 @@ const HelpCenter: React.FC = () => {
   const [faqCategory, setFaqCategory] = useState('All');
 
   useEffect(() => {
-    if (activeView !== 'home') return;
+    const loadAndShowTidio = () => {
+      const existingScript = document.querySelector('script[id="tidio-help-script"]');
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.src = '//code.tidio.co/uhmx8zcxmluqvpxkuxbsnsyynpl7umfd.js';
+        script.async = true;
+        script.id = 'tidio-help-script';
+        document.body.appendChild(script);
+      }
+      if ((window as any).tidioChatApi) {
+        (window as any).tidioChatApi.show();
+      } else {
+        const onReady = () => {
+          if ((window as any).tidioChatApi) {
+            (window as any).tidioChatApi.show();
+          }
+        };
+        document.addEventListener('tidioChat-ready', onReady, { once: true });
+      }
+    };
 
-    const existingScript = document.querySelector('script[id="tidio-help-script"]');
-    if (!existingScript) {
-      const script = document.createElement('script');
-      script.src = '//code.tidio.co/uhmx8zcxmluqvpxkuxbsnsyynpl7umfd.js';
-      script.async = true;
-      script.id = 'tidio-help-script';
-      document.body.appendChild(script);
-    }
-
-    if ((window as any).tidioChatApi) {
-      (window as any).tidioChatApi.show();
-    }
+    loadAndShowTidio();
 
     return () => {
       if ((window as any).tidioChatApi) {
         (window as any).tidioChatApi.hide();
       }
     };
-  }, [activeView]);
+  }, []);
 
   const toggleFaq = (index: number) => {
     setExpandedFaqs(prev => {
