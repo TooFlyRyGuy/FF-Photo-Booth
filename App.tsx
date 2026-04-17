@@ -4,7 +4,6 @@ import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
 import { getEventByPasscode, clearUserCache } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
-import TidioWidget from './components/TidioWidget';
 
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const KioskMode = lazy(() => import('./components/KioskMode'));
@@ -31,11 +30,8 @@ const App: React.FC = () => {
   const [eventCode, setEventCode] = useState('');
   const [isLoadingKiosk, setIsLoadingKiosk] = useState(false);
 
-  const isKioskMode = view === 'kiosk';
-
   return (
     <>
-      <TidioWidget disabled={isKioskMode} />
       <AppContent
         view={view}
         setView={setView}
