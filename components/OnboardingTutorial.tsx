@@ -87,6 +87,7 @@ const OnboardingTutorial: React.FC<OnboardingTutorialProps> = ({ onComplete, onO
     const target = document.getElementById(step.targetId);
     if (!target) return;
 
+    target.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'nearest' });
     const rect = target.getBoundingClientRect();
     const padding = 12;
     const viewportWidth = window.innerWidth;
@@ -180,10 +181,12 @@ const OnboardingTutorial: React.FC<OnboardingTutorialProps> = ({ onComplete, onO
 
   useEffect(() => {
     positionTooltip();
+    const repositionTimer = setTimeout(() => positionTooltip(), 100);
     const handleResize = () => positionTooltip();
     window.addEventListener('resize', handleResize);
     window.addEventListener('scroll', handleResize, true);
     return () => {
+      clearTimeout(repositionTimer);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleResize, true);
     };
