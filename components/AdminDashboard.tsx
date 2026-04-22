@@ -806,7 +806,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           )}
         </div>
 
-        <nav className={`flex-1 ${sidebarCollapsed ? 'px-2' : 'px-4'} space-y-2`}>
+        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'px-2' : 'px-4'} space-y-2`}>
           <button
             onClick={() => {
               setActiveTab('dashboard');

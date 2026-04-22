@@ -200,24 +200,47 @@ export const getUserProfile = async (): Promise<UserProfile> => {
       throw new Error(`Failed to fetch user profile: ${error.message}`);
     }
 
-    if (!profileData) {
-      throw new Error('User profile not found');
+    let profile = profileData;
+
+    if (!profile) {
+      const { data: newProfile, error: insertError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || '',
+          role: 'user',
+          subscription_status: 'inactive',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        })
+        .select()
+        .maybeSingle();
+
+      if (insertError) {
+        throw new Error(`Failed to create user profile: ${insertError.message}`);
+      }
+
+      if (!newProfile) {
+        throw new Error('User profile could not be created');
+      }
+
+      profile = newProfile;
     }
 
     return {
-      id: profileData.id,
-      email: profileData.email,
-      fullName: profileData.full_name,
-      role: profileData.role || 'user',
-      subscriptionStatus: profileData.subscription_status,
-      subscriptionTierId: profileData.subscription_tier_id,
-      stripeCustomerId: profileData.stripe_customer_id,
-      stripeSubscriptionId: profileData.stripe_subscription_id,
-      subscriptionStartDate: profileData.subscription_start_date,
-      subscriptionEndDate: profileData.subscription_end_date,
-      timezone: profileData.timezone || 'UTC',
-      createdAt: profileData.created_at,
-      updatedAt: profileData.updated_at,
+      id: profile.id,
+      email: profile.email,
+      fullName: profile.full_name,
+      role: profile.role || 'user',
+      subscriptionStatus: profile.subscription_status,
+      subscriptionTierId: profile.subscription_tier_id,
+      stripeCustomerId: profile.stripe_customer_id,
+      stripeSubscriptionId: profile.stripe_subscription_id,
+      subscriptionStartDate: profile.subscription_start_date,
+      subscriptionEndDate: profile.subscription_end_date,
+      timezone: profile.timezone || 'UTC',
+      createdAt: profile.created_at,
+      updatedAt: profile.updated_at,
     };
   } catch (error) {
     console.error('getUserProfile failed:', error);
