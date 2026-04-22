@@ -766,8 +766,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
       {/* Sidebar */}
       <aside className={`w-64 bg-white border-r border-slate-300 flex flex-col transition-all duration-300 ease-in-out
-        fixed inset-y-0 left-0 z-40
-        md:relative ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
+        fixed inset-y-0 left-0 z-40 overflow-y-auto
+        md:relative md:overflow-hidden ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         {/* Toggle Button - Desktop Only */}
@@ -806,7 +806,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           )}
         </div>
 
-        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'px-2' : 'px-4'} space-y-2`}>
+        <nav className={`flex-1 md:overflow-y-auto ${sidebarCollapsed ? 'px-2' : 'px-4'} space-y-2`}>
           <button
             onClick={() => {
               setActiveTab('dashboard');
@@ -912,7 +912,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           )}
         </nav>
 
-        <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
+        <div className={`shrink-0 ${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
           {!sidebarCollapsed && user && (
             <CreditDisplay userId={user.id} sidebar={true} />
           )}
