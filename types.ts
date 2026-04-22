@@ -22,6 +22,7 @@ export interface UserProfile {
   dropbox_access_token?: string;
   dropbox_refresh_token?: string;
   timezone?: string;
+  onboardingCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }

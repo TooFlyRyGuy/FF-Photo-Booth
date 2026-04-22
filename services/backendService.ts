@@ -239,11 +239,27 @@ export const getUserProfile = async (): Promise<UserProfile> => {
       subscriptionStartDate: profile.subscription_start_date,
       subscriptionEndDate: profile.subscription_end_date,
       timezone: profile.timezone || 'UTC',
+      onboardingCompleted: profile.onboarding_completed || false,
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
     };
   } catch (error) {
     console.error('getUserProfile failed:', error);
+    throw error;
+  }
+};
+
+export const completeOnboarding = async (): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
+    .eq('id', user.id);
+
+  if (error) {
+    console.error('Failed to complete onboarding:', error);
     throw error;
   }
 };
