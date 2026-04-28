@@ -1253,6 +1253,40 @@ export const getEventChartData = async (eventId: string): Promise<ChartDataPoint
     .map(([date, generations]) => ({ date, generations }));
 };
 
+export interface EventPhoneEntry {
+  phoneNumber: string;
+  sentAt: string;
+  status: string;
+  imageId: string;
+}
+
+export const getEventPhoneNumbers = async (eventId: string): Promise<EventPhoneEntry[]> => {
+  const { data: images, error: imgError } = await supabase
+    .from('generated_images')
+    .select('id')
+    .eq('event_id', eventId);
+
+  if (imgError) throw new Error(`Failed to fetch images: ${imgError.message}`);
+  if (!images || images.length === 0) return [];
+
+  const imageIds = images.map(i => i.id);
+
+  const { data, error } = await supabase
+    .from('sms_logs')
+    .select('phone_number, sent_at, status, image_id')
+    .in('image_id', imageIds)
+    .order('sent_at', { ascending: true });
+
+  if (error) throw new Error(`Failed to fetch phone numbers: ${error.message}`);
+
+  return (data || []).map(row => ({
+    phoneNumber: row.phone_number,
+    sentAt: row.sent_at,
+    status: row.status,
+    imageId: row.image_id,
+  }));
+};
+
 export const deleteEvent = async (eventId: string): Promise<void> => {
   const { error } = await supabase
     .from('events')
