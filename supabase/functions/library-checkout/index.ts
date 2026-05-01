@@ -79,21 +79,19 @@ Deno.serve(async (req: Request) => {
 
     const webhookUrl = settings.library_webhook_url;
 
-    // Build the webhook payload
+    // Build the webhook payload — flat fields so Zapier can map each one directly
     const webhookPayload = {
-      submittedAt: new Date().toISOString(),
-      client: {
-        name: body.name.trim(),
-        eventDate: body.eventDate,
-        bookingId: body.bookingId.trim(),
-      },
-      selections: body.prompts.map(p => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        tags: p.tags || [],
-      })),
-      totalSelected: body.prompts.length,
+      submitted_at: new Date().toISOString(),
+      client_name: body.name.trim(),
+      event_date: body.eventDate,
+      booking_id: body.bookingId.trim(),
+      total_selected: body.prompts.length,
+      // Comma-separated lists for easy Zapier field mapping
+      prompt_names: body.prompts.map(p => p.name).join(", "),
+      prompt_categories: [...new Set(body.prompts.map(p => p.category))].join(", "),
+      prompt_tags: [...new Set(body.prompts.flatMap(p => p.tags || []))].join(", "),
+      // Full detail as a readable summary string
+      prompt_list: body.prompts.map((p, i) => `${i + 1}. ${p.name} (${p.category})`).join("\n"),
     };
 
     console.log(`Sending library checkout webhook to: ${webhookUrl}`);
