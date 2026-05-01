@@ -385,25 +385,38 @@ const PublicLibrary: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-8">
-              {Object.entries(byCategory).map(([category, categoryPrompts]) => (
-                <section key={category}>
-                  <h2 className="text-base font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                    <span className="w-1 h-5 bg-green-700 rounded-full inline-block" />
-                    {category}
-                    <span className="text-slate-400 font-normal text-sm normal-case">({categoryPrompts.length})</span>
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {categoryPrompts.map(prompt => (
-                      <PromptCard
-                        key={prompt.id}
-                        prompt={prompt}
-                        inCart={inCart(prompt.id)}
-                        onToggle={() => toggleCart(prompt)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
+              {selectedCategory ? (
+                Object.entries(byCategory).map(([category, categoryPrompts]) => (
+                  <section key={category}>
+                    <h2 className="text-base font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                      <span className="w-1 h-5 bg-green-700 rounded-full inline-block" />
+                      {category}
+                      <span className="text-slate-400 font-normal text-sm normal-case">({categoryPrompts.length})</span>
+                    </h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {categoryPrompts.map(prompt => (
+                        <PromptCard
+                          key={prompt.id}
+                          prompt={prompt}
+                          inCart={inCart(prompt.id)}
+                          onToggle={() => toggleCart(prompt)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {filtered.map(prompt => (
+                    <PromptCard
+                      key={prompt.id}
+                      prompt={prompt}
+                      inCart={inCart(prompt.id)}
+                      onToggle={() => toggleCart(prompt)}
+                    />
+                  ))}
+                </div>
+              )}
 
               {hasMore && !searchQuery && !selectedCategory && selectedTags.length === 0 && (
                 <div className="flex justify-center pt-4">
