@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
@@ -20,6 +20,7 @@ interface Prompt {
   isActive: boolean;
   usageCount: number;
   userId?: string | null;
+  isPublic?: boolean;
 }
 
 interface PromptLibraryProps {
@@ -140,6 +141,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
+        isPublic: prompt.is_public,
       }));
 
       if (isInitial) {
@@ -208,6 +210,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
+        isPublic: prompt.is_public,
       }));
 
       // Also include results that match tags
@@ -316,7 +319,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       setEditingPrompt({ ...prompt });
     }
     setIsCreating(false);
-    setIsPublic(prompt.userId === null);
+    setIsPublic(prompt.isPublic === true);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
