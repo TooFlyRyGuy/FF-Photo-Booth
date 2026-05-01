@@ -10,8 +10,9 @@ const KioskMode = lazy(() => import('./components/KioskMode'));
 const Login = lazy(() => import('./components/Login'));
 const Signup = lazy(() => import('./components/Signup'));
 const MarketingPage = lazy(() => import('./components/MarketingPage'));
+const PublicLibrary = lazy(() => import('./components/PublicLibrary'));
 
-type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'marketing' | 'loading';
+type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'marketing' | 'library' | 'loading';
 
 const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
   <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center">
@@ -125,11 +126,19 @@ const AppContent: React.FC<AppContentProps> = ({
     const kioskPasscode = urlParams.get('kiosk');
     const marketingView = urlParams.get('marketing');
     const isKioskMode = !!kioskPasscode;
+    const isLibraryPath = window.location.pathname === '/library';
 
-    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'isKioskMode:', isKioskMode, 'marketingView:', marketingView);
+    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'isKioskMode:', isKioskMode, 'marketingView:', marketingView, 'isLibraryPath:', isLibraryPath);
 
     const initializeAuth = async () => {
       console.log('[App] Starting initializeAuth');
+
+      // /library is fully public — no auth needed
+      if (isLibraryPath) {
+        setView('library');
+        return;
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       console.log('[App] Session state:', session?.user ? 'logged in' : 'logged out');
 
@@ -216,6 +225,15 @@ const AppContent: React.FC<AppContentProps> = ({
       subscription.unsubscribe();
     };
   }, []);
+
+  // PUBLIC LIBRARY
+  if (view === 'library') {
+    return (
+      <Suspense fallback={<LoadingSpinner message="Loading Library..." />}>
+        <PublicLibrary />
+      </Suspense>
+    );
+  }
 
   // LOADING STATE
   if (view === 'loading') {

@@ -509,6 +509,7 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     smugmugUserNickname: data.smugmug_user_nickname,
     smugmugConnectionStatus: data.smugmug_connection_status,
     smugmugUsername: data.smugmug_username,
+    libraryWebhookUrl: data.library_webhook_url,
   };
 
   cachedGlobalSettings = settings;
@@ -540,6 +541,7 @@ export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): P
   if (settings.smugmugUserNickname !== undefined) updateData.smugmug_user_nickname = settings.smugmugUserNickname;
   if (settings.smugmugConnectionStatus !== undefined) updateData.smugmug_connection_status = settings.smugmugConnectionStatus;
   if (settings.smugmugUsername !== undefined) updateData.smugmug_username = settings.smugmugUsername;
+  if (settings.libraryWebhookUrl !== undefined) updateData.library_webhook_url = settings.libraryWebhookUrl;
 
   const { data: existingSettings } = await supabase
     .from('global_settings')

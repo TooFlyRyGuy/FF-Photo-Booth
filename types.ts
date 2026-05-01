@@ -145,6 +145,7 @@ export interface GlobalSettings {
   smugmugUserNickname?: string;
   smugmugConnectionStatus?: string;
   smugmugUsername?: string;
+  libraryWebhookUrl?: string;
 }
 
 export interface Prompt {

@@ -48,6 +48,8 @@ const Settings: React.FC<SettingsProps> = ({
   const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
   const [geminiResolution, setGeminiResolution] = useState<'1K' | '2K' | '4K'>(globalSettings.geminiResolution || '1K');
 
+  // Library webhook (global, admin only)
+  const [libraryWebhookUrl, setLibraryWebhookUrl] = useState(globalSettings.libraryWebhookUrl || '');
 
   // Save states
   const [isSavingUser, setIsSavingUser] = useState(false);
@@ -70,6 +72,7 @@ const Settings: React.FC<SettingsProps> = ({
     setGeminiEnabled(globalSettings.geminiEnabled || false);
     setGeminiModel(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
     setGeminiResolution(globalSettings.geminiResolution || '1K');
+    setLibraryWebhookUrl(globalSettings.libraryWebhookUrl || '');
     // Never populate key fields from server — admin must type a new value to update
   }, [globalSettings]);
 
@@ -272,6 +275,7 @@ const Settings: React.FC<SettingsProps> = ({
         geminiEnabled,
         geminiModel,
         geminiResolution,
+        libraryWebhookUrl,
       };
 
       // Only send the new token/key if admin actually typed one
@@ -785,6 +789,51 @@ const Settings: React.FC<SettingsProps> = ({
                   </div>
                 </>
               )}
+            </div>
+          </div>
+
+          {/* Library Webhook Configuration */}
+          <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                </svg>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Public Library</h3>
+                  <p className="text-slate-600 text-sm">Configure the client-facing theme selection library at <code className="bg-slate-200 px-1.5 py-0.5 rounded text-xs">/library</code></p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Checkout Webhook URL</label>
+                <input
+                  type="url"
+                  value={libraryWebhookUrl}
+                  onChange={e => setLibraryWebhookUrl(e.target.value)}
+                  placeholder="https://your-crm.example.com/webhooks/library"
+                  className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors"
+                />
+                <p className="text-xs text-slate-500 mt-1.5">
+                  When a client submits their theme selections, a POST request is sent here with their name, event date, booking ID, and selected themes.
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-600 space-y-1">
+                <p className="font-semibold text-slate-700">Webhook payload example:</p>
+                <pre className="text-xs bg-white border border-slate-200 rounded p-3 overflow-x-auto text-slate-600">{`{
+  "submittedAt": "2026-05-01T12:00:00Z",
+  "client": {
+    "name": "Jane Smith",
+    "eventDate": "2026-06-15",
+    "bookingId": "BK-12345"
+  },
+  "selections": [
+    { "id": "...", "name": "Neon Glow", "category": "Modern", "tags": ["neon"] }
+  ],
+  "totalSelected": 3
+}`}</pre>
+              </div>
             </div>
           </div>
 
