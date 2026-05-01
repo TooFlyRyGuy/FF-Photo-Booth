@@ -125,16 +125,16 @@ const AppContent: React.FC<AppContentProps> = ({
     const urlParams = new URLSearchParams(window.location.search);
     const kioskPasscode = urlParams.get('kiosk');
     const marketingView = urlParams.get('marketing');
+    const libraryView = urlParams.get('library');
     const isKioskMode = !!kioskPasscode;
-    const isLibraryPath = window.location.pathname === '/library';
 
-    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'isKioskMode:', isKioskMode, 'marketingView:', marketingView, 'isLibraryPath:', isLibraryPath);
+    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'marketingView:', marketingView, 'libraryView:', libraryView);
 
     const initializeAuth = async () => {
       console.log('[App] Starting initializeAuth');
 
-      // /library is fully public — no auth needed
-      if (isLibraryPath) {
+      // Library is fully public — no auth needed
+      if (libraryView) {
         setView('library');
         return;
       }
