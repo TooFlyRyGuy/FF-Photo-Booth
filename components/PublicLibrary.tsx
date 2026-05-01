@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
@@ -13,15 +13,10 @@ interface CheckoutForm {
   bookingId: string;
 }
 
-const BATCH_SIZE = 12;
-
 const PublicLibrary: React.FC = () => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [filtered, setFiltered] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(0);
   const [error, setError] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,65 +34,46 @@ const PublicLibrary: React.FC = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const fetchPrompts = useCallback(async (currentOffset: number, replace: boolean) => {
-    if (currentOffset === 0) setLoading(true);
-    else setLoadingMore(true);
-
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active')
-        .eq('is_active', true)
-        .eq('is_public', true)
-        .order('category')
-        .order('name')
-        .range(currentOffset, currentOffset + BATCH_SIZE - 1);
-
-      if (fetchError) throw fetchError;
-
-      const mapped: Prompt[] = (data || []).map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        previewImage: p.preview_image_url,
-        referenceImage: p.reference_image_url,
-        promptText: '',
-        category: p.category,
-        isPublic: p.is_public,
-        tags: p.tags || [],
-      }));
-
-      const next = replace ? mapped : [...prompts, ...mapped];
-      setPrompts(next);
-      setHasMore(mapped.length === BATCH_SIZE);
-      setOffset(currentOffset + mapped.length);
-
-      // Extract categories and tags from first load
-      if (currentOffset === 0) {
-        const { data: allData } = await supabase
-          .from('prompts')
-          .select('category, tags')
-          .eq('is_active', true)
-          .eq('is_public', true);
-
-        if (allData) {
-          const cats = [...new Set(allData.map(p => p.category).filter(Boolean))].sort();
-          const tagSet = new Set<string>();
-          allData.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
-          setAllCategories(cats);
-          setAllTags([...tagSet].sort());
-        }
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load prompts');
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, [prompts]);
-
   useEffect(() => {
-    fetchPrompts(0, true);
+    const load = async () => {
+      setLoading(true);
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('prompts')
+          .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active')
+          .eq('is_active', true)
+          .eq('is_public', true)
+          .order('category')
+          .order('name');
+
+        if (fetchError) throw fetchError;
+
+        const mapped: Prompt[] = (data || []).map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          previewImage: p.preview_image_url,
+          referenceImage: p.reference_image_url,
+          promptText: '',
+          category: p.category,
+          isPublic: p.is_public,
+          tags: p.tags || [],
+        }));
+
+        setPrompts(mapped);
+
+        const cats = [...new Set(mapped.map(p => p.category).filter(Boolean))].sort();
+        const tagSet = new Set<string>();
+        mapped.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
+        setAllCategories(cats);
+        setAllTags([...tagSet].sort());
+      } catch (err: any) {
+        setError(err.message || 'Failed to load prompts');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   // Filter whenever prompts, search, category, or tags change
@@ -418,17 +394,7 @@ const PublicLibrary: React.FC = () => {
                 </div>
               )}
 
-              {hasMore && !searchQuery && !selectedCategory && selectedTags.length === 0 && (
-                <div className="flex justify-center pt-4">
-                  <button
-                    onClick={() => fetchPrompts(offset, false)}
-                    disabled={loadingMore}
-                    className="px-8 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:border-green-700 hover:text-green-700 transition-colors disabled:opacity-50"
-                  >
-                    {loadingMore ? 'Loading...' : 'Load More'}
-                  </button>
-                </div>
-              )}
+
             </div>
           )}
         </main>
