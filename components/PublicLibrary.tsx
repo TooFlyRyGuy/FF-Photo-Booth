@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader } from 'lucide-react';
+import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
 
@@ -13,7 +13,115 @@ interface CheckoutForm {
   bookingId: string;
 }
 
-const PublicLibrary: React.FC = () => {
+interface EditCategoryModalProps {
+  prompt: Prompt;
+  allCategories: string[];
+  onSave: (promptId: string, newCategory: string) => Promise<void>;
+  onClose: () => void;
+}
+
+const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ prompt, allCategories, onSave, onClose }) => {
+  const [value, setValue] = useState(prompt.category);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) { setError('Category cannot be empty.'); return; }
+    if (trimmed === prompt.category) { onClose(); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await onSave(prompt.id, trimmed);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-slate-200">
+          <h2 className="text-base font-bold text-slate-900">Edit Category</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
+            <X size={18} className="text-slate-500" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-slate-600">
+            Changing category for: <span className="font-semibold text-slate-900">{prompt.name}</span>
+          </p>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Category</label>
+            <input
+              type="text"
+              list="category-suggestions"
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              placeholder="Enter or select a category"
+              className="w-full border-2 border-slate-300 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm"
+            />
+            <datalist id="category-suggestions">
+              {allCategories.map(c => <option key={c} value={c} />)}
+            </datalist>
+          </div>
+
+          {allCategories.length > 0 && (
+            <div>
+              <p className="text-xs text-slate-500 mb-2">Existing categories:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {allCategories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setValue(cat)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      value === cat
+                        ? 'bg-green-700 text-white border-green-700'
+                        : 'bg-white text-slate-600 border-slate-300 hover:border-green-600 hover:text-green-700'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 border-2 border-slate-300 rounded-xl text-slate-700 font-semibold hover:border-slate-400 text-sm transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-60"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface PublicLibraryProps {
+  isAdmin?: boolean;
+}
+
+const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [filtered, setFiltered] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +141,8 @@ const PublicLibrary: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -102,6 +212,30 @@ const PublicLibrary: React.FC = () => {
 
     setFiltered(result);
   }, [prompts, searchQuery, selectedCategory, selectedTags]);
+
+  const handleSaveCategory = async (promptId: string, newCategory: string) => {
+    const { error: updateError } = await supabase
+      .from('prompts')
+      .update({ category: newCategory })
+      .eq('id', promptId);
+
+    if (updateError) throw new Error(updateError.message);
+
+    setPrompts(prev => {
+      const updated = prev.map(p => p.id === promptId ? { ...p, category: newCategory } : p);
+      const cats = [...new Set(updated.map(p => p.category).filter(Boolean))].sort();
+      setAllCategories(cats);
+      return updated;
+    });
+
+    // If we were filtering by the old category, clear the filter
+    if (selectedCategory) {
+      const oldCat = prompts.find(p => p.id === promptId)?.category;
+      if (oldCat && oldCat !== newCategory && selectedCategory === oldCat) {
+        setSelectedCategory('');
+      }
+    }
+  };
 
   const toggleCart = (prompt: Prompt) => {
     setCart(prev => {
@@ -188,6 +322,14 @@ const PublicLibrary: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
+      {/* Admin banner */}
+      {isAdmin && (
+        <div className="bg-amber-50 border-b-2 border-amber-200 px-4 py-2 flex items-center justify-center gap-2">
+          <ShieldCheck size={15} className="text-amber-700" />
+          <span className="text-sm font-semibold text-amber-800">Admin Mode — click the pencil icon on any theme to edit its category</span>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b-2 border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
@@ -376,6 +518,8 @@ const PublicLibrary: React.FC = () => {
                           prompt={prompt}
                           inCart={inCart(prompt.id)}
                           onToggle={() => toggleCart(prompt)}
+                          isAdmin={isAdmin}
+                          onEditCategory={() => setEditingPrompt(prompt)}
                         />
                       ))}
                     </div>
@@ -389,12 +533,12 @@ const PublicLibrary: React.FC = () => {
                       prompt={prompt}
                       inCart={inCart(prompt.id)}
                       onToggle={() => toggleCart(prompt)}
+                      isAdmin={isAdmin}
+                      onEditCategory={() => setEditingPrompt(prompt)}
                     />
                   ))}
                 </div>
               )}
-
-
             </div>
           )}
         </main>
@@ -563,6 +707,16 @@ const PublicLibrary: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Category Modal */}
+      {editingPrompt && (
+        <EditCategoryModal
+          prompt={editingPrompt}
+          allCategories={allCategories}
+          onSave={handleSaveCategory}
+          onClose={() => setEditingPrompt(null)}
+        />
+      )}
     </div>
   );
 };
@@ -571,9 +725,11 @@ interface PromptCardProps {
   prompt: Prompt;
   inCart: boolean;
   onToggle: () => void;
+  isAdmin?: boolean;
+  onEditCategory?: () => void;
 }
 
-const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, onToggle }) => (
+const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, onToggle, isAdmin = false, onEditCategory }) => (
   <div className={`group relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden ${inCart ? 'border-green-600 shadow-md shadow-green-100' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}>
     {/* Image */}
     <div className="aspect-square bg-slate-100 overflow-hidden">
@@ -597,9 +753,21 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, onToggle }) => 
       </div>
     )}
 
+    {/* Admin edit category button */}
+    {isAdmin && (
+      <button
+        onClick={e => { e.stopPropagation(); onEditCategory?.(); }}
+        title="Edit category"
+        className="absolute top-2 right-2 bg-white/90 hover:bg-amber-50 border border-amber-200 text-amber-700 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+      >
+        <Pencil size={12} />
+      </button>
+    )}
+
     {/* Content */}
     <div className="p-3">
       <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{prompt.name}</p>
+      <p className="text-xs text-slate-400 mt-0.5">{prompt.category}</p>
       {prompt.description && (
         <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{prompt.description}</p>
       )}

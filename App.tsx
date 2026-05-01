@@ -134,9 +134,20 @@ const AppContent: React.FC<AppContentProps> = ({
     const initializeAuth = async () => {
       console.log('[App] Starting initializeAuth');
 
-      // Library is fully public — no auth needed
+      // Library is public but admins get edit capabilities
       if (libraryView) {
         setView('library');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          if (profile?.role === 'admin') {
+            setUser(session.user);
+          }
+        }
         return;
       }
 
@@ -235,7 +246,7 @@ const AppContent: React.FC<AppContentProps> = ({
   if (view === 'library') {
     return (
       <Suspense fallback={<LoadingSpinner message="Loading Library..." />}>
-        <PublicLibrary />
+        <PublicLibrary isAdmin={!!user} />
       </Suspense>
     );
   }
