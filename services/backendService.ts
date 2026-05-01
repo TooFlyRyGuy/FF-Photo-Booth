@@ -486,17 +486,21 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
 
   console.log('✅ Global settings fetched successfully:', {
     geminiEnabled: data.gemini_enabled,
-    hasGeminiKey: !!data.gemini_api_key,
+    geminiKeySet: !!data.gemini_api_key,
+    twilioEnabled: data.twilio_enabled,
+    twilioTokenSet: !!data.twilio_auth_token,
   });
 
   const settings: GlobalSettings = {
     dropboxAppKey: data.dropbox_app_key,
     dropboxAppSecret: data.dropbox_app_secret,
     twilioAccountSid: data.twilio_account_sid,
-    twilioAuthToken: data.twilio_auth_token,
+    // Never expose the actual token to the browser — only a boolean sentinel
+    twilioTokenSet: !!data.twilio_auth_token,
     twilioPhoneNumber: data.twilio_phone_number,
     twilioEnabled: data.twilio_enabled || false,
-    geminiApiKey: data.gemini_api_key,
+    // Never expose the actual API key to the browser — only a boolean sentinel
+    geminiKeySet: !!data.gemini_api_key,
     geminiEnabled: data.gemini_enabled || false,
     geminiModel: data.gemini_model || 'gemini-2.5-flash-image',
     geminiResolution: data.gemini_resolution || '1K',

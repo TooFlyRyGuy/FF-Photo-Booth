@@ -129,10 +129,14 @@ export interface GlobalSettings {
   dropboxAppKey?: string;
   dropboxAppSecret?: string;
   twilioAccountSid?: string;
+  /** Never populated from the server — only sent when admin types a new token */
   twilioAuthToken?: string;
+  twilioTokenSet?: boolean;
   twilioPhoneNumber?: string;
   twilioEnabled?: boolean;
+  /** Never populated from the server — only sent when admin types a new key */
   geminiApiKey?: string;
+  geminiKeySet?: boolean;
   geminiEnabled?: boolean;
   geminiModel?: string;
   geminiResolution?: '1K' | '2K' | '4K';
