@@ -127,6 +127,7 @@ const AppContent: React.FC<AppContentProps> = ({
     const marketingView = urlParams.get('marketing');
     const libraryView = urlParams.get('library');
     const isKioskMode = !!kioskPasscode;
+    const isLibraryMode = !!libraryView;
 
     console.log('[App] Init - kiosk passcode:', kioskPasscode, 'marketingView:', marketingView, 'libraryView:', libraryView);
 
@@ -206,6 +207,10 @@ const AppContent: React.FC<AppContentProps> = ({
         if (session?.user) {
           setUser(session.user);
         }
+        return;
+      }
+
+      if (isLibraryMode) {
         return;
       }
 
