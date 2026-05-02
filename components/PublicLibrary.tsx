@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload, Info, CircleAlert as AlertCircle, SlidersHorizontal } from 'lucide-react';
+import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload, Info, CircleAlert as AlertCircle, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
 
@@ -397,6 +397,8 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [deletingPrompt, setDeletingPrompt] = useState<Prompt | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -552,6 +554,32 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     if (insertError) throw new Error(insertError.message);
 
     await loadPrompts();
+  };
+
+  const handleDeletePrompt = async (prompt: Prompt) => {
+    const { error: deleteError } = await supabase
+      .from('prompts')
+      .delete()
+      .eq('id', prompt.id);
+
+    if (deleteError) {
+      setDeleteError(deleteError.message);
+      return;
+    }
+
+    setPrompts(prev => {
+      const next = prev.filter(p => p.id !== prompt.id);
+      const cats = [...new Set(next.map(p => p.category).filter(Boolean))].sort();
+      const tagSet = new Set<string>();
+      next.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
+      setAllCategories(cats);
+      setAllTags([...tagSet].sort());
+      return next;
+    });
+
+    setCart(prev => prev.filter(i => i.prompt.id !== prompt.id));
+    setDeletingPrompt(null);
+    setDeleteError('');
   };
 
   const toggleCart = (prompt: Prompt) => {
@@ -962,6 +990,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                           onToggle={() => toggleCart(prompt)}
                           isAdmin={isAdmin}
                           onEdit={() => setEditingPrompt(prompt)}
+                          onDelete={() => { setDeleteError(''); setDeletingPrompt(prompt); }}
                         />
                       ))}
                     </div>
@@ -978,6 +1007,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                       onToggle={() => toggleCart(prompt)}
                       isAdmin={isAdmin}
                       onEdit={() => setEditingPrompt(prompt)}
+                      onDelete={() => { setDeleteError(''); setDeletingPrompt(prompt); }}
                     />
                   ))}
                 </div>
@@ -1245,6 +1275,44 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
           onClose={() => setCreatingPrompt(false)}
         />
       )}
+
+      {/* Delete Confirmation Modal (admin only) */}
+      {deletingPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={18} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Delete Prompt</h3>
+                <p className="text-xs text-slate-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-1">
+              Are you sure you want to permanently delete:
+            </p>
+            <p className="text-sm font-semibold text-slate-900 mb-4 truncate">"{deletingPrompt.name}"</p>
+            {deleteError && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{deleteError}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setDeletingPrompt(null); setDeleteError(''); }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeletePrompt(deletingPrompt)}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1256,9 +1324,10 @@ interface PromptCardProps {
   onToggle: () => void;
   isAdmin?: boolean;
   onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onToggle, isAdmin = false, onEdit }) => {
+const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onToggle, isAdmin = false, onEdit, onDelete }) => {
   const disabled = cartFull && !inCart;
 
   return (
@@ -1307,13 +1376,22 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onTog
         {/* Action buttons */}
         <div className="flex flex-col shrink-0 border-l-2 border-slate-100">
           {isAdmin && (
-            <button
-              onClick={e => { e.stopPropagation(); onEdit?.(); }}
-              className="flex-1 px-3 flex items-center justify-center border-b border-slate-100 text-amber-600 hover:bg-amber-50 transition-colors"
-              title="Edit"
-            >
-              <Pencil size={13} />
-            </button>
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); onEdit?.(); }}
+                className="flex-1 px-3 flex items-center justify-center border-b border-slate-100 text-amber-600 hover:bg-amber-50 transition-colors"
+                title="Edit"
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onDelete?.(); }}
+                className="flex-1 px-3 flex items-center justify-center border-b border-slate-100 text-red-500 hover:bg-red-50 transition-colors"
+                title="Delete"
+              >
+                <Trash2 size={13} />
+              </button>
+            </>
           )}
           <button
             onClick={onToggle}
@@ -1366,13 +1444,22 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onTog
         )}
 
         {isAdmin && (
-          <button
-            onClick={e => { e.stopPropagation(); onEdit?.(); }}
-            title="Edit prompt"
-            className="absolute top-2 right-2 bg-white/90 hover:bg-amber-50 border border-amber-200 text-amber-700 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-          >
-            <Pencil size={12} />
-          </button>
+          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={e => { e.stopPropagation(); onEdit?.(); }}
+              title="Edit prompt"
+              className="bg-white/90 hover:bg-amber-50 border border-amber-200 text-amber-700 rounded-full p-1.5 shadow-sm"
+            >
+              <Pencil size={12} />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); onDelete?.(); }}
+              title="Delete prompt"
+              className="bg-white/90 hover:bg-red-50 border border-red-200 text-red-600 rounded-full p-1.5 shadow-sm"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
         )}
 
         <div className="p-3">
