@@ -469,7 +469,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
     if (selectedTags.length > 0) {
       result = result.filter(p =>
-        selectedTags.every(t => (p.tags || []).includes(t))
+        selectedTags.some(t => (p.tags || []).includes(t))
       );
     }
 
