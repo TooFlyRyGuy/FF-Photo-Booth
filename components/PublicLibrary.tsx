@@ -718,20 +718,26 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                 <Info size={20} className="shrink-0 mt-0.5 opacity-90" />
                 <div>
                   <p className="font-bold text-base mb-2">How to use this library</p>
-                  <ol className="space-y-1 text-sm text-green-100">
+                  <ol className="space-y-1.5 text-sm text-green-100">
                     <li className="flex items-start gap-2">
                       <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
                       <span><strong className="text-white">Browse or search</strong> — use the search bar or category filters on the left to explore AI photo themes.</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
-                      <span><strong className="text-white">Select themes</strong> — click the <strong className="text-white">+</strong> button on any theme to add it to your cart. You can select up to <strong className="text-white">10 themes</strong>.</span>
+                      <span><strong className="text-white">Select themes</strong> — click the <strong className="text-white">+</strong> button on any theme to add it to your selections. This tool lets you browse and submit up to <strong className="text-white">10 themes at a time</strong>.</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
                       <span><strong className="text-white">Checkout</strong> — click the <strong className="text-white">Cart</strong> button at the top right, review your selections, then fill in your details and submit your request.</span>
                     </li>
                   </ol>
+                  <div className="mt-3 flex items-start gap-2 bg-white/10 rounded-lg px-3 py-2.5 border border-white/20">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5 text-yellow-300" />
+                    <p className="text-xs text-green-100 leading-relaxed">
+                      <strong className="text-white">Note:</strong> The 10-theme selector limit is for browsing purposes only. The number of AI themes actually included at your event depends on your booked package. Please refer to your booking confirmation or contact us to confirm how many themes your package includes.
+                    </p>
+                  </div>
                 </div>
               </div>
               <button
@@ -751,8 +757,8 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         <div className="bg-amber-50 border-b-2 border-amber-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2">
             <AlertCircle size={15} className="text-amber-600 shrink-0" />
-            <span className="text-sm font-semibold text-amber-800">
-              You've reached the 10-theme limit. Remove a theme from your cart to add a different one.
+            <span className="text-sm text-amber-800">
+              <strong>Selector limit reached</strong> — you can submit up to 10 themes at a time. Remove one to swap it. Remember: your package determines how many themes are included at your event.
             </span>
           </div>
         </div>
