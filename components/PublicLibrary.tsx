@@ -401,21 +401,18 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const loadPrompts = async () => {
     setLoading(true);
     try {
-      const [promptsRes, catsRes] = await Promise.all([
-        supabase
-          .from('prompts')
-          .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id')
-          .eq('is_active', true)
-          .eq('is_public', true)
-          .order('category')
-          .order('name'),
-        supabase
-          .from('prompts')
-          .select('category')
-          .eq('is_active', true)
-          .not('category', 'is', null),
-      ]);
+      let query = supabase
+        .from('prompts')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id')
+        .eq('is_active', true)
+        .order('category')
+        .order('name');
 
+      if (!isAdmin) {
+        query = query.eq('is_public', true);
+      }
+
+      const promptsRes = await query;
       if (promptsRes.error) throw promptsRes.error;
 
       const mapped: Prompt[] = (promptsRes.data || []).map(p => ({
@@ -433,10 +430,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
       setPrompts(mapped);
 
-      const allCats = catsRes.data
-        ? ([...new Set(catsRes.data.map((r: any) => r.category).filter(Boolean))].sort() as string[])
-        : ([...new Set(mapped.map(p => p.category).filter(Boolean))].sort() as string[]);
-
+      const allCats = [...new Set(mapped.map(p => p.category).filter(Boolean))].sort() as string[];
       const tagSet = new Set<string>();
       mapped.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
       setAllCategories(allCats);
@@ -448,7 +442,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     }
   };
 
-  useEffect(() => { loadPrompts(); }, []);
+  useEffect(() => { loadPrompts(); }, [isAdmin]);
 
   useEffect(() => {
     let result = prompts;
@@ -1295,7 +1289,15 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onTog
 
         {/* Text */}
         <div className="flex-1 min-w-0 px-3 py-2.5 flex flex-col justify-center">
-          <p className="font-semibold text-slate-900 text-sm leading-tight line-clamp-1">{prompt.name}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="font-semibold text-slate-900 text-sm leading-tight line-clamp-1 min-w-0">{prompt.name}</p>
+            {!prompt.isPublic && isAdmin && (
+              <span className="shrink-0 bg-slate-700 text-white rounded-full px-1.5 py-0.5 flex items-center gap-0.5">
+                <Lock size={8} />
+                <span className="text-[9px] font-bold uppercase tracking-wide">Private</span>
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-400 mt-0.5">{prompt.category}</p>
           {prompt.description && (
             <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{prompt.description}</p>
@@ -1333,6 +1335,7 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onTog
       <div className={`hidden sm:block group relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden ${
         inCart ? 'border-green-600 shadow-md shadow-green-100' :
         disabled ? 'border-slate-200 opacity-50' :
+        !prompt.isPublic ? 'border-dashed border-slate-300 hover:border-slate-400 hover:shadow-sm' :
         'border-slate-200 hover:border-slate-300 hover:shadow-sm'
       }`}>
         <div className="aspect-square bg-slate-100 overflow-hidden">
@@ -1352,6 +1355,13 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onTog
         {inCart && (
           <div className="absolute top-2 left-2 bg-green-600 text-white rounded-full p-1">
             <Check size={12} />
+          </div>
+        )}
+
+        {!prompt.isPublic && isAdmin && !inCart && (
+          <div className="absolute top-2 left-2 bg-slate-700 text-white rounded-full px-1.5 py-0.5 flex items-center gap-1">
+            <Lock size={9} />
+            <span className="text-[9px] font-bold uppercase tracking-wide">Private</span>
           </div>
         )}
 
