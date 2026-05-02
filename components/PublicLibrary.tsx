@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck } from 'lucide-react';
+import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
 
@@ -13,26 +13,68 @@ interface CheckoutForm {
   bookingId: string;
 }
 
-interface EditCategoryModalProps {
+interface EditPromptModalProps {
   prompt: Prompt;
   allCategories: string[];
-  onSave: (promptId: string, newCategory: string) => Promise<void>;
+  onSave: (updated: Prompt) => Promise<void>;
   onClose: () => void;
 }
 
-const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ prompt, allCategories, onSave, onClose }) => {
-  const [value, setValue] = useState(prompt.category);
+const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories, onSave, onClose }) => {
+  const [form, setForm] = useState({
+    name: prompt.name,
+    description: prompt.description,
+    category: prompt.category,
+    promptText: prompt.promptText || '',
+    previewImage: prompt.previewImage || '',
+    referenceImage: prompt.referenceImage || '',
+    isPublic: prompt.isPublic,
+    tags: (prompt.tags || []).join(', '),
+  });
+  const [loadingText, setLoadingText] = useState(!prompt.promptText);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (!prompt.promptText) {
+      supabase
+        .from('prompts')
+        .select('prompt_text')
+        .eq('id', prompt.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.prompt_text) setForm(f => ({ ...f, promptText: data.prompt_text }));
+          setLoadingText(false);
+        });
+    }
+  }, [prompt.id, prompt.promptText]);
+
+  const set = (field: string, value: string | boolean) =>
+    setForm(f => ({ ...f, [field]: value }));
+
   const handleSave = async () => {
-    const trimmed = value.trim();
-    if (!trimmed) { setError('Category cannot be empty.'); return; }
-    if (trimmed === prompt.category) { onClose(); return; }
+    if (!form.name.trim()) { setError('Name is required.'); return; }
+    if (!form.category.trim()) { setError('Category is required.'); return; }
     setSaving(true);
     setError('');
     try {
-      await onSave(prompt.id, trimmed);
+      const tags = form.tags
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean);
+
+      const updated: Prompt = {
+        ...prompt,
+        name: form.name.trim(),
+        description: form.description.trim(),
+        category: form.category.trim(),
+        promptText: form.promptText,
+        previewImage: form.previewImage.trim(),
+        referenceImage: form.referenceImage.trim() || undefined,
+        isPublic: form.isPublic,
+        tags,
+      };
+      await onSave(updated);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to save.');
@@ -40,45 +82,67 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ prompt, allCatego
     }
   };
 
+  const inputCls = 'w-full border-2 border-slate-300 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm';
+  const labelCls = 'block text-sm font-semibold text-slate-700 mb-1.5';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-slate-200">
-          <h2 className="text-base font-bold text-slate-900">Edit Category</h2>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-slate-200 shrink-0">
+          <h2 className="text-base font-bold text-slate-900">Edit Prompt</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
             <X size={18} className="text-slate-500" />
           </button>
         </div>
-        <div className="p-6 space-y-4">
-          <p className="text-sm text-slate-600">
-            Changing category for: <span className="font-semibold text-slate-900">{prompt.name}</span>
-          </p>
 
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Name */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Category</label>
+            <label className={labelCls}>Name *</label>
             <input
               type="text"
-              list="category-suggestions"
-              value={value}
-              onChange={e => setValue(e.target.value)}
-              placeholder="Enter or select a category"
-              className="w-full border-2 border-slate-300 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm"
+              value={form.name}
+              onChange={e => set('name', e.target.value)}
+              className={inputCls}
             />
-            <datalist id="category-suggestions">
-              {allCategories.map(c => <option key={c} value={c} />)}
-            </datalist>
           </div>
 
-          {allCategories.length > 0 && (
-            <div>
-              <p className="text-xs text-slate-500 mb-2">Existing categories:</p>
-              <div className="flex flex-wrap gap-1.5">
+          {/* Description */}
+          <div>
+            <label className={labelCls}>Description</label>
+            <textarea
+              value={form.description}
+              onChange={e => set('description', e.target.value)}
+              rows={2}
+              className={inputCls + ' resize-none'}
+            />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className={labelCls}>Category *</label>
+            <input
+              type="text"
+              list="edit-category-suggestions"
+              value={form.category}
+              onChange={e => set('category', e.target.value)}
+              placeholder="Enter or select a category"
+              className={inputCls}
+            />
+            <datalist id="edit-category-suggestions">
+              {allCategories.map(c => <option key={c} value={c} />)}
+            </datalist>
+            {allCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
                 {allCategories.map(cat => (
                   <button
                     key={cat}
-                    onClick={() => setValue(cat)}
+                    type="button"
+                    onClick={() => set('category', cat)}
                     className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      value === cat
+                      form.category === cat
                         ? 'bg-green-700 text-white border-green-700'
                         : 'bg-white text-slate-600 border-slate-300 hover:border-green-600 hover:text-green-700'
                     }`}
@@ -87,30 +151,135 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({ prompt, allCatego
                   </button>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className={labelCls}>Tags <span className="font-normal text-slate-400">(comma separated)</span></label>
+            <input
+              type="text"
+              value={form.tags}
+              onChange={e => set('tags', e.target.value)}
+              placeholder="e.g. dark, retro, space"
+              className={inputCls}
+            />
+          </div>
+
+          {/* Prompt Text */}
+          <div>
+            <label className={labelCls}>Prompt Text</label>
+            {loadingText ? (
+              <div className="flex items-center gap-2 text-slate-400 text-sm py-2">
+                <Loader size={14} className="animate-spin" /> Loading…
+              </div>
+            ) : (
+              <textarea
+                value={form.promptText}
+                onChange={e => set('promptText', e.target.value)}
+                rows={5}
+                className={inputCls + ' resize-y font-mono text-xs'}
+                placeholder="Enter the AI prompt text…"
+              />
+            )}
+          </div>
+
+          {/* Preview Image URL */}
+          <div>
+            <label className={labelCls}>Preview Image URL</label>
+            <input
+              type="url"
+              value={form.previewImage}
+              onChange={e => set('previewImage', e.target.value)}
+              placeholder="https://…"
+              className={inputCls}
+            />
+            {form.previewImage && (
+              <img
+                src={form.previewImage}
+                alt="preview"
+                className="mt-2 h-24 rounded-lg object-cover border border-slate-200"
+              />
+            )}
+          </div>
+
+          {/* Reference Image URL */}
+          <div>
+            <label className={labelCls}>Reference Image URL <span className="font-normal text-slate-400">(optional)</span></label>
+            <input
+              type="url"
+              value={form.referenceImage}
+              onChange={e => set('referenceImage', e.target.value)}
+              placeholder="https://…"
+              className={inputCls}
+            />
+          </div>
+
+          {/* Visibility */}
+          <div>
+            <label className={labelCls}>Visibility</label>
+            <div className="flex gap-3">
+              <label
+                className="flex items-center gap-3 cursor-pointer p-3 border-2 rounded-lg flex-1 transition-colors"
+                style={{ borderColor: !form.isPublic ? '#15803d' : '#cbd5e1' }}
+              >
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={!form.isPublic}
+                  onChange={() => set('isPublic', false)}
+                  className="w-4 h-4 text-green-700"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5 font-semibold text-slate-900 text-sm">
+                    <Lock size={14} /> Private
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Only visible to owner and admins</p>
+                </div>
+              </label>
+              <label
+                className="flex items-center gap-3 cursor-pointer p-3 border-2 rounded-lg flex-1 transition-colors"
+                style={{ borderColor: form.isPublic ? '#15803d' : '#cbd5e1' }}
+              >
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={form.isPublic}
+                  onChange={() => set('isPublic', true)}
+                  className="w-4 h-4 text-green-700"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5 font-semibold text-slate-900 text-sm">
+                    <Globe size={14} /> Public
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Visible in the public library</p>
+                </div>
+              </label>
             </div>
-          )}
+          </div>
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700">
               {error}
             </div>
           )}
+        </div>
 
-          <div className="flex gap-3 pt-1">
-            <button
-              onClick={onClose}
-              className="flex-1 py-2.5 border-2 border-slate-300 rounded-xl text-slate-700 font-semibold hover:border-slate-400 text-sm transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-60"
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t-2 border-slate-200 shrink-0">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 border-2 border-slate-300 rounded-xl text-slate-700 font-semibold hover:border-slate-400 text-sm transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
         </div>
       </div>
     </div>
@@ -144,49 +313,48 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const { data, error: fetchError } = await supabase
-          .from('prompts')
-          .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active')
-          .eq('is_active', true)
-          .eq('is_public', true)
-          .order('category')
-          .order('name');
+  const loadPrompts = async () => {
+    setLoading(true);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('prompts')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id')
+        .eq('is_active', true)
+        .eq('is_public', true)
+        .order('category')
+        .order('name');
 
-        if (fetchError) throw fetchError;
+      if (fetchError) throw fetchError;
 
-        const mapped: Prompt[] = (data || []).map(p => ({
-          id: p.id,
-          name: p.name,
-          description: p.description || '',
-          previewImage: p.preview_image_url,
-          referenceImage: p.reference_image_url,
-          promptText: '',
-          category: p.category,
-          isPublic: p.is_public,
-          tags: p.tags || [],
-        }));
+      const mapped: Prompt[] = (data || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description || '',
+        previewImage: p.preview_image_url,
+        referenceImage: p.reference_image_url,
+        promptText: '',
+        category: p.category,
+        isPublic: p.is_public,
+        userId: p.user_id,
+        tags: p.tags || [],
+      }));
 
-        setPrompts(mapped);
+      setPrompts(mapped);
 
-        const cats = [...new Set(mapped.map(p => p.category).filter(Boolean))].sort();
-        const tagSet = new Set<string>();
-        mapped.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
-        setAllCategories(cats);
-        setAllTags([...tagSet].sort());
-      } catch (err: any) {
-        setError(err.message || 'Failed to load prompts');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+      const cats = [...new Set(mapped.map(p => p.category).filter(Boolean))].sort();
+      const tagSet = new Set<string>();
+      mapped.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
+      setAllCategories(cats);
+      setAllTags([...tagSet].sort());
+    } catch (err: any) {
+      setError(err.message || 'Failed to load prompts');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Filter whenever prompts, search, category, or tags change
+  useEffect(() => { loadPrompts(); }, []);
+
   useEffect(() => {
     let result = prompts;
 
@@ -213,25 +381,46 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     setFiltered(result);
   }, [prompts, searchQuery, selectedCategory, selectedTags]);
 
-  const handleSaveCategory = async (promptId: string, newCategory: string) => {
+  const handleSavePrompt = async (updated: Prompt) => {
     const { error: updateError } = await supabase
       .from('prompts')
-      .update({ category: newCategory })
-      .eq('id', promptId);
+      .update({
+        name: updated.name,
+        description: updated.description,
+        category: updated.category,
+        prompt_text: updated.promptText,
+        preview_image_url: updated.previewImage || null,
+        reference_image_url: updated.referenceImage || null,
+        is_public: updated.isPublic,
+        tags: updated.tags || [],
+      })
+      .eq('id', updated.id);
 
     if (updateError) throw new Error(updateError.message);
 
+    // If prompt was made private, remove it from the public library list
+    if (!updated.isPublic) {
+      setPrompts(prev => prev.filter(p => p.id !== updated.id));
+    } else {
+      setPrompts(prev => prev.map(p => p.id === updated.id ? updated : p));
+    }
+
+    // Refresh categories/tags
     setPrompts(prev => {
-      const updated = prev.map(p => p.id === promptId ? { ...p, category: newCategory } : p);
-      const cats = [...new Set(updated.map(p => p.category).filter(Boolean))].sort();
+      const next = updated.isPublic
+        ? prev.map(p => p.id === updated.id ? updated : p)
+        : prev.filter(p => p.id !== updated.id);
+      const cats = [...new Set(next.map(p => p.category).filter(Boolean))].sort();
+      const tagSet = new Set<string>();
+      next.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
       setAllCategories(cats);
-      return updated;
+      setAllTags([...tagSet].sort());
+      return next;
     });
 
-    // If we were filtering by the old category, clear the filter
     if (selectedCategory) {
-      const oldCat = prompts.find(p => p.id === promptId)?.category;
-      if (oldCat && oldCat !== newCategory && selectedCategory === oldCat) {
+      const old = prompts.find(p => p.id === updated.id);
+      if (old && old.category !== updated.category && selectedCategory === old.category) {
         setSelectedCategory('');
       }
     }
@@ -313,7 +502,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     }
   };
 
-  // Group filtered prompts by category
   const byCategory = filtered.reduce<Record<string, Prompt[]>>((acc, p) => {
     if (!acc[p.category]) acc[p.category] = [];
     acc[p.category].push(p);
@@ -326,7 +514,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
       {isAdmin && (
         <div className="bg-amber-50 border-b-2 border-amber-200 px-4 py-2 flex items-center justify-center gap-2">
           <ShieldCheck size={15} className="text-amber-700" />
-          <span className="text-sm font-semibold text-amber-800">Admin Mode — click the pencil icon on any theme to edit its category</span>
+          <span className="text-sm font-semibold text-amber-800">Admin Mode — click the pencil icon on any theme to edit it</span>
         </div>
       )}
 
@@ -343,7 +531,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
             </div>
           </div>
 
-          {/* Search bar */}
           <div className="flex-1 max-w-xl">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -362,7 +549,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
             </div>
           </div>
 
-          {/* Cart button */}
           <button
             onClick={() => setCartOpen(true)}
             className="relative flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shrink-0"
@@ -379,9 +565,8 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
-        {/* Sidebar filters */}
+        {/* Sidebar */}
         <aside className="hidden lg:block w-56 shrink-0 space-y-4">
-          {/* Category filter */}
           <div className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-slate-50 border-b-2 border-slate-200">
               <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Category</h3>
@@ -405,7 +590,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
             </div>
           </div>
 
-          {/* Tags filter */}
           {allTags.length > 0 && (
             <div className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden">
               <button
@@ -448,7 +632,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
         {/* Main content */}
         <main className="flex-1 min-w-0">
-          {/* Mobile filters row */}
+          {/* Mobile filters */}
           <div className="lg:hidden mb-4 flex gap-2 overflow-x-auto pb-2">
             <select
               value={selectedCategory}
@@ -474,7 +658,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
             ))}
           </div>
 
-          {/* Results summary */}
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-500">
               {loading ? 'Loading...' : `${filtered.length} theme${filtered.length !== 1 ? 's' : ''}${hasActiveFilters ? ' matching filters' : ''}`}
@@ -519,7 +702,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                           inCart={inCart(prompt.id)}
                           onToggle={() => toggleCart(prompt)}
                           isAdmin={isAdmin}
-                          onEditCategory={() => setEditingPrompt(prompt)}
+                          onEdit={() => setEditingPrompt(prompt)}
                         />
                       ))}
                     </div>
@@ -534,7 +717,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                       inCart={inCart(prompt.id)}
                       onToggle={() => toggleCart(prompt)}
                       isAdmin={isAdmin}
-                      onEditCategory={() => setEditingPrompt(prompt)}
+                      onEdit={() => setEditingPrompt(prompt)}
                     />
                   ))}
                 </div>
@@ -625,7 +808,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">Request Submitted!</h3>
                 <p className="text-slate-600 mb-6">
-                  Your {cart.length > 0 ? cart.length : 'selected'} theme selections have been sent. We'll be in touch soon.
+                  Your theme selections have been sent. We'll be in touch soon.
                 </p>
                 <button
                   onClick={() => { setCheckoutOpen(false); setSubmitSuccess(false); }}
@@ -636,7 +819,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
               </div>
             ) : (
               <div className="p-6 space-y-5">
-                {/* Summary */}
                 <div className="bg-slate-50 rounded-xl p-4 border-2 border-slate-200">
                   <p className="text-sm font-semibold text-slate-700 mb-2">Selected Themes ({cart.length})</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -648,7 +830,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                   </div>
                 </div>
 
-                {/* Form fields */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Your Name *</label>
                   <input
@@ -697,7 +878,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                   <button
                     onClick={handleSubmit}
                     disabled={submitting}
-                    className="flex-2 flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {submitting ? 'Submitting...' : 'Submit Request'}
                   </button>
@@ -708,12 +889,12 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         </div>
       )}
 
-      {/* Edit Category Modal */}
+      {/* Full Edit Modal (admin only) */}
       {editingPrompt && (
-        <EditCategoryModal
+        <EditPromptModal
           prompt={editingPrompt}
           allCategories={allCategories}
-          onSave={handleSaveCategory}
+          onSave={handleSavePrompt}
           onClose={() => setEditingPrompt(null)}
         />
       )}
@@ -726,12 +907,11 @@ interface PromptCardProps {
   inCart: boolean;
   onToggle: () => void;
   isAdmin?: boolean;
-  onEditCategory?: () => void;
+  onEdit?: () => void;
 }
 
-const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, onToggle, isAdmin = false, onEditCategory }) => (
+const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, onToggle, isAdmin = false, onEdit }) => (
   <div className={`group relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden ${inCart ? 'border-green-600 shadow-md shadow-green-100' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}>
-    {/* Image */}
     <div className="aspect-square bg-slate-100 overflow-hidden">
       {prompt.previewImage ? (
         <img
@@ -746,25 +926,22 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, onToggle, isAdm
       )}
     </div>
 
-    {/* In-cart overlay badge */}
     {inCart && (
       <div className="absolute top-2 left-2 bg-green-600 text-white rounded-full p-1">
         <Check size={12} />
       </div>
     )}
 
-    {/* Admin edit category button */}
     {isAdmin && (
       <button
-        onClick={e => { e.stopPropagation(); onEditCategory?.(); }}
-        title="Edit category"
+        onClick={e => { e.stopPropagation(); onEdit?.(); }}
+        title="Edit prompt"
         className="absolute top-2 right-2 bg-white/90 hover:bg-amber-50 border border-amber-200 text-amber-700 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
       >
         <Pencil size={12} />
       </button>
     )}
 
-    {/* Content */}
     <div className="p-3">
       <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{prompt.name}</p>
       <p className="text-xs text-slate-400 mt-0.5">{prompt.category}</p>
@@ -780,7 +957,6 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, onToggle, isAdm
       )}
     </div>
 
-    {/* Add/remove button */}
     <button
       onClick={onToggle}
       className={`w-full py-2.5 text-sm font-semibold transition-colors border-t-2 ${
