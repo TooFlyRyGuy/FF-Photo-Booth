@@ -16,11 +16,12 @@ interface CheckoutForm {
 interface EditPromptModalProps {
   prompt: Prompt;
   allCategories: string[];
+  isCreating?: boolean;
   onSave: (updated: Prompt) => Promise<void>;
   onClose: () => void;
 }
 
-const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories, onSave, onClose }) => {
+const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories, isCreating = false, onSave, onClose }) => {
   const [editingPrompt, setEditingPrompt] = useState<Prompt>({ ...prompt, tags: prompt.tags || [] });
   const [isPublic, setIsPublic] = useState(prompt.isPublic);
   const [saving, setSaving] = useState(false);
@@ -126,7 +127,7 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="p-4 md:p-6 border-b-2 border-slate-300 flex justify-between items-center sticky top-0 bg-white z-10">
-          <h2 className="text-xl md:text-2xl font-bold text-slate-900">Edit Prompt</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-slate-900">{isCreating ? 'Create New Prompt' : 'Edit Prompt'}</h2>
           <button
             onClick={onClose}
             className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
@@ -350,7 +351,7 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
               className="flex-1 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center justify-center gap-2"
             >
               <Save size={18} />
-              {saving ? 'Saving…' : 'Update Prompt'}
+              {saving ? 'Saving…' : isCreating ? 'Create Prompt' : 'Update Prompt'}
             </button>
             <button
               onClick={onClose}
@@ -391,6 +392,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const [submitError, setSubmitError] = useState('');
 
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
+  const [creatingPrompt, setCreatingPrompt] = useState(false);
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -503,6 +505,45 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         setSelectedCategory('');
       }
     }
+  };
+
+  const blankPrompt: Prompt = {
+    id: '',
+    name: '',
+    description: '',
+    previewImage: '',
+    referenceImage: null,
+    promptText: '',
+    category: '',
+    isPublic: true,
+    userId: '',
+    tags: [],
+  };
+
+  const handleCreatePrompt = async (newPrompt: Prompt) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error: insertError } = await supabase
+      .from('prompts')
+      .insert({
+        name: newPrompt.name,
+        description: newPrompt.description,
+        category: newPrompt.category,
+        prompt_text: newPrompt.promptText,
+        preview_image_url: newPrompt.previewImage || null,
+        reference_image_url: newPrompt.referenceImage || null,
+        is_public: newPrompt.isPublic,
+        is_active: true,
+        tags: newPrompt.tags || [],
+        user_id: user.id,
+      })
+      .select('id')
+      .single();
+
+    if (insertError) throw new Error(insertError.message);
+
+    await loadPrompts();
   };
 
   const toggleCart = (prompt: Prompt) => {
@@ -627,6 +668,16 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
               )}
             </div>
           </div>
+
+          {isAdmin && (
+            <button
+              onClick={() => setCreatingPrompt(true)}
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shrink-0"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">New Prompt</span>
+            </button>
+          )}
 
           <button
             onClick={() => setCartOpen(true)}
@@ -975,6 +1026,17 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
           allCategories={allCategories}
           onSave={handleSavePrompt}
           onClose={() => setEditingPrompt(null)}
+        />
+      )}
+
+      {/* Create Prompt Modal (admin only) */}
+      {creatingPrompt && (
+        <EditPromptModal
+          prompt={blankPrompt}
+          allCategories={allCategories}
+          isCreating={true}
+          onSave={handleCreatePrompt}
+          onClose={() => setCreatingPrompt(false)}
         />
       )}
     </div>
