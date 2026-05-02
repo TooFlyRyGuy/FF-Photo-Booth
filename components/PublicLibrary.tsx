@@ -399,6 +399,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [deletingPrompt, setDeletingPrompt] = useState<Prompt | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [visibleCount, setVisibleCount] = useState(12);
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -470,6 +471,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     }
 
     setFiltered(result);
+    setVisibleCount(12);
   }, [prompts, searchQuery, selectedCategory, selectedTags]);
 
   const handleSavePrompt = async (updated: Prompt) => {
@@ -973,32 +975,42 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
           ) : (
             <div className="space-y-6">
               {selectedCategory ? (
-                Object.entries(byCategory).map(([category, categoryPrompts]) => (
-                  <section key={category}>
-                    <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-2.5 flex items-center gap-2">
-                      <span className="w-1 h-4 bg-green-700 rounded-full inline-block" />
-                      {category}
-                      <span className="text-slate-400 font-normal text-xs normal-case">({categoryPrompts.length})</span>
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-                      {categoryPrompts.map(prompt => (
-                        <PromptCard
-                          key={prompt.id}
-                          prompt={prompt}
-                          inCart={inCart(prompt.id)}
-                          cartFull={cart.length >= CART_LIMIT}
-                          onToggle={() => toggleCart(prompt)}
-                          isAdmin={isAdmin}
-                          onEdit={() => setEditingPrompt(prompt)}
-                          onDelete={() => { setDeleteError(''); setDeletingPrompt(prompt); }}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))
+                (() => {
+                  let shown = 0;
+                  const sections: React.ReactNode[] = [];
+                  for (const [category, categoryPrompts] of Object.entries(byCategory)) {
+                    if (shown >= visibleCount) break;
+                    const slice = categoryPrompts.slice(0, visibleCount - shown);
+                    shown += slice.length;
+                    sections.push(
+                      <section key={category}>
+                        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-2.5 flex items-center gap-2">
+                          <span className="w-1 h-4 bg-green-700 rounded-full inline-block" />
+                          {category}
+                          <span className="text-slate-400 font-normal text-xs normal-case">({categoryPrompts.length})</span>
+                        </h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                          {slice.map(prompt => (
+                            <PromptCard
+                              key={prompt.id}
+                              prompt={prompt}
+                              inCart={inCart(prompt.id)}
+                              cartFull={cart.length >= CART_LIMIT}
+                              onToggle={() => toggleCart(prompt)}
+                              isAdmin={isAdmin}
+                              onEdit={() => setEditingPrompt(prompt)}
+                              onDelete={() => { setDeleteError(''); setDeletingPrompt(prompt); }}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  }
+                  return sections;
+                })()
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-                  {filtered.map(prompt => (
+                  {filtered.slice(0, visibleCount).map(prompt => (
                     <PromptCard
                       key={prompt.id}
                       prompt={prompt}
@@ -1010,6 +1022,17 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                       onDelete={() => { setDeleteError(''); setDeletingPrompt(prompt); }}
                     />
                   ))}
+                </div>
+              )}
+
+              {filtered.length > visibleCount && (
+                <div className="flex justify-center pt-2 pb-4">
+                  <button
+                    onClick={() => setVisibleCount(c => c + 12)}
+                    className="px-6 py-2.5 bg-white border-2 border-slate-200 hover:border-green-600 hover:text-green-700 text-slate-700 font-semibold text-sm rounded-xl transition-colors shadow-sm"
+                  >
+                    Load More ({filtered.length - visibleCount} remaining)
+                  </button>
                 </div>
               )}
             </div>
