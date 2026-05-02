@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload } from 'lucide-react';
+import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload, Info, CircleAlert as AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
 
@@ -370,11 +370,14 @@ interface PublicLibraryProps {
   isAdmin?: boolean;
 }
 
+const CART_LIMIT = 10;
+
 const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [filtered, setFiltered] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showHowTo, setShowHowTo] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -559,7 +562,9 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const toggleCart = (prompt: Prompt) => {
     setCart(prev => {
       const exists = prev.find(i => i.prompt.id === prompt.id);
-      return exists ? prev.filter(i => i.prompt.id !== prompt.id) : [...prev, { prompt }];
+      if (exists) return prev.filter(i => i.prompt.id !== prompt.id);
+      if (prev.length >= CART_LIMIT) return prev;
+      return [...prev, { prompt }];
     });
   };
 
@@ -704,6 +709,55 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         </div>
       </header>
 
+      {/* How-to banner */}
+      {showHowTo && !isAdmin && (
+        <div className="bg-green-700 text-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3 flex-1">
+                <Info size={20} className="shrink-0 mt-0.5 opacity-90" />
+                <div>
+                  <p className="font-bold text-base mb-2">How to use this library</p>
+                  <ol className="space-y-1 text-sm text-green-100">
+                    <li className="flex items-start gap-2">
+                      <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
+                      <span><strong className="text-white">Browse or search</strong> — use the search bar or category filters on the left to explore AI photo themes.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
+                      <span><strong className="text-white">Select themes</strong> — click the <strong className="text-white">+</strong> button on any theme to add it to your cart. You can select up to <strong className="text-white">10 themes</strong>.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
+                      <span><strong className="text-white">Checkout</strong> — click the <strong className="text-white">Cart</strong> button at the top right, review your selections, then fill in your details and submit your request.</span>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHowTo(false)}
+                className="shrink-0 p-1.5 rounded-lg hover:bg-white/20 transition-colors mt-0.5"
+                title="Dismiss"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cart limit warning bar */}
+      {cart.length >= CART_LIMIT && (
+        <div className="bg-amber-50 border-b-2 border-amber-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2">
+            <AlertCircle size={15} className="text-amber-600 shrink-0" />
+            <span className="text-sm font-semibold text-amber-800">
+              You've reached the 10-theme limit. Remove a theme from your cart to add a different one.
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
         {/* Sidebar */}
         <aside className="hidden lg:block w-56 shrink-0 space-y-4">
@@ -840,6 +894,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                           key={prompt.id}
                           prompt={prompt}
                           inCart={inCart(prompt.id)}
+                          cartFull={cart.length >= CART_LIMIT}
                           onToggle={() => toggleCart(prompt)}
                           isAdmin={isAdmin}
                           onEdit={() => setEditingPrompt(prompt)}
@@ -855,6 +910,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                       key={prompt.id}
                       prompt={prompt}
                       inCart={inCart(prompt.id)}
+                      cartFull={cart.length >= CART_LIMIT}
                       onToggle={() => toggleCart(prompt)}
                       isAdmin={isAdmin}
                       onEdit={() => setEditingPrompt(prompt)}
@@ -873,10 +929,25 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
           <div className="flex-1 bg-black/40" onClick={() => setCartOpen(false)} />
           <div className="w-full max-w-md bg-white shadow-2xl flex flex-col h-full">
             <div className="flex items-center justify-between px-6 py-4 border-b-2 border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <ShoppingCart size={20} className="text-green-700" />
-                Your Selections ({cart.length})
-              </h2>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <ShoppingCart size={20} className="text-green-700" />
+                  Your Selections
+                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: CART_LIMIT }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`h-1.5 w-5 rounded-full transition-colors ${i < cart.length ? 'bg-green-600' : 'bg-slate-200'}`}
+                      />
+                    ))}
+                  </div>
+                  <span className={`text-xs font-semibold ${cart.length >= CART_LIMIT ? 'text-amber-600' : 'text-slate-500'}`}>
+                    {cart.length}/{CART_LIMIT}
+                  </span>
+                </div>
+              </div>
               <button onClick={() => setCartOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100">
                 <X size={20} className="text-slate-500" />
               </button>
@@ -886,8 +957,9 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
               {cart.length === 0 ? (
                 <div className="text-center py-16 text-slate-400">
                   <ShoppingCart size={40} className="mx-auto mb-3 opacity-30" />
-                  <p>No themes selected yet</p>
-                  <p className="text-sm mt-1">Click the + button on any theme to add it</p>
+                  <p className="font-medium">No themes selected yet</p>
+                  <p className="text-sm mt-1">Click the <strong>+</strong> button on any theme to add it</p>
+                  <p className="text-xs mt-2 text-slate-300">You can select up to {CART_LIMIT} themes</p>
                 </div>
               ) : (
                 cart.map(({ prompt }) => (
@@ -1056,69 +1128,80 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 interface PromptCardProps {
   prompt: Prompt;
   inCart: boolean;
+  cartFull: boolean;
   onToggle: () => void;
   isAdmin?: boolean;
   onEdit?: () => void;
 }
 
-const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, onToggle, isAdmin = false, onEdit }) => (
-  <div className={`group relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden ${inCart ? 'border-green-600 shadow-md shadow-green-100' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}>
-    <div className="aspect-square bg-slate-100 overflow-hidden">
-      {prompt.previewImage ? (
-        <img
-          src={prompt.previewImage}
-          alt={prompt.name}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-slate-300">
-          <Search size={32} />
-        </div>
-      )}
-    </div>
-
-    {inCart && (
-      <div className="absolute top-2 left-2 bg-green-600 text-white rounded-full p-1">
-        <Check size={12} />
+const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onToggle, isAdmin = false, onEdit }) => {
+  const disabled = cartFull && !inCart;
+  return (
+    <div className={`group relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden ${
+      inCart ? 'border-green-600 shadow-md shadow-green-100' :
+      disabled ? 'border-slate-200 opacity-50' :
+      'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+    }`}>
+      <div className="aspect-square bg-slate-100 overflow-hidden">
+        {prompt.previewImage ? (
+          <img
+            src={prompt.previewImage}
+            alt={prompt.name}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-300">
+            <Search size={32} />
+          </div>
+        )}
       </div>
-    )}
 
-    {isAdmin && (
-      <button
-        onClick={e => { e.stopPropagation(); onEdit?.(); }}
-        title="Edit prompt"
-        className="absolute top-2 right-2 bg-white/90 hover:bg-amber-50 border border-amber-200 text-amber-700 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-      >
-        <Pencil size={12} />
-      </button>
-    )}
-
-    <div className="p-3">
-      <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{prompt.name}</p>
-      <p className="text-xs text-slate-400 mt-0.5">{prompt.category}</p>
-      {prompt.description && (
-        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{prompt.description}</p>
-      )}
-      {prompt.tags && prompt.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {prompt.tags.slice(0, 3).map(tag => (
-            <span key={tag} className="bg-slate-100 text-slate-500 text-xs px-1.5 py-0.5 rounded">{tag}</span>
-          ))}
+      {inCart && (
+        <div className="absolute top-2 left-2 bg-green-600 text-white rounded-full p-1">
+          <Check size={12} />
         </div>
       )}
-    </div>
 
-    <button
-      onClick={onToggle}
-      className={`w-full py-2.5 text-sm font-semibold transition-colors border-t-2 ${
-        inCart
-          ? 'bg-green-50 border-green-200 text-green-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
-          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-green-700 hover:border-green-200'
-      }`}
-    >
-      {inCart ? 'Remove' : '+ Add to Selection'}
-    </button>
-  </div>
-);
+      {isAdmin && (
+        <button
+          onClick={e => { e.stopPropagation(); onEdit?.(); }}
+          title="Edit prompt"
+          className="absolute top-2 right-2 bg-white/90 hover:bg-amber-50 border border-amber-200 text-amber-700 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+        >
+          <Pencil size={12} />
+        </button>
+      )}
+
+      <div className="p-3">
+        <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{prompt.name}</p>
+        <p className="text-xs text-slate-400 mt-0.5">{prompt.category}</p>
+        {prompt.description && (
+          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{prompt.description}</p>
+        )}
+        {prompt.tags && prompt.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {prompt.tags.slice(0, 3).map(tag => (
+              <span key={tag} className="bg-slate-100 text-slate-500 text-xs px-1.5 py-0.5 rounded">{tag}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={onToggle}
+        disabled={disabled}
+        className={`w-full py-2.5 text-sm font-semibold transition-colors border-t-2 ${
+          inCart
+            ? 'bg-green-50 border-green-200 text-green-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+            : disabled
+            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-green-700 hover:border-green-200'
+        }`}
+      >
+        {inCart ? 'Remove' : '+ Add to Selection'}
+      </button>
+    </div>
+  );
+};
 
 export default PublicLibrary;
