@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload, Info, CircleAlert as AlertCircle } from 'lucide-react';
+import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload, Info, CircleAlert as AlertCircle, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
 
@@ -396,6 +396,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -649,103 +650,112 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
       {isAdmin && (
         <div className="bg-amber-50 border-b-2 border-amber-200 px-4 py-2 flex items-center justify-center gap-2">
           <ShieldCheck size={15} className="text-amber-700" />
-          <span className="text-sm font-semibold text-amber-800">Admin Mode — click the pencil icon on any theme to edit it</span>
+          <span className="text-sm font-semibold text-amber-800">Admin Mode — tap the pencil icon on any theme to edit it</span>
         </div>
       )}
 
       {/* Header */}
       <header className="bg-white border-b-2 border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 bg-green-700 rounded-lg flex items-center justify-center">
-              <Filter size={18} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 leading-tight">AI Prompt Library</h1>
-              <p className="text-xs text-slate-500 hidden sm:block">Browse and select themes for your event</p>
-            </div>
+        {/* Row 1: logo + actions */}
+        <div className="px-3 sm:px-6 lg:px-8 pt-2.5 pb-2 flex items-center gap-2">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-700 rounded-lg flex items-center justify-center shrink-0">
+            <Filter size={14} className="text-white" />
           </div>
-
-          <div className="flex-1 max-w-xl">
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by name, category, or tag..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-100 border-2 border-transparent rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-700 focus:bg-white transition-colors"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          </div>
+          <h1 className="flex-1 text-sm sm:text-base font-bold text-slate-900 leading-tight truncate min-w-0">AI Prompt Library</h1>
 
           {isAdmin && (
             <button
               onClick={() => setCreatingPrompt(true)}
-              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shrink-0"
+              className="flex items-center gap-1 bg-slate-800 hover:bg-slate-900 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0"
             >
-              <Plus size={16} />
-              <span className="hidden sm:inline">New Prompt</span>
+              <Plus size={13} />
+              <span className="hidden sm:inline">New</span>
             </button>
           )}
 
+          {/* Cart — header button, hidden on mobile when FAB is shown */}
           <button
             onClick={() => setCartOpen(true)}
-            className="relative flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shrink-0"
+            className="relative flex items-center gap-1.5 bg-green-700 hover:bg-green-800 text-white px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors shrink-0"
           >
-            <ShoppingCart size={16} />
-            <span className="hidden sm:inline">Cart</span>
+            <ShoppingCart size={15} />
+            <span>Cart</span>
             {cart.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold leading-none text-[10px] sm:text-xs">
                 {cart.length}
               </span>
             )}
           </button>
         </div>
+
+        {/* Row 2: search + filter button */}
+        <div className="px-3 sm:px-6 lg:px-8 pb-2.5 flex gap-2">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search themes..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-7 py-2 bg-slate-100 border-2 border-transparent rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-700 focus:bg-white transition-colors"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setFilterSheetOpen(true)}
+            className={`lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 text-xs font-semibold transition-colors shrink-0 ${
+              hasActiveFilters
+                ? 'bg-green-700 border-green-700 text-white'
+                : 'bg-white border-slate-200 text-slate-600'
+            }`}
+          >
+            <SlidersHorizontal size={13} />
+            {hasActiveFilters ? `${(selectedCategory ? 1 : 0) + selectedTags.length}` : 'Filter'}
+          </button>
+        </div>
       </header>
 
-      {/* How-to banner */}
+      {/* How-to banner — collapsible, compact on mobile */}
       {showHowTo && !isAdmin && (
         <div className="bg-green-700 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3 flex-1">
-                <Info size={20} className="shrink-0 mt-0.5 opacity-90" />
-                <div>
-                  <p className="font-bold text-base mb-2">How to use this library</p>
-                  <ol className="space-y-1.5 text-sm text-green-100">
-                    <li className="flex items-start gap-2">
-                      <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
-                      <span><strong className="text-white">Browse or search</strong> — use the search bar or category filters on the left to explore AI photo themes.</span>
+          <div className="px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                <Info size={18} className="shrink-0 mt-0.5 opacity-90" />
+                <div className="min-w-0">
+                  <p className="font-bold text-sm mb-1.5">How to use this library</p>
+                  <ol className="space-y-1 text-xs text-green-100">
+                    <li className="flex items-start gap-1.5">
+                      <span className="bg-white/20 font-bold text-xs w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
+                      <span><strong className="text-white">Browse or search</strong> — use the search bar above or tap <strong className="text-white">Filter</strong> to narrow by category or tags.</span>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
-                      <span><strong className="text-white">Select themes</strong> — click the <strong className="text-white">+</strong> button on any theme to add it to your selections. This tool lets you browse and submit up to <strong className="text-white">10 themes at a time</strong>.</span>
+                    <li className="flex items-start gap-1.5">
+                      <span className="bg-white/20 font-bold text-xs w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
+                      <span><strong className="text-white">Select themes</strong> — tap <strong className="text-white">+ Add</strong> on any theme. You can submit up to <strong className="text-white">10 themes at a time</strong>.</span>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="bg-white/20 text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
-                      <span><strong className="text-white">Checkout</strong> — click the <strong className="text-white">Cart</strong> button at the top right, review your selections, then fill in your details and submit your request.</span>
+                    <li className="flex items-start gap-1.5">
+                      <span className="bg-white/20 font-bold text-xs w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
+                      <span><strong className="text-white">Checkout</strong> — tap the <strong className="text-white">Cart</strong> button, review your picks, and submit your request.</span>
                     </li>
                   </ol>
-                  <div className="mt-3 flex items-start gap-2 bg-white/10 rounded-lg px-3 py-2.5 border border-white/20">
-                    <AlertCircle size={14} className="shrink-0 mt-0.5 text-yellow-300" />
+                  <div className="mt-2 flex items-start gap-1.5 bg-white/10 rounded-lg px-2.5 py-2 border border-white/20">
+                    <AlertCircle size={13} className="shrink-0 mt-0.5 text-yellow-300" />
                     <p className="text-xs text-green-100 leading-relaxed">
-                      <strong className="text-white">Note:</strong> The 10-theme selector limit is for browsing purposes only. The number of AI themes actually included at your event depends on your booked package. Please refer to your booking confirmation or contact us to confirm how many themes your package includes.
+                      <strong className="text-white">Note:</strong> The 10-theme selector is for browsing only. Your actual theme allowance depends on your booked package — check your booking confirmation for details.
                     </p>
                   </div>
                 </div>
               </div>
               <button
                 onClick={() => setShowHowTo(false)}
-                className="shrink-0 p-1.5 rounded-lg hover:bg-white/20 transition-colors mt-0.5"
+                className="shrink-0 p-1 rounded-lg hover:bg-white/20 transition-colors mt-0.5"
                 title="Dismiss"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
           </div>
@@ -755,21 +765,101 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
       {/* Cart limit warning bar */}
       {cart.length >= CART_LIMIT && (
         <div className="bg-amber-50 border-b-2 border-amber-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2">
-            <AlertCircle size={15} className="text-amber-600 shrink-0" />
-            <span className="text-sm text-amber-800">
-              <strong>Selector limit reached</strong> — you can submit up to 10 themes at a time. Remove one to swap it. Remember: your package determines how many themes are included at your event.
+          <div className="px-4 sm:px-6 lg:px-8 py-2 flex items-start sm:items-center gap-2">
+            <AlertCircle size={14} className="text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+            <span className="text-xs sm:text-sm text-amber-800">
+              <strong>Selector limit reached</strong> — remove a theme to swap it. Your package determines how many themes are included at your event.
             </span>
           </div>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
-        {/* Sidebar */}
+      {/* Mobile filter sheet overlay */}
+      {filterSheetOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden flex flex-col justify-end">
+          <div className="flex-1 bg-black/40" onClick={() => setFilterSheetOpen(false)} />
+          <div className="bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b-2 border-slate-200">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-green-700" />
+                Filter Themes
+              </h2>
+              <button onClick={() => setFilterSheetOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-4 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Category</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setSelectedCategory('')}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-colors ${!selectedCategory ? 'bg-green-700 border-green-700 text-white' : 'bg-white border-slate-200 text-slate-600'}`}
+                  >
+                    All
+                  </button>
+                  {allCategories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-colors ${selectedCategory === cat ? 'bg-green-700 border-green-700 text-white' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {allTags.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-colors ${
+                          selectedTags.includes(tag)
+                            ? 'bg-green-700 border-green-700 text-white'
+                            : 'bg-white border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        <Tag size={11} />
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t-2 border-slate-200 flex gap-3">
+              {hasActiveFilters && (
+                <button
+                  onClick={() => { clearFilters(); setFilterSheetOpen(false); }}
+                  className="flex-1 py-2.5 border-2 border-slate-300 rounded-xl text-slate-700 font-semibold text-sm hover:border-red-300 hover:text-red-600 transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
+              <button
+                onClick={() => setFilterSheetOpen(false)}
+                className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold text-sm transition-colors"
+              >
+                Show {filtered.length} Result{filtered.length !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex gap-6">
+        {/* Desktop sidebar */}
         <aside className="hidden lg:block w-56 shrink-0 space-y-4">
           <div className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-slate-50 border-b-2 border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Category</h3>
+              <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Category</h3>
             </div>
             <div className="p-2">
               <button
@@ -796,7 +886,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                 className="w-full px-4 py-3 bg-slate-50 border-b-2 border-slate-200 flex items-center justify-between"
                 onClick={() => setTagsOpen(!tagsOpen)}
               >
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Tags</h3>
+                <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Tags</h3>
                 {tagsOpen ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
               </button>
               {tagsOpen && (
@@ -832,34 +922,8 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
         {/* Main content */}
         <main className="flex-1 min-w-0">
-          {/* Mobile filters */}
-          <div className="lg:hidden mb-4 flex gap-2 overflow-x-auto pb-2">
-            <select
-              value={selectedCategory}
-              onChange={e => setSelectedCategory(e.target.value)}
-              className="shrink-0 bg-white border-2 border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-green-700"
-            >
-              <option value="">All Categories</option>
-              {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            {allTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`shrink-0 flex items-center gap-1 px-3 py-2 rounded-full text-xs font-medium border transition-colors ${
-                  selectedTags.includes(tag)
-                    ? 'bg-green-700 text-white border-green-700'
-                    : 'bg-white text-slate-600 border-slate-200'
-                }`}
-              >
-                <Tag size={10} />
-                {tag}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-slate-500">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs sm:text-sm text-slate-500">
               {loading ? 'Loading...' : `${filtered.length} theme${filtered.length !== 1 ? 's' : ''}${hasActiveFilters ? ' matching filters' : ''}`}
             </p>
             {hasActiveFilters && (
@@ -872,10 +936,10 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
               <Loader size={32} className="text-green-700 animate-spin" />
             </div>
           ) : error ? (
-            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6 text-center text-red-700">{error}</div>
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6 text-center text-red-700 text-sm">{error}</div>
           ) : filtered.length === 0 ? (
-            <div className="bg-white border-2 border-slate-200 rounded-xl p-12 text-center">
-              <Search size={40} className="mx-auto text-slate-300 mb-4" />
+            <div className="bg-white border-2 border-slate-200 rounded-xl p-10 text-center">
+              <Search size={36} className="mx-auto text-slate-300 mb-3" />
               <p className="text-slate-600 font-medium">No themes found</p>
               <p className="text-slate-400 text-sm mt-1">Try adjusting your search or filters</p>
               {hasActiveFilters && (
@@ -885,16 +949,16 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
               )}
             </div>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-6">
               {selectedCategory ? (
                 Object.entries(byCategory).map(([category, categoryPrompts]) => (
                   <section key={category}>
-                    <h2 className="text-base font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                      <span className="w-1 h-5 bg-green-700 rounded-full inline-block" />
+                    <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-2.5 flex items-center gap-2">
+                      <span className="w-1 h-4 bg-green-700 rounded-full inline-block" />
                       {category}
-                      <span className="text-slate-400 font-normal text-sm normal-case">({categoryPrompts.length})</span>
+                      <span className="text-slate-400 font-normal text-xs normal-case">({categoryPrompts.length})</span>
                     </h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
                       {categoryPrompts.map(prompt => (
                         <PromptCard
                           key={prompt.id}
@@ -910,7 +974,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                   </section>
                 ))
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
                   {filtered.map(prompt => (
                     <PromptCard
                       key={prompt.id}
@@ -926,27 +990,97 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
               )}
             </div>
           )}
+
+          {/* Mobile bottom padding so FAB doesn't cover last card */}
+          <div className="h-20 sm:hidden" />
         </main>
       </div>
 
-      {/* Cart Drawer */}
+      {/* Mobile floating cart button (bottom-right) */}
+      {cart.length > 0 && (
+        <button
+          onClick={() => setCartOpen(true)}
+          className="fixed bottom-5 right-4 sm:hidden z-30 flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white pl-4 pr-5 py-3 rounded-full shadow-lg font-semibold text-sm transition-colors"
+        >
+          <ShoppingCart size={18} />
+          <span>View Cart</span>
+          <span className="bg-white text-green-700 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
+            {cart.length}
+          </span>
+        </button>
+      )}
+
+      {/* Cart Drawer — bottom sheet on mobile, right panel on sm+ */}
       {cartOpen && (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="flex-1 bg-black/40" onClick={() => setCartOpen(false)} />
-          <div className="w-full max-w-md bg-white shadow-2xl flex flex-col h-full">
-            <div className="flex items-center justify-between px-6 py-4 border-b-2 border-slate-200">
+        <div className="fixed inset-0 z-40 flex sm:justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setCartOpen(false)} />
+
+          {/* Mobile: bottom sheet */}
+          <div className="sm:hidden absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[85vh] z-10">
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1 shrink-0">
+              <div className="w-10 h-1 bg-slate-300 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 shrink-0">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <ShoppingCart size={16} className="text-green-700" />
+                Your Selections
+                <span className={`text-xs font-semibold ml-1 ${cart.length >= CART_LIMIT ? 'text-amber-600' : 'text-slate-400'}`}>
+                  {cart.length}/{CART_LIMIT}
+                </span>
+              </h2>
+              <button onClick={() => setCartOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100">
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {cart.length === 0 ? (
+                <div className="text-center py-10 text-slate-400">
+                  <ShoppingCart size={32} className="mx-auto mb-2 opacity-30" />
+                  <p className="font-medium text-sm">No themes selected yet</p>
+                  <p className="text-xs mt-1">Tap <strong>+</strong> on any theme to add it</p>
+                </div>
+              ) : (
+                cart.map(({ prompt }) => (
+                  <div key={prompt.id} className="flex items-center gap-2.5 bg-slate-50 rounded-xl p-2.5 border border-slate-200">
+                    {prompt.previewImage && (
+                      <img src={prompt.previewImage} alt={prompt.name} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-slate-200" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-900 text-sm truncate">{prompt.name}</p>
+                      <p className="text-xs text-slate-400">{prompt.category}</p>
+                    </div>
+                    <button onClick={() => toggleCart(prompt)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg shrink-0">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            {cart.length > 0 && (
+              <div className="p-3 border-t border-slate-200 shrink-0">
+                <button
+                  onClick={() => { setCartOpen(false); setCheckoutOpen(true); }}
+                  className="w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-xl font-semibold transition-colors text-sm"
+                >
+                  Request These Themes ({cart.length})
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop: right side panel */}
+          <div className="hidden sm:flex relative w-full max-w-md bg-white shadow-2xl flex-col h-full z-10">
+            <div className="flex items-center justify-between px-5 py-4 border-b-2 border-slate-200">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <ShoppingCart size={20} className="text-green-700" />
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <ShoppingCart size={18} className="text-green-700" />
                   Your Selections
                 </h2>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex gap-0.5">
                     {Array.from({ length: CART_LIMIT }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`h-1.5 w-5 rounded-full transition-colors ${i < cart.length ? 'bg-green-600' : 'bg-slate-200'}`}
-                      />
+                      <div key={i} className={`h-1.5 w-4 rounded-full transition-colors ${i < cart.length ? 'bg-green-600' : 'bg-slate-200'}`} />
                     ))}
                   </div>
                   <span className={`text-xs font-semibold ${cart.length >= CART_LIMIT ? 'text-amber-600' : 'text-slate-500'}`}>
@@ -958,45 +1092,35 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                 <X size={20} className="text-slate-500" />
               </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
               {cart.length === 0 ? (
                 <div className="text-center py-16 text-slate-400">
                   <ShoppingCart size={40} className="mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No themes selected yet</p>
-                  <p className="text-sm mt-1">Click the <strong>+</strong> button on any theme to add it</p>
-                  <p className="text-xs mt-2 text-slate-300">You can select up to {CART_LIMIT} themes</p>
+                  <p className="text-sm mt-1">Click <strong>+ Add</strong> on any theme</p>
                 </div>
               ) : (
                 cart.map(({ prompt }) => (
                   <div key={prompt.id} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border-2 border-slate-200">
                     {prompt.previewImage && (
-                      <img
-                        src={prompt.previewImage}
-                        alt={prompt.name}
-                        className="w-14 h-14 rounded-lg object-cover shrink-0 bg-slate-200"
-                      />
+                      <img src={prompt.previewImage} alt={prompt.name} className="w-12 h-12 rounded-lg object-cover shrink-0 bg-slate-200" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-slate-900 text-sm truncate">{prompt.name}</p>
                       <p className="text-xs text-slate-500">{prompt.category}</p>
                     </div>
-                    <button
-                      onClick={() => toggleCart(prompt)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <X size={16} />
+                    <button onClick={() => toggleCart(prompt)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0">
+                      <X size={15} />
                     </button>
                   </div>
                 ))
               )}
             </div>
-
             {cart.length > 0 && (
               <div className="p-4 border-t-2 border-slate-200">
                 <button
                   onClick={() => { setCartOpen(false); setCheckoutOpen(true); }}
-                  className="w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-xl font-semibold transition-colors"
+                  className="w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-xl font-semibold transition-colors text-sm"
                 >
                   Request These Themes ({cart.length})
                 </button>
@@ -1008,10 +1132,10 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
       {/* Checkout Modal */}
       {checkoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b-2 border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900">Complete Your Request</h2>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[95vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b-2 border-slate-200 shrink-0">
+              <h2 className="text-base font-bold text-slate-900">Complete Your Request</h2>
               {!submitSuccess && (
                 <button onClick={() => setCheckoutOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100">
                   <X size={20} className="text-slate-500" />
@@ -1021,24 +1145,24 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
             {submitSuccess ? (
               <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check size={32} className="text-green-700" />
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check size={28} className="text-green-700" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Request Submitted!</h3>
-                <p className="text-slate-600 mb-6">
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Request Submitted!</h3>
+                <p className="text-slate-600 text-sm mb-6">
                   Your theme selections have been sent. We'll be in touch soon.
                 </p>
                 <button
                   onClick={() => { setCheckoutOpen(false); setSubmitSuccess(false); }}
-                  className="px-6 py-2.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition-colors"
+                  className="px-6 py-2.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition-colors text-sm"
                 >
                   Browse More Themes
                 </button>
               </div>
             ) : (
-              <div className="p-6 space-y-5">
-                <div className="bg-slate-50 rounded-xl p-4 border-2 border-slate-200">
-                  <p className="text-sm font-semibold text-slate-700 mb-2">Selected Themes ({cart.length})</p>
+              <div className="overflow-y-auto flex-1 p-5 space-y-4">
+                <div className="bg-slate-50 rounded-xl p-3.5 border-2 border-slate-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">Selected Themes ({cart.length})</p>
                   <div className="flex flex-wrap gap-1.5">
                     {cart.map(({ prompt }) => (
                       <span key={prompt.id} className="bg-white border border-slate-300 text-slate-700 text-xs px-2.5 py-1 rounded-full">
@@ -1055,7 +1179,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                     value={checkoutForm.name}
                     onChange={e => setCheckoutForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="Jane Smith"
-                    className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors"
+                    className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm"
                   />
                 </div>
 
@@ -1065,7 +1189,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                     type="date"
                     value={checkoutForm.eventDate}
                     onChange={e => setCheckoutForm(f => ({ ...f, eventDate: e.target.value }))}
-                    className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors"
+                    className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm"
                   />
                 </div>
 
@@ -1076,7 +1200,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                     value={checkoutForm.bookingId}
                     onChange={e => setCheckoutForm(f => ({ ...f, bookingId: e.target.value }))}
                     placeholder="BK-12345"
-                    className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors"
+                    className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm"
                   />
                 </div>
 
@@ -1086,17 +1210,17 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                   </div>
                 )}
 
-                <div className="flex gap-3 pt-1">
+                <div className="flex gap-3 pt-1 pb-2">
                   <button
                     onClick={() => setCheckoutOpen(false)}
-                    className="flex-1 py-3 border-2 border-slate-300 rounded-xl text-slate-700 font-semibold hover:border-slate-400 transition-colors"
+                    className="flex-1 py-3 border-2 border-slate-300 rounded-xl text-slate-700 font-semibold text-sm hover:border-slate-400 transition-colors"
                   >
                     Back
                   </button>
                   <button
                     onClick={handleSubmit}
                     disabled={submitting}
-                    className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex-1 py-3 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {submitting ? 'Submitting...' : 'Submit Request'}
                   </button>
@@ -1142,71 +1266,135 @@ interface PromptCardProps {
 
 const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onToggle, isAdmin = false, onEdit }) => {
   const disabled = cartFull && !inCart;
+
   return (
-    <div className={`group relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden ${
-      inCart ? 'border-green-600 shadow-md shadow-green-100' :
-      disabled ? 'border-slate-200 opacity-50' :
-      'border-slate-200 hover:border-slate-300 hover:shadow-sm'
-    }`}>
-      <div className="aspect-square bg-slate-100 overflow-hidden">
-        {prompt.previewImage ? (
-          <img
-            src={prompt.previewImage}
-            alt={prompt.name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-300">
-            <Search size={32} />
-          </div>
-        )}
-      </div>
-
-      {inCart && (
-        <div className="absolute top-2 left-2 bg-green-600 text-white rounded-full p-1">
-          <Check size={12} />
+    <>
+      {/* Mobile: horizontal row layout */}
+      <div className={`sm:hidden group relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden flex items-stretch ${
+        inCart ? 'border-green-500 shadow-sm shadow-green-100' :
+        disabled ? 'border-slate-200 opacity-50' :
+        'border-slate-200'
+      }`}>
+        {/* Thumbnail */}
+        <div className="w-20 h-20 shrink-0 bg-slate-100 overflow-hidden relative">
+          {prompt.previewImage ? (
+            <img src={prompt.previewImage} alt={prompt.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-300">
+              <Search size={20} />
+            </div>
+          )}
+          {inCart && (
+            <div className="absolute inset-0 bg-green-600/20 flex items-center justify-center">
+              <div className="bg-green-600 rounded-full p-1">
+                <Check size={10} className="text-white" />
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      {isAdmin && (
-        <button
-          onClick={e => { e.stopPropagation(); onEdit?.(); }}
-          title="Edit prompt"
-          className="absolute top-2 right-2 bg-white/90 hover:bg-amber-50 border border-amber-200 text-amber-700 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-        >
-          <Pencil size={12} />
-        </button>
-      )}
+        {/* Text */}
+        <div className="flex-1 min-w-0 px-3 py-2.5 flex flex-col justify-center">
+          <p className="font-semibold text-slate-900 text-sm leading-tight line-clamp-1">{prompt.name}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{prompt.category}</p>
+          {prompt.description && (
+            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{prompt.description}</p>
+          )}
+        </div>
 
-      <div className="p-3">
-        <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{prompt.name}</p>
-        <p className="text-xs text-slate-400 mt-0.5">{prompt.category}</p>
-        {prompt.description && (
-          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{prompt.description}</p>
-        )}
-        {prompt.tags && prompt.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {prompt.tags.slice(0, 3).map(tag => (
-              <span key={tag} className="bg-slate-100 text-slate-500 text-xs px-1.5 py-0.5 rounded">{tag}</span>
-            ))}
-          </div>
-        )}
+        {/* Action buttons */}
+        <div className="flex flex-col shrink-0 border-l-2 border-slate-100">
+          {isAdmin && (
+            <button
+              onClick={e => { e.stopPropagation(); onEdit?.(); }}
+              className="flex-1 px-3 flex items-center justify-center border-b border-slate-100 text-amber-600 hover:bg-amber-50 transition-colors"
+              title="Edit"
+            >
+              <Pencil size={13} />
+            </button>
+          )}
+          <button
+            onClick={onToggle}
+            disabled={disabled}
+            className={`flex-1 px-3 flex items-center justify-center transition-colors font-bold text-xs ${
+              inCart
+                ? 'bg-green-50 text-green-700 hover:bg-red-50 hover:text-red-600'
+                : disabled
+                ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                : 'text-green-700 hover:bg-green-50'
+            }`}
+          >
+            {inCart ? <X size={16} /> : <Plus size={16} />}
+          </button>
+        </div>
       </div>
 
-      <button
-        onClick={onToggle}
-        disabled={disabled}
-        className={`w-full py-2.5 text-sm font-semibold transition-colors border-t-2 ${
-          inCart
-            ? 'bg-green-50 border-green-200 text-green-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
-            : disabled
-            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-green-700 hover:border-green-200'
-        }`}
-      >
-        {inCart ? 'Remove' : '+ Add to Selection'}
-      </button>
-    </div>
+      {/* Tablet/Desktop: card layout */}
+      <div className={`hidden sm:block group relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden ${
+        inCart ? 'border-green-600 shadow-md shadow-green-100' :
+        disabled ? 'border-slate-200 opacity-50' :
+        'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+      }`}>
+        <div className="aspect-square bg-slate-100 overflow-hidden">
+          {prompt.previewImage ? (
+            <img
+              src={prompt.previewImage}
+              alt={prompt.name}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-300">
+              <Search size={32} />
+            </div>
+          )}
+        </div>
+
+        {inCart && (
+          <div className="absolute top-2 left-2 bg-green-600 text-white rounded-full p-1">
+            <Check size={12} />
+          </div>
+        )}
+
+        {isAdmin && (
+          <button
+            onClick={e => { e.stopPropagation(); onEdit?.(); }}
+            title="Edit prompt"
+            className="absolute top-2 right-2 bg-white/90 hover:bg-amber-50 border border-amber-200 text-amber-700 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+          >
+            <Pencil size={12} />
+          </button>
+        )}
+
+        <div className="p-3">
+          <p className="font-semibold text-slate-900 text-sm leading-tight truncate">{prompt.name}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{prompt.category}</p>
+          {prompt.description && (
+            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{prompt.description}</p>
+          )}
+          {prompt.tags && prompt.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {prompt.tags.slice(0, 3).map(tag => (
+                <span key={tag} className="bg-slate-100 text-slate-500 text-xs px-1.5 py-0.5 rounded">{tag}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onToggle}
+          disabled={disabled}
+          className={`w-full py-2 text-sm font-semibold transition-colors border-t-2 ${
+            inCart
+              ? 'bg-green-50 border-green-200 text-green-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+              : disabled
+              ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-green-50 hover:text-green-700 hover:border-green-200'
+          }`}
+        >
+          {inCart ? 'Remove' : '+ Add'}
+        </button>
+      </div>
+    </>
   );
 };
 
