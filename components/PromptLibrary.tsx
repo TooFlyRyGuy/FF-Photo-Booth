@@ -62,6 +62,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       hasLoadedRef.current = true;
       loadPrompts();
       loadAllTags();
+      loadAllCategories();
       checkUserCredits();
     }
   }, [userId]);
@@ -180,6 +181,22 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       if (prompt.category) categorySet.add(prompt.category);
     });
     setAllCategories(Array.from(categorySet).sort());
+  };
+
+  const loadAllCategories = async () => {
+    try {
+      const { data } = await supabase
+        .from('prompts')
+        .select('category')
+        .eq('is_active', true)
+        .not('category', 'is', null);
+      if (data) {
+        const cats = [...new Set(data.map((r: any) => r.category).filter(Boolean))].sort() as string[];
+        setAllCategories(cats);
+      }
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
   };
 
   const searchPrompts = async (query: string) => {

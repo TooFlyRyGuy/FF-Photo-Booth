@@ -397,17 +397,24 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const loadPrompts = async () => {
     setLoading(true);
     try {
-      const { data, error: fetchError } = await supabase
-        .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id')
-        .eq('is_active', true)
-        .eq('is_public', true)
-        .order('category')
-        .order('name');
+      const [promptsRes, catsRes] = await Promise.all([
+        supabase
+          .from('prompts')
+          .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id')
+          .eq('is_active', true)
+          .eq('is_public', true)
+          .order('category')
+          .order('name'),
+        supabase
+          .from('prompts')
+          .select('category')
+          .eq('is_active', true)
+          .not('category', 'is', null),
+      ]);
 
-      if (fetchError) throw fetchError;
+      if (promptsRes.error) throw promptsRes.error;
 
-      const mapped: Prompt[] = (data || []).map(p => ({
+      const mapped: Prompt[] = (promptsRes.data || []).map(p => ({
         id: p.id,
         name: p.name,
         description: p.description || '',
@@ -422,10 +429,13 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
       setPrompts(mapped);
 
-      const cats = [...new Set(mapped.map(p => p.category).filter(Boolean))].sort();
+      const allCats = catsRes.data
+        ? ([...new Set(catsRes.data.map((r: any) => r.category).filter(Boolean))].sort() as string[])
+        : ([...new Set(mapped.map(p => p.category).filter(Boolean))].sort() as string[]);
+
       const tagSet = new Set<string>();
       mapped.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
-      setAllCategories(cats);
+      setAllCategories(allCats);
       setAllTags([...tagSet].sort());
     } catch (err: any) {
       setError(err.message || 'Failed to load prompts');
