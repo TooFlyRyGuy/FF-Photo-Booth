@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus } from 'lucide-react';
+import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
 
@@ -21,21 +21,16 @@ interface EditPromptModalProps {
 }
 
 const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories, onSave, onClose }) => {
-  const [form, setForm] = useState({
-    name: prompt.name,
-    description: prompt.description,
-    category: prompt.category,
-    promptText: prompt.promptText || '',
-    previewImage: prompt.previewImage || '',
-    referenceImage: prompt.referenceImage || '',
-    isPublic: prompt.isPublic,
-    tags: (prompt.tags || []).join(', '),
-  });
-  const [loadingText, setLoadingText] = useState(!prompt.promptText);
+  const [editingPrompt, setEditingPrompt] = useState<Prompt>({ ...prompt, tags: prompt.tags || [] });
+  const [isPublic, setIsPublic] = useState(prompt.isPublic);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [userId, setUserId] = useState<string>('');
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setUserId(data.user.id);
+    });
     if (!prompt.promptText) {
       supabase
         .from('prompts')
@@ -43,38 +38,83 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
         .eq('id', prompt.id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data?.prompt_text) setForm(f => ({ ...f, promptText: data.prompt_text }));
-          setLoadingText(false);
+          if (data?.prompt_text) setEditingPrompt(p => ({ ...p, promptText: data.prompt_text }));
         });
     }
   }, [prompt.id, prompt.promptText]);
 
-  const set = (field: string, value: string | boolean) =>
-    setForm(f => ({ ...f, [field]: value }));
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+
+    try {
+      const timestamp = Date.now();
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${field}_${timestamp}.${fileExtension}`;
+      const filePath = `${userId}/${fileName}`;
+
+      if (field === 'referenceImage') {
+        const { error: uploadError } = await supabase.storage
+          .from('prompt-images')
+          .upload(filePath, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('prompt-images').getPublicUrl(filePath);
+        setEditingPrompt(prev => ({ ...prev, referenceImage: publicUrl }));
+      } else {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const img = new Image();
+            img.onload = async () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) throw new Error('Failed to get canvas context');
+              ctx.drawImage(img, 0, 0);
+              canvas.toBlob(async (blob) => {
+                if (!blob) throw new Error('Failed to convert image');
+                const { error: uploadError } = await supabase.storage
+                  .from('prompt-images')
+                  .upload(filePath, blob, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' });
+                if (uploadError) throw uploadError;
+                const { data: { publicUrl } } = supabase.storage.from('prompt-images').getPublicUrl(filePath);
+                setEditingPrompt(prev => ({ ...prev, [field]: publicUrl }));
+              }, 'image/jpeg', 0.92);
+            };
+            img.onerror = () => { throw new Error('Failed to load image'); };
+            img.src = event.target?.result as string;
+          } catch (err) {
+            console.error('Error processing image:', err);
+            alert('Failed to process image. Please try again.');
+          }
+        };
+        reader.onerror = () => { alert('Failed to read image file. Please try again.'); };
+        reader.readAsDataURL(file);
+      }
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      alert('Failed to upload image. Please try again.');
+    }
+  };
+
+  const addTagToPrompt = (tag: string) => {
+    if (!editingPrompt.tags.includes(tag)) {
+      setEditingPrompt(p => ({ ...p, tags: [...p.tags, tag] }));
+    }
+  };
+
+  const removeTagFromPrompt = (tag: string) => {
+    setEditingPrompt(p => ({ ...p, tags: p.tags.filter(t => t !== tag) }));
+  };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setError('Name is required.'); return; }
-    if (!form.category.trim()) { setError('Category is required.'); return; }
+    if (!editingPrompt.name.trim()) { setError('Name is required.'); return; }
+    if (!editingPrompt.category.trim()) { setError('Category is required.'); return; }
     setSaving(true);
     setError('');
     try {
-      const tags = form.tags
-        .split(',')
-        .map(t => t.trim())
-        .filter(Boolean);
-
-      const updated: Prompt = {
-        ...prompt,
-        name: form.name.trim(),
-        description: form.description.trim(),
-        category: form.category.trim(),
-        promptText: form.promptText,
-        previewImage: form.previewImage.trim(),
-        referenceImage: form.referenceImage.trim() || undefined,
-        isPublic: form.isPublic,
-        tags,
-      };
-      await onSave(updated);
+      await onSave({ ...editingPrompt, isPublic });
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to save.');
@@ -82,177 +122,216 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
     }
   };
 
-  const inputCls = 'w-full border-2 border-slate-300 rounded-lg px-4 py-2.5 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm';
-  const labelCls = 'block text-sm font-semibold text-slate-700 mb-1.5';
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-slate-200 shrink-0">
-          <h2 className="text-base font-bold text-slate-900">Edit Prompt</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
-            <X size={18} className="text-slate-500" />
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="p-4 md:p-6 border-b-2 border-slate-300 flex justify-between items-center sticky top-0 bg-white z-10">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-900">Edit Prompt</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
+          >
+            ×
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Name */}
+        <div className="p-4 md:p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-slate-900 mb-2">Prompt Name *</label>
+              <input
+                type="text"
+                value={editingPrompt.name}
+                onChange={e => setEditingPrompt({ ...editingPrompt, name: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                placeholder="Candy Cane Christmas"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-900 mb-2">Category *</label>
+              <input
+                type="text"
+                list="edit-category-suggestions"
+                value={editingPrompt.category}
+                onChange={e => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                placeholder="Select or type a category (e.g., Holiday, Sports, Nature)"
+              />
+              <datalist id="edit-category-suggestions">
+                {allCategories.map(cat => <option key={cat} value={cat} />)}
+              </datalist>
+              <p className="text-xs text-slate-500 mt-1">
+                Select from existing categories or type a new one
+                {allCategories.length > 0 && ` (${allCategories.length} existing)`}
+              </p>
+            </div>
+          </div>
+
           <div>
-            <label className={labelCls}>Name *</label>
+            <label className="block text-sm font-bold text-slate-900 mb-2">Description (Optional)</label>
             <input
               type="text"
-              value={form.name}
-              onChange={e => set('name', e.target.value)}
-              className={inputCls}
+              value={editingPrompt.description}
+              onChange={e => setEditingPrompt({ ...editingPrompt, description: e.target.value })}
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+              placeholder="Candycane portrait Studio"
             />
           </div>
 
-          {/* Description */}
           <div>
-            <label className={labelCls}>Description</label>
+            <label className="block text-sm font-bold text-slate-900 mb-2">AI Prompt Text</label>
             <textarea
-              value={form.description}
-              onChange={e => set('description', e.target.value)}
-              rows={2}
-              className={inputCls + ' resize-none'}
+              value={editingPrompt.promptText}
+              onChange={e => setEditingPrompt({ ...editingPrompt, promptText: e.target.value })}
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 min-h-[120px] font-mono text-sm"
+              placeholder="Detailed AI generation prompt"
             />
           </div>
 
-          {/* Category */}
-          <div>
-            <label className={labelCls}>Category *</label>
-            <input
-              type="text"
-              list="edit-category-suggestions"
-              value={form.category}
-              onChange={e => set('category', e.target.value)}
-              placeholder="Enter or select a category"
-              className={inputCls}
-            />
-            <datalist id="edit-category-suggestions">
-              {allCategories.map(c => <option key={c} value={c} />)}
-            </datalist>
-            {allCategories.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {allCategories.map(cat => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <ImageIcon size={16} />
+                Kiosk Thumbnail *
+              </label>
+              {editingPrompt.previewImage ? (
+                <div className="relative">
+                  <img
+                    src={editingPrompt.previewImage}
+                    alt="Kiosk Thumbnail"
+                    className="w-full aspect-video object-cover rounded-lg border-2 border-slate-300"
+                  />
                   <button
-                    key={cat}
-                    type="button"
-                    onClick={() => set('category', cat)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      form.category === cat
-                        ? 'bg-green-700 text-white border-green-700'
-                        : 'bg-white text-slate-600 border-slate-300 hover:border-green-600 hover:text-green-700'
-                    }`}
+                    onClick={() => setEditingPrompt({ ...editingPrompt, previewImage: '' })}
+                    className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                    title="Remove image"
                   >
-                    {cat}
+                    <X size={16} />
                   </button>
-                ))}
-              </div>
-            )}
+                </div>
+              ) : (
+                <label className="cursor-pointer block">
+                  <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                    <Upload size={32} className="text-slate-400 mb-2" />
+                    <span className="text-sm text-slate-600">Click to Upload</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => handleImageUpload(e, 'previewImage')}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              <p className="text-xs text-slate-500 mt-2">This image appears in the kiosk style selector</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <ImageIcon size={16} />
+                AI Style Reference (Optional)
+              </label>
+              {editingPrompt.referenceImage ? (
+                <div className="relative">
+                  <img
+                    src={editingPrompt.referenceImage}
+                    alt="AI Style Reference"
+                    className="w-full aspect-video object-contain rounded-lg border-2 border-slate-300 bg-slate-100"
+                  />
+                  <button
+                    onClick={() => setEditingPrompt({ ...editingPrompt, referenceImage: null })}
+                    className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                    title="Remove image"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <label className="cursor-pointer block">
+                  <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                    <Upload size={32} className="text-slate-400 mb-2" />
+                    <span className="text-sm text-slate-600">Click to Upload Style Ref</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => handleImageUpload(e, 'referenceImage')}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              <p className="text-xs text-slate-500 mt-2">Upload a sample photo that defines the visual style for the AI to mimic</p>
+            </div>
           </div>
 
-          {/* Tags */}
           <div>
-            <label className={labelCls}>Tags <span className="font-normal text-slate-400">(comma separated)</span></label>
+            <label className="block text-sm font-bold text-slate-900 mb-2">Tags</label>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {editingPrompt.tags.map(tag => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-green-700/20 text-green-800 rounded-full text-sm"
+                >
+                  {tag}
+                  <button onClick={() => removeTagFromPrompt(tag)} className="hover:text-green-900">
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
+            </div>
             <input
               type="text"
-              value={form.tags}
-              onChange={e => set('tags', e.target.value)}
-              placeholder="e.g. dark, retro, space"
-              className={inputCls}
+              onKeyPress={e => {
+                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                  addTagToPrompt(e.currentTarget.value.trim().toLowerCase());
+                  e.currentTarget.value = '';
+                }
+              }}
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+              placeholder="Type tag and press Enter"
             />
           </div>
 
-          {/* Prompt Text */}
-          <div>
-            <label className={labelCls}>Prompt Text</label>
-            {loadingText ? (
-              <div className="flex items-center gap-2 text-slate-400 text-sm py-2">
-                <Loader size={14} className="animate-spin" /> Loading…
-              </div>
-            ) : (
-              <textarea
-                value={form.promptText}
-                onChange={e => set('promptText', e.target.value)}
-                rows={5}
-                className={inputCls + ' resize-y font-mono text-xs'}
-                placeholder="Enter the AI prompt text…"
-              />
-            )}
-          </div>
-
-          {/* Preview Image URL */}
-          <div>
-            <label className={labelCls}>Preview Image URL</label>
-            <input
-              type="url"
-              value={form.previewImage}
-              onChange={e => set('previewImage', e.target.value)}
-              placeholder="https://…"
-              className={inputCls}
-            />
-            {form.previewImage && (
-              <img
-                src={form.previewImage}
-                alt="preview"
-                className="mt-2 h-24 rounded-lg object-cover border border-slate-200"
-              />
-            )}
-          </div>
-
-          {/* Reference Image URL */}
-          <div>
-            <label className={labelCls}>Reference Image URL <span className="font-normal text-slate-400">(optional)</span></label>
-            <input
-              type="url"
-              value={form.referenceImage}
-              onChange={e => set('referenceImage', e.target.value)}
-              placeholder="https://…"
-              className={inputCls}
-            />
-          </div>
-
-          {/* Visibility */}
-          <div>
-            <label className={labelCls}>Visibility</label>
-            <div className="flex gap-3">
+          <div className="space-y-3">
+            <label className="block text-sm font-bold text-slate-900">Visibility</label>
+            <div className="flex flex-col sm:flex-row gap-3">
               <label
-                className="flex items-center gap-3 cursor-pointer p-3 border-2 rounded-lg flex-1 transition-colors"
-                style={{ borderColor: !form.isPublic ? '#15803d' : '#cbd5e1' }}
+                className="flex items-center gap-3 cursor-pointer p-4 border-2 rounded-lg transition-all hover:border-green-700 flex-1"
+                style={{ borderColor: !isPublic ? '#15803d' : '#cbd5e1' }}
               >
                 <input
                   type="radio"
-                  name="visibility"
-                  checked={!form.isPublic}
-                  onChange={() => set('isPublic', false)}
-                  className="w-4 h-4 text-green-700"
+                  name="edit-visibility"
+                  checked={!isPublic}
+                  onChange={() => setIsPublic(false)}
+                  className="w-5 h-5 text-green-700 flex-shrink-0"
                 />
                 <div>
-                  <div className="flex items-center gap-1.5 font-semibold text-slate-900 text-sm">
-                    <Lock size={14} /> Private
+                  <div className="flex items-center gap-2 font-medium text-slate-900">
+                    <Lock size={16} />
+                    Private
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">Only visible to owner and admins</p>
+                  <p className="text-xs text-slate-600 mt-1">Only available to you</p>
                 </div>
               </label>
               <label
-                className="flex items-center gap-3 cursor-pointer p-3 border-2 rounded-lg flex-1 transition-colors"
-                style={{ borderColor: form.isPublic ? '#15803d' : '#cbd5e1' }}
+                className="flex items-center gap-3 cursor-pointer p-4 border-2 rounded-lg transition-all hover:border-green-700 flex-1"
+                style={{ borderColor: isPublic ? '#15803d' : '#cbd5e1' }}
               >
                 <input
                   type="radio"
-                  name="visibility"
-                  checked={form.isPublic}
-                  onChange={() => set('isPublic', true)}
-                  className="w-4 h-4 text-green-700"
+                  name="edit-visibility"
+                  checked={isPublic}
+                  onChange={() => setIsPublic(true)}
+                  className="w-5 h-5 text-green-700 flex-shrink-0"
                 />
                 <div>
-                  <div className="flex items-center gap-1.5 font-semibold text-slate-900 text-sm">
-                    <Globe size={14} /> Public
+                  <div className="flex items-center gap-2 font-medium text-slate-900">
+                    <Globe size={16} />
+                    Public
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">Visible in the public library</p>
+                  <p className="text-xs text-slate-600 mt-1">Available to all users</p>
                 </div>
               </label>
             </div>
@@ -263,23 +342,23 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
               {error}
             </div>
           )}
-        </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 px-6 py-4 border-t-2 border-slate-200 shrink-0">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 border-2 border-slate-300 rounded-xl text-slate-700 font-semibold hover:border-slate-400 text-sm transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-60"
-          >
-            {saving ? 'Saving…' : 'Save Changes'}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <button
+              onClick={handleSave}
+              disabled={saving || !editingPrompt.name || !editingPrompt.previewImage}
+              className="flex-1 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center justify-center gap-2"
+            >
+              <Save size={18} />
+              {saving ? 'Saving…' : 'Update Prompt'}
+            </button>
+            <button
+              onClick={onClose}
+              className="sm:px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
