@@ -661,7 +661,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
               <Filter size={18} className="text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-900 leading-tight">Fun Frame Photo AI Prompt Library</h1>
+              <h1 className="text-lg font-bold text-slate-900 leading-tight">AI Prompt Library</h1>
               <p className="text-xs text-slate-500 hidden sm:block">Browse and select themes for your event</p>
             </div>
           </div>
