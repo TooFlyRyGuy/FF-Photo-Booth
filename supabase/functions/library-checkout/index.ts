@@ -16,6 +16,7 @@ interface PromptSelection {
 
 interface CheckoutPayload {
   name: string;
+  email: string;
   eventDate: string;
   bookingId: string;
   prompts: PromptSelection[];
@@ -36,8 +37,8 @@ Deno.serve(async (req: Request) => {
 
     const body: CheckoutPayload = await req.json();
 
-    if (!body.name?.trim() || !body.eventDate || !body.bookingId?.trim()) {
-      return new Response(JSON.stringify({ error: "Missing required fields: name, eventDate, bookingId" }), {
+    if (!body.name?.trim() || !body.email?.trim() || !body.eventDate || !body.bookingId?.trim()) {
+      return new Response(JSON.stringify({ error: "Missing required fields: name, email, eventDate, bookingId" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -83,6 +84,7 @@ Deno.serve(async (req: Request) => {
     const webhookPayload = {
       submitted_at: new Date().toISOString(),
       client_name: body.name.trim(),
+      client_email: body.email.trim(),
       event_date: body.eventDate,
       booking_id: body.bookingId.trim(),
       total_selected: body.prompts.length,

@@ -9,6 +9,7 @@ interface CartItem {
 
 interface CheckoutForm {
   name: string;
+  email: string;
   eventDate: string;
   bookingId: string;
 }
@@ -389,7 +390,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutForm, setCheckoutForm] = useState<CheckoutForm>({ name: '', eventDate: '', bookingId: '' });
+  const [checkoutForm, setCheckoutForm] = useState<CheckoutForm>({ name: '', email: '', eventDate: '', bookingId: '' });
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -610,8 +611,12 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const hasActiveFilters = searchQuery || selectedCategory || selectedTags.length > 0;
 
   const handleSubmit = async () => {
-    if (!checkoutForm.name.trim() || !checkoutForm.eventDate || !checkoutForm.bookingId.trim()) {
-      setSubmitError('Please fill in all fields.');
+    if (!checkoutForm.name.trim() || !checkoutForm.email.trim() || !checkoutForm.eventDate || !checkoutForm.bookingId.trim()) {
+      setSubmitError('Please fill in all required fields.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(checkoutForm.email.trim())) {
+      setSubmitError('Please enter a valid email address.');
       return;
     }
     if (cart.length === 0) {
@@ -636,6 +641,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         },
         body: JSON.stringify({
           name: checkoutForm.name.trim(),
+          email: checkoutForm.email.trim(),
           eventDate: checkoutForm.eventDate,
           bookingId: checkoutForm.bookingId.trim(),
           prompts: cart.map(i => ({
@@ -654,7 +660,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
       setSubmitSuccess(true);
       setCart([]);
-      setCheckoutForm({ name: '', eventDate: '', bookingId: '' });
+      setCheckoutForm({ name: '', email: '', eventDate: '', bookingId: '' });
     } catch (err: any) {
       setSubmitError(err.message || 'Submission failed. Please try again.');
     } finally {
@@ -1310,6 +1316,17 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                     value={checkoutForm.name}
                     onChange={e => setCheckoutForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="Jane Smith"
+                    className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address *</label>
+                  <input
+                    type="email"
+                    value={checkoutForm.email}
+                    onChange={e => setCheckoutForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="jane@example.com"
                     className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm"
                   />
                 </div>
