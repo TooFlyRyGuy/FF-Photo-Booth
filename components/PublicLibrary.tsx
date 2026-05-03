@@ -672,9 +672,17 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     <div className="min-h-screen bg-slate-50 font-sans">
       {/* Admin banner */}
       {isAdmin && (
-        <div className="bg-amber-50 border-b-2 border-amber-200 px-4 py-2 flex items-center justify-center gap-2">
-          <ShieldCheck size={15} className="text-amber-700" />
-          <span className="text-sm font-semibold text-amber-800">Admin Mode — tap the pencil icon on any theme to edit it</span>
+        <div className="bg-amber-50 border-b-2 border-amber-200 px-4 py-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={15} className="text-amber-700 shrink-0" />
+            <span className="text-sm font-semibold text-amber-800">Admin Mode — tap the pencil icon on any theme to edit it</span>
+          </div>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 shrink-0 transition-colors"
+          >
+            View as Public
+          </button>
         </div>
       )}
 
