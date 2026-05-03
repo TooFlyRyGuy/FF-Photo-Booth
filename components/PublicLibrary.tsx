@@ -1347,7 +1347,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                     type="text"
                     value={checkoutForm.bookingId}
                     onChange={e => setCheckoutForm(f => ({ ...f, bookingId: e.target.value }))}
-                    placeholder="BK-12345"
+                    placeholder="12345"
                     className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors text-sm"
                   />
                 </div>
