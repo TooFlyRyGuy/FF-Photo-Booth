@@ -1364,7 +1364,7 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onTog
         {/* Thumbnail */}
         <div className="w-20 h-20 shrink-0 bg-slate-100 overflow-hidden relative">
           {prompt.previewImage ? (
-            <img src={prompt.previewImage} alt={prompt.name} className="w-full h-full object-cover" />
+            <img src={prompt.previewImage} alt={prompt.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-slate-300">
               <Search size={20} />
@@ -1445,6 +1445,8 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, inCart, cartFull, onTog
               src={prompt.previewImage}
               alt={prompt.name}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-slate-300">
