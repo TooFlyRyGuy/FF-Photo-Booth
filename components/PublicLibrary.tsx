@@ -688,8 +688,19 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
       {/* Header */}
       <header className="bg-white border-b-2 border-slate-200 sticky top-0 z-30">
-        {/* Row 1: logo + actions */}
-        <div className="px-3 sm:px-6 lg:px-8 pt-2.5 pb-2 flex items-center gap-2">
+        {/* Logo bar */}
+        <div className="flex justify-center px-3 pt-3 pb-1">
+          <a href="https://funframephoto.com" target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://funframephoto.com/assets/images/logo.png"
+              alt="Fun Frame Photo"
+              className="h-10 sm:h-12 w-auto object-contain"
+            />
+          </a>
+        </div>
+
+        {/* Row 1: title + actions */}
+        <div className="px-3 sm:px-6 lg:px-8 pt-1 pb-2 flex items-center gap-2">
           <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-700 rounded-lg flex items-center justify-center shrink-0">
             <Filter size={14} className="text-white" />
           </div>
