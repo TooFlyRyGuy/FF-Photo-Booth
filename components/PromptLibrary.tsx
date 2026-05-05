@@ -6,7 +6,6 @@ import { compressBase64Image } from '../services/imageCompression';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-const LOAD_BATCH_SIZE = 6;
 
 interface Prompt {
   id: string;
@@ -51,8 +50,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [testGeneratedImage, setTestGeneratedImage] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
-  const [loadOffset, setLoadOffset] = useState(0);
-  const [hasMoreToLoad, setHasMoreToLoad] = useState(true);
+  const [hasMoreToLoad, setHasMoreToLoad] = useState(false);
   const hasLoadedRef = useRef(false);
   const [userCredits, setUserCredits] = useState<number>(0);
   const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
@@ -108,29 +106,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     }
   }, [prompts, selectedTags, selectedCategory, searchQuery]);
 
-  const loadPrompts = async (isInitial: boolean = true) => {
-    if (isInitial) {
-      setLoading(true);
-      setLoadOffset(0);
-      setPrompts([]);
-    }
-
-    const startTime = performance.now();
-    const offset = isInitial ? 0 : loadOffset;
+  const loadPrompts = async () => {
+    setLoading(true);
+    setPrompts([]);
 
     try {
-      console.log(`[PromptLibrary] Loading ${LOAD_BATCH_SIZE} prompts from offset ${offset}...`);
-
       const { data, error } = await supabase
         .from('prompts')
         .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
         .eq('is_active', true)
-        .order('usage_count', { ascending: false })
-        .range(offset, offset + LOAD_BATCH_SIZE - 1);
+        .order('category')
+        .order('name');
 
       if (error) throw error;
 
-      const newPrompts = data.map((prompt) => ({
+      const allPrompts = data.map((prompt) => ({
         id: prompt.id,
         name: prompt.name,
         description: prompt.description,
@@ -145,23 +135,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         isPublic: prompt.is_public,
       }));
 
-      if (isInitial) {
-        setPrompts(newPrompts);
-        extractAllCategories(newPrompts);
-      } else {
-        const combined = [...prompts, ...newPrompts];
-        setPrompts(combined);
-        extractAllCategories(combined);
-      }
-
-      setHasMoreToLoad(newPrompts.length === LOAD_BATCH_SIZE);
-      setLoadOffset(offset + LOAD_BATCH_SIZE);
-
-      const totalTime = performance.now() - startTime;
-      console.log(`[PromptLibrary] Load time: ${totalTime.toFixed(2)}ms, loaded ${newPrompts.length} prompts`);
+      setPrompts(allPrompts);
+      extractAllCategories(allPrompts);
+      setHasMoreToLoad(false);
     } catch (error) {
       console.error('Error loading prompts:', error);
-      setHasMoreToLoad(false);
     } finally {
       setLoading(false);
     }
@@ -473,7 +451,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       setEditingPrompt(null);
       setIsCreating(false);
-      loadPrompts(true);
+      loadPrompts();
     } catch (error: any) {
       console.error('Error saving prompt:', error);
       alert(`Failed to save prompt: ${error.message || 'Unknown error'}`);
@@ -506,7 +484,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       if (error) throw error;
 
-      loadPrompts(true);
+      loadPrompts();
     } catch (error) {
       console.error('Error deleting prompt:', error);
       alert('Failed to delete prompt');
@@ -618,9 +596,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setGenerationError('');
   };
 
-  const handleLoadMore = () => {
-    loadPrompts(false);
-  };
 
   if (editingPrompt) {
     return (
@@ -1093,24 +1068,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 ))}
               </div>
 
-              {hasMoreToLoad && !searchQuery && selectedTags.length === 0 && !selectedCategory && (
-                <div className="flex justify-center mt-8">
-                  <button
-                    onClick={handleLoadMore}
-                    disabled={loading}
-                    className="px-6 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-400 text-white rounded-lg font-bold flex items-center gap-2 transition-colors"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Loading...
-                      </>
-                    ) : (
-                      <>Load More ({LOAD_BATCH_SIZE} more)</>
-                    )}
-                  </button>
-                </div>
-              )}
             </>
           )}
         </div>
