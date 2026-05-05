@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Event } from './types';
 import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
 import { getEventByPasscode, clearUserCache } from './services/backendService';
@@ -80,6 +80,9 @@ const AppContent: React.FC<AppContentProps> = ({
   isLoadingKiosk,
   setIsLoadingKiosk
 }) => {
+
+  const viewRef = useRef(view);
+  useEffect(() => { viewRef.current = view; }, [view]);
 
   const launchKiosk = (event: Event) => {
     setIsLoadingKiosk(true);
@@ -213,7 +216,7 @@ const AppContent: React.FC<AppContentProps> = ({
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[App] onAuthStateChange fired - event:', event, 'session:', session?.user ? 'logged in' : 'logged out', 'isKioskMode:', isKioskMode);
 
-      if (isKioskMode) {
+      if (isKioskMode || viewRef.current === 'kiosk') {
         console.log('[App] In kiosk mode - ignoring auth change');
         if (session?.user) {
           setUser(session.user);
