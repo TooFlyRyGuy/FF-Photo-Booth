@@ -502,7 +502,7 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     // Never expose the actual API key to the browser — only a boolean sentinel
     geminiKeySet: !!data.gemini_api_key,
     geminiEnabled: data.gemini_enabled || false,
-    geminiModel: data.gemini_model || 'gemini-2.5-flash-image',
+    geminiModel: data.gemini_model || 'gemini-3.1-flash-image-preview',
     geminiResolution: data.gemini_resolution || '1K',
     smugmugOauthToken: data.smugmug_oauth_token,
     smugmugOauthTokenSecret: data.smugmug_oauth_token_secret,

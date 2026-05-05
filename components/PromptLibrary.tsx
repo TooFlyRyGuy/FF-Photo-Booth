@@ -591,7 +591,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         testingPrompt.promptText,
         referenceImage,
         'square',
-        settings.gemini_model || 'gemini-3-pro-image-preview',
+        settings.gemini_model || 'gemini-3.1-flash-image-preview',
         settings.gemini_resolution || '1K'
       );
 

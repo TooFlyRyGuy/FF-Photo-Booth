@@ -45,7 +45,7 @@ const Settings: React.FC<SettingsProps> = ({
   // geminiApiKey holds a NEW value typed by admin; never receives the stored key from server
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiEnabled, setGeminiEnabled] = useState(globalSettings.geminiEnabled || false);
-  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
+  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
   const [geminiResolution, setGeminiResolution] = useState<'1K' | '2K' | '4K'>(globalSettings.geminiResolution || '1K');
 
   // Library webhook (global, admin only)
@@ -70,7 +70,7 @@ const Settings: React.FC<SettingsProps> = ({
     setTwilioPhone(globalSettings.twilioPhoneNumber || '');
     setTwilioEnabled(globalSettings.twilioEnabled || false);
     setGeminiEnabled(globalSettings.geminiEnabled || false);
-    setGeminiModel(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
+    setGeminiModel(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
     setGeminiResolution(globalSettings.geminiResolution || '1K');
     setLibraryWebhookUrl(globalSettings.libraryWebhookUrl || '');
     // Never populate key fields from server — admin must type a new value to update
