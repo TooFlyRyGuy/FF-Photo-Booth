@@ -44,6 +44,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [isCreating, setIsCreating] = useState(false);
   const [eventModePrompts, setEventModePrompts] = useState<Prompt[]>(selectedPrompts);
   const [isPublic, setIsPublic] = useState(false);
+  const [categoryIsNew, setCategoryIsNew] = useState(false);
   const [testingPrompt, setTestingPrompt] = useState<Prompt | null>(null);
   const [testSourceImage, setTestSourceImage] = useState<string>('');
   const [testReferenceImage, setTestReferenceImage] = useState<string>('');
@@ -293,6 +294,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     });
     setIsCreating(true);
     setIsPublic(false);
+    setCategoryIsNew(false);
   };
 
   const handleEdit = async (prompt: Prompt) => {
@@ -315,6 +317,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     }
     setIsCreating(false);
     setIsPublic(prompt.isPublic === true);
+    setCategoryIsNew(false);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
@@ -451,6 +454,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       setEditingPrompt(null);
       setIsCreating(false);
+      setCategoryIsNew(false);
       loadPrompts();
     } catch (error: any) {
       console.error('Error saving prompt:', error);
@@ -606,7 +610,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               {isCreating ? 'Create New Prompt' : 'Edit Prompt'}
             </h2>
             <button
-              onClick={() => { setEditingPrompt(null); setIsCreating(false); }}
+              onClick={() => { setEditingPrompt(null); setIsCreating(false); setCategoryIsNew(false); }}
               className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
             >
               ×
@@ -628,21 +632,37 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
               <div>
                 <label className="block text-sm font-bold text-slate-900 mb-2">Category *</label>
-                <input
-                  type="text"
-                  list="category-suggestions"
-                  value={editingPrompt.category}
-                  onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  placeholder="Select or type a category (e.g., Holiday, Sports, Nature)"
-                />
-                <datalist id="category-suggestions">
+                <select
+                  value={categoryIsNew ? '__new__' : (allCategories.includes(editingPrompt.category) ? editingPrompt.category : (editingPrompt.category ? '__new__' : ''))}
+                  onChange={(e) => {
+                    if (e.target.value === '__new__') {
+                      setCategoryIsNew(true);
+                      setEditingPrompt({ ...editingPrompt, category: '' });
+                    } else {
+                      setCategoryIsNew(false);
+                      setEditingPrompt({ ...editingPrompt, category: e.target.value });
+                    }
+                  }}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white"
+                >
+                  <option value="">-- Select a category --</option>
                   {allCategories.map(cat => (
-                    <option key={cat} value={cat} />
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
-                </datalist>
+                  <option value="__new__">+ Type a new category...</option>
+                </select>
+                {categoryIsNew && (
+                  <input
+                    type="text"
+                    value={editingPrompt.category}
+                    onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
+                    className="w-full mt-2 px-4 py-3 border-2 border-green-500 rounded-lg focus:outline-none focus:border-green-700"
+                    placeholder="Enter new category name"
+                    autoFocus
+                  />
+                )}
                 <p className="text-xs text-slate-500 mt-1">
-                  Select from existing categories or type a new one
+                  Select from existing categories or create a new one
                   {allCategories.length > 0 && ` (${allCategories.length} existing)`}
                 </p>
               </div>
@@ -826,7 +846,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 {isCreating ? 'Create Prompt' : 'Update Prompt'}
               </button>
               <button
-                onClick={() => { setEditingPrompt(null); setIsCreating(false); }}
+                onClick={() => { setEditingPrompt(null); setIsCreating(false); setCategoryIsNew(false); }}
                 className="sm:px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
               >
                 Cancel
