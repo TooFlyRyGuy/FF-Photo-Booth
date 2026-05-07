@@ -28,6 +28,7 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [userId, setUserId] = useState<string>('');
+  const [categoryIsNew, setCategoryIsNew] = useState(!allCategories.includes(prompt.category) && !!prompt.category);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -152,19 +153,37 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
 
             <div>
               <label className="block text-sm font-bold text-slate-900 mb-2">Category *</label>
-              <input
-                type="text"
-                list="edit-category-suggestions"
-                value={editingPrompt.category}
-                onChange={e => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                placeholder="Select or type a category (e.g., Holiday, Sports, Nature)"
-              />
-              <datalist id="edit-category-suggestions">
-                {allCategories.map(cat => <option key={cat} value={cat} />)}
-              </datalist>
+              <select
+                value={categoryIsNew ? '__new__' : (allCategories.includes(editingPrompt.category) ? editingPrompt.category : (editingPrompt.category ? '__new__' : ''))}
+                onChange={e => {
+                  if (e.target.value === '__new__') {
+                    setCategoryIsNew(true);
+                    setEditingPrompt({ ...editingPrompt, category: '' });
+                  } else {
+                    setCategoryIsNew(false);
+                    setEditingPrompt({ ...editingPrompt, category: e.target.value });
+                  }
+                }}
+                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white"
+              >
+                <option value="">-- Select a category --</option>
+                {allCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="__new__">+ Type a new category...</option>
+              </select>
+              {categoryIsNew && (
+                <input
+                  type="text"
+                  value={editingPrompt.category}
+                  onChange={e => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
+                  className="w-full mt-2 px-4 py-3 border-2 border-green-500 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="Enter new category name"
+                  autoFocus
+                />
+              )}
               <p className="text-xs text-slate-500 mt-1">
-                Select from existing categories or type a new one
+                Select from existing categories or create a new one
                 {allCategories.length > 0 && ` (${allCategories.length} existing)`}
               </p>
             </div>
@@ -286,7 +305,7 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
               type="text"
               onKeyPress={e => {
                 if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                  addTagToPrompt(e.currentTarget.value.trim().toLowerCase());
+                  addTagToPrompt(e.currentTarget.value.trim().replace(/\b\w/g, c => c.toUpperCase()));
                   e.currentTarget.value = '';
                 }
               }}
