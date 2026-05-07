@@ -787,7 +787,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 type="text"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                    addTagToPrompt(e.currentTarget.value.trim().toLowerCase());
+                    addTagToPrompt(e.currentTarget.value.trim().replace(/\b\w/g, c => c.toUpperCase()));
                     e.currentTarget.value = '';
                   }
                 }}
