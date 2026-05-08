@@ -306,6 +306,15 @@ Deno.serve(async (req: Request) => {
     console.log('Resolution:', imageResolution);
     console.log('Prompt:', finalPrompt);
 
+    // Build imageConfig — only include imageSize if it's a valid value
+    const imageConfigObj: Record<string, string> = {
+      aspectRatio: geminiAspectRatio,
+    };
+    // imageSize must be exactly "512", "1K", "2K", or "4K" (uppercase K required)
+    if (imageResolution && ['512', '1K', '2K', '4K'].includes(imageResolution)) {
+      imageConfigObj.imageSize = imageResolution;
+    }
+
     const requestBody = {
       contents: [{
         role: "user",
@@ -313,10 +322,7 @@ Deno.serve(async (req: Request) => {
       }],
       generationConfig: {
         responseModalities: ["TEXT", "IMAGE"],
-        imageConfig: {
-          aspectRatio: geminiAspectRatio,
-          imageSize: imageResolution
-        }
+        imageConfig: imageConfigObj
       }
     };
 
