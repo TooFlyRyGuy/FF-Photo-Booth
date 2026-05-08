@@ -303,7 +303,34 @@ Deno.serve(async (req: Request) => {
 
     console.log('Calling Gemini API with model:', model);
     console.log('Aspect ratio:', geminiAspectRatio);
+    console.log('Resolution:', imageResolution);
     console.log('Prompt:', finalPrompt);
+
+    const requestBody = {
+      contents: [{
+        role: "user",
+        parts: parts
+      }],
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"],
+        imageConfig: {
+          aspectRatio: geminiAspectRatio,
+          imageSize: imageResolution
+        }
+      }
+    };
+
+    console.log('Request body (without image data):', JSON.stringify({
+      ...requestBody,
+      contents: [{
+        role: requestBody.contents[0].role,
+        parts: requestBody.contents[0].parts.map((p: GeminiPart) =>
+          p.inlineData ? { inlineData: { mimeType: p.inlineData.mimeType, data: '[BASE64]' } } :
+          p.fileData ? { fileData: p.fileData } :
+          p
+        )
+      }]
+    }));
 
     // Call Gemini API for image editing
     const geminiResponse = await fetch(
@@ -314,18 +341,7 @@ Deno.serve(async (req: Request) => {
           'Content-Type': 'application/json',
           'x-goog-api-key': gemini_api_key,
         },
-        body: JSON.stringify({
-          contents: [{
-            parts: parts
-          }],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"],
-            imageConfig: {
-              aspectRatio: geminiAspectRatio,
-              imageSize: imageResolution
-            }
-          }
-        })
+        body: JSON.stringify(requestBody)
       }
     );
 
