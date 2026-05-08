@@ -270,7 +270,10 @@ Deno.serve(async (req: Request) => {
       const imgBuffer = await imgResp.arrayBuffer();
       const rawMime = imgResp.headers.get('content-type') || 'image/jpeg';
       const imgMime = rawMime.split(';')[0].trim();
-      const imgBase64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+      const imgBytes = new Uint8Array(imgBuffer);
+      let binary = '';
+      for (let i = 0; i < imgBytes.byteLength; i++) binary += String.fromCharCode(imgBytes[i]);
+      const imgBase64 = btoa(binary);
       console.log(`Image downloaded for inline: ${imgBuffer.byteLength} bytes, type: ${imgMime}`);
       parts.push({
         inlineData: {
