@@ -403,10 +403,13 @@ Deno.serve(async (req: Request) => {
 
   } catch (error) {
     console.error('Error in gemini-generate-image function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    const errorStack = error instanceof Error ? error.stack : undefined;
 
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        error: errorMessage,
+        stack: errorStack,
         success: false
       }),
       {
