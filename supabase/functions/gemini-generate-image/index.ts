@@ -264,11 +264,18 @@ Deno.serve(async (req: Request) => {
         }
       });
     } else if (imageUrl) {
-      const { uri, mimeType: uploadedMime } = await uploadUrlToGemini(imageUrl);
+      // Download image and send as inline base64 — more reliable than File API for small images
+      const imgResp = await fetch(imageUrl);
+      if (!imgResp.ok) throw new Error(`Failed to download image: ${imgResp.statusText}`);
+      const imgBuffer = await imgResp.arrayBuffer();
+      const rawMime = imgResp.headers.get('content-type') || 'image/jpeg';
+      const imgMime = rawMime.split(';')[0].trim();
+      const imgBase64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+      console.log(`Image downloaded for inline: ${imgBuffer.byteLength} bytes, type: ${imgMime}`);
       parts.push({
-        fileData: {
-          mimeType: uploadedMime,
-          fileUri: uri
+        inlineData: {
+          mimeType: imgMime,
+          data: imgBase64
         }
       });
     } else if (cleanBase64) {
