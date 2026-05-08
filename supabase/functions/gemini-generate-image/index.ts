@@ -119,8 +119,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Helper function to upload URL to Gemini File API
-    async function uploadUrlToGemini(url: string): Promise<string> {
+    // Helper function to upload URL to Gemini File API, returns {uri, mimeType}
+    async function uploadUrlToGemini(url: string): Promise<{ uri: string; mimeType: string }> {
       console.log(`Uploading URL to Gemini File API: ${url}`);
 
       // Download the image first
@@ -131,22 +131,16 @@ Deno.serve(async (req: Request) => {
 
       const imageBlob = await imageResponse.blob();
       const imageBuffer = await imageBlob.arrayBuffer();
-      const mimeType = imageBlob.type || "image/jpeg";
+      // Normalize mimeType — Gemini only accepts image/jpeg, image/png, image/webp, image/gif
+      const rawMime = imageBlob.type || "image/jpeg";
+      const mimeType = rawMime.startsWith('image/') ? rawMime : "image/jpeg";
 
       console.log(`Image downloaded, size: ${imageBuffer.byteLength} bytes, type: ${mimeType}`);
 
-      // Upload directly to Gemini File API using resumable upload
       const fileName = `image-${Date.now()}.jpg`;
-
-      // Step 1: Initiate resumable upload
       const initiateUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${gemini_api_key}`;
 
-      const metadata = {
-        file: {
-          display_name: fileName,
-        },
-      };
-
+      // Step 1: Initiate resumable upload
       const initiateResponse = await fetch(initiateUrl, {
         method: "POST",
         headers: {
@@ -156,12 +150,11 @@ Deno.serve(async (req: Request) => {
           "X-Goog-Upload-Header-Content-Type": mimeType,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(metadata),
+        body: JSON.stringify({ file: { display_name: fileName } }),
       });
 
       if (!initiateResponse.ok) {
         const errorText = await initiateResponse.text();
-        console.error("Gemini File API initiate error:", errorText);
         throw new Error(`Gemini File API initiate error: ${initiateResponse.statusText} - ${errorText}`);
       }
 
@@ -170,9 +163,7 @@ Deno.serve(async (req: Request) => {
         throw new Error("No upload URL returned from Gemini API");
       }
 
-      console.log(`Upload URL received, uploading file data...`);
-
-      // Step 2: Upload the actual file data
+      // Step 2: Upload the file data
       const uploadResponse = await fetch(uploadUrl, {
         method: "POST",
         headers: {
@@ -185,14 +176,32 @@ Deno.serve(async (req: Request) => {
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error("Gemini File API upload error:", errorText);
         throw new Error(`Gemini File API upload error: ${uploadResponse.statusText} - ${errorText}`);
       }
 
       const result = await uploadResponse.json();
-      console.log(`File uploaded successfully: ${result.file.uri}`);
+      const fileUri = result.file.uri;
+      const fileMime = result.file.mimeType || mimeType;
+      console.log(`File uploaded: ${fileUri}, mimeType: ${fileMime}, state: ${result.file.state}`);
 
-      return result.file.uri;
+      // Wait for file to become ACTIVE (processing can take a moment)
+      if (result.file.state === 'PROCESSING') {
+        const fileNameId = fileUri.split('/').pop();
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          const stateResp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/files/${fileNameId}?key=${gemini_api_key}`
+          );
+          if (stateResp.ok) {
+            const stateData = await stateResp.json();
+            console.log(`File state check ${i + 1}: ${stateData.state}`);
+            if (stateData.state === 'ACTIVE') break;
+            if (stateData.state === 'FAILED') throw new Error('Gemini file processing failed');
+          }
+        }
+      }
+
+      return { uri: fileUri, mimeType: fileMime };
     }
 
     // Sanitize base64 strings (for backward compatibility)
@@ -255,11 +264,11 @@ Deno.serve(async (req: Request) => {
         }
       });
     } else if (imageUrl) {
-      const fileUri = await uploadUrlToGemini(imageUrl);
+      const { uri, mimeType: uploadedMime } = await uploadUrlToGemini(imageUrl);
       parts.push({
         fileData: {
-          mimeType: 'image/jpeg',
-          fileUri: fileUri
+          mimeType: uploadedMime,
+          fileUri: uri
         }
       });
     } else if (cleanBase64) {
@@ -281,11 +290,11 @@ Deno.serve(async (req: Request) => {
       });
       finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
     } else if (referenceImageUrl) {
-      const fileUri = await uploadUrlToGemini(referenceImageUrl);
+      const { uri, mimeType: refMime } = await uploadUrlToGemini(referenceImageUrl);
       parts.push({
         fileData: {
-          mimeType: 'image/jpeg',
-          fileUri: fileUri
+          mimeType: refMime,
+          fileUri: uri
         }
       });
       finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
