@@ -4,6 +4,7 @@ import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Se
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
+import { getGlobalSettings } from '../services/backendService';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -550,19 +551,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setTestGeneratedImage('');
 
     try {
-      const { data: settings, error } = await supabase
-        .from('global_settings')
-        .select('gemini_api_key, gemini_model, gemini_resolution')
-        .maybeSingle();
+      const settings = await getGlobalSettings();
 
-      console.log('🔍 PromptLibrary fetching global settings:', { settings, error });
-
-      if (error) {
-        console.error('❌ Error fetching global settings:', error);
-        throw new Error(`Failed to fetch settings: ${error.message}`);
-      }
-
-      if (!settings?.gemini_enabled) {
+      if (!settings.geminiEnabled) {
         throw new Error('Gemini AI is not enabled. Please enable it in Settings.');
       }
 
@@ -573,8 +564,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         testingPrompt.promptText,
         referenceImage,
         'square',
-        settings.gemini_model || 'gemini-3.1-flash-image-preview',
-        settings.gemini_resolution || '1K'
+        settings.geminiModel || 'gemini-3.1-flash-image-preview',
+        settings.geminiResolution || '1K'
       );
 
       const consumeResult = await consumeCredit(userId, 1);

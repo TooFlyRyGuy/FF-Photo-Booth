@@ -140,7 +140,9 @@ export interface GlobalSettings {
   geminiEnabled?: boolean;
   geminiModel?: string;
   geminiResolution?: '1K' | '2K' | '4K';
+  /** Never populated from the server — only sent when clearing the SmugMug connection */
   smugmugOauthToken?: string;
+  /** Never populated from the server — only sent when clearing the SmugMug connection */
   smugmugOauthTokenSecret?: string;
   smugmugUserNickname?: string;
   smugmugConnectionStatus?: string;

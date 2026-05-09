@@ -504,8 +504,6 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     geminiEnabled: data.gemini_enabled || false,
     geminiModel: data.gemini_model || 'gemini-3.1-flash-image-preview',
     geminiResolution: data.gemini_resolution || '1K',
-    smugmugOauthToken: data.smugmug_oauth_token,
-    smugmugOauthTokenSecret: data.smugmug_oauth_token_secret,
     smugmugUserNickname: data.smugmug_user_nickname,
     smugmugConnectionStatus: data.smugmug_connection_status,
     smugmugUsername: data.smugmug_username,
