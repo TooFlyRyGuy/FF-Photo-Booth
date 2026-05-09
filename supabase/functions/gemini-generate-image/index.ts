@@ -205,8 +205,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // Sanitize base64 strings (for backward compatibility)
-    const cleanBase64 = imageBase64?.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-    const cleanRefBase64 = referenceImageBase64?.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+    const cleanBase64 = imageBase64?.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+    const cleanRefBase64 = referenceImageBase64?.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
 
     // Map AspectRatio to Gemini API format
     const mapAspectRatioToGemini = (ratio?: string): string => {
