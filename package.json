@@ -11,16 +11,16 @@
   "dependencies": {
     "@google/genai": "^1.32.0",
     "@supabase/supabase-js": "^2.87.1",
+    "@vitejs/plugin-react": "^5.0.0",
     "lucide-react": "^0.559.0",
     "qrcode.react": "^4.1.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "recharts": "^3.5.1"
+    "recharts": "^3.5.1",
+    "vite": "^6.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "~5.8.2"
   }
 }
