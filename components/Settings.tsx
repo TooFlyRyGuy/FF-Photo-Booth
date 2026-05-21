@@ -20,10 +20,6 @@ const Settings: React.FC<SettingsProps> = ({
 }) => {
   const isAdmin = userProfile.role === 'admin';
 
-  const maskValue = (value: string | undefined) => {
-    return value && value.length > 0 ? '•'.repeat(20) : '';
-  };
-
   // Dropbox states (user-specific)
   const [isConnectingDropbox, setIsConnectingDropbox] = useState(false);
   const [dropboxConnected, setDropboxConnected] = useState(!!userSettings.dropboxAccessToken);
@@ -39,21 +35,21 @@ const Settings: React.FC<SettingsProps> = ({
   const [smugMugConnectionStatus, setSmugMugConnectionStatus] = useState(globalSettings.smugmugConnectionStatus || 'disconnected');
 
   // Twilio states (global, admin only)
+  // twilioToken holds a NEW value typed by admin; never receives the stored token from server
   const [twilioSid, setTwilioSid] = useState(globalSettings.twilioAccountSid || '');
-  const [twilioToken, setTwilioToken] = useState(maskValue(globalSettings.twilioAuthToken));
+  const [twilioToken, setTwilioToken] = useState('');
   const [twilioPhone, setTwilioPhone] = useState(globalSettings.twilioPhoneNumber || '');
   const [twilioEnabled, setTwilioEnabled] = useState(globalSettings.twilioEnabled || false);
-  const [showTwilioToken, setShowTwilioToken] = useState(false);
-  const [twilioTokenChanged, setTwilioTokenChanged] = useState(false);
 
   // Gemini states (global, admin only)
-  const [geminiApiKey, setGeminiApiKey] = useState(maskValue(globalSettings.geminiApiKey));
+  // geminiApiKey holds a NEW value typed by admin; never receives the stored key from server
+  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiEnabled, setGeminiEnabled] = useState(globalSettings.geminiEnabled || false);
-  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
+  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
   const [geminiResolution, setGeminiResolution] = useState<'1K' | '2K' | '4K'>(globalSettings.geminiResolution || '1K');
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [geminiKeyChanged, setGeminiKeyChanged] = useState(false);
 
+  // Library webhook (global, admin only)
+  const [libraryWebhookUrl, setLibraryWebhookUrl] = useState(globalSettings.libraryWebhookUrl || '');
 
   // Save states
   const [isSavingUser, setIsSavingUser] = useState(false);
@@ -74,16 +70,11 @@ const Settings: React.FC<SettingsProps> = ({
     setTwilioPhone(globalSettings.twilioPhoneNumber || '');
     setTwilioEnabled(globalSettings.twilioEnabled || false);
     setGeminiEnabled(globalSettings.geminiEnabled || false);
-    setGeminiModel(globalSettings.geminiModel || 'gemini-3-pro-image-preview');
+    setGeminiModel(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
     setGeminiResolution(globalSettings.geminiResolution || '1K');
-
-    if (!showTwilioToken) {
-      setTwilioToken(maskValue(globalSettings.twilioAuthToken));
-    }
-    if (!showGeminiKey) {
-      setGeminiApiKey(maskValue(globalSettings.geminiApiKey));
-    }
-  }, [globalSettings, showTwilioToken, showGeminiKey]);
+    setLibraryWebhookUrl(globalSettings.libraryWebhookUrl || '');
+    // Never populate key fields from server — admin must type a new value to update
+  }, [globalSettings]);
 
   const handleConnectDropbox = async () => {
     setIsConnectingDropbox(true);
@@ -235,12 +226,10 @@ const Settings: React.FC<SettingsProps> = ({
 
   const handleTwilioTokenChange = (value: string) => {
     setTwilioToken(value);
-    setTwilioTokenChanged(true);
   };
 
   const handleGeminiKeyChange = (value: string) => {
     setGeminiApiKey(value);
-    setGeminiKeyChanged(true);
   };
 
   const handleSaveUserSettings = async () => {
@@ -286,20 +275,22 @@ const Settings: React.FC<SettingsProps> = ({
         geminiEnabled,
         geminiModel,
         geminiResolution,
+        libraryWebhookUrl,
       };
 
-      if (twilioTokenChanged && !twilioToken.startsWith('•')) {
-        updates.twilioAuthToken = twilioToken;
+      // Only send the new token/key if admin actually typed one
+      if (twilioToken.trim()) {
+        updates.twilioAuthToken = twilioToken.trim();
       }
-
-      if (geminiKeyChanged && !geminiApiKey.startsWith('•')) {
-        updates.geminiApiKey = geminiApiKey;
+      if (geminiApiKey.trim()) {
+        updates.geminiApiKey = geminiApiKey.trim();
       }
 
       await onSaveGlobalSettings(updates);
 
-      setTwilioTokenChanged(false);
-      setGeminiKeyChanged(false);
+      // Clear the input fields after save so they don't persist in state
+      setTwilioToken('');
+      setGeminiApiKey('');
 
       setSaveGlobalSuccess(true);
       setTimeout(() => setSaveGlobalSuccess(false), 3000);
@@ -554,38 +545,31 @@ const Settings: React.FC<SettingsProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-slate-900 mb-2">API Key</label>
+                {globalSettings.geminiKeySet && (
+                  <div className="flex items-center gap-2 mb-2 text-sm text-green-700 font-medium">
+                    <Check size={14} />
+                    API key is configured — enter a new value below only to replace it
+                  </div>
+                )}
                 <div className="relative">
                   <input
-                    type={showGeminiKey ? 'text' : 'password'}
+                    type="password"
                     value={geminiApiKey}
                     onChange={(e) => handleGeminiKeyChange(e.target.value)}
-                    placeholder="Enter your Gemini API key"
-                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
+                    placeholder={globalSettings.geminiKeySet ? 'Enter new key to replace existing' : 'Enter your Gemini API key'}
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowGeminiKey(!showGeminiKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
-                  >
-                    {showGeminiKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
                 </div>
                 <p className="text-xs text-slate-600 mt-2">
-                  {geminiApiKey.startsWith('•') ? (
-                    <span className="text-green-700">✓ API key is saved (hidden for security)</span>
-                  ) : (
-                    <>
-                      Get your API key from{' '}
-                      <a
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-green-700 hover:underline"
-                      >
-                        Google AI Studio
-                      </a>
-                    </>
-                  )}
+                  Get your API key from{' '}
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-700 hover:underline"
+                  >
+                    Google AI Studio
+                  </a>
                 </p>
               </div>
 
@@ -596,11 +580,9 @@ const Settings: React.FC<SettingsProps> = ({
                   onChange={(e) => setGeminiModel(e.target.value)}
                   className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
                 >
-                  <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Preview)</option>
-                  <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
-                  <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                  <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Recommended)</option>
+                  <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image (Fast)</option>
+                  <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Fast)</option>
                 </select>
                 <p className="text-xs text-slate-600 mt-2">
                   Select which Gemini model to use for AI image generation
@@ -686,25 +668,19 @@ const Settings: React.FC<SettingsProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-slate-900 mb-2">Auth Token</label>
-                <div className="relative">
-                  <input
-                    type={showTwilioToken ? 'text' : 'password'}
-                    value={twilioToken}
-                    onChange={(e) => handleTwilioTokenChange(e.target.value)}
-                    placeholder="Enter your Twilio auth token"
-                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-green-700"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowTwilioToken(!showTwilioToken)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
-                  >
-                    {showTwilioToken ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {twilioToken.startsWith('•') && (
-                  <p className="text-xs text-green-700 mt-2">✓ Token is saved (hidden for security)</p>
+                {globalSettings.twilioTokenSet && (
+                  <div className="flex items-center gap-2 mb-2 text-sm text-green-700 font-medium">
+                    <Check size={14} />
+                    Auth token is configured — enter a new value below only to replace it
+                  </div>
                 )}
+                <input
+                  type="password"
+                  value={twilioToken}
+                  onChange={(e) => handleTwilioTokenChange(e.target.value)}
+                  placeholder={globalSettings.twilioTokenSet ? 'Enter new token to replace existing' : 'Enter your Twilio auth token'}
+                  className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                />
               </div>
 
               <div>
@@ -813,6 +789,51 @@ const Settings: React.FC<SettingsProps> = ({
                   </div>
                 </>
               )}
+            </div>
+          </div>
+
+          {/* Library Webhook Configuration */}
+          <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                </svg>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Public Library</h3>
+                  <p className="text-slate-600 text-sm">Configure the client-facing theme selection library at <code className="bg-slate-200 px-1.5 py-0.5 rounded text-xs">/library</code></p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Checkout Webhook URL</label>
+                <input
+                  type="url"
+                  value={libraryWebhookUrl}
+                  onChange={e => setLibraryWebhookUrl(e.target.value)}
+                  placeholder="https://your-crm.example.com/webhooks/library"
+                  className="w-full border-2 border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-green-700 transition-colors"
+                />
+                <p className="text-xs text-slate-500 mt-1.5">
+                  When a client submits their theme selections, a POST request is sent here with their name, event date, booking ID, and selected themes.
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-600 space-y-1">
+                <p className="font-semibold text-slate-700">Webhook payload example:</p>
+                <pre className="text-xs bg-white border border-slate-200 rounded p-3 overflow-x-auto text-slate-600">{`{
+  "submittedAt": "2026-05-01T12:00:00Z",
+  "client": {
+    "name": "Jane Smith",
+    "eventDate": "2026-06-15",
+    "bookingId": "BK-12345"
+  },
+  "selections": [
+    { "id": "...", "name": "Neon Glow", "category": "Modern", "tags": ["neon"] }
+  ],
+  "totalSelected": 3
+}`}</pre>
+              </div>
             </div>
           </div>
 

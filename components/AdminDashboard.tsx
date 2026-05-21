@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, UserCircle, Copy, Crown, Ticket } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -15,6 +15,8 @@ import { SmugMugGallerySync } from './SmugMugGallerySync';
 import { TimezoneDateTimePicker } from './TimezoneDateTimePicker';
 import { CollapsibleSection } from './CollapsibleSection';
 import { AddOnShowcase } from './AddOnShowcase';
+import HelpCenter from './HelpCenter';
+import OnboardingTutorial from './OnboardingTutorial';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -27,7 +29,7 @@ interface AdminProps {
   user: User | null;
 }
 
-type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'plans' | 'reports' | 'profile';
+type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'plans' | 'reports' | 'profile' | 'help';
 
 const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'; label: string; colorClass: string } => {
   const now = new Date();
@@ -100,6 +102,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [concurrentEventLimit, setConcurrentEventLimit] = useState<ConcurrentEventLimit | null>(null);
   const [eventTimezone, setEventTimezone] = useState<string>('');
   const [isStartTimeLocked, setIsStartTimeLocked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -175,6 +178,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         events: (eventsData || []).length,
         timezone: userTz
       });
+
+      if (!profileData.onboardingCompleted && (eventsData || []).length === 0) {
+        setTimeout(() => setShowOnboarding(true), 600);
+      }
 
       setIsLoading(false);
     } catch (error) {
@@ -765,8 +772,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
       {/* Sidebar */}
       <aside className={`w-64 bg-white border-r border-slate-300 flex flex-col transition-all duration-300 ease-in-out
-        fixed inset-y-0 left-0 z-40
-        md:relative ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
+        fixed inset-y-0 left-0 z-40 overflow-y-auto
+        md:relative md:overflow-hidden ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         {/* Toggle Button - Desktop Only */}
@@ -805,7 +812,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           )}
         </div>
 
-        <nav className={`flex-1 ${sidebarCollapsed ? 'px-2' : 'px-4'} space-y-2`}>
+        <nav className={`flex-1 md:overflow-y-auto ${sidebarCollapsed ? 'px-2' : 'px-4'} space-y-2`}>
           <button
             onClick={() => {
               setActiveTab('dashboard');
@@ -818,6 +825,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             {!sidebarCollapsed && 'Overview'}
           </button>
           <button
+            id="onboarding-events-nav"
             onClick={() => {
               setActiveTab('events');
               setMobileMenuOpen(false);
@@ -829,6 +837,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             {!sidebarCollapsed && 'Events'}
           </button>
           <button
+            id="onboarding-prompts-nav"
             onClick={() => {
               setShowPromptLibrary(true);
               setMobileMenuOpen(false);
@@ -840,6 +849,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             {!sidebarCollapsed && 'Prompt Library'}
           </button>
           <button
+            id="onboarding-settings-nav"
             onClick={() => {
               setActiveTab('settings');
               setMobileMenuOpen(false);
@@ -860,6 +870,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           >
             <UserCircle size={20} />
             {!sidebarCollapsed && 'Profile'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('help');
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'help' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            title={sidebarCollapsed ? 'Help Center' : ''}
+          >
+            <HelpCircle size={20} />
+            {!sidebarCollapsed && 'Help Center'}
           </button>
           {isAdmin && (
             <>
@@ -900,13 +921,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           )}
         </nav>
 
-        <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
+        <div className={`shrink-0 ${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-slate-300 space-y-4`}>
           {!sidebarCollapsed && user && (
             <CreditDisplay userId={user.id} sidebar={true} />
           )}
           {!sidebarCollapsed ? (
             <>
               <button
+                id="onboarding-plan-btn"
                 onClick={() => setShowSubscriptionModal(true)}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white rounded-lg text-sm font-medium transition-all"
               >
@@ -947,6 +969,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <h2 className="text-3xl font-bold text-black">Dashboard</h2>
               <button
+                id="onboarding-new-event-btn"
                 onClick={handleCreateEvent}
                 className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2 whitespace-nowrap"
               >
@@ -2369,6 +2392,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           />
         )}
 
+        {activeTab === 'help' && (
+          <HelpCenter />
+        )}
+
       </main>
 
       {/* Subscription Manager Modal */}
@@ -2655,6 +2682,24 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             </div>
           </div>
         </div>
+      )}
+
+      {/* Onboarding Tutorial */}
+      {showOnboarding && (
+        <OnboardingTutorial
+          onOpenSidebar={() => setMobileMenuOpen(true)}
+          onComplete={async () => {
+            setShowOnboarding(false);
+            try {
+              await completeOnboarding();
+              if (userProfile) {
+                setUserProfile({ ...userProfile, onboardingCompleted: true });
+              }
+            } catch (e) {
+              console.error('Failed to save onboarding state:', e);
+            }
+          }}
+        />
       )}
     </div>
   );

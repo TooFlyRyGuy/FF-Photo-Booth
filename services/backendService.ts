@@ -12,7 +12,7 @@ const PROMPTS_CACHE_TTL = 300000;
 
 let cachedEvents: Event[] | null = null;
 let eventsCacheTimestamp: number | null = null;
-const EVENTS_CACHE_TTL = 30000;
+const EVENTS_CACHE_TTL = 120000;
 
 let cachedGlobalSettings: GlobalSettings | null = null;
 let globalSettingsCacheTimestamp: number | null = null;
@@ -200,27 +200,66 @@ export const getUserProfile = async (): Promise<UserProfile> => {
       throw new Error(`Failed to fetch user profile: ${error.message}`);
     }
 
-    if (!profileData) {
-      throw new Error('User profile not found');
+    let profile = profileData;
+
+    if (!profile) {
+      const { data: newProfile, error: insertError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || '',
+          role: 'user',
+          subscription_status: 'inactive',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        })
+        .select()
+        .maybeSingle();
+
+      if (insertError) {
+        throw new Error(`Failed to create user profile: ${insertError.message}`);
+      }
+
+      if (!newProfile) {
+        throw new Error('User profile could not be created');
+      }
+
+      profile = newProfile;
     }
 
     return {
-      id: profileData.id,
-      email: profileData.email,
-      fullName: profileData.full_name,
-      role: profileData.role || 'user',
-      subscriptionStatus: profileData.subscription_status,
-      subscriptionTierId: profileData.subscription_tier_id,
-      stripeCustomerId: profileData.stripe_customer_id,
-      stripeSubscriptionId: profileData.stripe_subscription_id,
-      subscriptionStartDate: profileData.subscription_start_date,
-      subscriptionEndDate: profileData.subscription_end_date,
-      timezone: profileData.timezone || 'UTC',
-      createdAt: profileData.created_at,
-      updatedAt: profileData.updated_at,
+      id: profile.id,
+      email: profile.email,
+      fullName: profile.full_name,
+      role: profile.role || 'user',
+      subscriptionStatus: profile.subscription_status,
+      subscriptionTierId: profile.subscription_tier_id,
+      stripeCustomerId: profile.stripe_customer_id,
+      stripeSubscriptionId: profile.stripe_subscription_id,
+      subscriptionStartDate: profile.subscription_start_date,
+      subscriptionEndDate: profile.subscription_end_date,
+      timezone: profile.timezone || 'UTC',
+      onboardingCompleted: profile.onboarding_completed || false,
+      createdAt: profile.created_at,
+      updatedAt: profile.updated_at,
     };
   } catch (error) {
     console.error('getUserProfile failed:', error);
+    throw error;
+  }
+};
+
+export const completeOnboarding = async (): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
+    .eq('id', user.id);
+
+  if (error) {
+    console.error('Failed to complete onboarding:', error);
     throw error;
   }
 };
@@ -411,9 +450,14 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     .limit(1)
     .maybeSingle();
 
-  // If access denied (non-admin user), fetch from public view
-  if (error && error.code === 'PGRST116') {
-    console.log('🔓 Fetching non-sensitive settings from public view...');
+  // If no data returned (RLS denied access silently) or error, try public view
+  if (!data || error) {
+    if (error) {
+      console.log('🔓 Error accessing global_settings, trying public view...', error.code);
+    } else {
+      console.log('🔓 No data from global_settings (likely RLS), trying public view...');
+    }
+
     const publicResult = await supabase
       .from('public_global_settings')
       .select('*')
@@ -442,25 +486,28 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
 
   console.log('✅ Global settings fetched successfully:', {
     geminiEnabled: data.gemini_enabled,
-    hasGeminiKey: !!data.gemini_api_key,
+    geminiKeySet: !!data.gemini_api_key,
+    twilioEnabled: data.twilio_enabled,
+    twilioTokenSet: !!data.twilio_auth_token,
   });
 
   const settings: GlobalSettings = {
     dropboxAppKey: data.dropbox_app_key,
     dropboxAppSecret: data.dropbox_app_secret,
     twilioAccountSid: data.twilio_account_sid,
-    twilioAuthToken: data.twilio_auth_token,
+    // Never expose the actual token to the browser — only a boolean sentinel
+    twilioTokenSet: !!data.twilio_auth_token,
     twilioPhoneNumber: data.twilio_phone_number,
     twilioEnabled: data.twilio_enabled || false,
-    geminiApiKey: data.gemini_api_key,
+    // Never expose the actual API key to the browser — only a boolean sentinel
+    geminiKeySet: !!data.gemini_api_key,
     geminiEnabled: data.gemini_enabled || false,
-    geminiModel: data.gemini_model || 'gemini-3-pro-image-preview',
+    geminiModel: data.gemini_model || 'gemini-3.1-flash-image-preview',
     geminiResolution: data.gemini_resolution || '1K',
-    smugmugOauthToken: data.smugmug_oauth_token,
-    smugmugOauthTokenSecret: data.smugmug_oauth_token_secret,
     smugmugUserNickname: data.smugmug_user_nickname,
     smugmugConnectionStatus: data.smugmug_connection_status,
     smugmugUsername: data.smugmug_username,
+    libraryWebhookUrl: data.library_webhook_url,
   };
 
   cachedGlobalSettings = settings;
@@ -492,6 +539,7 @@ export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): P
   if (settings.smugmugUserNickname !== undefined) updateData.smugmug_user_nickname = settings.smugmugUserNickname;
   if (settings.smugmugConnectionStatus !== undefined) updateData.smugmug_connection_status = settings.smugmugConnectionStatus;
   if (settings.smugmugUsername !== undefined) updateData.smugmug_username = settings.smugmugUsername;
+  if (settings.libraryWebhookUrl !== undefined) updateData.library_webhook_url = settings.libraryWebhookUrl;
 
   const { data: existingSettings } = await supabase
     .from('global_settings')
@@ -535,7 +583,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('*')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -609,9 +657,6 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       prompts,
       userId: event.user_id,
       aspectRatio: event.aspect_ratio,
-      backgroundImageUrl: event.background_image_url,
-      logoUrl: event.logo_url,
-      overlayImageUrl: event.overlay_image_url,
       primaryColor: event.primary_color,
       secondaryColor: event.secondary_color,
       accentColor: event.accent_color,
@@ -1212,6 +1257,40 @@ export const getEventChartData = async (eventId: string): Promise<ChartDataPoint
     .map(([date, generations]) => ({ date, generations }));
 };
 
+export interface EventPhoneEntry {
+  phoneNumber: string;
+  sentAt: string;
+  status: string;
+  imageId: string;
+}
+
+export const getEventPhoneNumbers = async (eventId: string): Promise<EventPhoneEntry[]> => {
+  const { data: images, error: imgError } = await supabase
+    .from('generated_images')
+    .select('id')
+    .eq('event_id', eventId);
+
+  if (imgError) throw new Error(`Failed to fetch images: ${imgError.message}`);
+  if (!images || images.length === 0) return [];
+
+  const imageIds = images.map(i => i.id);
+
+  const { data, error } = await supabase
+    .from('sms_logs')
+    .select('phone_number, sent_at, status, image_id')
+    .in('image_id', imageIds)
+    .order('sent_at', { ascending: true });
+
+  if (error) throw new Error(`Failed to fetch phone numbers: ${error.message}`);
+
+  return (data || []).map(row => ({
+    phoneNumber: row.phone_number,
+    sentAt: row.sent_at,
+    status: row.status,
+    imageId: row.image_id,
+  }));
+};
+
 export const deleteEvent = async (eventId: string): Promise<void> => {
   const { error } = await supabase
     .from('events')
@@ -1661,7 +1740,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('*')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1718,9 +1797,6 @@ export const getAllEvents = async (): Promise<Event[]> => {
       userEmail: userProfile?.email || '',
       createdByEmail: userProfile?.email || '',
       aspectRatio: e.aspect_ratio,
-      backgroundImageUrl: e.background_image_url,
-      logoUrl: e.logo_url,
-      overlayImageUrl: e.overlay_image_url,
       primaryColor: e.primary_color,
       secondaryColor: e.secondary_color,
       accentColor: e.accent_color,

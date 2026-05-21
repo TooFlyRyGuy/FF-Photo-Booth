@@ -8,18 +8,23 @@ import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
+import { uploadImageWithRetry } from '../services/storageService';
+import { compressForUpload } from '../services/imageCompression';
 
 interface KioskProps {
   event: Event;
   onExit: () => void;
+  onLoaded?: () => void;
 }
 
 type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits';
 
-const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
+const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [view, setView] = useState<KioskState>('attract');
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImageBlob, setCapturedImageBlob] = useState<Blob | null>(null);
+  const [capturedImageStorageUrl, setCapturedImageStorageUrl] = useState<string | null>(null);
   const [finalImage, setFinalImage] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generatedImageId, setGeneratedImageId] = useState<string | null>(null);
@@ -30,11 +35,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
   const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
   const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [isCheckingCredits, setIsCheckingCredits] = useState(false);
 
   const checkEventTimeStatus = useCallback(() => {
     const now = new Date();
@@ -69,12 +76,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
       return;
     }
 
-    const creditCheck = await checkCreditAvailability(event.userId, 'image');
+    setIsCheckingCredits(true);
 
-    if (!creditCheck.available) {
-      setView('no-credits');
-    } else {
-      setView('prompt-select');
+    try {
+      const creditCheck = await checkCreditAvailability(event.userId, 'image');
+
+      if (!creditCheck.available) {
+        setView('no-credits');
+      } else {
+        setView('prompt-select');
+      }
+    } finally {
+      setIsCheckingCredits(false);
     }
   };
 
@@ -168,10 +181,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           0, 0, canvas.width, canvas.height
         );
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        setCapturedImage(dataUrl);
-        setView('review');
-        stopCamera();
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const dataUrl = URL.createObjectURL(blob);
+              setCapturedImage(dataUrl);
+              setCapturedImageBlob(blob);
+              setView('review');
+              stopCamera();
+            }
+          },
+          'image/jpeg',
+          0.9
+        );
       }
     }
   };
@@ -197,41 +219,59 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         return;
       }
 
-      const creditCheck = await checkCreditAvailability(event.userId);
-
-      if (!creditCheck.available) {
-        setErrorMsg(creditCheck.reason || 'No credits available. Please upgrade your plan or purchase more credits.');
-        setView('camera');
-        return;
-      }
-
       if (!globalSettings?.geminiEnabled) {
+        console.error('❌ Gemini check failed:', {
+          globalSettings,
+          geminiEnabled: globalSettings?.geminiEnabled,
+          hasGlobalSettings: !!globalSettings
+        });
         setErrorMsg('Gemini AI is not configured. Please contact the administrator.');
         setView('camera');
         return;
       }
 
-      // 1. Generate with Gemini
+      // 1. Upload captured image to Supabase Storage
+      setUploadProgress('Uploading image...');
+      console.log('📤 Uploading captured image to storage...');
+
+      let uploadedImageUrl = capturedImageStorageUrl;
+
+      if (!uploadedImageUrl) {
+        if (!capturedImageBlob) {
+          throw new Error('No image blob available for upload');
+        }
+
+        const uploadResult = await uploadImageWithRetry(capturedImageBlob, 'booth-captures');
+
+        if (uploadResult.error) {
+          throw new Error(`Failed to upload image: ${uploadResult.error}`);
+        }
+
+        uploadedImageUrl = uploadResult.url;
+        setCapturedImageStorageUrl(uploadedImageUrl);
+        console.log('✅ Image uploaded to storage:', uploadedImageUrl);
+      }
+
+      // 2. Generate with Gemini using URL
+      setUploadProgress('Generating AI image...');
       console.log('🎨 Starting Gemini image generation...', {
         geminiEnabled: globalSettings.geminiEnabled,
         model: globalSettings.geminiModel,
         resolution: globalSettings.geminiResolution,
       });
 
-      let referenceImageBase64 = selectedPrompt.referenceImage;
-      if (referenceImageBase64 && referenceImageBase64.startsWith('http')) {
-        console.log('Converting reference image URL to base64...');
-        referenceImageBase64 = await convertImageUrlToBase64(referenceImageBase64);
-      }
+      let referenceImageUrl = selectedPrompt.referenceImage;
 
       let genImage = await generateBoothImage(
-        capturedImage,
+        uploadedImageUrl,
         selectedPrompt.promptText,
-        referenceImageBase64,
+        referenceImageUrl,
         event.aspectRatio,
         globalSettings.geminiModel,
         globalSettings.geminiResolution
       );
+
+      setUploadProgress('');
 
       if (event.overlayImageUrl) {
         try {
@@ -243,99 +283,124 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
       setFinalImage(genImage);
 
-      // 2. Upload generated image to SmugMug and/or Dropbox
+      // 2 & 3. Upload images in parallel
+      const uploadPromises: Promise<any>[] = [];
+      const backgroundPromises: Promise<any>[] = [];
       let generatedUrl = genImage;
+      let originalUrl = capturedImage;
       let uploadedGeneratedToSmugMug = false;
+      let uploadedOriginalToSmugMug = false;
 
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+      // Upload generated image to SmugMug (MUST wait for SMS)
+      let smugmugGeneratedPromise: Promise<any> | null = null;
       if (event.smugmugGalleryKey) {
-        try {
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
-
-          const result = await uploadToSmugMug(
+        const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
+        smugmugGeneratedPromise = (async () => {
+          const compressedImage = await compressForUpload(genImage);
+          return uploadToSmugMug(
             event.smugmugGalleryKey,
-            genImage,
+            compressedImage,
             fileName,
             import.meta.env.VITE_SUPABASE_ANON_KEY
           );
-
-          generatedUrl = result.imageUrl;
-          uploadedGeneratedToSmugMug = true;
-          console.log('Uploaded generated to SmugMug:', generatedUrl);
-        } catch (smugmugErr) {
-          console.error('SmugMug upload failed for generated:', smugmugErr);
-        }
-      }
-
-      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
-        try {
-          const dropboxUrl = await uploadImageToDropbox({
-            userId: event.userId,
-            eventId: event.id,
-            eventName: event.name,
-            imageBase64: genImage,
-            imageType: 'generated',
-            promptName: selectedPrompt.name,
+        })()
+          .then((result) => {
+            generatedUrl = result.imageUrl;
+            uploadedGeneratedToSmugMug = true;
+            console.log('✅ Uploaded generated to SmugMug:', generatedUrl);
+            setGeneratedImageUrl(result.imageUrl);
+            return result;
+          })
+          .catch((smugmugErr) => {
+            console.error('SmugMug upload failed for generated:', smugmugErr);
+            throw smugmugErr;
           });
-          if (!uploadedGeneratedToSmugMug) {
-            generatedUrl = dropboxUrl;
-          }
-          console.log('Uploaded generated to Dropbox:', dropboxUrl);
-        } catch (dropboxErr) {
-          console.error('Dropbox upload failed for generated:', dropboxErr);
-        }
+        uploadPromises.push(smugmugGeneratedPromise);
       }
 
-      // 3. Upload original image to SmugMug gallery if enabled
-      let originalUrl = capturedImage;
-      let uploadedOriginalToSmugMug = false;
-
+      // Upload original image to SmugMug (background, not needed for SMS)
       if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
-        try {
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
+        const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
+        backgroundPromises.push(
+          (async () => {
+            const compressedOriginal = await compressForUpload(capturedImage);
+            return uploadToSmugMug(
+              event.smugmugGalleryKey,
+              compressedOriginal,
+              originalFileName,
+              import.meta.env.VITE_SUPABASE_ANON_KEY
+            );
+          })()
+            .then((originalResult) => {
+              originalUrl = originalResult.imageUrl;
+              uploadedOriginalToSmugMug = true;
+              console.log('✅ Uploaded original to SmugMug:', originalUrl);
+            })
+            .catch((smugmugOrigErr) => {
+              console.error('SmugMug upload failed for original:', smugmugOrigErr);
+            })
+        );
+      }
 
-          const originalResult = await uploadToSmugMug(
-            event.smugmugGalleryKey,
-            capturedImage,
-            originalFileName,
-            import.meta.env.VITE_SUPABASE_ANON_KEY
-          );
+      // Upload generated to Dropbox (fallback if no SmugMug)
+      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
+        const dropboxPromise = uploadImageToDropbox({
+          userId: event.userId,
+          eventId: event.id,
+          eventName: event.name,
+          imageBase64: genImage,
+          imageType: 'generated',
+          promptName: selectedPrompt.name,
+        })
+          .then((dropboxUrl) => {
+            if (!uploadedGeneratedToSmugMug) {
+              generatedUrl = dropboxUrl;
+              setGeneratedImageUrl(dropboxUrl);
+            }
+            console.log('✅ Uploaded generated to Dropbox:', dropboxUrl);
+          })
+          .catch((dropboxErr) => {
+            console.error('Dropbox upload failed for generated:', dropboxErr);
+          });
 
-          originalUrl = originalResult.imageUrl;
-          uploadedOriginalToSmugMug = true;
-          console.log('Uploaded original to SmugMug:', originalUrl);
-        } catch (smugmugOrigErr) {
-          console.error('SmugMug upload failed for original:', smugmugOrigErr);
+        if (!event.smugmugGalleryKey) {
+          uploadPromises.push(dropboxPromise);
+        } else {
+          backgroundPromises.push(dropboxPromise);
         }
       }
 
-      // 4. Upload original to Dropbox if enabled
+      // Upload original to Dropbox (background)
       if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
-        try {
-          const dropboxOrigUrl = await uploadImageToDropbox({
+        backgroundPromises.push(
+          uploadImageToDropbox({
             userId: event.userId,
             eventId: event.id,
             eventName: event.name,
             imageBase64: capturedImage,
             imageType: 'original',
             promptName: selectedPrompt.name,
-          });
-          if (!uploadedOriginalToSmugMug) {
-            originalUrl = dropboxOrigUrl;
-          }
-          console.log('Uploaded original to Dropbox:', dropboxOrigUrl);
-        } catch (dropboxErr) {
-          console.error('Dropbox upload failed for original:', dropboxErr);
-        }
+          })
+            .then((dropboxOrigUrl) => {
+              if (!uploadedOriginalToSmugMug) {
+                originalUrl = dropboxOrigUrl;
+              }
+              console.log('✅ Uploaded original to Dropbox:', dropboxOrigUrl);
+            })
+            .catch((dropboxErr) => {
+              console.error('Dropbox upload failed for original:', dropboxErr);
+            })
+        );
       }
 
-      // 5. Save analytics record to database (URLs stored in SmugMug/Dropbox only)
+      // Save analytics record
       const imageId = await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
-        null, // originalUrl - stored in SmugMug/Dropbox, not database
-        null, // generatedUrl - stored in SmugMug/Dropbox, not database
+        null,
+        null,
         null,
         'completed'
       );
@@ -345,9 +410,32 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         console.error('Failed to consume credit, but image was generated');
       }
 
-      setGeneratedImageUrl(generatedUrl);
       setGeneratedImageId(imageId);
+      setFinalImage(genImage);
+
+      // Show image immediately
+      if (!event.smugmugGalleryKey && !userSettings?.dropboxEnabled) {
+        setGeneratedImageUrl(genImage);
+      }
+
       setView('result');
+
+      // Wait ONLY for critical uploads needed for SMS
+      if (uploadPromises.length > 0) {
+        console.log(`⏳ Waiting for ${uploadPromises.length} critical upload(s) for SMS...`);
+        await Promise.allSettled(uploadPromises);
+        console.log('✅ Critical uploads complete, SMS ready');
+      }
+
+      // Background uploads continue without blocking
+      if (backgroundPromises.length > 0) {
+        console.log(`📤 ${backgroundPromises.length} background upload(s) continuing...`);
+        Promise.allSettled(backgroundPromises).then((results) => {
+          const succeeded = results.filter(r => r.status === 'fulfilled').length;
+          const failed = results.filter(r => r.status === 'rejected').length;
+          console.log(`✅ Background uploads complete: ${succeeded} succeeded, ${failed} failed`);
+        });
+      }
     } catch (err: any) {
       setErrorMsg(err.message || "AI Generation Failed");
       setView('review');
@@ -381,11 +469,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
   const resetKiosk = () => {
     setView('attract');
+    if (capturedImage && capturedImage.startsWith('blob:')) {
+      URL.revokeObjectURL(capturedImage);
+    }
     setCapturedImage(null);
+    setCapturedImageStorageUrl(null);
     setFinalImage(null);
     setGeneratedImageUrl(null);
     setSelectedPrompt(null);
     setPhoneNumber('');
+    setUploadProgress('');
     stopCamera();
   };
 
@@ -458,7 +551,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         console.log('🔄 Loading settings for event:', event.id, 'userId:', event.userId);
         const [userSettingsData, globalSettingsData] = await Promise.all([
           getUserSettingsByUserId(event.userId),
-          getGlobalSettings(true)
+          getGlobalSettings()
         ]);
         console.log('⚙️ Settings loaded:', {
           geminiEnabled: globalSettingsData.geminiEnabled,
@@ -467,13 +560,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
         });
         setUserSettings(userSettingsData);
         setGlobalSettings(globalSettingsData);
+        onLoaded?.();
       } catch (err) {
         console.error('❌ Failed to load settings:', err);
         setErrorMsg('Failed to load configuration. Please contact support.');
+        onLoaded?.();
       }
     };
     loadSettings();
-  }, [event.userId]);
+  }, [event.userId, onLoaded]);
 
   // Handle cleanup on unmount
   useEffect(() => {
@@ -645,14 +740,23 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </div>
         )}
 
-        <div className="z-10 text-center space-y-4 md:space-y-6 animate-bounce px-4">
-          <h1
-            className="text-4xl md:text-6xl lg:text-8xl font-display font-bold"
-            style={{ color: colors.secondary }}
-          >
-            TAP TO START
-          </h1>
-          <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
+        <div className="z-10 text-center space-y-4 md:space-y-6 px-4">
+          {isCheckingCredits ? (
+            <>
+              <div className="animate-spin rounded-full h-16 w-16 md:h-24 md:w-24 border-b-4 mx-auto" style={{ borderColor: colors.secondary }}></div>
+              <p className="text-xl md:text-3xl text-slate-900 font-light">Checking credits...</p>
+            </>
+          ) : (
+            <>
+              <h1
+                className="text-4xl md:text-6xl lg:text-8xl font-display font-bold animate-bounce"
+                style={{ color: colors.secondary }}
+              >
+                TAP TO START
+              </h1>
+              <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
+            </>
+          )}
         </div>
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
@@ -898,7 +1002,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
           </div>
         </div>
         <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>Creating Magic...</h2>
-        <p className="text-sm md:text-base text-slate-600 text-center">Applying {selectedPrompt?.name} style</p>
+        <p className="text-sm md:text-base text-slate-600 text-center">
+          {uploadProgress || `Applying ${selectedPrompt?.name} style`}
+        </p>
       </div>
     );
   }
@@ -1002,7 +1108,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                 </button>
 
                 <div className="mt-6 pt-6 border-t border-slate-300">
-                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own event?</p>
+                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own prompts and events?</p>
                   <a
                     href="/"
                     className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
@@ -1070,10 +1176,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
 
                     <button
                         onClick={handleSendSms}
-                        disabled={isSending || phoneNumber.length < 3}
+                        disabled={isSending || phoneNumber.length < 3 || !generatedImageUrl}
                         className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
+                        {!generatedImageUrl ? 'Preparing link...' : isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
                     </button>
                   </>
                 )}
@@ -1103,7 +1209,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit }) => {
                 </button>
 
                 <div className="mt-6 pt-6 border-t border-slate-300">
-                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own event?</p>
+                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own prompts and events?</p>
                   <a
                     href="/"
                     className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"

@@ -7,9 +7,13 @@ const corsHeaders = {
 };
 
 interface GenerateImageRequest {
-  imageBase64: string;
+  imageBase64?: string;
+  imageUrl?: string;
+  imageFileUri?: string;
   promptTemplate: string;
   referenceImageBase64?: string;
+  referenceImageUrl?: string;
+  referenceFileUri?: string;
   aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | 'square';
   modelName?: string;
   resolution?: '1K' | '2K' | '4K';
@@ -19,6 +23,10 @@ interface GeminiPart {
   inlineData?: {
     mimeType: string;
     data: string;
+  };
+  fileData?: {
+    mimeType: string;
+    fileUri: string;
   };
   text?: string;
 }
@@ -45,17 +53,21 @@ Deno.serve(async (req: Request) => {
     // Parse request body
     const {
       imageBase64,
+      imageUrl,
+      imageFileUri,
       promptTemplate,
       referenceImageBase64,
+      referenceImageUrl,
+      referenceFileUri,
       aspectRatio,
       modelName,
       resolution
     }: GenerateImageRequest = await req.json();
 
     // Validate required parameters
-    if (!imageBase64 || !promptTemplate) {
+    if ((!imageBase64 && !imageUrl && !imageFileUri) || !promptTemplate) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters: imageBase64 and promptTemplate' }),
+        JSON.stringify({ error: 'Missing required parameters: (imageBase64, imageUrl, or imageFileUri) and promptTemplate' }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -65,7 +77,7 @@ Deno.serve(async (req: Request) => {
 
     // Fetch global settings to get the Gemini API key
     const settingsResponse = await fetch(
-      `${supabaseUrl}/rest/v1/global_settings?select=gemini_api_key,gemini_enabled&limit=1`,
+      `${supabaseUrl}/rest/v1/global_settings?select=gemini_api_key,gemini_enabled,gemini_model,gemini_resolution&limit=1`,
       {
         headers: {
           'apikey': supabaseServiceKey,
@@ -75,7 +87,9 @@ Deno.serve(async (req: Request) => {
     );
 
     if (!settingsResponse.ok) {
-      throw new Error('Failed to fetch global settings');
+      const errorText = await settingsResponse.text();
+      console.error('Failed to fetch global settings:', settingsResponse.status, errorText);
+      throw new Error(`Failed to fetch global settings: ${settingsResponse.status}`);
     }
 
     const settings = await settingsResponse.json();
@@ -83,7 +97,7 @@ Deno.serve(async (req: Request) => {
       throw new Error('Global settings not found');
     }
 
-    const { gemini_api_key, gemini_enabled } = settings[0];
+    const { gemini_api_key, gemini_enabled, gemini_model, gemini_resolution } = settings[0];
 
     if (!gemini_enabled) {
       return new Response(
@@ -105,9 +119,104 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Sanitize base64 strings
-    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-    const cleanRefBase64 = referenceImageBase64?.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+    // Helper function to upload raw bytes to Gemini File API, returns {uri, mimeType}
+    async function uploadBytesToGemini(imageBuffer: ArrayBuffer, rawMime: string): Promise<{ uri: string; mimeType: string }> {
+      // Normalize mimeType — Gemini only accepts image/jpeg, image/png, image/webp, image/gif
+      const mimeType = rawMime.startsWith('image/') ? rawMime : "image/jpeg";
+
+      console.log(`Uploading bytes to Gemini File API, size: ${imageBuffer.byteLength} bytes, type: ${mimeType}`);
+
+      const fileName = `image-${Date.now()}.jpg`;
+      const initiateUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${gemini_api_key}`;
+
+      // Step 1: Initiate resumable upload
+      const initiateResponse = await fetch(initiateUrl, {
+        method: "POST",
+        headers: {
+          "X-Goog-Upload-Protocol": "resumable",
+          "X-Goog-Upload-Command": "start",
+          "X-Goog-Upload-Header-Content-Length": imageBuffer.byteLength.toString(),
+          "X-Goog-Upload-Header-Content-Type": mimeType,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ file: { display_name: fileName } }),
+      });
+
+      if (!initiateResponse.ok) {
+        const errorText = await initiateResponse.text();
+        throw new Error(`Gemini File API initiate error: ${initiateResponse.statusText} - ${errorText}`);
+      }
+
+      const uploadUrl = initiateResponse.headers.get("X-Goog-Upload-URL");
+      if (!uploadUrl) {
+        throw new Error("No upload URL returned from Gemini API");
+      }
+
+      // Step 2: Upload the file data
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "Content-Length": imageBuffer.byteLength.toString(),
+          "X-Goog-Upload-Offset": "0",
+          "X-Goog-Upload-Command": "upload, finalize",
+        },
+        body: new Uint8Array(imageBuffer),
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Gemini File API upload error: ${uploadResponse.statusText} - ${errorText}`);
+      }
+
+      const result = await uploadResponse.json();
+      const fileUri = result.file.uri;
+      const fileMime = result.file.mimeType || mimeType;
+      console.log(`File uploaded: ${fileUri}, mimeType: ${fileMime}, state: ${result.file.state}`);
+
+      // Wait for file to become ACTIVE (processing can take a moment)
+      if (result.file.state === 'PROCESSING') {
+        const fileNameId = fileUri.split('/').pop();
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          const stateResp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/files/${fileNameId}?key=${gemini_api_key}`
+          );
+          if (stateResp.ok) {
+            const stateData = await stateResp.json();
+            console.log(`File state check ${i + 1}: ${stateData.state}`);
+            if (stateData.state === 'ACTIVE') break;
+            if (stateData.state === 'FAILED') throw new Error('Gemini file processing failed');
+          }
+        }
+      }
+
+      return { uri: fileUri, mimeType: fileMime };
+    }
+
+    // Helper: fetch a URL and upload its bytes to Gemini File API
+    async function uploadUrlToGemini(url: string): Promise<{ uri: string; mimeType: string }> {
+      console.log(`Fetching URL for Gemini File API upload: ${url}`);
+      const imageResponse = await fetch(url);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to download image: ${imageResponse.statusText}`);
+      }
+      const imageBlob = await imageResponse.blob();
+      const imageBuffer = await imageBlob.arrayBuffer();
+      const rawMime = imageBlob.type || "image/jpeg";
+      return uploadBytesToGemini(imageBuffer, rawMime);
+    }
+
+    // Helper: decode a base64 string and upload its bytes to Gemini File API
+    async function uploadBase64ToGemini(base64: string, mime: string = "image/jpeg"): Promise<{ uri: string; mimeType: string }> {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return uploadBytesToGemini(bytes.buffer, mime);
+    }
+
+    // Sanitize base64 strings (for backward compatibility)
+    const cleanBase64 = imageBase64?.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+    const cleanRefBase64 = referenceImageBase64?.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
 
     // Map AspectRatio to Gemini API format
     const mapAspectRatioToGemini = (ratio?: string): string => {
@@ -143,42 +252,114 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const model = modelName || 'gemini-3-pro-image-preview';
+    const model = modelName || gemini_model || 'gemini-3.1-flash-image-preview';
+    const imageResolution = resolution || gemini_resolution || '2K';
     const geminiAspectRatio = mapAspectRatioToGemini(aspectRatio);
-    const geminiResolution = resolution || '1K';
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
 
-    // Construct prompt
-    let finalPrompt = `
-      Transform the person in the first image into the following style: ${promptTemplate}.
-      Maintain the person's facial features and identity strictly, but change the clothing, background, and artistic style to match the description.
-      CRITICAL: The output image MUST be in ${aspectRatioSpec}. The composition must fit this exact aspect ratio.
-      High quality, photorealistic or stylized as requested.
-    `;
+    // Construct prompt for Gemini image editing
+    let finalPrompt = `Transform the person in this photo into the following style: ${promptTemplate}. `;
+    finalPrompt += `Maintain the person's facial features and identity, but change the clothing, background, and artistic style to match the description. `;
+    finalPrompt += `Output format: ${aspectRatioSpec}.`;
 
-    const parts: GeminiPart[] = [
-      {
-        inlineData: {
-          mimeType: 'image/jpeg',
-          data: cleanBase64
-        }
-      }
-    ];
+    // Build parts array for multimodal request
+    const parts: GeminiPart[] = [];
 
-    // If a reference style image exists, add it to the request
-    if (cleanRefBase64) {
+    // Add original image - always use File API (fileUri > URL > base64)
+    if (imageFileUri) {
       parts.push({
-        inlineData: {
+        fileData: {
           mimeType: 'image/jpeg',
-          data: cleanRefBase64
+          fileUri: imageFileUri
         }
       });
-      finalPrompt += " Use the second image as a strict style reference for color palette, lighting, and composition.";
+    } else if (imageUrl) {
+      const { uri, mimeType: srcMime } = await uploadUrlToGemini(imageUrl);
+      parts.push({
+        fileData: {
+          mimeType: srcMime,
+          fileUri: uri
+        }
+      });
+    } else if (cleanBase64) {
+      const { uri, mimeType: srcMime } = await uploadBase64ToGemini(cleanBase64, 'image/jpeg');
+      parts.push({
+        fileData: {
+          mimeType: srcMime,
+          fileUri: uri
+        }
+      });
+    }
+
+    // Add reference image if provided - always use File API (fileUri > URL > base64)
+    if (referenceFileUri) {
+      parts.push({
+        fileData: {
+          mimeType: 'image/jpeg',
+          fileUri: referenceFileUri
+        }
+      });
+      finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
+    } else if (referenceImageUrl) {
+      const { uri, mimeType: refMime } = await uploadUrlToGemini(referenceImageUrl);
+      parts.push({
+        fileData: {
+          mimeType: refMime,
+          fileUri: uri
+        }
+      });
+      finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
+    } else if (cleanRefBase64) {
+      const { uri, mimeType: refMime } = await uploadBase64ToGemini(cleanRefBase64, 'image/jpeg');
+      parts.push({
+        fileData: {
+          mimeType: refMime,
+          fileUri: uri
+        }
+      });
+      finalPrompt += " Use the second image as a style reference for color palette, lighting, and composition.";
     }
 
     parts.push({ text: finalPrompt });
 
-    // Call Gemini API
+    console.log('Calling Gemini API with model:', model);
+    console.log('Aspect ratio:', geminiAspectRatio);
+    console.log('Resolution:', imageResolution);
+    console.log('Prompt:', finalPrompt);
+
+    // Build imageConfig — only include imageSize if it's a valid value
+    const imageConfigObj: Record<string, string> = {
+      aspectRatio: geminiAspectRatio,
+    };
+    // imageSize must be exactly "512", "1K", "2K", or "4K" (uppercase K required)
+    if (imageResolution && ['512', '1K', '2K', '4K'].includes(imageResolution)) {
+      imageConfigObj.imageSize = imageResolution;
+    }
+
+    const requestBody = {
+      contents: [{
+        role: "user",
+        parts: parts
+      }],
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"],
+        imageConfig: imageConfigObj
+      }
+    };
+
+    console.log('Request body (without image data):', JSON.stringify({
+      ...requestBody,
+      contents: [{
+        role: requestBody.contents[0].role,
+        parts: requestBody.contents[0].parts.map((p: GeminiPart) =>
+          p.inlineData ? { inlineData: { mimeType: p.inlineData.mimeType, data: '[BASE64]' } } :
+          p.fileData ? { fileData: p.fileData } :
+          p
+        )
+      }]
+    }));
+
+    // Call Gemini API for image editing
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
@@ -187,25 +368,34 @@ Deno.serve(async (req: Request) => {
           'Content-Type': 'application/json',
           'x-goog-api-key': gemini_api_key,
         },
-        body: JSON.stringify({
-          contents: [{
-            parts: parts
-          }],
-          generationConfig: {
-            aspectRatio: geminiAspectRatio,
-            resolution: geminiResolution
-          }
-        })
+        body: JSON.stringify(requestBody)
       }
     );
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error('Gemini API Error:', errorText);
-      throw new Error(`Gemini API request failed: ${geminiResponse.status} ${errorText}`);
+      console.error('Gemini API Error Status:', geminiResponse.status);
+      console.error('Gemini API Error Body:', errorText);
+      return new Response(
+        JSON.stringify({
+          error: `Gemini API error (${geminiResponse.status})`,
+          detail: errorText,
+          model,
+          success: false
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const geminiResult = await geminiResponse.json();
+    console.log('Gemini result structure:', JSON.stringify({
+      candidates: geminiResult.candidates?.length,
+      finishReason: geminiResult.candidates?.[0]?.finishReason,
+      parts: geminiResult.candidates?.[0]?.content?.parts?.map((p: GeminiPart) => p.inlineData ? 'image' : p.text ? 'text' : 'other')
+    }));
 
     // Extract image from response
     const resultParts = geminiResult.candidates?.[0]?.content?.parts;
@@ -222,7 +412,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!generatedImage) {
-      throw new Error("No image generated by the model.");
+      const finishReason = geminiResult.candidates?.[0]?.finishReason;
+      console.error('No image in response. Full result:', JSON.stringify(geminiResult).substring(0, 2000));
+      throw new Error(`No image generated. Finish reason: ${finishReason || 'unknown'}`);
     }
 
     return new Response(
@@ -238,10 +430,13 @@ Deno.serve(async (req: Request) => {
 
   } catch (error) {
     console.error('Error in gemini-generate-image function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    const errorStack = error instanceof Error ? error.stack : undefined;
 
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        error: errorMessage,
+        stack: errorStack,
         success: false
       }),
       {

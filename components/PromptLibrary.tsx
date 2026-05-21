@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
+import { getGlobalSettings } from '../services/backendService';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-const LOAD_BATCH_SIZE = 6;
 
 interface Prompt {
   id: string;
@@ -20,6 +20,7 @@ interface Prompt {
   isActive: boolean;
   usageCount: number;
   userId?: string | null;
+  isPublic?: boolean;
 }
 
 interface PromptLibraryProps {
@@ -44,14 +45,14 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [isCreating, setIsCreating] = useState(false);
   const [eventModePrompts, setEventModePrompts] = useState<Prompt[]>(selectedPrompts);
   const [isPublic, setIsPublic] = useState(false);
+  const [categoryIsNew, setCategoryIsNew] = useState(false);
   const [testingPrompt, setTestingPrompt] = useState<Prompt | null>(null);
   const [testSourceImage, setTestSourceImage] = useState<string>('');
   const [testReferenceImage, setTestReferenceImage] = useState<string>('');
   const [testGeneratedImage, setTestGeneratedImage] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
-  const [loadOffset, setLoadOffset] = useState(0);
-  const [hasMoreToLoad, setHasMoreToLoad] = useState(true);
+  const [hasMoreToLoad, setHasMoreToLoad] = useState(false);
   const hasLoadedRef = useRef(false);
   const [userCredits, setUserCredits] = useState<number>(0);
   const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
@@ -61,6 +62,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       hasLoadedRef.current = true;
       loadPrompts();
       loadAllTags();
+      loadAllCategories();
       checkUserCredits();
     }
   }, [userId]);
@@ -106,29 +108,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     }
   }, [prompts, selectedTags, selectedCategory, searchQuery]);
 
-  const loadPrompts = async (isInitial: boolean = true) => {
-    if (isInitial) {
-      setLoading(true);
-      setLoadOffset(0);
-      setPrompts([]);
-    }
-
-    const startTime = performance.now();
-    const offset = isInitial ? 0 : loadOffset;
+  const loadPrompts = async () => {
+    setLoading(true);
+    setPrompts([]);
 
     try {
-      console.log(`[PromptLibrary] Loading ${LOAD_BATCH_SIZE} prompts from offset ${offset}...`);
-
       const { data, error } = await supabase
         .from('prompts')
         .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
         .eq('is_active', true)
-        .order('usage_count', { ascending: false })
-        .range(offset, offset + LOAD_BATCH_SIZE - 1);
+        .order('category')
+        .order('name');
 
       if (error) throw error;
 
-      const newPrompts = data.map((prompt) => ({
+      const allPrompts = data.map((prompt) => ({
         id: prompt.id,
         name: prompt.name,
         description: prompt.description,
@@ -140,25 +134,14 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
+        isPublic: prompt.is_public,
       }));
 
-      if (isInitial) {
-        setPrompts(newPrompts);
-        extractAllCategories(newPrompts);
-      } else {
-        const combined = [...prompts, ...newPrompts];
-        setPrompts(combined);
-        extractAllCategories(combined);
-      }
-
-      setHasMoreToLoad(newPrompts.length === LOAD_BATCH_SIZE);
-      setLoadOffset(offset + LOAD_BATCH_SIZE);
-
-      const totalTime = performance.now() - startTime;
-      console.log(`[PromptLibrary] Load time: ${totalTime.toFixed(2)}ms, loaded ${newPrompts.length} prompts`);
+      setPrompts(allPrompts);
+      extractAllCategories(allPrompts);
+      setHasMoreToLoad(false);
     } catch (error) {
       console.error('Error loading prompts:', error);
-      setHasMoreToLoad(false);
     } finally {
       setLoading(false);
     }
@@ -178,6 +161,22 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       if (prompt.category) categorySet.add(prompt.category);
     });
     setAllCategories(Array.from(categorySet).sort());
+  };
+
+  const loadAllCategories = async () => {
+    try {
+      const { data } = await supabase
+        .from('prompts')
+        .select('category')
+        .eq('is_active', true)
+        .not('category', 'is', null);
+      if (data) {
+        const cats = [...new Set(data.map((r: any) => r.category).filter(Boolean))].sort() as string[];
+        setAllCategories(cats);
+      }
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
   };
 
   const searchPrompts = async (query: string) => {
@@ -208,6 +207,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
+        isPublic: prompt.is_public,
       }));
 
       // Also include results that match tags
@@ -295,6 +295,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     });
     setIsCreating(true);
     setIsPublic(false);
+    setCategoryIsNew(false);
   };
 
   const handleEdit = async (prompt: Prompt) => {
@@ -316,7 +317,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       setEditingPrompt({ ...prompt });
     }
     setIsCreating(false);
-    setIsPublic(prompt.userId === null);
+    setIsPublic(prompt.isPublic === true);
+    setCategoryIsNew(false);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
@@ -453,7 +455,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       setEditingPrompt(null);
       setIsCreating(false);
-      loadPrompts(true);
+      setCategoryIsNew(false);
+      loadPrompts();
     } catch (error: any) {
       console.error('Error saving prompt:', error);
       alert(`Failed to save prompt: ${error.message || 'Unknown error'}`);
@@ -486,7 +489,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       if (error) throw error;
 
-      loadPrompts(true);
+      loadPrompts();
     } catch (error) {
       console.error('Error deleting prompt:', error);
       alert('Failed to delete prompt');
@@ -548,19 +551,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setTestGeneratedImage('');
 
     try {
-      const { data: settings, error } = await supabase
-        .from('global_settings')
-        .select('gemini_api_key, gemini_model, gemini_resolution')
-        .maybeSingle();
+      const settings = await getGlobalSettings();
 
-      console.log('🔍 PromptLibrary fetching global settings:', { settings, error });
-
-      if (error) {
-        console.error('❌ Error fetching global settings:', error);
-        throw new Error(`Failed to fetch settings: ${error.message}`);
-      }
-
-      if (!settings?.gemini_enabled) {
+      if (!settings.geminiEnabled) {
         throw new Error('Gemini AI is not enabled. Please enable it in Settings.');
       }
 
@@ -571,8 +564,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         testingPrompt.promptText,
         referenceImage,
         'square',
-        settings.gemini_model || 'gemini-3-pro-image-preview',
-        settings.gemini_resolution || '1K'
+        settings.geminiModel || 'gemini-3.1-flash-image-preview',
+        settings.geminiResolution || '1K'
       );
 
       const consumeResult = await consumeCredit(userId, 1);
@@ -598,9 +591,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setGenerationError('');
   };
 
-  const handleLoadMore = () => {
-    loadPrompts(false);
-  };
 
   if (editingPrompt) {
     return (
@@ -611,7 +601,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               {isCreating ? 'Create New Prompt' : 'Edit Prompt'}
             </h2>
             <button
-              onClick={() => { setEditingPrompt(null); setIsCreating(false); }}
+              onClick={() => { setEditingPrompt(null); setIsCreating(false); setCategoryIsNew(false); }}
               className="text-slate-600 hover:text-slate-900 text-2xl flex-shrink-0"
             >
               ×
@@ -633,21 +623,37 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
               <div>
                 <label className="block text-sm font-bold text-slate-900 mb-2">Category *</label>
-                <input
-                  type="text"
-                  list="category-suggestions"
-                  value={editingPrompt.category}
-                  onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
-                  placeholder="Select or type a category (e.g., Holiday, Sports, Nature)"
-                />
-                <datalist id="category-suggestions">
+                <select
+                  value={categoryIsNew ? '__new__' : (allCategories.includes(editingPrompt.category) ? editingPrompt.category : (editingPrompt.category ? '__new__' : ''))}
+                  onChange={(e) => {
+                    if (e.target.value === '__new__') {
+                      setCategoryIsNew(true);
+                      setEditingPrompt({ ...editingPrompt, category: '' });
+                    } else {
+                      setCategoryIsNew(false);
+                      setEditingPrompt({ ...editingPrompt, category: e.target.value });
+                    }
+                  }}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white"
+                >
+                  <option value="">-- Select a category --</option>
                   {allCategories.map(cat => (
-                    <option key={cat} value={cat} />
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
-                </datalist>
+                  <option value="__new__">+ Type a new category...</option>
+                </select>
+                {categoryIsNew && (
+                  <input
+                    type="text"
+                    value={editingPrompt.category}
+                    onChange={(e) => setEditingPrompt({ ...editingPrompt, category: e.target.value })}
+                    className="w-full mt-2 px-4 py-3 border-2 border-green-500 rounded-lg focus:outline-none focus:border-green-700"
+                    placeholder="Enter new category name"
+                    autoFocus
+                  />
+                )}
                 <p className="text-xs text-slate-500 mt-1">
-                  Select from existing categories or type a new one
+                  Select from existing categories or create a new one
                   {allCategories.length > 0 && ` (${allCategories.length} existing)`}
                 </p>
               </div>
@@ -772,7 +778,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 type="text"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                    addTagToPrompt(e.currentTarget.value.trim().toLowerCase());
+                    addTagToPrompt(e.currentTarget.value.trim().replace(/\b\w/g, c => c.toUpperCase()));
                     e.currentTarget.value = '';
                   }
                 }}
@@ -831,7 +837,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 {isCreating ? 'Create Prompt' : 'Update Prompt'}
               </button>
               <button
-                onClick={() => { setEditingPrompt(null); setIsCreating(false); }}
+                onClick={() => { setEditingPrompt(null); setIsCreating(false); setCategoryIsNew(false); }}
                 className="sm:px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-bold"
               >
                 Cancel
@@ -1073,24 +1079,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 ))}
               </div>
 
-              {hasMoreToLoad && !searchQuery && selectedTags.length === 0 && !selectedCategory && (
-                <div className="flex justify-center mt-8">
-                  <button
-                    onClick={handleLoadMore}
-                    disabled={loading}
-                    className="px-6 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-400 text-white rounded-lg font-bold flex items-center gap-2 transition-colors"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Loading...
-                      </>
-                    ) : (
-                      <>Load More ({LOAD_BATCH_SIZE} more)</>
-                    )}
-                  </button>
-                </div>
-              )}
             </>
           )}
         </div>

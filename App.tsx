@@ -1,24 +1,24 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Event } from './types';
 import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
 import { getEventByPasscode, clearUserCache } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
-import TidioWidget from './components/TidioWidget';
 
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const KioskMode = lazy(() => import('./components/KioskMode'));
 const Login = lazy(() => import('./components/Login'));
 const Signup = lazy(() => import('./components/Signup'));
 const MarketingPage = lazy(() => import('./components/MarketingPage'));
+const PublicLibrary = lazy(() => import('./components/PublicLibrary'));
 
-type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'marketing' | 'loading';
+type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'marketing' | 'library' | 'loading';
 
-const LoadingSpinner: React.FC = () => (
+const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
   <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center">
     <div className="text-center space-y-4">
       <div className="w-16 h-16 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto"></div>
-      <p className="text-slate-900 text-xl">Loading...</p>
+      <p className="text-slate-900 text-xl">{message}</p>
     </div>
   </div>
 );
@@ -29,10 +29,10 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState('');
   const [eventCode, setEventCode] = useState('');
+  const [isLoadingKiosk, setIsLoadingKiosk] = useState(false);
 
   return (
     <>
-      <TidioWidget />
       <AppContent
         view={view}
         setView={setView}
@@ -44,6 +44,8 @@ const App: React.FC = () => {
         setError={setError}
         eventCode={eventCode}
         setEventCode={setEventCode}
+        isLoadingKiosk={isLoadingKiosk}
+        setIsLoadingKiosk={setIsLoadingKiosk}
       />
     </>
   );
@@ -60,6 +62,8 @@ interface AppContentProps {
   setError: (error: string) => void;
   eventCode: string;
   setEventCode: (code: string) => void;
+  isLoadingKiosk: boolean;
+  setIsLoadingKiosk: (loading: boolean) => void;
 }
 
 const AppContent: React.FC<AppContentProps> = ({
@@ -72,10 +76,16 @@ const AppContent: React.FC<AppContentProps> = ({
   error,
   setError,
   eventCode,
-  setEventCode
+  setEventCode,
+  isLoadingKiosk,
+  setIsLoadingKiosk
 }) => {
 
+  const viewRef = useRef(view);
+  useEffect(() => { viewRef.current = view; }, [view]);
+
   const launchKiosk = (event: Event) => {
+    setIsLoadingKiosk(true);
     setActiveEvent(event);
     setView('kiosk');
   };
@@ -91,16 +101,19 @@ const AppContent: React.FC<AppContentProps> = ({
     }
 
     setError('');
+    setIsLoadingKiosk(true);
     try {
       const event = await getEventByPasscode(eventCode.trim());
       if (event) {
         launchKiosk(event);
       } else {
         setError('Invalid event code. Please try again.');
+        setIsLoadingKiosk(false);
       }
     } catch (err) {
       console.error('Error loading event:', err);
       setError('Failed to load event. Please try again.');
+      setIsLoadingKiosk(false);
     }
   };
 
@@ -115,12 +128,32 @@ const AppContent: React.FC<AppContentProps> = ({
     const urlParams = new URLSearchParams(window.location.search);
     const kioskPasscode = urlParams.get('kiosk');
     const marketingView = urlParams.get('marketing');
+    const libraryView = urlParams.get('library');
     const isKioskMode = !!kioskPasscode;
+    const isLibraryMode = !!libraryView;
 
-    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'isKioskMode:', isKioskMode, 'marketingView:', marketingView);
+    console.log('[App] Init - kiosk passcode:', kioskPasscode, 'marketingView:', marketingView, 'libraryView:', libraryView);
 
     const initializeAuth = async () => {
       console.log('[App] Starting initializeAuth');
+
+      // Library is public but admins get edit capabilities
+      if (libraryView) {
+        setView('library');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          if (profile?.role === 'admin') {
+            setUser(session.user);
+          }
+        }
+        return;
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       console.log('[App] Session state:', session?.user ? 'logged in' : 'logged out');
 
@@ -183,11 +216,15 @@ const AppContent: React.FC<AppContentProps> = ({
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[App] onAuthStateChange fired - event:', event, 'session:', session?.user ? 'logged in' : 'logged out', 'isKioskMode:', isKioskMode);
 
-      if (isKioskMode) {
+      if (isKioskMode || viewRef.current === 'kiosk') {
         console.log('[App] In kiosk mode - ignoring auth change');
         if (session?.user) {
           setUser(session.user);
         }
+        return;
+      }
+
+      if (isLibraryMode) {
         return;
       }
 
@@ -208,6 +245,15 @@ const AppContent: React.FC<AppContentProps> = ({
     };
   }, []);
 
+  // PUBLIC LIBRARY
+  if (view === 'library') {
+    return (
+      <Suspense fallback={<LoadingSpinner message="Loading Library..." />}>
+        <PublicLibrary isAdmin={!!user} />
+      </Suspense>
+    );
+  }
+
   // LOADING STATE
   if (view === 'loading') {
     return (
@@ -223,10 +269,19 @@ const AppContent: React.FC<AppContentProps> = ({
   // 1. KIOSK MODE
   if (view === 'kiosk' && activeEvent) {
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <KioskMode event={activeEvent} onExit={exitKiosk} />
+      <Suspense fallback={<LoadingSpinner message="Loading Event..." />}>
+        <KioskMode
+          event={activeEvent}
+          onExit={exitKiosk}
+          onLoaded={() => setIsLoadingKiosk(false)}
+        />
       </Suspense>
     );
+  }
+
+  // LOADING KIOSK
+  if (isLoadingKiosk) {
+    return <LoadingSpinner message="Loading Event..." />;
   }
 
   // 2. ADMIN MODE

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase Project ID Checker</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-top: 0;
+      color: #333;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border-left: 4px solid #6366f1;
+    }
+    .section h2 {
+      margin-top: 0;
+      font-size: 16px;
+      color: #666;
+    }
+    .value {
+      font-family: monospace;
+      background: #fff;
+      padding: 8px;
+      border-radius: 4px;
+      word-break: break-all;
+      margin: 5px 0;
+    }
+    .error {
+      color: #dc2626;
+      font-weight: bold;
+    }
+    .success {
+      color: #16a34a;
+      font-weight: bold;
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #4f46e5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Supabase Project ID Checker</h1>
+
+    <div class="section">
+      <h2>Expected Project ID</h2>
+      <div class="value success">ufbjphmsblgwzkofpgai</div>
+    </div>
+
+    <div class="section">
+      <h2>Old Project ID (should NOT appear)</h2>
+      <div class="value error">siliuqyectcaofwtyutp</div>
+    </div>
+
+    <div class="section">
+      <h2>Environment Variables</h2>
+      <div id="env-check"></div>
+    </div>
+
+    <div class="section">
+      <h2>Local Storage Keys</h2>
+      <div id="storage-keys"></div>
+      <button onclick="clearOldAuth()">Clear All Supabase Auth Data</button>
+    </div>
+
+    <div class="section">
+      <h2>Local Storage Values (Auth Data)</h2>
+      <div id="storage-values"></div>
+    </div>
+
+    <div class="section">
+      <h2>Session Storage Keys</h2>
+      <div id="session-keys"></div>
+    </div>
+  </div>
+
+  <script>
+    // Check environment variables (won't work in static HTML, but shown for reference)
+    const envCheck = document.getElementById('env-check');
+    envCheck.innerHTML = '<div class="value">Environment variables are not accessible from this static page. They are loaded at build time.</div>';
+
+    // Check localStorage
+    const storageKeys = document.getElementById('storage-keys');
+    const storageValues = document.getElementById('storage-values');
+    let localStorageHTML = '';
+    let valuesHTML = '';
+    let foundOldProject = false;
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const value = localStorage.getItem(key);
+
+      const hasOldId = value && value.includes('siliuqyectcaofwtyutp');
+      const hasNewId = value && value.includes('ufbjphmsblgwzkofpgai');
+
+      if (hasOldId) {
+        foundOldProject = true;
+        localStorageHTML += `<div class="value error">🔴 ${key} (contains OLD project ID)</div>`;
+        valuesHTML += `<div class="value error"><strong>${key}:</strong><br>${value.substring(0, 200)}...</div>`;
+      } else if (hasNewId) {
+        localStorageHTML += `<div class="value success">✅ ${key} (contains correct project ID)</div>`;
+        valuesHTML += `<div class="value success"><strong>${key}:</strong><br>${value.substring(0, 200)}...</div>`;
+      } else if (key.includes('supabase') || key.includes('sb-')) {
+        localStorageHTML += `<div class="value">${key}</div>`;
+        valuesHTML += `<div class="value"><strong>${key}:</strong><br>${value.substring(0, 200)}...</div>`;
+      }
+    }
+
+    if (localStorageHTML === '') {
+      localStorageHTML = '<div class="value">No Supabase-related keys found</div>';
+    }
+
+    if (valuesHTML === '') {
+      valuesHTML = '<div class="value">No Supabase-related data found</div>';
+    }
+
+    storageKeys.innerHTML = localStorageHTML;
+    storageValues.innerHTML = valuesHTML;
+
+    // Check sessionStorage
+    const sessionKeys = document.getElementById('session-keys');
+    let sessionHTML = '';
+
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      const value = sessionStorage.getItem(key);
+
+      const hasOldId = value && value.includes('siliuqyectcaofwtyutp');
+      const hasNewId = value && value.includes('ufbjphmsblgwzkofpgai');
+
+      if (hasOldId) {
+        foundOldProject = true;
+        sessionHTML += `<div class="value error">🔴 ${key} (contains OLD project ID)</div>`;
+      } else if (hasNewId) {
+        sessionHTML += `<div class="value success">✅ ${key} (contains correct project ID)</div>`;
+      } else if (key.includes('supabase') || key.includes('sb-')) {
+        sessionHTML += `<div class="value">${key}</div>`;
+      }
+    }
+
+    if (sessionHTML === '') {
+      sessionHTML = '<div class="value">No Supabase-related keys found</div>';
+    }
+
+    sessionKeys.innerHTML = sessionHTML;
+
+    // Add warning banner if old project found
+    if (foundOldProject) {
+      const container = document.querySelector('.container');
+      const warning = document.createElement('div');
+      warning.className = 'section';
+      warning.style.borderLeftColor = '#dc2626';
+      warning.style.background = '#fee';
+      warning.innerHTML = `
+        <h2 style="color: #dc2626;">⚠️ OLD PROJECT ID DETECTED!</h2>
+        <p>Your browser has cached authentication data from the old Supabase project.</p>
+        <p><strong>Solution:</strong> Click the "Clear All Supabase Auth Data" button above, then refresh the page.</p>
+      `;
+      container.insertBefore(warning, container.firstChild);
+    }
+
+    function clearOldAuth() {
+      let cleared = 0;
+      const keysToRemove = [];
+
+      // Find all Supabase-related keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('sb-'))) {
+          keysToRemove.push(key);
+        }
+      }
+
+      // Remove them
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        cleared++;
+      });
+
+      // Clear session storage too
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('sb-'))) {
+          sessionStorage.removeItem(key);
+          cleared++;
+        }
+      }
+
+      alert(`Cleared ${cleared} Supabase storage items. Please refresh the page.`);
+      window.location.reload();
+    }
+  </script>
+</body>
+</html>
