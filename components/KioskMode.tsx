@@ -1001,7 +1001,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             />
           </div>
         </div>
-        <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>Creating Magic...</h2>
+        <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>{event.processingText || 'Creating Magic...'}</h2>
         <p className="text-sm md:text-base text-slate-600 text-center">
           {uploadProgress || `Applying ${selectedPrompt?.name} style`}
         </p>
@@ -1107,14 +1107,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   Start Over Now
                 </button>
 
-                <div className="mt-6 pt-6 border-t border-slate-300">
-                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own prompts and events?</p>
-                  <a
-                    href="/"
-                    className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
-                  >
-                    Get Your Own Account Now
-                  </a>
+                <div className="mt-6 pt-5 border-t-2 border-slate-200">
+                  <div className="bg-slate-50 rounded-xl px-5 py-4 flex flex-col items-center gap-3 shadow-sm">
+                    <p className="text-sm md:text-base font-semibold text-slate-700 text-center">Want to create your own AI photo experiences?</p>
+                    <a
+                      href="/"
+                      className="inline-block bg-slate-900 hover:bg-slate-700 active:bg-slate-800 text-white text-sm md:text-base font-bold px-6 py-2.5 rounded-lg transition-all shadow"
+                    >
+                      Get Your Own Account
+                    </a>
+                  </div>
                 </div>
              </div>
            ) : (
@@ -1208,14 +1210,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     Skip & Start Over
                 </button>
 
-                <div className="mt-6 pt-6 border-t border-slate-300">
-                  <p className="text-xs md:text-sm text-slate-600 mb-3">Want to create your own prompts and events?</p>
-                  <a
-                    href="/"
-                    className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
-                  >
-                    Get Your Own Account Now
-                  </a>
+                <div className="mt-6 pt-5 border-t-2 border-slate-200">
+                  <div className="bg-slate-50 rounded-xl px-5 py-4 flex flex-col items-center gap-3 shadow-sm">
+                    <p className="text-sm md:text-base font-semibold text-slate-700 text-center">Want to create your own AI photo experiences?</p>
+                    <a
+                      href="/"
+                      className="inline-block bg-slate-900 hover:bg-slate-700 active:bg-slate-800 text-white text-sm md:text-base font-bold px-6 py-2.5 rounded-lg transition-all shadow"
+                    >
+                      Get Your Own Account
+                    </a>
+                  </div>
                 </div>
              </>
            )}

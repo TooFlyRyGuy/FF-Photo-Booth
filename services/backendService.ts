@@ -583,7 +583,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, processing_text')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -668,6 +668,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       smugmugGalleryKey: event.smugmug_gallery_key,
       smugmugGalleryUrl: event.smugmug_gallery_url,
       uploadOriginalsToGallery: event.upload_originals_to_gallery,
+      processingText: event.processing_text,
     });
   }
 
@@ -767,6 +768,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     smugmugGalleryKey: eventData.smugmug_gallery_key,
     smugmugGalleryUrl: eventData.smugmug_gallery_url,
     uploadOriginalsToGallery: eventData.upload_originals_to_gallery,
+    processingText: eventData.processing_text,
   };
 };
 
@@ -880,6 +882,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     smugmug_gallery_key: event.smugmugGalleryKey,
     smugmug_gallery_url: event.smugmugGalleryUrl,
     upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
+    processing_text: event.processingText || null,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1740,7 +1743,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, processing_text')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1808,6 +1811,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
       smugmugGalleryKey: e.smugmug_gallery_key,
       smugmugGalleryUrl: e.smugmug_gallery_url,
       uploadOriginalsToGallery: e.upload_originals_to_gallery,
+      processingText: e.processing_text,
     };
   });
 };

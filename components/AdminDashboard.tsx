@@ -1846,6 +1846,18 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
 
                 <div className="pt-6 space-y-4">
+                  <p className="text-sm font-medium text-slate-700">Processing Screen Text</p>
+                  <input
+                    type="text"
+                    value={editingEvent.processingText || ''}
+                    onChange={(e) => setEditingEvent({...editingEvent, processingText: e.target.value || undefined})}
+                    placeholder="Creating Magic..."
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-black placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-700"
+                  />
+                  <p className="text-xs text-slate-500">Displayed on the kiosk while AI is generating. Defaults to "Creating Magic..." if left blank.</p>
+                </div>
+
+                <div className="pt-6 space-y-4">
                   <p className="text-sm font-medium text-slate-700">Visibility Options</p>
                   <div className="flex gap-6">
                     <label className="flex items-center gap-3 cursor-pointer">
