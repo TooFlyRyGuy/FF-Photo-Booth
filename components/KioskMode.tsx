@@ -1061,7 +1061,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         </div>
 
         {/* Input Side */}
-        <div className="lg:w-1/3 flex-1 lg:h-full bg-white p-3 md:p-6 lg:p-12 flex flex-col justify-center space-y-3 md:space-y-6 lg:space-y-8 relative overflow-y-auto border-l-2 border-slate-300">
+        <div className="lg:w-1/3 flex-1 lg:h-full bg-white p-4 md:p-6 lg:p-12 flex flex-col justify-start lg:justify-center space-y-3 md:space-y-6 lg:space-y-8 relative overflow-y-auto border-l-2 border-slate-300">
 
            {view === 'delivery' ? (
              <div className="text-center space-y-3 md:space-y-6">
