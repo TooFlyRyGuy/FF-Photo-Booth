@@ -1002,9 +1002,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           </div>
         </div>
         <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>{event.processingText || 'Creating Magic...'}</h2>
-        <p className="text-sm md:text-base text-slate-600 text-center">
-          {uploadProgress || `Applying ${selectedPrompt?.name} style`}
-        </p>
       </div>
     );
   }
