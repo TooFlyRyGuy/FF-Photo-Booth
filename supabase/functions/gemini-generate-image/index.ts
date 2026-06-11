@@ -14,7 +14,7 @@ interface GenerateImageRequest {
   referenceImageBase64?: string;
   referenceImageUrl?: string;
   referenceFileUri?: string;
-  aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | 'square';
+  aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | 'square' | '2:3' | '3:2';
   modelName?: string;
   resolution?: '1K' | '2K' | '4K';
 }
@@ -221,6 +221,10 @@ Deno.serve(async (req: Request) => {
     // Map AspectRatio to Gemini API format
     const mapAspectRatioToGemini = (ratio?: string): string => {
       switch (ratio) {
+        case '2:3':
+          return '2:3';
+        case '3:2':
+          return '3:2';
         case '3:4':
           return '3:4';
         case '4:3':
@@ -238,6 +242,10 @@ Deno.serve(async (req: Request) => {
     // Get aspect ratio specifications for prompt
     const getAspectRatioSpec = (ratio?: string): string => {
       switch (ratio) {
+        case '2:3':
+          return 'portrait orientation with 2:3 aspect ratio (width 683px, height 1024px)';
+        case '3:2':
+          return 'landscape orientation with 3:2 aspect ratio (width 1024px, height 683px)';
         case '3:4':
           return 'portrait orientation with 3:4 aspect ratio (width 768px, height 1024px)';
         case '4:3':
