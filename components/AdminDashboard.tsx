@@ -1632,9 +1632,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               <CollapsibleSection title="Branding" defaultOpen={false}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
-                  <div className="grid grid-cols-5 gap-3">
+                  <div className="grid grid-cols-7 gap-3">
                     {[
                       { value: 'square', label: 'Square (1:1)', icon: '⬜' },
+                      { value: '2:3', label: 'Portrait (2:3)', icon: '📱' },
+                      { value: '3:2', label: 'Landscape (3:2)', icon: '🖼️' },
                       { value: '3:4', label: 'Portrait (3:4)', icon: '📱' },
                       { value: '4:3', label: 'Landscape (4:3)', icon: '🖼️' },
                       { value: '9:16', label: 'Vertical (9:16)', icon: '📲' },

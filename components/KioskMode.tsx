@@ -95,6 +95,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     const baseSize = 1024;
     switch (ratio) {
       case 'square': return { width: baseSize, height: baseSize };
+      case '2:3': return { width: baseSize * 2 / 3, height: baseSize };
+      case '3:2': return { width: baseSize, height: baseSize * 2 / 3 };
       case '3:4': return { width: baseSize * 3 / 4, height: baseSize };
       case '4:3': return { width: baseSize, height: baseSize * 3 / 4 };
       case '9:16': return { width: baseSize * 9 / 16, height: baseSize };
@@ -902,6 +904,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       const ratio = event.aspectRatio || 'square';
       switch (ratio) {
         case 'square': return 'aspect-square';
+        case '2:3': return 'aspect-[2/3]';
+        case '3:2': return 'aspect-[3/2]';
         case '3:4': return 'aspect-[3/4]';
         case '4:3': return 'aspect-[4/3]';
         case '9:16': return 'aspect-[9/16]';
@@ -925,13 +929,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             <div
               className={`relative ${getAspectRatioClass()} max-w-full max-h-full border-4 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]`}
               style={{
-                width: event.aspectRatio === '9:16' || event.aspectRatio === '3:4' ? 'auto' : '90%',
-                height: event.aspectRatio === '16:9' || event.aspectRatio === '4:3' ? 'auto' : '85%'
+                width: event.aspectRatio === '9:16' || event.aspectRatio === '3:4' || event.aspectRatio === '2:3' ? 'auto' : '90%',
+                height: event.aspectRatio === '16:9' || event.aspectRatio === '4:3' || event.aspectRatio === '3:2' ? 'auto' : '85%'
               }}
             >
               <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
                 <span className="text-white text-sm font-semibold">
                   {event.aspectRatio === 'square' ? '1:1 Square' :
+                   event.aspectRatio === '2:3' ? '2:3 Portrait' :
+                   event.aspectRatio === '3:2' ? '3:2 Landscape' :
                    event.aspectRatio === '3:4' ? '3:4 Portrait' :
                    event.aspectRatio === '4:3' ? '4:3 Landscape' :
                    event.aspectRatio === '9:16' ? '9:16 Portrait' :
