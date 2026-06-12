@@ -390,47 +390,44 @@ async function handleOneTimePayment(session: Stripe.Checkout.Session, customerId
       // Don't throw - this is for historical tracking only
     }
 
-    // Grant image credits from event pass
+    // Grant image credits from event pass into purchased_credits (not event_credits)
     if (creditsAllocated > 0) {
+      const { error: creditError } = await supabase.rpc('add_purchased_credits', {
+        p_user_id: userId,
+        p_credits: creditsAllocated,
+        p_stripe_session_id: checkout_session_id,
+        p_stripe_payment_intent_id: payment_intent as string,
+      });
+
+      if (creditError) {
+        console.error('Error granting event pass image credits:', creditError);
+        throw new Error(`Failed to grant image credits: ${creditError.message}`);
+      }
+
+      console.info(`✓ Granted ${creditsAllocated} image credits (purchased_credits) from event pass to user ${userId}`);
+    }
+
+    // Increment event_credits by 1 to track the event pass slot
+    {
       const { data: currentCredits } = await supabase
         .from('user_credits')
         .select('event_credits')
         .eq('user_id', userId)
         .maybeSingle();
 
-      const newEventCredits = (currentCredits?.event_credits || 0) + creditsAllocated;
-
-      const { error: creditsError } = await supabase
+      const { error: eventCreditError } = await supabase
         .from('user_credits')
         .update({
-          event_credits: newEventCredits,
+          event_credits: (currentCredits?.event_credits || 0) + 1,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', userId);
 
-      if (creditsError) {
-        console.error('Error granting event pass image credits:', creditsError);
-        throw new Error(`Failed to grant image credits: ${creditsError.message}`);
+      if (eventCreditError) {
+        console.error('Error incrementing event_credits:', eventCreditError);
+      } else {
+        console.info(`✓ Incremented event_credits by 1 for user ${userId}`);
       }
-
-      // Log to credit ledger
-      const { data: totalCredits } = await supabase.rpc('get_total_credits', { p_user_id: userId });
-
-      await supabase.from('credit_ledger').insert({
-        user_id: userId,
-        source: 'event',
-        amount: creditsAllocated,
-        balance_after: totalCredits || newEventCredits,
-        stripe_session_id: checkout_session_id,
-        stripe_payment_intent_id: payment_intent as string,
-        metadata: {
-          type: 'event_pass',
-          event_pass_id: eventPassId,
-          description: 'Event pass image credits'
-        }
-      });
-
-      console.info(`✓ Granted ${creditsAllocated} image credits from event pass to user ${userId}`);
     }
 
     // Grant SMS credits if included in the event pass
