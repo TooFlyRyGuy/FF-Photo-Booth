@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Check, CreditCard, Crown, Zap, AlertCircle, Ticket, Package, DollarSign } from 'lucide-react';
+import { Check, CreditCard, Crown, Zap, CircleAlert as AlertCircle, Ticket, Package, DollarSign, Users } from 'lucide-react';
 
 interface SubscriptionTier {
   id: string;
@@ -26,6 +26,7 @@ interface EventPass {
   sms_credits: number;
   duration_hours: number;
   prompts_limit: number | null;
+  max_guests: number | null;
   features: string[] | null;
   is_active: boolean;
   display_order: number;
@@ -68,9 +69,10 @@ interface UserProfile {
 
 interface SubscriptionManagerProps {
   onClose: () => void;
+  initialTab?: 'subscriptions' | 'eventPasses' | 'addOns' | 'credits';
 }
 
-const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) => {
+const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, initialTab }) => {
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [eventPasses, setEventPasses] = useState<EventPass[]>([]);
   const [addOns, setAddOns] = useState<AddOn[]>([]);
@@ -78,7 +80,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
-  const [activeTab, setActiveTab] = useState<'subscriptions' | 'eventPasses' | 'addOns' | 'credits'>('subscriptions');
+  const [activeTab, setActiveTab] = useState<'subscriptions' | 'eventPasses' | 'addOns' | 'credits'>(initialTab ?? 'eventPasses');
 
   useEffect(() => {
     loadData();
@@ -329,16 +331,6 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
           <div className="flex flex-wrap gap-1 sm:gap-2 mt-4 sm:mt-6 border-b border-slate-200 sm:justify-center">
             <button
-              onClick={() => setActiveTab('subscriptions')}
-              className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-sm sm:text-base transition-colors whitespace-nowrap flex-shrink-0 ${
-                activeTab === 'subscriptions'
-                  ? 'border-b-2 border-green-700 text-green-700'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Subscriptions
-            </button>
-            <button
               onClick={() => setActiveTab('eventPasses')}
               className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-sm sm:text-base transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'eventPasses'
@@ -350,6 +342,16 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                 <Ticket size={16} className="sm:w-[18px] sm:h-[18px]" />
                 <span className="hidden xs:inline">Event </span>Passes
               </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('subscriptions')}
+              className={`px-4 sm:px-6 py-2 sm:py-3 font-medium text-sm sm:text-base transition-colors whitespace-nowrap flex-shrink-0 ${
+                activeTab === 'subscriptions'
+                  ? 'border-b-2 border-green-700 text-green-700'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Subscriptions
             </button>
             <button
               onClick={() => setActiveTab('addOns')}
@@ -411,6 +413,15 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
         <div className="p-4 sm:p-6">
           {activeTab === 'subscriptions' && (
             <>
+              {userProfile && tiers.find(t => t.id === userProfile.subscription_tier_id)?.price_cents === 0 && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
+                  <AlertCircle size={18} className="sm:w-5 sm:h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs sm:text-sm text-slate-900">
+                    <p className="font-medium mb-1 text-amber-800">You are on the Free plan</p>
+                    <p className="text-slate-700">Upgrade for ongoing monthly access to more AI images, SMS credits, and concurrent events.</p>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {tiers.map((tier) => {
               const isCurrentTier = userProfile?.subscription_tier_id === tier.id;
@@ -511,22 +522,30 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
           {activeTab === 'eventPasses' && (
             <>
               <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
-                <AlertCircle size={18} className="sm:w-5 sm:h-5 text-green-800 flex-shrink-0 mt-0.5" />
+                <Ticket size={18} className="sm:w-5 sm:h-5 text-green-800 flex-shrink-0 mt-0.5" />
                 <div className="text-xs sm:text-sm text-slate-900">
-                  <p className="font-medium mb-1">Event Passes</p>
+                  <p className="font-medium mb-1">Event Passes — No Subscription Required</p>
                   <p className="text-slate-700">
-                    Purchase a one-time pass for a single event with temporary access and credits.
+                    Buy a one-time pass for your next event. Perfect for weddings, parties, conferences, and any single occasion.
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
-                {eventPasses.map((pass) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+                {eventPasses.map((pass) => {
+                  const isPopular = pass.name === 'Pro Event';
+                  return (
                   <div
                     key={pass.id}
-                    className="border-2 border-green-700/30 rounded-xl p-4 sm:p-5 lg:p-6 flex flex-col min-h-[380px]"
+                    className={`border-2 rounded-xl p-4 sm:p-5 lg:p-6 flex flex-col relative ${isPopular ? 'border-green-600 shadow-lg' : 'border-green-700/30'}`}
                   >
-                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    {isPopular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">MOST POPULAR</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mb-3 sm:mb-4 mt-1">
                       <Ticket size={20} className="sm:w-6 sm:h-6 text-green-700" />
                       <span className="text-xs bg-green-100 text-green-800 px-2.5 sm:px-3 py-1 rounded-full font-medium">
                         {pass.duration_hours}h Access
@@ -535,7 +554,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
                     <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1 sm:mb-2">{pass.name}</h3>
 
-                    <div className="mb-4 sm:mb-6 pb-4 border-b border-slate-200">
+                    <div className="mb-3 pb-3 border-b border-slate-200">
                       <div className="flex items-baseline gap-1">
                         <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                           {formatPrice(pass.price_cents)}
@@ -543,19 +562,36 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
                       </div>
                     </div>
 
+                    {/* Guest Capacity — Primary Feature */}
+                    {pass.max_guests && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                          <Users size={16} className="text-green-700" />
+                          <span className="text-xl font-extrabold text-green-800">Up to {pass.max_guests} Guests</span>
+                        </div>
+                        <p className="text-xs text-green-700 font-medium">Guest Capacity</p>
+                      </div>
+                    )}
+
                     <ul className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 flex-grow">
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        <span className="leading-snug">{pass.credits >= 999999 ? 'Unlimited' : pass.credits} credits</span>
+                        <span className="leading-snug">{pass.duration_hours} hours of access</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm text-slate-700">
                         <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
                         <span className="leading-snug">{pass.prompts_limit === null ? 'Unlimited' : pass.prompts_limit} prompts</span>
                       </li>
-                      <li className="flex items-start gap-2 text-sm text-slate-700">
-                        <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
-                        <span className="leading-snug">{pass.duration_hours} hours of access</span>
+                      <li className="flex items-start gap-2 text-sm text-slate-500">
+                        <Check size={14} className="text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="leading-snug">{pass.credits >= 999999 ? 'Unlimited' : pass.credits} AI image credits</span>
                       </li>
+                      {pass.sms_credits > 0 && (
+                        <li className="flex items-start gap-2 text-sm text-slate-500">
+                          <Check size={14} className="text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="leading-snug">{pass.sms_credits} SMS credits</span>
+                        </li>
+                      )}
                       {pass.features && Array.isArray(pass.features) && pass.features.map((feature, idx) => (
                         <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
                           <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
@@ -566,12 +602,13 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
                     <button
                       onClick={() => handleSubscribe(pass.id)}
-                      className="w-full py-3 sm:py-3.5 rounded-lg font-medium text-sm sm:text-base transition-all bg-green-700 hover:bg-green-800 text-white active:bg-green-900 min-h-[48px]"
+                      className={`w-full py-3 sm:py-3.5 rounded-lg font-medium text-sm sm:text-base transition-all text-white min-h-[48px] ${isPopular ? 'bg-green-600 hover:bg-green-700 active:bg-green-800' : 'bg-green-700 hover:bg-green-800 active:bg-green-900'}`}
                     >
                       Purchase Pass
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

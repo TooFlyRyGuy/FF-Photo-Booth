@@ -60,6 +60,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [events, setEvents] = useState<Event[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [subscriptionModalTab, setSubscriptionModalTab] = useState<'subscriptions' | 'eventPasses' | 'addOns' | 'credits'>('eventPasses');
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ totalImages: 0, totalSms: 0, totalEvents: 0, activeEvents: 0 });
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -103,6 +104,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [eventTimezone, setEventTimezone] = useState<string>('');
   const [isStartTimeLocked, setIsStartTimeLocked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isFreePlan, setIsFreePlan] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -168,6 +170,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       setGlobalSettings(globalData);
       setUserCredits(creditsData);
       setEvents(eventsData || []);
+
+      if (profileData.subscription_tier_id) {
+        const { data: tierData } = await supabase
+          .from('subscription_tiers_new')
+          .select('name, price_cents')
+          .eq('id', profileData.subscription_tier_id)
+          .maybeSingle();
+        setIsFreePlan(!tierData || tierData.price_cents === 0);
+      } else {
+        setIsFreePlan(true);
+      }
 
       const userTz = profileData.timezone || detectUserTimezone();
       setEventTimezone(userTz);
@@ -929,7 +942,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             <>
               <button
                 id="onboarding-plan-btn"
-                onClick={() => setShowSubscriptionModal(true)}
+                onClick={() => { setSubscriptionModalTab('eventPasses'); setShowSubscriptionModal(true); }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white rounded-lg text-sm font-medium transition-all"
               >
                 <CreditCard size={16} />
@@ -942,7 +955,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           ) : (
             <>
               <button
-                onClick={() => setShowSubscriptionModal(true)}
+                onClick={() => { setSubscriptionModalTab('eventPasses'); setShowSubscriptionModal(true); }}
                 className="w-full flex items-center justify-center p-3 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-800 hover:to-green-900 text-white rounded-lg transition-all"
                 title="Manage Plan"
               >
@@ -976,6 +989,31 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <Plus size={16} /> New Event
               </button>
             </header>
+
+            {/* Upgrade Banner — Free Plan Only */}
+            {isFreePlan && !isAdmin && (
+              <div className="bg-gradient-to-r from-green-700 to-green-800 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm sm:text-base">You're on the Free plan</p>
+                  <p className="text-green-100 text-xs sm:text-sm mt-0.5">Unlock more images, SMS, and concurrent events — or buy a single-event pass with no subscription needed.</p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => { setSubscriptionModalTab('eventPasses'); setShowSubscriptionModal(true); }}
+                    className="px-3 sm:px-4 py-2 bg-white text-green-800 rounded-lg font-semibold text-xs sm:text-sm hover:bg-green-50 transition-colors whitespace-nowrap flex items-center gap-1.5"
+                  >
+                    <Ticket size={14} />
+                    Buy Event Pass
+                  </button>
+                  <button
+                    onClick={() => { setSubscriptionModalTab('subscriptions'); setShowSubscriptionModal(true); }}
+                    className="px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold text-xs sm:text-sm transition-colors whitespace-nowrap"
+                  >
+                    Upgrade Plan
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -2414,7 +2452,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
       {/* Subscription Manager Modal */}
       {showSubscriptionModal && (
-        <SubscriptionManager onClose={() => setShowSubscriptionModal(false)} />
+        <SubscriptionManager
+          onClose={() => setShowSubscriptionModal(false)}
+          initialTab={subscriptionModalTab}
+        />
       )}
 
       {/* Prompt Library Modal */}
