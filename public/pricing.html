@@ -68,11 +68,22 @@
     <section class="py-20 px-6 bg-white">
         <div class="max-w-7xl mx-auto">
             <h2 class="text-3xl md:text-4xl font-bold text-center mb-4 text-slate-900">
-                Subscription Plans
+                Monthly Subscriptions
             </h2>
-            <p class="text-center text-slate-600 text-lg mb-16 max-w-2xl mx-auto">
-                Recurring monthly or annual plans with credits that reset each billing period
+            <p class="text-center text-slate-600 text-lg mb-8 max-w-2xl mx-auto">
+                For businesses, agencies, photo booth companies, and frequent users who need ongoing access every month.
             </p>
+
+            <!-- Subscription value explanation -->
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-6 mb-8 max-w-3xl mx-auto">
+                <h3 class="font-bold text-slate-900 text-lg mb-2">Why Choose a Subscription?</h3>
+                <p class="text-slate-600">Subscriptions are ideal for businesses and professionals who run events regularly and need ongoing monthly access to AI image generation, SMS delivery, and event management tools.</p>
+            </div>
+
+            <!-- Badge -->
+            <div class="flex justify-center mb-10">
+                <span class="bg-slate-800 text-white text-sm font-bold px-5 py-2 rounded-full shadow">Best for Ongoing Use</span>
+            </div>
 
             <!-- Pricing Grid -->
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16" id="pricing-grid">
@@ -444,15 +455,69 @@
         </div>
     </section>
 
+    <!-- Which Is Right For You? Comparison -->
+    <section class="py-16 px-6 bg-green-50 border-y-2 border-green-200">
+        <div class="max-w-3xl mx-auto">
+            <h2 class="text-2xl md:text-3xl font-bold text-center mb-8 text-slate-900">Which Option Is Right For You?</h2>
+            <div class="overflow-hidden rounded-2xl border-2 border-green-200 shadow-lg">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-green-600 text-white">
+                            <th class="py-4 px-6 font-bold text-base">If You Are...</th>
+                            <th class="py-4 px-6 font-bold text-base text-right">Best Choice</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-green-100">
+                        <tr class="bg-white">
+                            <td class="py-4 px-6 text-slate-700">Running one wedding, party, or conference</td>
+                            <td class="py-4 px-6 text-right"><span class="bg-green-100 text-green-800 font-semibold text-sm px-3 py-1 rounded-full">Event Pass</span></td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="py-4 px-6 text-slate-700">A photo booth company</td>
+                            <td class="py-4 px-6 text-right"><span class="bg-slate-200 text-slate-800 font-semibold text-sm px-3 py-1 rounded-full">Subscription</span></td>
+                        </tr>
+                        <tr class="bg-white">
+                            <td class="py-4 px-6 text-slate-700">An agency running multiple activations</td>
+                            <td class="py-4 px-6 text-right"><span class="bg-slate-200 text-slate-800 font-semibold text-sm px-3 py-1 rounded-full">Subscription</span></td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="py-4 px-6 text-slate-700">A venue offering AI experiences</td>
+                            <td class="py-4 px-6 text-right"><span class="bg-slate-200 text-slate-800 font-semibold text-sm px-3 py-1 rounded-full">Subscription</span></td>
+                        </tr>
+                        <tr class="bg-white">
+                            <td class="py-4 px-6 text-slate-700">Testing the platform</td>
+                            <td class="py-4 px-6 text-right"><span class="bg-slate-200 text-slate-800 font-semibold text-sm px-3 py-1 rounded-full">Subscription</span></td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="py-4 px-6 text-slate-700">Hosting a single branded event</td>
+                            <td class="py-4 px-6 text-right"><span class="bg-green-100 text-green-800 font-semibold text-sm px-3 py-1 rounded-full">Event Pass</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
     <!-- Event Passes -->
     <section class="py-20 px-6 bg-slate-50">
         <div class="max-w-7xl mx-auto">
             <h2 class="text-3xl md:text-4xl font-bold text-center mb-4 text-slate-900">
                 Event Passes
             </h2>
-            <p class="text-center text-slate-600 text-lg mb-16 max-w-2xl mx-auto">
-                Perfect for weddings, parties, and special occasions. One-time passes with dedicated credits and time-limited access.
+            <p class="text-center text-slate-600 text-lg mb-8 max-w-2xl mx-auto">
+                Perfect for weddings, parties, conferences, trade shows, fundraisers, and one-time events.
             </p>
+
+            <!-- Event Pass value explanation -->
+            <div class="bg-green-50 border-2 border-green-300 rounded-2xl p-6 mb-8 max-w-3xl mx-auto">
+                <h3 class="font-bold text-slate-900 text-lg mb-2">Why Choose an Event Pass?</h3>
+                <p class="text-slate-600">Event Passes are designed for single events and include event-specific licensing, guest sharing tools, branded experiences, dedicated galleries, and priority processing without requiring an ongoing subscription.</p>
+            </div>
+
+            <!-- Badge -->
+            <div class="flex justify-center mb-10">
+                <span class="bg-green-600 text-white text-sm font-bold px-5 py-2 rounded-full shadow">Best for One-Time Events</span>
+            </div>
 
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- 24-Hour Pass -->
@@ -488,6 +553,38 @@
                         <li class="flex items-start text-slate-700">
                             <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
                             <span>Custom branding</span>
+                        </li>
+                        <li class="flex items-start text-slate-700 mt-2 pt-2 border-t border-green-100">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Event-Specific Experience</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Custom Event Branding</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Dedicated Event Gallery</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Priority Event Processing</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Optimized for Guest Sharing</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>No Subscription Required</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Instant Setup</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Event-Based Licensing</span>
                         </li>
                     </ul>
                     <a href="/" class="block w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-center transition-all">
@@ -532,6 +629,38 @@
                             <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
                             <span>Custom branding</span>
                         </li>
+                        <li class="flex items-start text-slate-700 mt-2 pt-2 border-t border-green-100">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Event-Specific Experience</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Custom Event Branding</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Dedicated Event Gallery</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Priority Event Processing</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Optimized for Guest Sharing</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>No Subscription Required</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Instant Setup</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Event-Based Licensing</span>
+                        </li>
                     </ul>
                     <a href="/" class="block w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-center transition-all">
                         Get Started
@@ -572,6 +701,38 @@
                             <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
                             <span>Custom branding</span>
                         </li>
+                        <li class="flex items-start text-slate-700 mt-2 pt-2 border-t border-green-100">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Event-Specific Experience</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Custom Event Branding</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Dedicated Event Gallery</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Priority Event Processing</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Optimized for Guest Sharing</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>No Subscription Required</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Instant Setup</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Event-Based Licensing</span>
+                        </li>
                     </ul>
                     <a href="/" class="block w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-center transition-all">
                         Get Started
@@ -611,6 +772,38 @@
                         <li class="flex items-start text-slate-700">
                             <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
                             <span>Custom branding</span>
+                        </li>
+                        <li class="flex items-start text-slate-700 mt-2 pt-2 border-t border-green-100">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Event-Specific Experience</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Custom Event Branding</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Dedicated Event Gallery</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Priority Event Processing</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Optimized for Guest Sharing</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>No Subscription Required</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Instant Setup</span>
+                        </li>
+                        <li class="flex items-start text-slate-700">
+                            <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>Event-Based Licensing</span>
                         </li>
                     </ul>
                     <a href="/" class="block w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-center transition-all">
@@ -735,6 +928,11 @@
                 <div class="bg-green-50 p-6 rounded-xl border-2 border-green-200">
                     <h3 class="font-bold text-lg mb-2 text-slate-900">Do you offer refunds?</h3>
                     <p class="text-slate-700">We offer a 7-day money-back guarantee for new subscriptions. Contact support for assistance.</p>
+                </div>
+
+                <div class="bg-green-50 p-6 rounded-xl border-2 border-green-200">
+                    <h3 class="font-bold text-lg mb-2 text-slate-900">Why is an Event Pass more expensive than a monthly subscription?</h3>
+                    <p class="text-slate-700">Event Passes include event-specific licensing, guest-facing sharing tools, branded experiences, dedicated event resources, and priority processing designed for a single live event. Monthly subscriptions are intended for ongoing platform access and recurring use — they are priced for regular, month-over-month usage rather than a single high-intensity event.</p>
                 </div>
             </div>
         </div>
