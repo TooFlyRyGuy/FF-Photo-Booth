@@ -1658,22 +1658,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
 
                 {/* Event Pass Selector */}
-                <div className="pt-6">
-                  <EventPassSelector
-                    timezone={eventTimezone}
-                    selectedPassId={(editingEvent as any).passId}
-                    startDatetime={editingEvent.startDatetime}
-                    userRole={userProfile?.role}
-                    onSelectPass={(passId, expiresAt) => {
-                      setEditingEvent({
-                        ...editingEvent,
-                        passId: passId as any,
-                        passExpiresAt: expiresAt as any,
-                        endDatetime: expiresAt,
-                      });
-                    }}
-                  />
-                </div>
+                <EventPassSelector
+                  timezone={eventTimezone}
+                  selectedPassId={(editingEvent as any).passId}
+                  startDatetime={editingEvent.startDatetime}
+                  userRole={userProfile?.role}
+                  onSelectPass={(passId, expiresAt) => {
+                    setEditingEvent({
+                      ...editingEvent,
+                      passId: passId as any,
+                      passExpiresAt: expiresAt as any,
+                      endDatetime: expiresAt,
+                    });
+                  }}
+                />
 
                 {editingEvent.startDatetime && (
                   <div className="pt-3 space-y-3">
