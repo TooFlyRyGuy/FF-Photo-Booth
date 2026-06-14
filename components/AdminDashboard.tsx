@@ -1674,6 +1674,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     }}
                   />
                 </div>
+
+                {editingEvent.startDatetime && (
+                  <div className="pt-6 space-y-3">
+                    <p className="text-sm font-medium text-slate-700">Test Mode</p>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.testMode || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, testMode: e.target.checked})}
+                        className="mt-0.5 w-5 h-5 rounded border-slate-300 bg-slate-50 text-amber-500 focus:ring-2 focus:ring-amber-400"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable Test Mode</span>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Allows kiosk access before the event start date. Images are watermarked with "TEST", gallery uploads are suppressed, and SMS sends a placeholder instead of a real image link. Credits are still consumed.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </CollapsibleSection>
 
               {/* Branding Collapsible Section */}
@@ -1906,26 +1926,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   />
                   <p className="text-xs text-slate-500">Displayed on the kiosk while AI is generating. Defaults to "Creating Magic..." if left blank.</p>
                 </div>
-
-                {editingEvent.startDatetime && (
-                  <div className="pt-6 space-y-3">
-                    <p className="text-sm font-medium text-slate-700">Test Mode</p>
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editingEvent.testMode || false}
-                        onChange={(e) => setEditingEvent({...editingEvent, testMode: e.target.checked})}
-                        className="mt-0.5 w-5 h-5 rounded border-slate-300 bg-slate-50 text-amber-500 focus:ring-2 focus:ring-amber-400"
-                      />
-                      <div>
-                        <span className="text-black font-medium">Enable Test Mode</span>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Allows kiosk access before the event start date. Images are watermarked with "TEST", gallery uploads are suppressed, and SMS sends a placeholder instead of a real image link. Credits are still consumed.
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                )}
 
                 <div className="pt-6 space-y-4">
                   <p className="text-sm font-medium text-slate-700">Visibility Options</p>
