@@ -1907,7 +1907,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   <p className="text-xs text-slate-500">Displayed on the kiosk while AI is generating. Defaults to "Creating Magic..." if left blank.</p>
                 </div>
 
-                {(editingEvent.passId || editingEvent.eventSource === 'event_pass') && (
+                {editingEvent.startDatetime && (
                   <div className="pt-6 space-y-3">
                     <p className="text-sm font-medium text-slate-700">Test Mode</p>
                     <label className="flex items-start gap-3 cursor-pointer">
