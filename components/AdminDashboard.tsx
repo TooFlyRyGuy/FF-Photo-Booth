@@ -1676,7 +1676,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
 
                 {editingEvent.startDatetime && (
-                  <div className="pt-6 space-y-3">
+                  <div className="pt-3 space-y-3">
                     <p className="text-sm font-medium text-slate-700">Test Mode</p>
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
