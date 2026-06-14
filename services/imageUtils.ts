@@ -161,3 +161,55 @@ export const applyOverlayToImage = async (
     overlayImg.src = overlayImageUrl;
   });
 };
+
+export const applyTestWatermark = (baseImageBase64: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0);
+
+      const fontSize = Math.round(Math.min(img.width, img.height) * 0.12);
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = fontSize * 0.06;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const diagonal = Math.sqrt(img.width * img.width + img.height * img.height);
+      const spacing = fontSize * 3.5;
+      const cols = Math.ceil(diagonal / spacing) + 2;
+      const rows = Math.ceil(diagonal / spacing) + 2;
+
+      ctx.translate(img.width / 2, img.height / 2);
+      ctx.rotate(-Math.PI / 4);
+
+      for (let row = -rows; row <= rows; row++) {
+        for (let col = -cols; col <= cols; col++) {
+          const x = col * spacing;
+          const y = row * spacing;
+          ctx.strokeText('TEST', x, y);
+          ctx.fillText('TEST', x, y);
+        }
+      }
+
+      ctx.restore();
+      resolve(canvas.toDataURL('image/png', 1.0));
+    };
+
+    img.onerror = () => reject(new Error('Failed to load image for test watermark'));
+    img.src = baseImageBase64;
+  });
+};

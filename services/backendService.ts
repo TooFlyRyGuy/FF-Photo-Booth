@@ -583,7 +583,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, processing_text')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, processing_text, test_mode')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -669,6 +669,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       smugmugGalleryUrl: event.smugmug_gallery_url,
       uploadOriginalsToGallery: event.upload_originals_to_gallery,
       processingText: event.processing_text,
+      testMode: event.test_mode ?? false,
     });
   }
 
@@ -769,6 +770,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     smugmugGalleryUrl: eventData.smugmug_gallery_url,
     uploadOriginalsToGallery: eventData.upload_originals_to_gallery,
     processingText: eventData.processing_text,
+    testMode: eventData.test_mode ?? false,
   };
 };
 
@@ -883,6 +885,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     smugmug_gallery_url: event.smugmugGalleryUrl,
     upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
     processing_text: event.processingText || null,
+    test_mode: event.testMode ?? false,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1123,6 +1126,36 @@ export const sendSms = async (phoneNumber: string, imageUrl: string, imageId: st
 
   if (response.error) {
     console.error('Failed to send SMS:', response.error);
+    return false;
+  }
+
+  return true;
+};
+
+export const sendTestSms = async (phoneNumber: string, imageId: string, eventId: string): Promise<boolean> => {
+  const { data: event } = await supabase
+    .from('events')
+    .select('user_id')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (!event) {
+    throw new Error('Event not found');
+  }
+
+  const response = await supabase.functions.invoke('twilio-send-sms', {
+    body: {
+      userId: event.user_id,
+      phoneNumber,
+      imageUrl: '',
+      imageId,
+      eventId,
+      isTest: true,
+    },
+  });
+
+  if (response.error) {
+    console.error('Failed to send test SMS:', response.error);
     return false;
   }
 
@@ -1743,7 +1776,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, processing_text')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, processing_text, test_mode')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1812,6 +1845,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
       smugmugGalleryUrl: e.smugmug_gallery_url,
       uploadOriginalsToGallery: e.upload_originals_to_gallery,
       processingText: e.processing_text,
+      testMode: e.test_mode ?? false,
     };
   });
 };

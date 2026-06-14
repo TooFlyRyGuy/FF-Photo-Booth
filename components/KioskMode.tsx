@@ -3,10 +3,10 @@ import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, Switc
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings } from '../services/backendService';
+import { sendSms, sendTestSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
-import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
+import { applyOverlayToImage, applyTestWatermark, convertImageUrlToBase64 } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
 import { uploadImageWithRetry } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
@@ -33,7 +33,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
-  const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
+  const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after' | 'test'>('active');
   const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
   const [uploadProgress, setUploadProgress] = useState<string>('');
 
@@ -49,7 +49,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     if (event.startDatetime) {
       const startTime = new Date(event.startDatetime);
       if (now < startTime) {
-        return 'before';
+        return event.testMode ? 'test' : 'before';
       }
     }
 
@@ -283,6 +283,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         }
       }
 
+      if (event.testMode) {
+        try {
+          genImage = await applyTestWatermark(genImage);
+        } catch (watermarkErr) {
+          console.error('Failed to apply test watermark:', watermarkErr);
+        }
+      }
+
       setFinalImage(genImage);
 
       // 2 & 3. Upload images in parallel
@@ -297,7 +305,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       // Upload generated image to SmugMug (MUST wait for SMS)
       let smugmugGeneratedPromise: Promise<any> | null = null;
-      if (event.smugmugGalleryKey) {
+      if (event.smugmugGalleryKey && !event.testMode) {
         const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
         smugmugGeneratedPromise = (async () => {
           const compressedImage = await compressForUpload(genImage);
@@ -323,7 +331,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       }
 
       // Upload original image to SmugMug (background, not needed for SMS)
-      if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
+      if (event.uploadOriginalsToGallery && event.smugmugGalleryKey && !event.testMode) {
         const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
         backgroundPromises.push(
           (async () => {
@@ -347,7 +355,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       }
 
       // Upload generated to Dropbox (fallback if no SmugMug)
-      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
+      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken && !event.testMode) {
         const dropboxPromise = uploadImageToDropbox({
           userId: event.userId,
           eventId: event.id,
@@ -375,7 +383,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       }
 
       // Upload original to Dropbox (background)
-      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
+      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken && !event.testMode) {
         backgroundPromises.push(
           uploadImageToDropbox({
             userId: event.userId,
@@ -416,7 +424,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setFinalImage(genImage);
 
       // Show image immediately
-      if (!event.smugmugGalleryKey && !userSettings?.dropboxEnabled) {
+      if (event.testMode || (!event.smugmugGalleryKey && !userSettings?.dropboxEnabled)) {
         setGeneratedImageUrl(genImage);
       }
 
@@ -446,18 +454,25 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
   // --- SMS LOGIC ---
   const handleSendSms = async () => {
-    if (phoneNumber.length < 10 || !generatedImageUrl || !generatedImageId) return;
+    if (phoneNumber.length < 10 || !generatedImageId) return;
 
-    // Check if the URL is a data URL (base64) - cannot be sent via SMS
-    if (generatedImageUrl.startsWith('data:')) {
-      setErrorMsg('SMS unavailable: Image hosting is not configured. Please download the image instead.');
-      return;
+    if (!event.testMode) {
+      if (!generatedImageUrl) return;
+      // Check if the URL is a data URL (base64) - cannot be sent via SMS
+      if (generatedImageUrl.startsWith('data:')) {
+        setErrorMsg('SMS unavailable: Image hosting is not configured. Please download the image instead.');
+        return;
+      }
     }
 
     setIsSending(true);
     setErrorMsg('');
     try {
-      await sendSms(phoneNumber, generatedImageUrl, generatedImageId, event.id);
+      if (event.testMode) {
+        await sendTestSms(phoneNumber, generatedImageId, event.id);
+      } else {
+        await sendSms(phoneNumber, generatedImageUrl!, generatedImageId, event.id);
+      }
       setPhoneNumber('');
       setDeliveryCountdown(15);
       setView('delivery');
@@ -613,6 +628,66 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   // --- RENDER VIEWS ---
 
   // EVENT TIME RESTRICTION SCREENS
+  if (eventTimeStatus === 'test') {
+    const colors = getBrandingColors();
+    const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
+    return (
+      <div className="h-screen w-full bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50 relative flex flex-col items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500"></div>
+        </div>
+
+        {event.logoUrl && !event.hideLogo && (
+          <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+            <img src={event.logoUrl} alt={event.name} className="h-12 md:h-24 object-contain" />
+          </div>
+        )}
+
+        <div className="z-10 text-center space-y-4 md:space-y-6 px-4 max-w-2xl">
+          <div className="inline-block bg-amber-500 text-white text-sm md:text-base font-bold px-4 py-1.5 rounded-full tracking-widest uppercase mb-2">
+            Test Mode
+          </div>
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold text-amber-700">
+            {event.name}
+          </h1>
+          <p className="text-lg md:text-2xl text-slate-700 font-light">
+            Event hasn't started yet — test your setup here
+          </p>
+          {startDate && (
+            <div className="mt-4 p-4 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-amber-300">
+              <p className="text-slate-600 text-sm md:text-base mb-1">Event starts:</p>
+              <p className="text-xl md:text-2xl font-bold text-amber-700">
+                {startDate.toLocaleString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </p>
+            </div>
+          )}
+          <div className="mt-4 p-4 bg-amber-100 border-2 border-amber-300 rounded-xl text-amber-800 text-sm md:text-base">
+            Images will be watermarked. Gallery uploads are suppressed. Credits are still consumed.
+          </div>
+          <button
+            onClick={handleTapToStart}
+            disabled={isCheckingCredits}
+            className="mt-6 px-10 py-4 md:py-5 rounded-full font-bold text-lg md:text-xl text-white shadow-lg transition-all active:scale-95"
+            style={{ backgroundColor: colors.primary, boxShadow: `0 10px 25px ${colors.primary}50` }}
+          >
+            {isCheckingCredits ? 'Checking credits...' : 'Start Test'}
+          </button>
+        </div>
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
+          <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+        </div>
+      </div>
+    );
+  }
+
   if (eventTimeStatus === 'before') {
     const colors = getBrandingColors();
     const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
@@ -1069,19 +1144,25 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         {/* Input Side */}
         <div className="lg:w-1/3 flex-1 lg:h-full bg-white p-4 md:p-6 lg:p-8 flex flex-col justify-start space-y-3 md:space-y-5 relative overflow-y-auto border-l-2 border-slate-300">
 
+           {event.testMode && (
+             <div className="bg-amber-100 border-2 border-amber-400 rounded-lg px-3 py-2 text-amber-800 text-xs md:text-sm font-semibold text-center">
+               TEST MODE — image watermarked, not saved to gallery
+             </div>
+           )}
+
            {view === 'delivery' ? (
              <div className="text-center space-y-3 md:space-y-6">
                 <div
                   className="h-12 w-12 md:h-24 md:w-24 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-lg"
                   style={{
-                    backgroundColor: colors.primary,
-                    boxShadow: `0 10px 30px ${colors.primary}50`,
+                    backgroundColor: event.testMode ? '#f59e0b' : colors.primary,
+                    boxShadow: `0 10px 30px ${event.testMode ? '#f59e0b' : colors.primary}50`,
                   }}
                 >
                     <Check size={24} className="md:w-12 md:h-12 text-white" />
                 </div>
-                <h2 className="text-xl md:text-4xl text-slate-900 font-bold">Sent!</h2>
-                <p className="text-sm md:text-base text-slate-600">Check your phone for the link.</p>
+                <h2 className="text-xl md:text-4xl text-slate-900 font-bold">{event.testMode ? 'Test SMS Sent!' : 'Sent!'}</h2>
+                <p className="text-sm md:text-base text-slate-600">{event.testMode ? 'Check your phone for the test message.' : 'Check your phone for the link.'}</p>
 
                 <div className="pt-3 md:pt-6 space-y-2 md:space-y-4">
                   <button
@@ -1150,7 +1231,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     <Download size={18} className="md:w-6 md:h-6" /> Download Now
                 </button>
 
-                {!generatedImageUrl?.startsWith('data:') && (
+                {(event.testMode || !generatedImageUrl?.startsWith('data:')) && (
                   <>
                     <div className="relative py-1">
                         <div className="absolute inset-0 flex items-center">
@@ -1181,15 +1262,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
                     <button
                         onClick={handleSendSms}
-                        disabled={isSending || phoneNumber.length < 3 || !generatedImageUrl}
+                        disabled={isSending || phoneNumber.length < 3 || (!event.testMode && !generatedImageUrl)}
                         className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!generatedImageUrl ? 'Preparing link...' : isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
+                        {(!event.testMode && !generatedImageUrl) ? 'Preparing link...' : isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> {event.testMode ? 'Send Test SMS' : 'Send SMS'}</>}
                     </button>
                   </>
                 )}
 
-                {generatedImageUrl && !generatedImageUrl.startsWith('data:') && generatedImageUrl.length < 500 && (
+                {!event.testMode && generatedImageUrl && !generatedImageUrl.startsWith('data:') && generatedImageUrl.length < 500 && (
                   <div className="pt-2 md:pt-8 border-t border-slate-300">
                       <div className="flex items-center gap-2 md:gap-4 bg-slate-50 p-2 md:p-4 rounded-xl border-2 border-slate-300">
                           <div className="bg-white p-1 md:p-2 rounded-lg flex-shrink-0 border border-slate-300">

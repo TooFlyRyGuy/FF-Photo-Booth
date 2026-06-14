@@ -196,6 +196,7 @@ export interface Event {
   passExpiresAt?: string;
   eventSource?: 'subscription' | 'event_pass' | 'admin';
   processingText?: string;
+  testMode?: boolean;
 }
 
 export interface GeneratedImage {

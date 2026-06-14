@@ -12,6 +12,7 @@ interface SmsRequest {
   imageUrl: string;
   imageId: string;
   eventId?: string;
+  isTest?: boolean;
 }
 
 Deno.serve(async (req: Request) => {
@@ -27,7 +28,7 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { userId, phoneNumber, imageUrl, imageId, eventId }: SmsRequest = await req.json();
+    const { userId, phoneNumber, imageUrl, imageId, eventId, isTest }: SmsRequest = await req.json();
 
     const { data: settings, error: settingsError } = await supabase
       .from('global_settings')
@@ -62,9 +63,13 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const imageUrlToken = isTest
+      ? '(This is a test — no image is saved or sent in tests)'
+      : imageUrl;
+
     const messageBody = messageTemplate
       .replace('{event_name}', eventName)
-      .replace('{image_url}', imageUrl);
+      .replace('{image_url}', imageUrlToken);
 
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\\D/g, '')}`;
 
