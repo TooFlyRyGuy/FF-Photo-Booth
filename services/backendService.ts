@@ -861,14 +861,12 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     eventSource = 'event_pass';
   }
 
-  const eventData = {
+  const eventDataBase = {
     name: event.name,
     city: event.city,
     event_date: event.date,
     passcode: event.passcode,
     is_active: event.isActive,
-    user_id: userId,
-    created_by: userId,
     aspect_ratio: event.aspectRatio || 'square',
     background_image_url: event.backgroundImageUrl,
     logo_url: event.logoUrl,
@@ -886,8 +884,12 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
     processing_text: event.processingText || null,
     test_mode: event.testMode ?? false,
-    event_source: isUpdate ? undefined : eventSource,
   };
+
+  // Only set ownership fields on creation — never overwrite on update
+  const eventData = isUpdate
+    ? eventDataBase
+    : { ...eventDataBase, user_id: userId, created_by: userId, event_source: eventSource };
 
   let eventId = event.id;
 
@@ -977,12 +979,12 @@ export const saveEvent = async (event: Event): Promise<Event> => {
         display_order: index,
       }));
 
-      const { error: insertError } = await supabase
+      const { error: upsertError } = await supabase
         .from('event_prompts')
-        .insert(eventPrompts);
+        .upsert(eventPrompts, { onConflict: 'event_id,prompt_id' });
 
-      if (insertError) {
-        throw new Error(`Failed to link prompts to event: ${insertError.message}`);
+      if (upsertError) {
+        throw new Error(`Failed to link prompts to event: ${upsertError.message}`);
       }
     }
   }
