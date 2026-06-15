@@ -960,7 +960,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     }
   }
 
-  if (event.prompts && event.prompts.length > 0) {
+  if (event.prompts !== undefined) {
     const { error: deleteError } = await supabase
       .from('event_prompts')
       .delete()
@@ -970,18 +970,20 @@ export const saveEvent = async (event: Event): Promise<Event> => {
       console.error('Error removing old event prompts:', deleteError);
     }
 
-    const eventPrompts = event.prompts.map((prompt, index) => ({
-      event_id: eventId,
-      prompt_id: prompt.id,
-      display_order: index,
-    }));
+    if (event.prompts.length > 0) {
+      const eventPrompts = event.prompts.map((prompt, index) => ({
+        event_id: eventId,
+        prompt_id: prompt.id,
+        display_order: index,
+      }));
 
-    const { error: insertError } = await supabase
-      .from('event_prompts')
-      .insert(eventPrompts);
+      const { error: insertError } = await supabase
+        .from('event_prompts')
+        .insert(eventPrompts);
 
-    if (insertError) {
-      throw new Error(`Failed to link prompts to event: ${insertError.message}`);
+      if (insertError) {
+        throw new Error(`Failed to link prompts to event: ${insertError.message}`);
+      }
     }
   }
 
