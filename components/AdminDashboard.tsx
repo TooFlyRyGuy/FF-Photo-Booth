@@ -778,11 +778,21 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       {/* Mobile pull-tab — fixed, always on top, tracks sidebar open/closed position */}
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className={`md:hidden fixed top-1/2 -translate-y-1/2 z-50 w-8 h-16 bg-white border border-slate-300 rounded-r-xl flex items-center justify-center text-slate-500 hover:text-green-700 shadow-lg transition-all duration-300 ease-in-out
-          ${mobileMenuOpen ? 'left-64 border-l-0' : 'left-0 border-l-0'}`}
+        className={`md:hidden fixed top-1/2 -translate-y-1/2 z-50 w-8 h-16 bg-white border border-l-0 border-slate-300 rounded-r-xl flex items-center justify-center text-slate-500 hover:text-green-700 shadow-lg transition-all duration-300 ease-in-out
+          ${mobileMenuOpen ? 'left-64' : 'left-0'}`}
         aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'}
       >
         {mobileMenuOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+      </button>
+
+      {/* Desktop collapse toggle — fixed, outside sidebar so overflow-hidden can't clip it */}
+      <button
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        style={{ left: sidebarCollapsed ? '68px' : '252px' }}
+        className="hidden md:flex fixed top-6 z-50 w-6 h-6 bg-white border-2 border-slate-300 rounded-full items-center justify-center text-slate-600 hover:text-green-700 hover:border-green-700 transition-all duration-300 shadow-sm"
+        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
       {/* Sidebar */}
@@ -791,14 +801,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         md:relative md:overflow-hidden ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        {/* Desktop collapse toggle */}
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="hidden md:flex absolute -right-3 top-6 z-10 w-6 h-6 bg-white border-2 border-slate-300 rounded-full items-center justify-center text-slate-600 hover:text-green-700 hover:border-green-700 transition-colors shadow-sm"
-          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
 
         <div className={`p-6 ${sidebarCollapsed ? 'px-2' : ''}`}>
           <h1 className={`text-2xl font-bold tracking-tighter text-green-700 flex items-center gap-2 ${sidebarCollapsed ? 'justify-center' : ''}`}>
