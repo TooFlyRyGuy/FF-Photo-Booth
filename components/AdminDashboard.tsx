@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -767,14 +767,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-white border-2 border-slate-300 rounded-lg flex items-center justify-center text-slate-600 hover:text-green-700 hover:border-green-700 transition-colors shadow-lg"
-      >
-        <Menu size={20} />
-      </button>
-
       {/* Mobile Overlay */}
       {mobileMenuOpen && (
         <div
@@ -789,21 +781,22 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         md:relative md:overflow-hidden ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        {/* Toggle Button - Desktop Only */}
+        {/* Desktop collapse toggle */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           className="hidden md:flex absolute -right-3 top-6 z-10 w-6 h-6 bg-white border-2 border-slate-300 rounded-full items-center justify-center text-slate-600 hover:text-green-700 hover:border-green-700 transition-colors shadow-sm"
           title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {sidebarCollapsed ? <Menu size={14} /> : <ChevronLeft size={14} />}
+          {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
 
-        {/* Close Button - Mobile Only */}
+        {/* Mobile edge pull-tab — always visible, slides with sidebar */}
         <button
-          onClick={() => setMobileMenuOpen(false)}
-          className="md:hidden absolute right-4 top-4 z-10 w-8 h-8 flex items-center justify-center text-slate-600 hover:text-green-700 transition-colors"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden absolute -right-8 top-1/2 -translate-y-1/2 z-50 w-8 h-16 bg-white border border-l-0 border-slate-300 rounded-r-xl flex items-center justify-center text-slate-500 hover:text-green-700 shadow-md transition-colors"
+          aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'}
         >
-          <X size={20} />
+          {mobileMenuOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
         </button>
 
         <div className={`p-6 ${sidebarCollapsed ? 'px-2' : ''}`}>
