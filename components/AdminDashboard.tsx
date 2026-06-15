@@ -775,6 +775,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         />
       )}
 
+      {/* Mobile pull-tab — fixed, always on top, tracks sidebar open/closed position */}
+      <button
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className={`md:hidden fixed top-1/2 -translate-y-1/2 z-50 w-8 h-16 bg-white border border-slate-300 rounded-r-xl flex items-center justify-center text-slate-500 hover:text-green-700 shadow-lg transition-all duration-300 ease-in-out
+          ${mobileMenuOpen ? 'left-64 border-l-0' : 'left-0 border-l-0'}`}
+        aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'}
+      >
+        {mobileMenuOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+      </button>
+
       {/* Sidebar */}
       <aside className={`w-64 bg-white border-r border-slate-300 flex flex-col transition-all duration-300 ease-in-out
         fixed inset-y-0 left-0 z-40 overflow-y-auto
@@ -788,15 +798,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
-
-        {/* Mobile edge pull-tab — always visible, slides with sidebar */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden absolute -right-8 top-1/2 -translate-y-1/2 z-50 w-8 h-16 bg-white border border-l-0 border-slate-300 rounded-r-xl flex items-center justify-center text-slate-500 hover:text-green-700 shadow-md transition-colors"
-          aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'}
-        >
-          {mobileMenuOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
         </button>
 
         <div className={`p-6 ${sidebarCollapsed ? 'px-2' : ''}`}>
