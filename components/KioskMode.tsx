@@ -628,7 +628,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   // --- RENDER VIEWS ---
 
   // EVENT TIME RESTRICTION SCREENS
-  if (eventTimeStatus === 'test' && view === 'attract') {
+  if (eventTimeStatus === 'test') {
     const colors = getBrandingColors();
     const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
     return (
@@ -688,7 +688,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     );
   }
 
-  if (eventTimeStatus === 'before' && view === 'attract') {
+  if (eventTimeStatus === 'before') {
     const colors = getBrandingColors();
     const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
 
@@ -738,7 +738,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     );
   }
 
-  if (eventTimeStatus === 'after' && view === 'attract') {
+  if (eventTimeStatus === 'after') {
     const colors = getBrandingColors();
     const endDate = event.endDatetime ? new Date(event.endDatetime) : null;
 
