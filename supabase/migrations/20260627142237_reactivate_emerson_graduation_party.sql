@@ -1,0 +1,1 @@
+UPDATE events SET is_active = true WHERE id = 'dfd85364-12f7-4161-a8e2-3541cb631eb8' AND name ILIKE '%Emerson%';

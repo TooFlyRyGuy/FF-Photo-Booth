@@ -630,29 +630,12 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       }
     }
 
-    const now = new Date();
-    let isActive = event.is_active;
-
-    if (event.end_datetime) {
-      const endTime = new Date(event.end_datetime);
-      if (now > endTime) {
-        isActive = false;
-      }
-    }
-
-    if (event.start_datetime) {
-      const startTime = new Date(event.start_datetime);
-      if (now < startTime) {
-        isActive = false;
-      }
-    }
-
     events.push({
       id: event.id,
       name: event.name,
       date: event.event_date,
       city: event.city,
-      isActive,
+      isActive: event.is_active,
       passcode: event.passcode,
       prompts,
       userId: event.user_id,
@@ -728,29 +711,12 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     }
   }
 
-  const now = new Date();
-  let isActive = eventData.is_active;
-
-  if (eventData.end_datetime) {
-    const endTime = new Date(eventData.end_datetime);
-    if (now > endTime) {
-      isActive = false;
-    }
-  }
-
-  if (eventData.start_datetime) {
-    const startTime = new Date(eventData.start_datetime);
-    if (now < startTime) {
-      isActive = false;
-    }
-  }
-
   return {
     id: eventData.id,
     name: eventData.name,
     date: eventData.event_date,
     city: eventData.city,
-    isActive,
+    isActive: eventData.is_active,
     passcode: eventData.passcode,
     prompts,
     userId: eventData.user_id,
