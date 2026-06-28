@@ -2230,6 +2230,51 @@ export const validateEventTimeRestrictions = async (
   };
 };
 
+export interface EventErrorLog {
+  id: string;
+  event_id: string | null;
+  error_type: string;
+  error_message: string;
+  context: Record<string, any>;
+  created_at: string;
+  events?: { name: string } | null;
+}
+
+export const logEventError = async (
+  eventId: string,
+  errorType: string,
+  errorMessage: string,
+  context: Record<string, any> = {}
+): Promise<void> => {
+  try {
+    await supabase.from('event_error_logs').insert({
+      event_id: eventId,
+      error_type: errorType,
+      error_message: errorMessage,
+      context,
+    });
+  } catch {
+    // Never let logging disrupt the user experience
+  }
+};
+
+export const getEventErrorLogs = async (options?: { eventId?: string; limit?: number }): Promise<EventErrorLog[]> => {
+  let query = supabase
+    .from('event_error_logs')
+    .select('*, events(name)')
+    .order('created_at', { ascending: false })
+    .limit(options?.limit ?? 200);
+
+  if (options?.eventId) {
+    query = query.eq('event_id', options.eventId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(error.message);
+  return (data as EventErrorLog[]) || [];
+};
+
 export const hasActiveSubscription = async (): Promise<boolean> => {
   const userId = await getUserId();
 

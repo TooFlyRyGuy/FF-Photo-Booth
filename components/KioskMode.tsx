@@ -3,7 +3,7 @@ import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, Switc
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, sendTestSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings } from '../services/backendService';
+import { sendSms, sendTestSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, logEventError } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, applyTestWatermark, convertImageUrlToBase64 } from '../services/imageUtils';
@@ -325,6 +325,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           })
           .catch((smugmugErr) => {
             console.error('SmugMug upload failed for generated:', smugmugErr);
+            logEventError(event.id, 'smugmug_upload', smugmugErr.message || 'SmugMug generated upload failed', {
+              uploadType: 'generated',
+              promptName: selectedPrompt?.name,
+            });
             throw smugmugErr;
           });
         uploadPromises.push(smugmugGeneratedPromise);
@@ -350,6 +354,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             })
             .catch((smugmugOrigErr) => {
               console.error('SmugMug upload failed for original:', smugmugOrigErr);
+              logEventError(event.id, 'smugmug_upload', smugmugOrigErr.message || 'SmugMug original upload failed', {
+                uploadType: 'original',
+                promptName: selectedPrompt?.name,
+              });
             })
         );
       }
@@ -373,6 +381,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           })
           .catch((dropboxErr) => {
             console.error('Dropbox upload failed for generated:', dropboxErr);
+            logEventError(event.id, 'dropbox_upload', dropboxErr.message || 'Dropbox generated upload failed', {
+              uploadType: 'generated',
+              promptName: selectedPrompt?.name,
+            });
           });
 
         if (!event.smugmugGalleryKey) {
@@ -401,6 +413,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             })
             .catch((dropboxErr) => {
               console.error('Dropbox upload failed for original:', dropboxErr);
+              logEventError(event.id, 'dropbox_upload', dropboxErr.message || 'Dropbox original upload failed', {
+                uploadType: 'original',
+                promptName: selectedPrompt?.name,
+              });
             })
         );
       }
@@ -449,6 +465,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     } catch (err: any) {
       setErrorMsg(err.message || "AI Generation Failed");
       setView('review');
+      logEventError(event.id, 'gemini_generation', err.message || 'AI generation failed', {
+        promptName: selectedPrompt?.name,
+        promptId: selectedPrompt?.id,
+      });
     }
   };
 
