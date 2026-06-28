@@ -133,6 +133,38 @@ export async function uploadImageToStorage(
   }
 }
 
+export async function uploadGeneratedImageToStorage(
+  eventId: string,
+  imageId: string,
+  imageBase64: string
+): Promise<{ url: string; path: string } | null> {
+  try {
+    const blob = await base64ToBlob(imageBase64);
+    const path = `${eventId}/${imageId}.jpg`;
+
+    const { data, error } = await supabase.storage
+      .from('generated_images')
+      .upload(path, blob, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Generated image bucket upload error:', error);
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('generated_images')
+      .getPublicUrl(data.path);
+
+    return { url: publicUrl, path: data.path };
+  } catch (err) {
+    console.error('Generated image bucket upload failed:', err);
+    return null;
+  }
+}
+
 export async function deleteImageFromStorage(path: string): Promise<boolean> {
   try {
     const { error } = await supabase.storage

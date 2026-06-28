@@ -3,12 +3,12 @@ import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, Switc
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, sendTestSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, logEventError } from '../services/backendService';
+import { sendSms, sendTestSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, logEventError, updateGeneratedImageStorageUrl } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, applyTestWatermark, convertImageUrlToBase64 } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
-import { uploadImageWithRetry } from '../services/storageService';
+import { uploadImageWithRetry, uploadGeneratedImageToStorage } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
 
 interface KioskProps {
@@ -435,6 +435,25 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       if (!consumed) {
         console.error('Failed to consume credit, but image was generated');
       }
+
+      // Persist generated image to Supabase storage (background, non-blocking)
+      // Path: {event_id}/{imageId}.jpg — enables per-event gallery queries later
+      backgroundPromises.push(
+        uploadGeneratedImageToStorage(event.id, imageId, genImage)
+          .then((result) => {
+            if (result) {
+              updateGeneratedImageStorageUrl(imageId, result.url);
+              console.log('✅ Saved generated image to storage:', result.url);
+            }
+          })
+          .catch((storageErr) => {
+            console.error('Generated image storage upload failed:', storageErr);
+            logEventError(event.id, 'storage', storageErr.message || 'Generated image storage upload failed', {
+              imageId,
+              promptName: selectedPrompt?.name,
+            });
+          })
+      );
 
       setGeneratedImageId(imageId);
       setFinalImage(genImage);

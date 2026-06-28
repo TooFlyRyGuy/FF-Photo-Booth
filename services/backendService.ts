@@ -2230,6 +2230,20 @@ export const validateEventTimeRestrictions = async (
   };
 };
 
+export const updateGeneratedImageStorageUrl = async (
+  imageId: string,
+  storageUrl: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('generated_images')
+    .update({ generated_image_url: storageUrl })
+    .eq('id', imageId);
+
+  if (error) {
+    console.error('Failed to update generated_image_url:', error.message);
+  }
+};
+
 export interface EventErrorLog {
   id: string;
   event_id: string | null;
