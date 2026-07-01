@@ -15,9 +15,6 @@ const LandingPage: React.FC = () => {
               className="h-12"
             />
             <div className="flex gap-4">
-              <a href="/pricing.html" className="text-white hover:text-slate-300 font-medium transition-colors hidden sm:block">
-                Pricing
-              </a>
               <a href={signupUrl} className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-2 rounded-lg transition-all shadow-lg">
                 Sign Up
               </a>

@@ -343,12 +343,6 @@ const AppContent: React.FC<AppContentProps> = ({
           <img src="/smaller700x200_logo.png" alt="Fun Frame Photo" className="h-10 sm:h-12 lg:h-16" />
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <a
-            href="/pricing.html"
-            className="text-slate-700 hover:text-slate-900 text-xs sm:text-sm font-medium transition-all"
-          >
-            Pricing
-          </a>
           <button
             onClick={() => setView('login')}
             className="text-slate-700 hover:text-slate-900 text-xs sm:text-sm font-medium transition-all"

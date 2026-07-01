@@ -27,6 +27,7 @@ interface SubscriptionTier {
   stripe_product_id: string | null;
   is_active: boolean;
   display_order: number;
+  tier_category: string | null;
 }
 
 const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) => {
@@ -35,6 +36,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
+  const [isEnterprisePlan, setIsEnterprisePlan] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -42,8 +44,35 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
 
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([loadSubscription(), loadTiers()]);
+    await Promise.all([loadSubscription(), loadTiers(), checkEnterprisePlan()]);
     setLoading(false);
+  };
+
+  const checkEnterprisePlan = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('subscription_tier_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profile?.subscription_tier_id) return;
+
+      const { data: tier } = await supabase
+        .from('subscription_tiers_new')
+        .select('tier_category')
+        .eq('id', profile.subscription_tier_id)
+        .maybeSingle();
+
+      if (tier?.tier_category === 'enterprise') {
+        setIsEnterprisePlan(true);
+      }
+    } catch (error) {
+      console.error('Error checking enterprise plan:', error);
+    }
   };
 
   const loadSubscription = async () => {
@@ -175,6 +204,26 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-green-700" />
+            </div>
+          ) : isEnterprisePlan ? (
+            <div className="py-8">
+              <div className="bg-green-900/10 border-2 border-green-900/30 rounded-xl p-6">
+                <div className="flex items-start gap-4">
+                  <Crown className="w-8 h-8 text-green-900 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">You are on the Enterprise Plan</h3>
+                    <p className="text-gray-700">
+                      Please contact your account manager to make any changes to your plan.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="mt-6 w-full py-3 bg-green-900 hover:bg-green-950 text-white rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
             </div>
           ) : (
             <>

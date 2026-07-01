@@ -16,6 +16,7 @@ interface SubscriptionTier {
   display_order: number;
   stripe_price_id: string | null;
   stripe_product_id: string | null;
+  tier_category: string | null;
 }
 
 interface EventPass {
@@ -303,6 +304,46 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
           <button
             onClick={onClose}
             className="w-full py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentTier = tiers.find(t => t.id === userProfile?.subscription_tier_id);
+  const isEnterprisePlan = currentTier?.tier_category === 'enterprise';
+
+  if (isEnterprisePlan) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-2xl p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-slate-900">Enterprise Plan</h2>
+            <button
+              onClick={onClose}
+              className="text-slate-600 hover:text-slate-900 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="bg-green-900/10 border-2 border-green-900/30 rounded-xl p-6 mb-6">
+            <div className="flex items-start gap-4">
+              <Crown size={32} className="text-green-900 flex-shrink-0" />
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">You are on the Enterprise Plan</h3>
+                <p className="text-slate-700">
+                  Please contact your account manager to make any changes to your plan.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-green-900 hover:bg-green-950 text-white rounded-lg font-bold"
           >
             Close
           </button>
