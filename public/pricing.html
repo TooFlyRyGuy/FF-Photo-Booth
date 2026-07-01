@@ -46,9 +46,20 @@
             <p class="text-xl md:text-2xl mb-8 text-slate-700 max-w-3xl mx-auto">
                 Choose the perfect plan for your events. Start free, upgrade anytime.
             </p>
-            <div class="flex items-center justify-center gap-2 mb-12">
-                <span class="text-base font-semibold text-slate-700">Annual billing</span>
-                <span class="text-sm bg-green-600 text-white px-3 py-1 rounded-full font-semibold">Save 17%</span>
+
+            <!-- Billing Toggle -->
+            <div class="flex items-center justify-center gap-4 mb-12">
+                <span class="text-lg font-medium text-slate-700" id="monthly-label">Monthly</span>
+                <label class="pricing-toggle relative inline-block w-16 h-8 cursor-pointer">
+                    <input type="checkbox" id="billing-toggle" class="sr-only peer" />
+                    <div class="toggle-bg w-16 h-8 bg-slate-300 rounded-full transition-colors relative">
+                        <div class="toggle-dot absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform"></div>
+                    </div>
+                </label>
+                <span class="text-lg font-medium text-slate-700" id="annual-label">
+                    Annual
+                    <span class="ml-2 text-sm bg-green-600 text-white px-2 py-1 rounded-full">Save 17%</span>
+                </span>
             </div>
         </div>
     </section>
@@ -988,9 +999,25 @@
     </footer>
 
     <script>
-        // Always show annual pricing
-        document.querySelectorAll('.monthly-price, .monthly-feature').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('.annual-price, .annual-feature').forEach(el => el.classList.remove('hidden'));
+        const billingToggle = document.getElementById('billing-toggle');
+        const monthlyPrices = document.querySelectorAll('.monthly-price');
+        const annualPrices = document.querySelectorAll('.annual-price');
+        const monthlyFeatures = document.querySelectorAll('.monthly-feature');
+        const annualFeatures = document.querySelectorAll('.annual-feature');
+
+        billingToggle.addEventListener('change', function() {
+            if (this.checked) {
+                monthlyPrices.forEach(el => el.classList.add('hidden'));
+                annualPrices.forEach(el => el.classList.remove('hidden'));
+                monthlyFeatures.forEach(el => el.classList.add('hidden'));
+                annualFeatures.forEach(el => el.classList.remove('hidden'));
+            } else {
+                monthlyPrices.forEach(el => el.classList.remove('hidden'));
+                annualPrices.forEach(el => el.classList.add('hidden'));
+                monthlyFeatures.forEach(el => el.classList.remove('hidden'));
+                annualFeatures.forEach(el => el.classList.add('hidden'));
+            }
+        });
     </script>
 </body>
 </html>

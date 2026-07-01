@@ -78,13 +78,13 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
   const [addOns, setAddOns] = useState<AddOn[]>([]);
   const [creditTopups, setCreditTopups] = useState<CreditTopup[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [userCurrentTierData, setUserCurrentTierData] = useState<SubscriptionTier | null>(null);
   const [loading, setLoading] = useState(true);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'eventPasses' | 'addOns' | 'credits'>(initialTab ?? 'eventPasses');
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [billingCycle]);
 
   const loadData = async () => {
     try {
@@ -102,17 +102,6 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
 
         console.log('User profile loaded:', profileData, 'Error:', profileError);
         setUserProfile(profileData);
-
-        // Load user's current tier independently so Enterprise detection works
-        // regardless of which billing_period is displayed.
-        if (profileData?.subscription_tier_id) {
-          const { data: currentTier } = await supabase
-            .from('subscription_tiers_new')
-            .select('*')
-            .eq('id', profileData.subscription_tier_id)
-            .maybeSingle();
-          setUserCurrentTierData(currentTier || null);
-        }
       } else {
         console.log('No user found - user is not authenticated');
       }
@@ -122,7 +111,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
           .from('subscription_tiers_new')
           .select('*')
           .eq('is_active', true)
-          .eq('billing_period', 'annual')
+          .eq('billing_period', billingCycle)
           .order('display_order', { ascending: true }),
         supabase
           .from('event_passes')
@@ -281,8 +270,6 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
   }
 
   const isAdmin = userProfile?.role === 'admin';
-  const isUserOnEnterprise =
-    userCurrentTierData?.tier_category === 'enterprise' || userCurrentTierData?.price_cents === -1;
 
   if (isAdmin) {
     return (
@@ -395,9 +382,30 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
           </div>
 
           {activeTab === 'subscriptions' && (
-            <div className="flex items-center justify-center gap-2 mt-4 sm:mt-6">
-              <span className="text-sm text-slate-500 font-medium">Annual billing</span>
-              <span className="text-xs bg-green-700/15 text-green-800 px-2 py-0.5 rounded-full font-semibold">Save 15%</span>
+            <div className="flex items-center justify-center gap-3 mt-4 sm:mt-6">
+              <div className="flex items-center gap-3 bg-slate-100 rounded-lg p-1">
+                <button
+                  onClick={() => setBillingCycle('monthly')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    billingCycle === 'monthly'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setBillingCycle('annual')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    billingCycle === 'annual'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Yearly
+                  <span className="ml-1.5 text-xs text-green-700 font-semibold">Save 15%</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -405,18 +413,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
         <div className="p-4 sm:p-6">
           {activeTab === 'subscriptions' && (
             <>
-              {isUserOnEnterprise && (
-                <div className="bg-green-900/10 border-2 border-green-900/30 rounded-xl p-4 sm:p-5 mb-5 sm:mb-6 flex items-start gap-3">
-                  <Crown size={20} className="text-green-900 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm sm:text-base">You're on an Enterprise Plan</p>
-                    <p className="text-slate-600 text-xs sm:text-sm mt-1">
-                      Your plan and pricing are managed by your account administrator. To make changes or discuss your plan, please contact us directly.
-                    </p>
-                  </div>
-                </div>
-              )}
-              {!isUserOnEnterprise && userProfile && tiers.find(t => t.id === userProfile.subscription_tier_id)?.price_cents === 0 && (
+              {userProfile && tiers.find(t => t.id === userProfile.subscription_tier_id)?.price_cents === 0 && (
                 <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
                   <AlertCircle size={18} className="sm:w-5 sm:h-5 text-amber-700 flex-shrink-0 mt-0.5" />
                   <div className="text-xs sm:text-sm text-slate-900">
@@ -428,7 +425,7 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {tiers.map((tier) => {
               const isCurrentTier = userProfile?.subscription_tier_id === tier.id;
-              const isEnterprise = tier.tier_category === 'enterprise' || tier.price_cents === -1;
+              const isEnterprise = tier.price_cents === -1;
 
               console.log(`Tier: ${tier.name}, ID: ${tier.id}, User Tier ID: ${userProfile?.subscription_tier_id}, Is Current: ${isCurrentTier}`);
 
@@ -449,14 +446,12 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
                   </div>
 
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1 sm:mb-2">{tier.name}</h3>
-                  <p className="text-slate-600 text-xs mb-3 sm:mb-4">Billed annually</p>
+                  <p className="text-slate-600 text-xs mb-3 sm:mb-4">
+                    {tier.billing_period === 'monthly' ? 'Billed monthly' : 'Billed annually'}
+                  </p>
 
                   <div className="mb-4 sm:mb-6 pb-4 border-b border-slate-200">
-                    {isUserOnEnterprise ? (
-                      <div className="text-center py-2 sm:py-3">
-                        <span className="text-xl sm:text-2xl font-bold text-slate-400">—</span>
-                      </div>
-                    ) : isEnterprise ? (
+                    {isEnterprise ? (
                       <div className="text-center py-2 sm:py-3">
                         <span className="text-xl sm:text-2xl font-bold text-green-900">CONTACT US</span>
                         <p className="text-xs text-slate-600 mt-1">Custom pricing</p>
@@ -467,11 +462,15 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
                           <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                             {formatPrice(tier.price_cents)}
                           </span>
-                          <span className="text-slate-600 text-sm">/yr</span>
+                          <span className="text-slate-600 text-sm">
+                            /{tier.billing_period === 'monthly' ? 'mo' : 'yr'}
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {formatPrice(Math.floor(tier.price_cents / 12))} per month
-                        </p>
+                        {tier.billing_period === 'annual' && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            {formatPrice(Math.floor(tier.price_cents / 12))} per month
+                          </p>
+                        )}
                       </>
                     )}
                   </div>
@@ -502,24 +501,16 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose, init
 
                   <button
                     onClick={() => handleSubscribe(tier.id)}
-                    disabled={isCurrentTier || isEnterprise || isUserOnEnterprise}
+                    disabled={isCurrentTier || isEnterprise}
                     className={`w-full py-3 sm:py-3.5 rounded-lg font-medium text-sm sm:text-base transition-all min-h-[48px] ${
-                      isUserOnEnterprise
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : isCurrentTier
+                      isCurrentTier
                         ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                         : isEnterprise
                         ? 'bg-green-900 hover:bg-green-950 text-white'
                         : 'bg-green-700 hover:bg-green-800 text-white active:bg-green-900'
                     }`}
                   >
-                    {isUserOnEnterprise
-                      ? 'Managed Plan'
-                      : isCurrentTier
-                      ? 'Current Plan'
-                      : isEnterprise
-                      ? 'Contact Sales'
-                      : 'Subscribe'}
+                    {isCurrentTier ? 'Current Plan' : isEnterprise ? 'Contact Sales' : 'Subscribe'}
                   </button>
                 </div>
               );
