@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry } from '../services/backendService';
-import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw } from 'lucide-react';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode } from '../services/backendService';
+import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -106,6 +106,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [deviceUsageEntries, setDeviceUsageEntries] = useState<DeviceUsageEntry[]>([]);
   const [loadingDeviceUsage, setLoadingDeviceUsage] = useState(false);
   const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [accessCodes, setAccessCodes] = useState<EventAccessCode[]>([]);
+  const [qrGenerateCount, setQrGenerateCount] = useState(10);
+  const [isGeneratingCodes, setIsGeneratingCodes] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrModalEvent, setQrModalEvent] = useState<Event | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -381,6 +386,103 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
+  const openQrAccessModal = async (event: Event) => {
+    setQrModalEvent(event);
+    setShowQrModal(true);
+    try {
+      const codes = await getEventAccessCodes(event.id);
+      setAccessCodes(codes);
+    } catch (err) {
+      console.error('Failed to load access codes:', err);
+      setAccessCodes([]);
+    }
+  };
+
+  const handleGenerateCodes = async () => {
+    if (!qrModalEvent) return;
+    setIsGeneratingCodes(true);
+    try {
+      await generateAccessCodes(qrModalEvent.id, qrGenerateCount);
+      const codes = await getEventAccessCodes(qrModalEvent.id);
+      setAccessCodes(codes);
+    } catch (err) {
+      alert(`Failed to generate codes: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsGeneratingCodes(false);
+    }
+  };
+
+  const handleDeleteCode = async (codeId: string) => {
+    if (!confirm('Delete this access code? This cannot be undone.')) return;
+    try {
+      await deleteAccessCode(codeId);
+      if (qrModalEvent) {
+        const codes = await getEventAccessCodes(qrModalEvent.id);
+        setAccessCodes(codes);
+      }
+    } catch (err) {
+      alert(`Failed to delete code: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handlePrintQrCodes = () => {
+    if (!qrModalEvent || accessCodes.length === 0) return;
+    const origin = window.location.origin;
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+
+    const qrItems = accessCodes.map((code, i) => `
+      <div class="qr-card">
+        <div id="qr-${i}"></div>
+        <p class="code-label">Pass ${i + 1}</p>
+      </div>
+    `).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>QR Access Codes - ${qrModalEvent.name}</title>
+          <meta charset="UTF-8">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; background: white; }
+            .header { text-align: center; margin-bottom: 24px; }
+            .header h1 { font-size: 24px; color: #1f2937; }
+            .header h2 { font-size: 18px; color: #059669; margin-top: 4px; }
+            .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+            .qr-card { text-align: center; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; }
+            .code-label { font-size: 12px; color: #6b7280; margin-top: 8px; }
+            @media print { body { padding: 0; } .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            ${qrModalEvent.logoUrl ? `<img src="${qrModalEvent.logoUrl}" style="max-height:80px;max-width:200px;object-fit:contain;margin-bottom:8px" />` : ''}
+            <h2>${qrModalEvent.name}</h2>
+            <h1>Scan to Enter the Photo Booth</h1>
+          </div>
+          <div class="grid">${qrItems}</div>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+          <script>
+            window.addEventListener('load', function() {
+              ${accessCodes.map((code, i) => `
+                try { new QRCode(document.getElementById('qr-${i}'), {
+                  text: '${origin}/?access=${code.token}',
+                  width: 150, height: 150,
+                  colorDark: '#000000', colorLight: '#ffffff',
+                  correctLevel: QRCode.CorrectLevel.M
+                }); } catch(e) { console.error('QR ${i} failed', e); }
+              `).join('')}
+              setTimeout(function() { window.print(); }, 1500);
+            });
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const handleSaveUserSettings = async (updates: Partial<UserSettings>) => {
     await updateUserSettings(updates);
     await loadData();
@@ -414,7 +516,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       userId: user?.id || '',
       aspectRatio: 'square',
       limitPhotosPerDevice: false,
-      maxPhotosPerDevice: 0
+      maxPhotosPerDevice: 0,
+      qrAccessEnabled: false
     });
     setActiveTab('create_event');
   };
@@ -1177,7 +1280,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       </button>
 
                       <button
-                        onClick={() => printQRCode(event)}
+                        onClick={() => event.qrAccessEnabled ? openQrAccessModal(event) : printQRCode(event)}
                         className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
                         title="Print QR Code"
                       >
@@ -1321,7 +1424,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                                   </button>
 
                                   <button
-                                    onClick={() => printQRCode(event)}
+                                    onClick={() => event.qrAccessEnabled ? openQrAccessModal(event) : printQRCode(event)}
                                     className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
                                     title="Print QR Code"
                                   >
@@ -1899,8 +2002,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </CollapsibleSection>
 
-              {/* Per-Device Photo Limit */}
-              <CollapsibleSection title="Per-Device Photo Limit" defaultOpen={false}>
+              {/* Kiosk Security */}
+              <CollapsibleSection title="Kiosk Security" defaultOpen={false}>
                 <div className="space-y-4">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -1962,6 +2065,34 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       )}
                     </>
                   )}
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.qrAccessEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, qrAccessEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <span className="text-black">Enable one-time QR access codes</span>
+                    </label>
+                    <p className="text-xs text-slate-500 ml-8">
+                      When enabled, the Print QR button opens a module to generate unique one-time-use QR codes. Each code grants kiosk entry to exactly one guest. Guests scan a code to enter — once used, it cannot be reused.
+                    </p>
+
+                    {editingEvent.qrAccessEnabled && editingEvent.id && (
+                      <div className="ml-8 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => openQrAccessModal(editingEvent as Event)}
+                          className="text-sm text-green-700 hover:text-green-800 font-medium flex items-center gap-2"
+                        >
+                          <QrCode size={16} />
+                          Manage QR Access Codes
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CollapsibleSection>
 
@@ -2600,6 +2731,136 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     Click the reset icon to clear a device's count, allowing that device to take photos again.
                   </p>
                 </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Access Codes Modal */}
+      {showQrModal && qrModalEvent && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); }}
+        >
+          <div
+            className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="bg-green-100 p-2 rounded-lg">
+                  <QrCode className="text-green-700" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">QR Access Codes</h3>
+                  <p className="text-sm text-slate-500">{qrModalEvent.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); }}
+                className="text-slate-600 hover:text-slate-900 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-slate-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-slate-900">{accessCodes.length}</p>
+                  <p className="text-xs text-slate-500 mt-1">Total Codes</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-green-700">{accessCodes.filter(c => !c.isUsed).length}</p>
+                  <p className="text-xs text-slate-500 mt-1">Unused</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-red-600">{accessCodes.filter(c => c.isUsed).length}</p>
+                  <p className="text-xs text-slate-500 mt-1">Used</p>
+                </div>
+              </div>
+
+              {/* Generate */}
+              <div className="border-2 border-slate-200 rounded-lg p-4 space-y-3">
+                <h4 className="text-sm font-bold text-slate-900">Generate New Codes</h4>
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-slate-600">How many?</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={qrGenerateCount}
+                    onChange={(e) => setQrGenerateCount(Math.max(1, Math.min(500, parseInt(e.target.value) || 1)))}
+                    className="w-24 bg-slate-50 border-2 border-slate-300 rounded-lg px-3 py-2 text-sm text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                  />
+                  <button
+                    onClick={handleGenerateCodes}
+                    disabled={isGeneratingCodes}
+                    className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isGeneratingCodes ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Generating...</>
+                    ) : (
+                      <><Plus size={16} /> Generate</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Print / Download */}
+              {accessCodes.length > 0 && (
+                <button
+                  onClick={handlePrintQrCodes}
+                  className="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+                >
+                  <Printer size={18} /> Print / Download All QR Codes
+                </button>
+              )}
+
+              {/* Code List */}
+              {accessCodes.length === 0 ? (
+                <div className="text-center py-12">
+                  <QrCode className="mx-auto mb-4 text-slate-300" size={48} />
+                  <p className="text-slate-500">No codes generated yet.</p>
+                  <p className="text-sm text-slate-400 mt-1">Generate codes above, then print or download them for distribution.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-slate-700">All Codes</h4>
+                  {accessCodes.map((code, i) => (
+                    <div key={code.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-800">Pass {i + 1}</span>
+                          {code.isUsed ? (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Used</span>
+                          ) : (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Available</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 font-mono truncate">
+                          {window.location.origin}/?access={code.token}
+                        </p>
+                        {code.redeemedAt && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            Redeemed: {new Date(code.redeemedAt).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      {!code.isUsed && (
+                        <button
+                          onClick={() => handleDeleteCode(code.id)}
+                          className="ml-3 p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          title="Delete this code"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>

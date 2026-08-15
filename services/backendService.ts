@@ -1,4 +1,4 @@
-import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
 
@@ -769,6 +769,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     uploadOriginalsToGallery: eventData.upload_originals_to_gallery,
     limitPhotosPerDevice: eventData.limit_photos_per_device || false,
     maxPhotosPerDevice: eventData.max_photos_per_device || 0,
+    qrAccessEnabled: eventData.qr_access_enabled || false,
   };
 };
 
@@ -884,6 +885,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
     limit_photos_per_device: event.limitPhotosPerDevice || false,
     max_photos_per_device: event.maxPhotosPerDevice || 0,
+    qr_access_enabled: event.qrAccessEnabled || false,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -2333,4 +2335,104 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
   }
 
   return data === true;
+};
+
+// --- One-Time-Use QR Access Codes ---
+
+const generateSecureToken = (): string => {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+export const generateAccessCodes = async (eventId: string, count: number): Promise<EventAccessCode[]> => {
+  if (count < 1 || count > 500) {
+    throw new Error('Count must be between 1 and 500');
+  }
+
+  const batchId = crypto.randomUUID();
+  const codes = Array.from({ length: count }, () => ({
+    event_id: eventId,
+    token: generateSecureToken(),
+    is_used: false,
+    batch_id: batchId,
+  }));
+
+  const { data, error } = await supabase
+    .from('event_access_codes')
+    .insert(codes)
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to generate access codes: ${error.message}`);
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    eventId: row.event_id,
+    token: row.token,
+    isUsed: row.is_used,
+    redeemedAt: row.redeemed_at,
+    redeemedIp: row.redeemed_ip,
+    redeemedDeviceToken: row.redeemed_device_token,
+    createdAt: row.created_at,
+    batchId: row.batch_id,
+  }));
+};
+
+export const getEventAccessCodes = async (eventId: string): Promise<EventAccessCode[]> => {
+  const { data, error } = await supabase
+    .from('event_access_codes')
+    .select('*')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch access codes: ${error.message}`);
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    eventId: row.event_id,
+    token: row.token,
+    isUsed: row.is_used,
+    redeemedAt: row.redeemed_at,
+    redeemedIp: row.redeemed_ip,
+    redeemedDeviceToken: row.redeemed_device_token,
+    createdAt: row.created_at,
+    batchId: row.batch_id,
+  }));
+};
+
+export const deleteAccessCode = async (codeId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('event_access_codes')
+    .delete()
+    .eq('id', codeId);
+
+  if (error) {
+    throw new Error(`Failed to delete access code: ${error.message}`);
+  }
+};
+
+export const redeemAccessCode = async (token: string, deviceToken?: string): Promise<AccessCodeRedemptionResult> => {
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/redeem-access-code`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ token, deviceToken }),
+  });
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  return data as AccessCodeRedemptionResult;
 };

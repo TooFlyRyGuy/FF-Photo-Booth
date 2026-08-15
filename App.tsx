@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Event } from './types';
 import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
-import { getEventByPasscode, clearUserCache } from './services/backendService';
+import { getEventByPasscode, clearUserCache, redeemAccessCode, getDeviceToken } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -12,7 +12,7 @@ const Signup = lazy(() => import('./components/Signup'));
 const MarketingPage = lazy(() => import('./components/MarketingPage'));
 const PublicLibrary = lazy(() => import('./components/PublicLibrary'));
 
-type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'marketing' | 'library' | 'loading';
+type ViewState = 'landing' | 'login' | 'signup' | 'admin' | 'kiosk' | 'marketing' | 'library' | 'loading' | 'access-denied';
 
 const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
   <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center">
@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [error, setError] = useState('');
   const [eventCode, setEventCode] = useState('');
   const [isLoadingKiosk, setIsLoadingKiosk] = useState(false);
+  const [accessError, setAccessError] = useState('');
 
   return (
     <>
@@ -46,6 +47,8 @@ const App: React.FC = () => {
         setEventCode={setEventCode}
         isLoadingKiosk={isLoadingKiosk}
         setIsLoadingKiosk={setIsLoadingKiosk}
+        accessError={accessError}
+        setAccessError={setAccessError}
       />
     </>
   );
@@ -64,6 +67,8 @@ interface AppContentProps {
   setEventCode: (code: string) => void;
   isLoadingKiosk: boolean;
   setIsLoadingKiosk: (loading: boolean) => void;
+  accessError: string;
+  setAccessError: (error: string) => void;
 }
 
 const AppContent: React.FC<AppContentProps> = ({
@@ -78,7 +83,9 @@ const AppContent: React.FC<AppContentProps> = ({
   eventCode,
   setEventCode,
   isLoadingKiosk,
-  setIsLoadingKiosk
+  setIsLoadingKiosk,
+  accessError,
+  setAccessError
 }) => {
 
   const viewRef = useRef(view);
@@ -127,9 +134,10 @@ const AppContent: React.FC<AppContentProps> = ({
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const kioskPasscode = urlParams.get('kiosk');
+    const accessToken = urlParams.get('access');
     const marketingView = urlParams.get('marketing');
     const libraryView = urlParams.get('library');
-    const isKioskMode = !!kioskPasscode;
+    const isKioskMode = !!kioskPasscode || !!accessToken;
     const isLibraryMode = !!libraryView;
 
     console.log('[App] Init - kiosk passcode:', kioskPasscode, 'marketingView:', marketingView, 'libraryView:', libraryView);
@@ -174,6 +182,41 @@ const AppContent: React.FC<AppContentProps> = ({
           }
         } else {
           setView('landing');
+        }
+        return;
+      }
+
+      if (accessToken) {
+        console.log('[App] Access token detected - redeeming');
+        try {
+          const deviceToken = getDeviceToken();
+          const result = await redeemAccessCode(accessToken, deviceToken);
+          if (result.status === 'success' && result.passcode) {
+            const event = await getEventByPasscode(result.passcode);
+            if (event) {
+              setActiveEvent(event);
+              setView('kiosk');
+            } else {
+              setAccessError('Event not found. Please contact the event organizer.');
+              setView('access-denied');
+            }
+          } else if (result.status === 'already_used') {
+            setAccessError('This access pass has already been used.');
+            setView('access-denied');
+          } else if (result.status === 'disabled') {
+            setAccessError('QR access is not enabled for this event.');
+            setView('access-denied');
+          } else {
+            setAccessError('This access code is invalid.');
+            setView('access-denied');
+          }
+        } catch (err) {
+          console.error('[App] Error redeeming access code:', err);
+          setAccessError('Failed to verify access code. Please try again.');
+          setView('access-denied');
+        }
+        if (session?.user) {
+          setUser(session.user);
         }
         return;
       }
@@ -251,6 +294,27 @@ const AppContent: React.FC<AppContentProps> = ({
       <Suspense fallback={<LoadingSpinner message="Loading Library..." />}>
         <PublicLibrary isAdmin={!!user} />
       </Suspense>
+    );
+  }
+
+  // ACCESS DENIED
+  if (view === 'access-denied') {
+    return (
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center px-4">
+        <div className="text-center space-y-6 max-w-md">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+            <span className="text-4xl">⚠️</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900">Access Unavailable</h1>
+          <p className="text-lg text-slate-600">{accessError || 'This access pass could not be used.'}</p>
+          <button
+            onClick={() => { window.location.href = '/'; }}
+            className="bg-green-700 hover:bg-green-800 text-white font-bold px-6 py-3 rounded-full transition-colors"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
     );
   }
 

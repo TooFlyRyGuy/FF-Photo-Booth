@@ -197,6 +197,26 @@ export interface Event {
   eventSource?: 'subscription' | 'event_pass' | 'admin';
   limitPhotosPerDevice?: boolean;
   maxPhotosPerDevice?: number;
+  qrAccessEnabled?: boolean;
+}
+
+export interface EventAccessCode {
+  id: string;
+  eventId: string;
+  token: string;
+  isUsed: boolean;
+  redeemedAt?: string | null;
+  redeemedIp?: string | null;
+  redeemedDeviceToken?: string | null;
+  createdAt: string;
+  batchId?: string;
+}
+
+export interface AccessCodeRedemptionResult {
+  status: 'success' | 'already_used' | 'invalid' | 'disabled';
+  passcode?: string;
+  eventName?: string;
+  message?: string;
 }
 
 export interface DeviceUsageEntry {
