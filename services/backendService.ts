@@ -583,7 +583,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -668,6 +668,9 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       smugmugGalleryKey: event.smugmug_gallery_key,
       smugmugGalleryUrl: event.smugmug_gallery_url,
       uploadOriginalsToGallery: event.upload_originals_to_gallery,
+      limitPhotosPerDevice: event.limit_photos_per_device || false,
+      maxPhotosPerDevice: event.max_photos_per_device || 0,
+      qrAccessEnabled: event.qr_access_enabled || false,
     });
   }
 
@@ -1836,7 +1839,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1904,6 +1907,9 @@ export const getAllEvents = async (): Promise<Event[]> => {
       smugmugGalleryKey: e.smugmug_gallery_key,
       smugmugGalleryUrl: e.smugmug_gallery_url,
       uploadOriginalsToGallery: e.upload_originals_to_gallery,
+      limitPhotosPerDevice: e.limit_photos_per_device || false,
+      maxPhotosPerDevice: e.max_photos_per_device || 0,
+      qrAccessEnabled: e.qr_access_enabled || false,
     };
   });
 };
@@ -2413,6 +2419,17 @@ export const deleteAccessCode = async (codeId: string): Promise<void> => {
 
   if (error) {
     throw new Error(`Failed to delete access code: ${error.message}`);
+  }
+};
+
+export const deleteAllAccessCodes = async (eventId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('event_access_codes')
+    .delete()
+    .eq('event_id', eventId);
+
+  if (error) {
+    throw new Error(`Failed to delete all access codes: ${error.message}`);
   }
 };
 

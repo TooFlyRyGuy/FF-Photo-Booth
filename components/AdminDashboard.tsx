@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download } from 'lucide-react';
 import Settings from './Settings';
@@ -424,6 +424,23 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       }
     } catch (err) {
       alert(`Failed to delete code: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const [isDeletingAllCodes, setIsDeletingAllCodes] = useState(false);
+
+  const handleDeleteAllCodes = async () => {
+    if (!qrModalEvent) return;
+    if (!confirm('ARE YOU SURE? This will remove all tokens')) return;
+    setIsDeletingAllCodes(true);
+    try {
+      await deleteAllAccessCodes(qrModalEvent.id);
+      const codes = await getEventAccessCodes(qrModalEvent.id);
+      setAccessCodes(codes);
+    } catch (err) {
+      alert(`Failed to delete all codes: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsDeletingAllCodes(false);
     }
   };
 
@@ -2894,7 +2911,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-slate-700">All Codes</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-slate-700">All Codes</h4>
+                    <button
+                      onClick={handleDeleteAllCodes}
+                      disabled={isDeletingAllCodes}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isDeletingAllCodes ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 size={14} />
+                          Delete All
+                        </>
+                      )}
+                    </button>
+                  </div>
                   {accessCodes.map((code, i) => (
                     <div key={code.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
                       <div className="flex-1 min-w-0">
