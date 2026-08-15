@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera } from 'lucide-react';
+import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
@@ -37,12 +37,39 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const [deviceLimitRemaining, setDeviceLimitRemaining] = useState<number | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const kioskContainerRef = useRef<HTMLDivElement>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [isCheckingCredits, setIsCheckingCredits] = useState(false);
+
+  const requestFullscreen = useCallback(async () => {
+    try {
+      const el = kioskContainerRef.current || document.documentElement;
+      if (!document.fullscreenElement && el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else if (!document.fullscreenElement && (el as any).webkitRequestFullscreen) {
+        (el as any).webkitRequestFullscreen();
+      }
+    } catch (err) {
+      console.warn('Fullscreen request failed:', err);
+    }
+  }, []);
+
+  const exitFullscreen = useCallback(() => {
+    try {
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    } catch (err) {
+      console.warn('Exit fullscreen failed:', err);
+    }
+  }, []);
 
   const checkEventTimeStatus = useCallback(() => {
     const now = new Date();
@@ -76,6 +103,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setErrorMsg('Event owner not found. Please contact the administrator.');
       return;
     }
+
+    requestFullscreen();
 
     setIsCheckingCredits(true);
 
@@ -595,8 +624,24 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
   // Handle cleanup on unmount
   useEffect(() => {
-    return () => stopCamera();
-  }, [stopCamera]);
+    return () => {
+      stopCamera();
+      exitFullscreen();
+    };
+  }, [stopCamera, exitFullscreen]);
+
+  // Track fullscreen state changes
+  useEffect(() => {
+    const handleChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleChange);
+    document.addEventListener('webkitfullscreenchange', handleChange as EventListener);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleChange);
+      document.removeEventListener('webkitfullscreenchange', handleChange as EventListener);
+    };
+  }, []);
 
   // Start camera when entering camera view or when facingMode changes
   useEffect(() => {
@@ -633,6 +678,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
   // --- RENDER VIEWS ---
 
+  const renderView = (): React.ReactNode => {
   // EVENT TIME RESTRICTION SCREENS
   if (eventTimeStatus === 'before') {
     const colors = getBrandingColors();
@@ -678,7 +724,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           )}
         </div>
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
-          <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+          <button onClick={handleExitKiosk} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
     );
@@ -731,7 +777,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           </p>
         </div>
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
-          <button onClick={onExit} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+          <button onClick={handleExitKiosk} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
     );
@@ -787,7 +833,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           )}
         </div>
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
-           <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
+           <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">Exit Kiosk</button>
         </div>
       </div>
     );
@@ -873,7 +919,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         </div>
 
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
-          <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
+          <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
             Exit Kiosk
           </button>
         </div>
@@ -927,7 +973,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         </div>
 
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
-          <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
+          <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
             Exit Kiosk
           </button>
         </div>
@@ -1307,6 +1353,40 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   }
 
   return <div>Loading...</div>;
+  };
+
+  const handleExitKiosk = () => {
+    exitFullscreen();
+    onExit();
+  };
+
+  return (
+    <div ref={kioskContainerRef} className="kiosk-fullscreen-container">
+      {renderView()}
+      {!isFullscreen && view !== 'attract' && (
+        <div
+          className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center"
+          onClick={requestFullscreen}
+        >
+          <div className="text-center space-y-4 p-6 max-w-md">
+            <div className="bg-white/10 rounded-full w-20 h-20 flex items-center justify-center mx-auto">
+              <Maximize className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Tap to Return to Fullscreen</h2>
+            <p className="text-sm md:text-base text-slate-300">
+              For the best experience, tap anywhere to return to fullscreen mode.
+            </p>
+            <button
+              onClick={(e) => { e.stopPropagation(); requestFullscreen(); }}
+              className="bg-white text-slate-900 font-bold px-6 py-3 rounded-full text-sm md:text-base hover:bg-slate-100 transition-colors"
+            >
+              Return to Fullscreen
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default KioskMode;
