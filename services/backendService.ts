@@ -1,4 +1,4 @@
-import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
 
@@ -767,6 +767,8 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     smugmugGalleryKey: eventData.smugmug_gallery_key,
     smugmugGalleryUrl: eventData.smugmug_gallery_url,
     uploadOriginalsToGallery: eventData.upload_originals_to_gallery,
+    limitPhotosPerDevice: eventData.limit_photos_per_device || false,
+    maxPhotosPerDevice: eventData.max_photos_per_device || 0,
   };
 };
 
@@ -880,6 +882,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     smugmug_gallery_key: event.smugmugGalleryKey,
     smugmug_gallery_url: event.smugmugGalleryUrl,
     upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
+    limit_photos_per_device: event.limitPhotosPerDevice || false,
+    max_photos_per_device: event.maxPhotosPerDevice || 0,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1289,6 +1293,96 @@ export const getEventPhoneNumbers = async (eventId: string): Promise<EventPhoneE
     status: row.status,
     imageId: row.image_id,
   }));
+};
+
+// --- Per-Device Photo Limit ---
+
+const DEVICE_TOKEN_KEY = 'ffp_device_token';
+
+export const getDeviceToken = (): string => {
+  let token = localStorage.getItem(DEVICE_TOKEN_KEY);
+  if (!token) {
+    token = crypto.randomUUID() + '-' + Date.now().toString(36);
+    localStorage.setItem(DEVICE_TOKEN_KEY, token);
+  }
+  return token;
+};
+
+export const checkDeviceLimit = async (eventId: string): Promise<DeviceLimitCheckResult> => {
+  const deviceToken = getDeviceToken();
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-device-limit`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ eventId, deviceToken, action: 'check' }),
+  });
+  if (!response.ok) {
+    throw new Error(`Device limit check failed (${response.status})`);
+  }
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+  return data as DeviceLimitCheckResult;
+};
+
+export const incrementDeviceUsage = async (eventId: string): Promise<DeviceLimitCheckResult> => {
+  const deviceToken = getDeviceToken();
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-device-limit`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ eventId, deviceToken, action: 'increment' }),
+  });
+  if (!response.ok && response.status !== 403) {
+    throw new Error(`Device usage increment failed (${response.status})`);
+  }
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+  return data as DeviceLimitCheckResult;
+};
+
+export const getEventDeviceUsage = async (eventId: string): Promise<DeviceUsageEntry[]> => {
+  const { data, error } = await supabase
+    .from('event_device_usage')
+    .select('id, device_token, ip_address, photo_count, last_interaction_at, created_at')
+    .eq('event_id', eventId)
+    .order('last_interaction_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch device usage: ${error.message}`);
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    deviceId: row.id,
+    deviceToken: row.device_token,
+    ipAddress: row.ip_address,
+    photoCount: row.photo_count,
+    lastInteractionAt: row.last_interaction_at,
+    createdAt: row.created_at,
+  }));
+};
+
+export const resetDeviceUsage = async (deviceUsageId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('event_device_usage')
+    .delete()
+    .eq('id', deviceUsageId);
+
+  if (error) {
+    throw new Error(`Failed to reset device: ${error.message}`);
+  }
 };
 
 export const deleteEvent = async (eventId: string): Promise<void> => {

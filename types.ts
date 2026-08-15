@@ -195,6 +195,26 @@ export interface Event {
   passId?: string;
   passExpiresAt?: string;
   eventSource?: 'subscription' | 'event_pass' | 'admin';
+  limitPhotosPerDevice?: boolean;
+  maxPhotosPerDevice?: number;
+}
+
+export interface DeviceUsageEntry {
+  id: string;
+  deviceId: string;
+  deviceToken: string;
+  ipAddress: string | null;
+  photoCount: number;
+  lastInteractionAt: string;
+  createdAt: string;
+}
+
+export interface DeviceLimitCheckResult {
+  allowed: boolean;
+  limitEnabled: boolean;
+  photoCount: number;
+  maxPhotos: number;
+  remaining: number | null;
 }
 
 export interface GeneratedImage {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -103,6 +103,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [eventTimezone, setEventTimezone] = useState<string>('');
   const [isStartTimeLocked, setIsStartTimeLocked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [deviceUsageEntries, setDeviceUsageEntries] = useState<DeviceUsageEntry[]>([]);
+  const [loadingDeviceUsage, setLoadingDeviceUsage] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -409,7 +411,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       isActive: true,
       prompts: [],
       userId: user?.id || '',
-      aspectRatio: 'square'
+      aspectRatio: 'square',
+      limitPhotosPerDevice: false,
+      maxPhotosPerDevice: 0
     });
     setActiveTab('create_event');
   };
@@ -1894,6 +1898,113 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </CollapsibleSection>
 
+              {/* Per-Device Photo Limit */}
+              <CollapsibleSection title="Per-Device Photo Limit" defaultOpen={false}>
+                <div className="space-y-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingEvent.limitPhotosPerDevice || false}
+                      onChange={(e) => setEditingEvent({...editingEvent, limitPhotosPerDevice: e.target.checked})}
+                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                    />
+                    <span className="text-black">Limit photos per device</span>
+                  </label>
+                  <p className="text-xs text-slate-500 ml-8">
+                    When enabled, each device (identified by a browser token and IP address) can only take a set number of photos at this event. Only successfully generated photos count toward the limit.
+                  </p>
+
+                  {editingEvent.limitPhotosPerDevice && (
+                    <>
+                      <div className="space-y-2 ml-8 pt-2">
+                        <label className="text-sm font-medium text-slate-700">Maximum photos per device</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={1000}
+                          value={editingEvent.maxPhotosPerDevice || 0}
+                          onChange={(e) => setEditingEvent({...editingEvent, maxPhotosPerDevice: parseInt(e.target.value) || 0})}
+                          className="w-32 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                          placeholder="e.g. 5"
+                        />
+                        <p className="text-xs text-slate-500">
+                          The number of photos each device can generate at this event.
+                        </p>
+                      </div>
+
+                      {editingEvent.id && (
+                        <div className="ml-8 pt-4 border-t border-slate-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                              <Smartphone size={16} />
+                              Tracked Devices
+                            </p>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!editingEvent.id) return;
+                                setLoadingDeviceUsage(true);
+                                try {
+                                  const entries = await getEventDeviceUsage(editingEvent.id);
+                                  setDeviceUsageEntries(entries);
+                                } catch (err) {
+                                  console.error('Failed to load device usage:', err);
+                                } finally {
+                                  setLoadingDeviceUsage(false);
+                                }
+                              }}
+                              className="text-xs text-green-700 hover:text-green-800 font-medium flex items-center gap-1"
+                            >
+                              <RotateCcw size={14} /> Refresh
+                            </button>
+                          </div>
+
+                          {loadingDeviceUsage ? (
+                            <p className="text-xs text-slate-500">Loading...</p>
+                          ) : deviceUsageEntries.length === 0 ? (
+                            <p className="text-xs text-slate-500">No devices tracked yet. Device usage will appear here once guests start using the kiosk.</p>
+                          ) : (
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                              {deviceUsageEntries.map(entry => (
+                                <div key={entry.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-slate-800 font-mono truncate">
+                                      {entry.deviceToken.substring(0, 18)}...
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      {entry.photoCount} {entry.photoCount === 1 ? 'photo' : 'photos'} | {entry.ipAddress || 'IP unknown'} | Last used: {new Date(entry.lastInteractionAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        await resetDeviceUsage(entry.id);
+                                        setDeviceUsageEntries(prev => prev.filter(e => e.id !== entry.id));
+                                      } catch (err) {
+                                        console.error('Failed to reset device:', err);
+                                        alert('Failed to reset device. Please try again.');
+                                      }
+                                    }}
+                                    className="ml-3 p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                    title="Reset this device's count"
+                                  >
+                                    <RotateCcw size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-xs text-slate-400 mt-2">
+                            Click the reset icon to clear a device's count, allowing that device to take photos again.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </CollapsibleSection>
+
               {/* Add-Ons Showcase - Hidden for now */}
               {/* <AddOnShowcase /> */}
 
@@ -2224,7 +2335,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </div>
             </header>
 
-            <EventAnalytics eventId={analyticsEvent.id} eventName={analyticsEvent.name} />
+            <EventAnalytics eventId={analyticsEvent.id} eventName={analyticsEvent.name} limitPhotosPerDevice={analyticsEvent.limitPhotosPerDevice} maxPhotosPerDevice={analyticsEvent.maxPhotosPerDevice} />
           </div>
         )}
 

@@ -3,7 +3,7 @@ import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, Switc
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings } from '../services/backendService';
+import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
@@ -17,7 +17,7 @@ interface KioskProps {
   onLoaded?: () => void;
 }
 
-type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits';
+type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [view, setView] = useState<KioskState>('attract');
@@ -36,6 +36,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
   const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
   const [uploadProgress, setUploadProgress] = useState<string>('');
+  const [deviceLimitRemaining, setDeviceLimitRemaining] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -79,6 +80,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setIsCheckingCredits(true);
 
     try {
+      if (event.limitPhotosPerDevice) {
+        try {
+          const deviceCheck = await checkDeviceLimit(event.id);
+          if (!deviceCheck.allowed) {
+            setView('device-limit-reached');
+            return;
+          }
+          setDeviceLimitRemaining(deviceCheck.remaining);
+        } catch (err) {
+          console.error('Device limit check failed, allowing through:', err);
+        }
+      }
+
       const creditCheck = await checkCreditAvailability(event.userId, 'image');
 
       if (!creditCheck.available) {
@@ -408,6 +422,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       const consumed = await consumeCredit(event.userId);
       if (!consumed) {
         console.error('Failed to consume credit, but image was generated');
+      }
+
+      if (event.limitPhotosPerDevice) {
+        try {
+          const incResult = await incrementDeviceUsage(event.id);
+          setDeviceLimitRemaining(incResult.remaining);
+        } catch (err) {
+          console.error('Failed to increment device usage:', err);
+        }
       }
 
       setGeneratedImageId(imageId);
@@ -755,6 +778,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 TAP TO START
               </h1>
               <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">AI Photo Experience</p>
+              {event.limitPhotosPerDevice && deviceLimitRemaining !== null && deviceLimitRemaining > 0 && (
+                <p className="text-sm md:text-lg text-slate-700 font-medium mt-2">
+                  {deviceLimitRemaining} of {event.maxPhotosPerDevice} {event.maxPhotosPerDevice === 1 ? 'photo' : 'photos'} remaining on this device
+                </p>
+              )}
             </>
           )}
         </div>
@@ -841,6 +869,60 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 Contact the event organizer or visit your account dashboard to manage your credits and subscription.
               </p>
             </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
+          <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
+            Exit Kiosk
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // DEVICE LIMIT REACHED SCREEN
+  if (view === 'device-limit-reached') {
+    const colors = getBrandingColors();
+    return (
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden px-4">
+        <div className="absolute inset-0 opacity-10">
+          <div className="w-full h-full bg-gradient-to-br from-amber-600 to-amber-800"></div>
+        </div>
+
+        {event.logoUrl && !event.hideLogo && (
+          <div className="absolute top-4 left-4 md:top-8 md:left-8 z-20">
+            <img src={event.logoUrl} alt={event.name} className="h-12 md:h-24 object-contain" />
+          </div>
+        )}
+
+        <div className="z-10 text-center space-y-6 md:space-y-8 max-w-2xl">
+          <div
+            className="h-20 w-20 md:h-32 md:w-32 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-lg"
+            style={{
+              backgroundColor: '#f59e0b',
+              boxShadow: '0 10px 30px rgba(245, 158, 11, 0.5)',
+            }}
+          >
+            <Camera className="w-10 h-10 md:w-16 md:h-16 text-white" />
+          </div>
+
+          <h1
+            className="text-3xl md:text-5xl lg:text-7xl font-display font-bold"
+            style={{ color: colors.secondary }}
+          >
+            PHOTO LIMIT REACHED
+          </h1>
+
+          <p className="text-lg md:text-2xl text-slate-900 font-light">
+            This device has already taken its allowed number of photos for this event
+          </p>
+
+          <div className="mt-8 p-4 md:p-6 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
+            <p className="text-sm md:text-base text-slate-700">
+              <strong>Limit:</strong> {event.maxPhotosPerDevice} {event.maxPhotosPerDevice === 1 ? 'photo' : 'photos'} per device<br />
+              Please ask the event organizer if you need assistance.
+            </p>
           </div>
         </div>
 
