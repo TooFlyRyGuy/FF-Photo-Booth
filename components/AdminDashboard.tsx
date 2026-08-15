@@ -105,6 +105,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [deviceUsageEntries, setDeviceUsageEntries] = useState<DeviceUsageEntry[]>([]);
   const [loadingDeviceUsage, setLoadingDeviceUsage] = useState(false);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -1934,69 +1935,28 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
                       {editingEvent.id && (
                         <div className="ml-8 pt-4 border-t border-slate-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                              <Smartphone size={16} />
-                              Tracked Devices
-                            </p>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!editingEvent.id) return;
-                                setLoadingDeviceUsage(true);
-                                try {
-                                  const entries = await getEventDeviceUsage(editingEvent.id);
-                                  setDeviceUsageEntries(entries);
-                                } catch (err) {
-                                  console.error('Failed to load device usage:', err);
-                                } finally {
-                                  setLoadingDeviceUsage(false);
-                                }
-                              }}
-                              className="text-xs text-green-700 hover:text-green-800 font-medium flex items-center gap-1"
-                            >
-                              <RotateCcw size={14} /> Refresh
-                            </button>
-                          </div>
-
-                          {loadingDeviceUsage ? (
-                            <p className="text-xs text-slate-500">Loading...</p>
-                          ) : deviceUsageEntries.length === 0 ? (
-                            <p className="text-xs text-slate-500">No devices tracked yet. Device usage will appear here once guests start using the kiosk.</p>
-                          ) : (
-                            <div className="space-y-2 max-h-64 overflow-y-auto">
-                              {deviceUsageEntries.map(entry => (
-                                <div key={entry.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-slate-800 font-mono truncate">
-                                      {entry.deviceToken.substring(0, 18)}...
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {entry.photoCount} {entry.photoCount === 1 ? 'photo' : 'photos'} | {entry.ipAddress || 'IP unknown'} | Last used: {new Date(entry.lastInteractionAt).toLocaleDateString()}
-                                    </p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      try {
-                                        await resetDeviceUsage(entry.id);
-                                        setDeviceUsageEntries(prev => prev.filter(e => e.id !== entry.id));
-                                      } catch (err) {
-                                        console.error('Failed to reset device:', err);
-                                        alert('Failed to reset device. Please try again.');
-                                      }
-                                    }}
-                                    className="ml-3 p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                                    title="Reset this device's count"
-                                  >
-                                    <RotateCcw size={16} />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!editingEvent.id) return;
+                              setShowDeviceModal(true);
+                              setLoadingDeviceUsage(true);
+                              try {
+                                const entries = await getEventDeviceUsage(editingEvent.id);
+                                setDeviceUsageEntries(entries);
+                              } catch (err) {
+                                console.error('Failed to load device usage:', err);
+                              } finally {
+                                setLoadingDeviceUsage(false);
+                              }
+                            }}
+                            className="text-sm text-green-700 hover:text-green-800 font-medium flex items-center gap-2"
+                          >
+                            <Smartphone size={16} />
+                            View Tracked Devices
+                          </button>
                           <p className="text-xs text-slate-400 mt-2">
-                            Click the reset icon to clear a device's count, allowing that device to take photos again.
+                            Opens a separate window showing each device's photo count with the ability to reset individual devices.
                           </p>
                         </div>
                       )}
@@ -2534,6 +2494,116 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             }
           }}
         />
+      )}
+
+      {/* Tracked Devices Modal */}
+      {showDeviceModal && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDeviceModal(false)}
+          onKeyDown={() => {}}
+        >
+          <div
+            className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-100 p-2 rounded-lg">
+                  <Smartphone className="text-amber-700" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Tracked Devices</h3>
+                  <p className="text-sm text-slate-500">{editingEvent.name}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!editingEvent.id) return;
+                    setLoadingDeviceUsage(true);
+                    try {
+                      const entries = await getEventDeviceUsage(editingEvent.id);
+                      setDeviceUsageEntries(entries);
+                    } catch (err) {
+                      console.error('Failed to load device usage:', err);
+                    } finally {
+                      setLoadingDeviceUsage(false);
+                    }
+                  }}
+                  className="text-xs text-green-700 hover:text-green-800 font-medium flex items-center gap-1"
+                >
+                  <RotateCcw size={14} /> Refresh
+                </button>
+                <button
+                  onClick={() => setShowDeviceModal(false)}
+                  className="text-slate-600 hover:text-slate-900 text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingDeviceUsage ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-700"></div>
+                </div>
+              ) : deviceUsageEntries.length === 0 ? (
+                <div className="text-center py-12">
+                  <Smartphone className="mx-auto mb-4 text-slate-300" size={48} />
+                  <p className="text-slate-500">No devices tracked yet.</p>
+                  <p className="text-sm text-slate-400 mt-1">Device usage will appear here once guests start using the kiosk.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm text-slate-600">
+                      <strong>{deviceUsageEntries.length}</strong> {deviceUsageEntries.length === 1 ? 'device' : 'devices'} tracked
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Limit: {editingEvent.maxPhotosPerDevice} {editingEvent.maxPhotosPerDevice === 1 ? 'photo' : 'photos'} per device
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {deviceUsageEntries.map(entry => (
+                      <div key={entry.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-800 font-mono truncate">
+                            {entry.deviceToken.substring(0, 18)}...
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {entry.photoCount} {entry.photoCount === 1 ? 'photo' : 'photos'} | {entry.ipAddress || 'IP unknown'} | Last used: {new Date(entry.lastInteractionAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await resetDeviceUsage(entry.id);
+                              setDeviceUsageEntries(prev => prev.filter(e => e.id !== entry.id));
+                            } catch (err) {
+                              console.error('Failed to reset device:', err);
+                              alert('Failed to reset device. Please try again.');
+                            }
+                          }}
+                          className="ml-3 p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          title="Reset this device's count"
+                        >
+                          <RotateCcw size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-4">
+                    Click the reset icon to clear a device's count, allowing that device to take photos again.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Event Access Management Modal */}
