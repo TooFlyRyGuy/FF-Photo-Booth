@@ -21,6 +21,8 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { QRCodeSVG } from 'qrcode.react';
+import QRCodeLib from 'qrcode';
+import JSZip from 'jszip';
 import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface AdminProps {
@@ -481,6 +483,57 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       </html>
     `);
     printWindow.document.close();
+  };
+
+  const [isDownloadingCodes, setIsDownloadingCodes] = useState(false);
+
+  const handleDownloadQrCodes = async () => {
+    if (!qrModalEvent || accessCodes.length === 0) return;
+    const unusedCodes = accessCodes.filter(c => !c.isUsed);
+    if (unusedCodes.length === 0) {
+      alert('No unused codes available to download.');
+      return;
+    }
+    setIsDownloadingCodes(true);
+    try {
+      const origin = window.location.origin;
+      const zip = new JSZip();
+      const folder = zip.folder(`QR-Codes-${qrModalEvent.name.replace(/[^a-zA-Z0-9]/g, '_')}`)!;
+
+      for (let i = 0; i < unusedCodes.length; i++) {
+        const code = unusedCodes[i];
+        const url = `${origin}/?access=${code.token}`;
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 600;
+        await QRCodeLib.toCanvas(canvas, url, {
+          width: 600,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' },
+          errorCorrectionLevel: 'M',
+        });
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.95);
+        });
+        const passNum = accessCodes.indexOf(code) + 1;
+        folder.file(`Pass-${passNum}.jpg`, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const downloadUrl = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `QR-Codes-${qrModalEvent.name.replace(/[^a-zA-Z0-9]/g, '_')}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert(`Failed to download QR codes: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsDownloadingCodes(false);
+    }
   };
 
   const handleSaveUserSettings = async (updates: Partial<UserSettings>) => {
@@ -2811,12 +2864,25 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
               {/* Print / Download */}
               {accessCodes.length > 0 && (
-                <button
-                  onClick={handlePrintQrCodes}
-                  className="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
-                >
-                  <Printer size={18} /> Print / Download All QR Codes
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handlePrintQrCodes}
+                    className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+                  >
+                    <Printer size={18} /> Print QR Codes
+                  </button>
+                  <button
+                    onClick={handleDownloadQrCodes}
+                    disabled={isDownloadingCodes}
+                    className="flex-1 bg-green-700 hover:bg-green-800 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isDownloadingCodes ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Zipping...</>
+                    ) : (
+                      <><Download size={18} /> Download QR Codes</>
+                    )}
+                  </button>
+                </div>
               )}
 
               {/* Code List */}
