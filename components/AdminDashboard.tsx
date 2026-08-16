@@ -446,54 +446,107 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   const handlePrintQrCodes = () => {
     if (!qrModalEvent || accessCodes.length === 0) return;
+
     const origin = window.location.origin;
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) return;
 
-    const qrItems = accessCodes.map((code, i) => `
-      <div class="qr-card">
-        <div id="qr-${i}"></div>
-        <p class="code-label">Pass ${i + 1}</p>
-      </div>
-    `).join('');
+    const pageSize = 48;
+    const pageCount = Math.ceil(accessCodes.length / pageSize);
+    const pages = Array.from({ length: pageCount }, (_, pageIndex) => {
+      const pageCodes = accessCodes.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+      const labels = Array.from({ length: pageSize }, (_, slotIndex) => {
+        const code = pageCodes[slotIndex];
+        const codeIndex = pageIndex * pageSize + slotIndex;
+        return `
+          <div class="label-slot">
+            ${code ? `<div id="qr-${codeIndex}" class="qr-code"></div>` : ''}
+          </div>
+        `;
+      }).join('');
+
+      return `<div class="label-page">${labels}</div>`;
+    }).join('');
+
+    const qrScripts = accessCodes.map((code, index) => {
+      const url = `${origin}/?access=${encodeURIComponent(code.token)}`;
+      return `
+        try {
+          new QRCode(document.getElementById('qr-${index}'), {
+            text: ${JSON.stringify(url)},
+            width: 84,
+            height: 84,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        } catch (error) {
+          console.error('QR code generation failed', error);
+        }
+      `;
+    }).join('');
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>QR Access Codes - ${qrModalEvent.name}</title>
+          <title>Avery 94103 QR Access Codes</title>
           <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
+            @page { size: letter portrait; margin: 0.625in; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; background: white; }
-            .header { text-align: center; margin-bottom: 24px; }
-            .header h1 { font-size: 24px; color: #1f2937; }
-            .header h2 { font-size: 18px; color: #059669; margin-top: 4px; }
-            .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
-            .qr-card { text-align: center; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; }
-            .code-label { font-size: 12px; color: #6b7280; margin-top: 8px; }
-            @media print { body { padding: 0; } .no-print { display: none; } }
+            html, body { width: 100%; background: white; }
+            body { font-family: Arial, sans-serif; }
+            .label-page {
+              width: 7.25in;
+              height: 9.75in;
+              display: grid;
+              grid-template-columns: repeat(6, 1in);
+              grid-template-rows: repeat(8, 1in);
+              column-gap: 0.25in;
+              row-gap: 0.25in;
+              page-break-after: always;
+              break-after: page;
+            }
+            .label-page:last-of-type { page-break-after: auto; break-after: auto; }
+            .label-slot {
+              width: 1in;
+              height: 1in;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            }
+            .qr-code {
+              width: 0.875in;
+              height: 0.875in;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .qr-code img, .qr-code canvas {
+              display: block;
+              width: 0.875in !important;
+              height: 0.875in !important;
+            }
+            @media screen {
+              body { padding: 0.625in; }
+              .label-page { outline: 1px dashed #cbd5e1; margin-bottom: 0.25in; }
+              .label-slot { outline: 1px dashed #e2e8f0; }
+            }
+            @media print {
+              body { padding: 0; }
+            }
           </style>
         </head>
         <body>
-          <div class="header">
-            ${qrModalEvent.logoUrl ? `<img src="${qrModalEvent.logoUrl}" style="max-height:80px;max-width:200px;object-fit:contain;margin-bottom:8px" />` : ''}
-            <h2>${qrModalEvent.name}</h2>
-            <h1>Scan to Enter the Photo Booth</h1>
-          </div>
-          <div class="grid">${qrItems}</div>
+          ${pages}
           <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
           <script>
             window.addEventListener('load', function() {
-              ${accessCodes.map((code, i) => `
-                try { new QRCode(document.getElementById('qr-${i}'), {
-                  text: '${origin}/?access=${code.token}',
-                  width: 150, height: 150,
-                  colorDark: '#000000', colorLight: '#ffffff',
-                  correctLevel: QRCode.CorrectLevel.M
-                }); } catch(e) { console.error('QR ${i} failed', e); }
-              `).join('')}
-              setTimeout(function() { window.print(); }, 1500);
+              ${qrScripts}
+              setTimeout(function() { window.print(); }, 1200);
             });
           </script>
         </body>
