@@ -23,6 +23,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { QRCodeSVG } from 'qrcode.react';
 import QRCodeLib from 'qrcode';
 import JSZip from 'jszip';
+import { jsPDF } from 'jspdf';
 import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface AdminProps {
@@ -444,111 +445,65 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
-  const handlePrintQrCodes = () => {
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handlePrintQrCodes = async () => {
     if (!qrModalEvent || accessCodes.length === 0) return;
+    setIsGeneratingPdf(true);
+    try {
+      const origin = window.location.origin;
+      const pdf = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
 
-    const origin = window.location.origin;
-    const printWindow = window.open('', '_blank', 'width=900,height=700');
-    if (!printWindow) return;
+      const MARGIN = 0.625;
+      const LABEL_SIZE = 1;
+      const GAP = 0.25;
+      const COLS = 6;
+      const ROWS = 8;
+      const QR_SIZE = 0.875;
+      const QR_OFFSET = (LABEL_SIZE - QR_SIZE) / 2;
+      const PER_PAGE = COLS * ROWS;
+      const pageCount = Math.ceil(accessCodes.length / PER_PAGE);
 
-    const pageSize = 48;
-    const pageCount = Math.ceil(accessCodes.length / pageSize);
-    const pages = Array.from({ length: pageCount }, (_, pageIndex) => {
-      const pageCodes = accessCodes.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
-      const labels = Array.from({ length: pageSize }, (_, slotIndex) => {
-        const code = pageCodes[slotIndex];
-        const codeIndex = pageIndex * pageSize + slotIndex;
-        return `
-          <div class="label-slot">
-            ${code ? `<div id="qr-${codeIndex}" class="qr-code"></div>` : ''}
-          </div>
-        `;
-      }).join('');
+      for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+        if (pageIndex > 0) pdf.addPage();
 
-      return `<div class="label-page">${labels}</div>`;
-    }).join('');
+        const pageCodes = accessCodes.slice(pageIndex * PER_PAGE, (pageIndex + 1) * PER_PAGE);
 
-    const qrScripts = accessCodes.map((code, index) => {
-      const url = `${origin}/?access=${encodeURIComponent(code.token)}`;
-      return `
-        try {
-          new QRCode(document.getElementById('qr-${index}'), {
-            text: ${JSON.stringify(url)},
-            width: 84,
-            height: 84,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.M
+        for (let slotIndex = 0; slotIndex < pageCodes.length; slotIndex++) {
+          const code = pageCodes[slotIndex];
+          const col = slotIndex % COLS;
+          const row = Math.floor(slotIndex / COLS);
+          const x = MARGIN + col * (LABEL_SIZE + GAP);
+          const y = MARGIN + row * (LABEL_SIZE + GAP);
+
+          const url = `${origin}/?access=${encodeURIComponent(code.token)}`;
+          const canvas = document.createElement('canvas');
+          canvas.width = 300;
+          canvas.height = 300;
+          await QRCodeLib.toCanvas(canvas, url, {
+            width: 300,
+            margin: 1,
+            color: { dark: '#000000', light: '#ffffff' },
+            errorCorrectionLevel: 'M',
           });
-        } catch (error) {
-          console.error('QR code generation failed', error);
+          const dataUrl = canvas.toDataURL('image/png');
+          pdf.addImage(dataUrl, 'PNG', x + QR_OFFSET, y + QR_OFFSET, QR_SIZE, QR_SIZE);
         }
-      `;
-    }).join('');
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Avery 94103 QR Access Codes</title>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            @page { size: letter portrait; margin: 0; }
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            html, body { background: white; }
-            body { font-family: Arial, sans-serif; padding: 0.625in; }
-            .label-page {
-              width: 7.25in;
-              height: 9.75in;
-              display: grid;
-              grid-template-columns: repeat(6, 1in);
-              grid-template-rows: repeat(8, 1in);
-              column-gap: 0.25in;
-              row-gap: 0.25in;
-              page-break-after: always;
-              break-after: page;
-            }
-            .label-page:last-of-type { page-break-after: auto; break-after: auto; }
-            .label-slot {
-              width: 1in;
-              height: 1in;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              overflow: hidden;
-            }
-            .qr-code {
-              width: 0.875in;
-              height: 0.875in;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-            .qr-code img, .qr-code canvas {
-              display: block;
-              width: 0.875in !important;
-              height: 0.875in !important;
-            }
-            @media screen {
-              .label-page { outline: 1px dashed #cbd5e1; margin-bottom: 0.25in; }
-              .label-slot { outline: 1px dashed #e2e8f0; }
-            }
-          </style>
-        </head>
-        <body>
-          ${pages}
-          <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-          <script>
-            window.addEventListener('load', function() {
-              ${qrScripts}
-              setTimeout(function() { window.print(); }, 1200);
-            });
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+        const labelY = MARGIN + ROWS * (LABEL_SIZE + GAP) - GAP + 0.15;
+        pdf.setFontSize(7);
+        pdf.setTextColor(150);
+        pdf.text('Avery Presta 94103 - 1 inch square labels, 48 per sheet', MARGIN, labelY);
+      }
+
+      const safeName = qrModalEvent.name.replace(/[^a-zA-Z0-9]/g, '_');
+      pdf.save(`QR-Codes-${safeName}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert(`Failed to generate PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const [isDownloadingCodes, setIsDownloadingCodes] = useState(false);
@@ -2933,9 +2888,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <div className="flex gap-3">
                   <button
                     onClick={handlePrintQrCodes}
-                    className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+                    disabled={isGeneratingPdf}
+                    className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <Printer size={18} /> Print QR Codes
+                    {isGeneratingPdf ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Generating PDF...</>
+                    ) : (
+                      <><Printer size={18} /> Print QR Codes (PDF)</>
+                    )}
                   </button>
                   <button
                     onClick={handleDownloadQrCodes}
