@@ -494,10 +494,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            @page { size: letter portrait; margin: 0.625in; }
+            @page { size: letter portrait; margin: 0; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            html, body { width: 100%; background: white; }
-            body { font-family: Arial, sans-serif; }
+            html, body { background: white; }
+            body { font-family: Arial, sans-serif; padding: 0.625in; }
             .label-page {
               width: 7.25in;
               height: 9.75in;
@@ -531,12 +531,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               height: 0.875in !important;
             }
             @media screen {
-              body { padding: 0.625in; }
               .label-page { outline: 1px dashed #cbd5e1; margin-bottom: 0.25in; }
               .label-slot { outline: 1px dashed #e2e8f0; }
-            }
-            @media print {
-              body { padding: 0; }
             }
           </style>
         </head>
