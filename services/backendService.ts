@@ -583,7 +583,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -671,6 +671,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       limitPhotosPerDevice: event.limit_photos_per_device || false,
       maxPhotosPerDevice: event.max_photos_per_device || 0,
       qrAccessEnabled: event.qr_access_enabled || false,
+      galleryEnabled: event.gallery_enabled || false,
     });
   }
 
@@ -773,6 +774,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     limitPhotosPerDevice: eventData.limit_photos_per_device || false,
     maxPhotosPerDevice: eventData.max_photos_per_device || 0,
     qrAccessEnabled: eventData.qr_access_enabled || false,
+    galleryEnabled: eventData.gallery_enabled || false,
   };
 };
 
@@ -889,6 +891,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     limit_photos_per_device: event.limitPhotosPerDevice || false,
     max_photos_per_device: event.maxPhotosPerDevice || 0,
     qr_access_enabled: event.qrAccessEnabled || false,
+    gallery_enabled: event.galleryEnabled || false,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1839,7 +1842,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1910,6 +1913,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
       limitPhotosPerDevice: e.limit_photos_per_device || false,
       maxPhotosPerDevice: e.max_photos_per_device || 0,
       qrAccessEnabled: e.qr_access_enabled || false,
+      galleryEnabled: e.gallery_enabled || false,
     };
   });
 };

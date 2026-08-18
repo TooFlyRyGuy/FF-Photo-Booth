@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize } from 'lucide-react';
+import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Images } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
@@ -1230,6 +1230,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </button>
                 </div>
 
+                {event.galleryEnabled && event.smugmugGalleryUrl && (
+                  <button
+                    onClick={() => window.open(event.smugmugGalleryUrl!, '_blank', 'noopener,noreferrer')}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-colors flex items-center justify-center gap-2 min-h-[44px] border-2 border-slate-300"
+                  >
+                    <Images size={18} className="md:w-6 md:h-6" /> View Event Gallery
+                  </button>
+                )}
+
                 <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-8">Starting over in {deliveryCountdown} seconds...</p>
                 <button onClick={resetKiosk} className="text-xs md:text-sm text-slate-600 hover:text-slate-900 py-2">
                   Start Over Now
@@ -1330,6 +1339,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                           </div>
                       </div>
                   </div>
+                )}
+
+                {event.galleryEnabled && event.smugmugGalleryUrl && (
+                  <button
+                    onClick={() => window.open(event.smugmugGalleryUrl!, '_blank', 'noopener,noreferrer')}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-colors flex items-center justify-center gap-2 min-h-[44px] border-2 border-slate-300"
+                  >
+                    <Images size={18} className="md:w-6 md:h-6" /> View Event Gallery
+                  </button>
                 )}
 
                 <button onClick={resetKiosk} className="text-center text-xs md:text-base text-slate-600 hover:text-slate-900 active:text-slate-900 py-2">

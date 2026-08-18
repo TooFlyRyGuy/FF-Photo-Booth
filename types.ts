@@ -198,6 +198,7 @@ export interface Event {
   limitPhotosPerDevice?: boolean;
   maxPhotosPerDevice?: number;
   qrAccessEnabled?: boolean;
+  galleryEnabled?: boolean;
 }
 
 export interface EventAccessCode {

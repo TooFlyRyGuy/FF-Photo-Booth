@@ -591,7 +591,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       aspectRatio: 'square',
       limitPhotosPerDevice: false,
       maxPhotosPerDevice: 0,
-      qrAccessEnabled: false
+      qrAccessEnabled: false,
+      galleryEnabled: false
     });
     setActiveTab('create_event');
   };
@@ -2167,6 +2168,23 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       </div>
                     )}
                   </div>
+
+                  {editingEvent.smugmugGalleryUrl && (
+                    <div className="pt-4 border-t border-slate-200">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingEvent.galleryEnabled || false}
+                          onChange={(e) => setEditingEvent({...editingEvent, galleryEnabled: e.target.checked})}
+                          className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                        />
+                        <span className="text-black">Show gallery at sharing station</span>
+                      </label>
+                      <p className="text-xs text-slate-500 ml-8">
+                        When enabled, guests see a "View Event Gallery" button on the sharing screen that opens your connected SmugMug gallery in a new tab so they can browse all photos from the event.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CollapsibleSection>
 
