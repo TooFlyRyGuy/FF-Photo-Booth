@@ -2212,105 +2212,108 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               {/* Add-Ons Showcase - Hidden for now */}
               {/* <AddOnShowcase /> */}
 
-              {/* SMS Message Customization */}
-              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
-                <h3 className="text-lg font-bold text-black mb-2">SMS Message Settings</h3>
-                <p className="text-sm text-slate-600 mb-4">
-                  Customize the text message sent when photos are delivered via SMS
-                </p>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">SMS Message Template</label>
-                  <textarea
-                    value={editingEvent.smsMessage || "Here's your AI-generated photo from {event_name}! {image_url}"}
-                    onChange={(e) => setEditingEvent({...editingEvent, smsMessage: e.target.value})}
-                    rows={3}
-                    placeholder="Here's your AI-generated photo from {event_name}! {image_url}"
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none resize-none"
-                  />
-                  <p className="text-xs text-slate-500">
-                    Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
-                  </p>
-                </div>
-              </div>
-
-              {/* Sharing Options */}
-              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
-                <h3 className="text-lg font-bold text-black mb-2">Sharing Options</h3>
+              {/* Sharing Settings */}
+              <CollapsibleSection title="Sharing Settings" defaultOpen={false}>
                 <p className="text-sm text-slate-600 mb-4">
                   Choose which delivery methods guests see on the kiosk sharing screen
                 </p>
-                <div className="space-y-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editingEvent.smsEnabled !== false}
-                      onChange={(e) => setEditingEvent({...editingEvent, smsEnabled: e.target.checked})}
-                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
-                    />
-                    <div>
-                      <span className="text-black font-medium">Enable SMS sharing</span>
-                      <p className="text-xs text-slate-500">Guests can receive their photo via text message (requires Twilio)</p>
-                    </div>
-                  </label>
+                <div className="space-y-6">
+                  {/* SMS */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.smsEnabled !== false}
+                        onChange={(e) => setEditingEvent({...editingEvent, smsEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable SMS sharing</span>
+                        <p className="text-xs text-slate-500">Guests can receive their photo via text message (requires Twilio)</p>
+                      </div>
+                    </label>
 
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editingEvent.whatsappEnabled || false}
-                      onChange={(e) => setEditingEvent({...editingEvent, whatsappEnabled: e.target.checked})}
-                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
-                    />
-                    <div>
-                      <span className="text-black font-medium">Enable WhatsApp sharing</span>
-                      <p className="text-xs text-slate-500">Guests can receive their photo via WhatsApp (requires Twilio WhatsApp-enabled number)</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editingEvent.emailEnabled || false}
-                      onChange={(e) => setEditingEvent({...editingEvent, emailEnabled: e.target.checked})}
-                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
-                    />
-                    <div>
-                      <span className="text-black font-medium">Enable Email sharing</span>
-                      <p className="text-xs text-slate-500">Guests can receive their photo via email (requires SMTP configuration in Settings)</p>
-                    </div>
-                  </label>
-
-                  {editingEvent.emailEnabled && (
-                    <div className="pt-4 border-t border-slate-200 space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">Email Subject</label>
-                        <input
-                          type="text"
-                          value={editingEvent.emailSubject || ''}
-                          onChange={(e) => setEditingEvent({...editingEvent, emailSubject: e.target.value})}
-                          placeholder="Your AI photo from {event_name}"
-                          className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                    {editingEvent.smsEnabled !== false && (
+                      <div className="ml-8 pt-2 border-l-2 border-slate-200 pl-4 space-y-2">
+                        <label className="text-sm font-medium text-slate-700">SMS Message Template</label>
+                        <textarea
+                          value={editingEvent.smsMessage || "Here's your AI-generated photo from {event_name}! {image_url}"}
+                          onChange={(e) => setEditingEvent({...editingEvent, smsMessage: e.target.value})}
+                          rows={3}
+                          placeholder="Here's your AI-generated photo from {event_name}! {image_url}"
+                          className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none resize-none"
                         />
                         <p className="text-xs text-slate-500">
                           Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
                         </p>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">Email Body (HTML supported)</label>
-                        <textarea
-                          value={editingEvent.emailBody || ''}
-                          onChange={(e) => setEditingEvent({...editingEvent, emailBody: e.target.value})}
-                          rows={6}
-                          placeholder={'<p>Here is your AI photo from {event_name}!</p><p><img src="{image_url}" style="max-width:100%;border-radius:8px;" /></p>'}
-                          className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono text-sm resize-y"
-                        />
-                        <p className="text-xs text-slate-500">
-                          Enter raw HTML for the email body. Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
-                        </p>
+                    )}
+                  </div>
+
+                  {/* WhatsApp */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.whatsappEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, whatsappEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable WhatsApp sharing</span>
+                        <p className="text-xs text-slate-500">Guests can receive their photo via WhatsApp (requires Twilio WhatsApp-enabled number)</p>
                       </div>
-                    </div>
-                  )}
+                    </label>
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.emailEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, emailEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable Email sharing</span>
+                        <p className="text-xs text-slate-500">Guests can receive their photo via email (requires SMTP configuration in Settings)</p>
+                      </div>
+                    </label>
+
+                    {editingEvent.emailEnabled && (
+                      <div className="ml-8 pt-2 border-l-2 border-slate-200 pl-4 space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">Email Subject</label>
+                          <input
+                            type="text"
+                            value={editingEvent.emailSubject || ''}
+                            onChange={(e) => setEditingEvent({...editingEvent, emailSubject: e.target.value})}
+                            placeholder="Your AI photo from {event_name}"
+                            className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                          />
+                          <p className="text-xs text-slate-500">
+                            Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">Email Body (HTML supported)</label>
+                          <textarea
+                            value={editingEvent.emailBody || ''}
+                            onChange={(e) => setEditingEvent({...editingEvent, emailBody: e.target.value})}
+                            rows={6}
+                            placeholder={'<p>Here is your AI photo from {event_name}!</p><p><img src="{image_url}" style="max-width:100%;border-radius:8px;" /></p>'}
+                            className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono text-sm resize-y"
+                          />
+                          <p className="text-xs text-slate-500">
+                            Enter raw HTML for the email body. Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </CollapsibleSection>
 
               {/* SmugMug Gallery Management - Admin Only */}
               {editingEvent.id && (

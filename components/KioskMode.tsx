@@ -1400,6 +1400,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     >
                         {!generatedImageUrl ? 'Preparing link...' : isSending ? 'Sending...' : <><MessageCircle size={18} className="md:w-6 md:h-6" /> Send via WhatsApp</>}
                     </button>
+                    <p className="text-xs text-slate-500 text-center px-2">
+                      By selecting Send, you agree to receive this photo link from Fun Frame Photo via WhatsApp.
+                    </p>
                   </div>
                 )}
 
