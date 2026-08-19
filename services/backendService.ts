@@ -1170,39 +1170,6 @@ export const sendSms = async (phoneNumber: string, imageUrl: string, imageId: st
   return true;
 };
 
-export const sendWhatsApp = async (phoneNumber: string, imageUrl: string, imageId: string, eventId?: string): Promise<boolean> => {
-  if (!eventId) {
-    throw new Error('Event ID is required to send WhatsApp message');
-  }
-
-  const { data: event } = await supabase
-    .from('events')
-    .select('user_id')
-    .eq('id', eventId)
-    .maybeSingle();
-
-  if (!event) {
-    throw new Error('Event not found');
-  }
-
-  const response = await supabase.functions.invoke('send-whatsapp', {
-    body: {
-      userId: event.user_id,
-      phoneNumber,
-      imageUrl,
-      imageId,
-      eventId,
-    },
-  });
-
-  if (response.error) {
-    console.error('Failed to send WhatsApp:', response.error);
-    return false;
-  }
-
-  return true;
-};
-
 export const sendEmail = async (emailAddress: string, imageUrl: string, imageId: string, eventId?: string): Promise<boolean> => {
   if (!eventId) {
     throw new Error('Event ID is required to send email');

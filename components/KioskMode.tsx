@@ -3,7 +3,7 @@ import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, Switc
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, sendWhatsApp, sendEmail, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage } from '../services/backendService';
+import { sendSms, sendEmail, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
@@ -29,7 +29,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generatedImageId, setGeneratedImageId] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [whatsappNumber, setWhatsappNumber] = useState('');
+
   const [emailAddress, setEmailAddress] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -521,27 +521,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
   };
 
-  const handleSendWhatsApp = async () => {
-    if (whatsappNumber.length < 10 || !generatedImageUrl || !generatedImageId) return;
+  const handleSendWhatsApp = () => {
+    if (!generatedImageUrl || generatedImageUrl.startsWith('data:')) return;
 
-    if (generatedImageUrl.startsWith('data:')) {
-      setErrorMsg('WhatsApp unavailable: Image hosting is not configured. Please download the image instead.');
-      return;
-    }
-
-    setIsSending(true);
-    setErrorMsg('');
-    try {
-      await sendWhatsApp(whatsappNumber, generatedImageUrl, generatedImageId, event.id);
-      setWhatsappNumber('');
-      setDeliveryCountdown(15);
-      setView('delivery');
-    } catch (error) {
-      console.error('WhatsApp send failed:', error);
-      setErrorMsg('Failed to send WhatsApp message. Please try again.');
-    } finally {
-      setIsSending(false);
-    }
+    const template = event.smsMessage || "Here's your AI-generated photo from {event_name}! {image_url}";
+    const message = template
+      .replace(/\{event_name\}/g, event.name)
+      .replace(/\{image_url\}/g, generatedImageUrl);
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    setDeliveryCountdown(15);
+    setView('delivery');
   };
 
   const handleSendEmail = async () => {
@@ -578,7 +567,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setGeneratedImageUrl(null);
     setSelectedPrompt(null);
     setPhoneNumber('');
-    setWhatsappNumber('');
     setEmailAddress('');
     setUploadProgress('');
     stopCamera();
@@ -1376,29 +1364,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
                 {!generatedImageUrl?.startsWith('data:') && event.whatsappEnabled && (
                   <div className="space-y-1.5 md:space-y-4">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                      <MessageCircle size={14} /> WhatsApp
-                    </label>
-                    <input
-                        type="tel"
-                        value={whatsappNumber}
-                        onChange={(e) => setWhatsappNumber(e.target.value)}
-                        placeholder="(555) 123-4567"
-                        className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
-                        style={{
-                          borderColor: whatsappNumber ? colors.accent : undefined,
-                        }}
-                        onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
-                        onBlur={(e) => {
-                          if (!whatsappNumber) e.currentTarget.style.borderColor = '';
-                        }}
-                    />
                     <button
                         onClick={handleSendWhatsApp}
-                        disabled={isSending || whatsappNumber.length < 3 || !generatedImageUrl}
+                        disabled={!generatedImageUrl || generatedImageUrl.startsWith('data:')}
                         className="w-full bg-green-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-green-700 active:bg-green-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!generatedImageUrl ? 'Preparing link...' : isSending ? 'Sending...' : <><MessageCircle size={18} className="md:w-6 md:h-6" /> Send via WhatsApp</>}
+                        {!generatedImageUrl ? 'Preparing link...' : <><MessageCircle size={18} className="md:w-6 md:h-6" /> Send via WhatsApp</>}
                     </button>
                     <p className="text-xs text-slate-500 text-center px-2">
                       By selecting Send, you agree to receive this photo link from Fun Frame Photo via WhatsApp.
