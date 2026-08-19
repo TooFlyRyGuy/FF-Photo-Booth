@@ -592,7 +592,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       limitPhotosPerDevice: false,
       maxPhotosPerDevice: 0,
       qrAccessEnabled: false,
-      galleryEnabled: false
+      galleryEnabled: false,
+      showAccountPromo: true
     });
     setActiveTab('create_event');
   };
@@ -2185,6 +2186,21 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       </p>
                     </div>
                   )}
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.showAccountPromo !== false}
+                        onChange={(e) => setEditingEvent({...editingEvent, showAccountPromo: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <span className="text-black">Show "Get Your Own Account" link on sharing screen</span>
+                    </label>
+                    <p className="text-xs text-slate-500 ml-8">
+                      When enabled, the sharing screen shows a "Get Your Own Account Now" link at the bottom. Turn this off for a cleaner, fully branded experience.
+                    </p>
+                  </div>
                 </div>
               </CollapsibleSection>
 
