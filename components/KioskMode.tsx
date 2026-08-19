@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Images } from 'lucide-react';
+import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Images, MessageCircle, Mail } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage } from '../services/backendService';
+import { sendSms, sendWhatsApp, sendEmail, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
@@ -29,6 +29,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generatedImageId, setGeneratedImageId] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [emailAddress, setEmailAddress] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -519,6 +521,52 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
   };
 
+  const handleSendWhatsApp = async () => {
+    if (whatsappNumber.length < 10 || !generatedImageUrl || !generatedImageId) return;
+
+    if (generatedImageUrl.startsWith('data:')) {
+      setErrorMsg('WhatsApp unavailable: Image hosting is not configured. Please download the image instead.');
+      return;
+    }
+
+    setIsSending(true);
+    setErrorMsg('');
+    try {
+      await sendWhatsApp(whatsappNumber, generatedImageUrl, generatedImageId, event.id);
+      setWhatsappNumber('');
+      setDeliveryCountdown(15);
+      setView('delivery');
+    } catch (error) {
+      console.error('WhatsApp send failed:', error);
+      setErrorMsg('Failed to send WhatsApp message. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailAddress || !emailAddress.includes('@') || !generatedImageUrl || !generatedImageId) return;
+
+    if (generatedImageUrl.startsWith('data:')) {
+      setErrorMsg('Email unavailable: Image hosting is not configured. Please download the image instead.');
+      return;
+    }
+
+    setIsSending(true);
+    setErrorMsg('');
+    try {
+      await sendEmail(emailAddress, generatedImageUrl, generatedImageId, event.id);
+      setEmailAddress('');
+      setDeliveryCountdown(15);
+      setView('delivery');
+    } catch (error) {
+      console.error('Email send failed:', error);
+      setErrorMsg('Failed to send email. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const resetKiosk = () => {
     setView('attract');
     if (capturedImage && capturedImage.startsWith('blob:')) {
@@ -530,6 +578,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setGeneratedImageUrl(null);
     setSelectedPrompt(null);
     setPhoneNumber('');
+    setWhatsappNumber('');
+    setEmailAddress('');
     setUploadProgress('');
     stopCamera();
   };
@@ -1226,7 +1276,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     onClick={() => setView('result')}
                     className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
                   >
-                    <Smartphone size={18} className="md:w-6 md:h-6" /> Send to Another Number
+                    <RefreshCw size={18} className="md:w-6 md:h-6" /> Send to Another
                   </button>
                 </div>
 
@@ -1261,7 +1311,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 <div>
                     <h2 className="text-xl md:text-3xl lg:text-4xl text-slate-900 font-display font-bold mb-1 md:mb-2">Get Your Photo</h2>
                     <p className="text-xs md:text-base text-slate-600">
-                      {generatedImageUrl?.startsWith('data:') ? 'Download now (SMS unavailable)' : 'Download now or receive via SMS.'}
+                      {generatedImageUrl?.startsWith('data:') ? 'Download now (sharing unavailable)' : 'Download now or get it sent to you.'}
                     </p>
                 </div>
 
@@ -1284,35 +1334,36 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     <Download size={18} className="md:w-6 md:h-6" /> Download Now
                 </button>
 
-                {!generatedImageUrl?.startsWith('data:') && (
-                  <>
-                    <div className="relative py-1">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-300"></div>
-                        </div>
-                        <div className="relative flex justify-center text-xs">
-                            <span className="px-2 md:px-4 bg-white text-slate-500">or send via SMS</span>
-                        </div>
+                {!generatedImageUrl?.startsWith('data:') && (event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled) && (
+                  <div className="relative py-1">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-300"></div>
                     </div>
-
-                    <div className="space-y-1.5 md:space-y-4">
-                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Phone Number</label>
-                        <input
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="(555) 123-4567"
-                            className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
-                            style={{
-                              borderColor: phoneNumber ? colors.accent : undefined,
-                            }}
-                            onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
-                            onBlur={(e) => {
-                              if (!phoneNumber) e.currentTarget.style.borderColor = '';
-                            }}
-                        />
+                    <div className="relative flex justify-center text-xs">
+                        <span className="px-2 md:px-4 bg-white text-slate-500">or get it sent to you</span>
                     </div>
+                  </div>
+                )}
 
+                {!generatedImageUrl?.startsWith('data:') && event.smsEnabled !== false && (
+                  <div className="space-y-1.5 md:space-y-4">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                      <Smartphone size={14} /> SMS
+                    </label>
+                    <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="(555) 123-4567"
+                        className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
+                        style={{
+                          borderColor: phoneNumber ? colors.accent : undefined,
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+                        onBlur={(e) => {
+                          if (!phoneNumber) e.currentTarget.style.borderColor = '';
+                        }}
+                    />
                     <button
                         onClick={handleSendSms}
                         disabled={isSending || phoneNumber.length < 3 || !generatedImageUrl}
@@ -1320,7 +1371,65 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     >
                         {!generatedImageUrl ? 'Preparing link...' : isSending ? 'Sending...' : <><Send size={18} className="md:w-6 md:h-6" /> Send SMS</>}
                     </button>
-                  </>
+                  </div>
+                )}
+
+                {!generatedImageUrl?.startsWith('data:') && event.whatsappEnabled && (
+                  <div className="space-y-1.5 md:space-y-4">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                      <MessageCircle size={14} /> WhatsApp
+                    </label>
+                    <input
+                        type="tel"
+                        value={whatsappNumber}
+                        onChange={(e) => setWhatsappNumber(e.target.value)}
+                        placeholder="(555) 123-4567"
+                        className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
+                        style={{
+                          borderColor: whatsappNumber ? colors.accent : undefined,
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+                        onBlur={(e) => {
+                          if (!whatsappNumber) e.currentTarget.style.borderColor = '';
+                        }}
+                    />
+                    <button
+                        onClick={handleSendWhatsApp}
+                        disabled={isSending || whatsappNumber.length < 3 || !generatedImageUrl}
+                        className="w-full bg-green-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-green-700 active:bg-green-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
+                    >
+                        {!generatedImageUrl ? 'Preparing link...' : isSending ? 'Sending...' : <><MessageCircle size={18} className="md:w-6 md:h-6" /> Send via WhatsApp</>}
+                    </button>
+                  </div>
+                )}
+
+                {!generatedImageUrl?.startsWith('data:') && event.emailEnabled && (
+                  <div className="space-y-1.5 md:space-y-4">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                      <Mail size={14} /> Email
+                    </label>
+                    <input
+                        type="email"
+                        value={emailAddress}
+                        onChange={(e) => setEmailAddress(e.target.value)}
+                        placeholder="your@email.com"
+                        className="w-full bg-white border-2 border-slate-300 rounded-xl px-3 md:px-6 py-2.5 md:py-4 text-base md:text-xl lg:text-2xl text-slate-900 focus:outline-none placeholder-slate-400 min-h-[44px]"
+                        style={{
+                          borderColor: emailAddress ? colors.accent : undefined,
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+                        onBlur={(e) => {
+                          if (!emailAddress) e.currentTarget.style.borderColor = '';
+                        }}
+                    />
+                    <button
+                        onClick={handleSendEmail}
+                        disabled={isSending || !emailAddress.includes('@') || !generatedImageUrl}
+                        className="w-full bg-blue-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-blue-700 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
+                    >
+                        {!generatedImageUrl ? 'Preparing link...' : isSending ? 'Sending...' : <><Mail size={18} className="md:w-6 md:h-6" /> Send via Email</>}
+                    </button>
+                  </div>
                 )}
 
                 {generatedImageUrl && !generatedImageUrl.startsWith('data:') && generatedImageUrl.length < 500 && (

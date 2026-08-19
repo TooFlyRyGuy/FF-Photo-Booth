@@ -51,6 +51,16 @@ const Settings: React.FC<SettingsProps> = ({
   // Library webhook (global, admin only)
   const [libraryWebhookUrl, setLibraryWebhookUrl] = useState(globalSettings.libraryWebhookUrl || '');
 
+  // SMTP states (global, admin only)
+  // smtpPassword holds a NEW value typed by admin; never receives the stored password from server
+  const [smtpHost, setSmtpHost] = useState(globalSettings.smtpHost || '');
+  const [smtpPort, setSmtpPort] = useState<number | ''>(globalSettings.smtpPort || '');
+  const [smtpUsername, setSmtpUsername] = useState(globalSettings.smtpUsername || '');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpFromEmail, setSmtpFromEmail] = useState(globalSettings.smtpFromEmail || '');
+  const [smtpFromName, setSmtpFromName] = useState(globalSettings.smtpFromName || '');
+  const [smtpEnabled, setSmtpEnabled] = useState(globalSettings.smtpEnabled || false);
+
   // Save states
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
@@ -73,6 +83,12 @@ const Settings: React.FC<SettingsProps> = ({
     setGeminiModel(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
     setGeminiResolution(globalSettings.geminiResolution || '1K');
     setLibraryWebhookUrl(globalSettings.libraryWebhookUrl || '');
+    setSmtpHost(globalSettings.smtpHost || '');
+    setSmtpPort(globalSettings.smtpPort || '');
+    setSmtpUsername(globalSettings.smtpUsername || '');
+    setSmtpFromEmail(globalSettings.smtpFromEmail || '');
+    setSmtpFromName(globalSettings.smtpFromName || '');
+    setSmtpEnabled(globalSettings.smtpEnabled || false);
     // Never populate key fields from server — admin must type a new value to update
   }, [globalSettings]);
 
@@ -276,6 +292,12 @@ const Settings: React.FC<SettingsProps> = ({
         geminiModel,
         geminiResolution,
         libraryWebhookUrl,
+        smtpHost,
+        smtpPort: smtpPort === '' ? undefined : Number(smtpPort),
+        smtpUsername,
+        smtpFromEmail,
+        smtpFromName,
+        smtpEnabled,
       };
 
       // Only send the new token/key if admin actually typed one
@@ -285,12 +307,16 @@ const Settings: React.FC<SettingsProps> = ({
       if (geminiApiKey.trim()) {
         updates.geminiApiKey = geminiApiKey.trim();
       }
+      if (smtpPassword.trim()) {
+        updates.smtpPassword = smtpPassword.trim();
+      }
 
       await onSaveGlobalSettings(updates);
 
       // Clear the input fields after save so they don't persist in state
       setTwilioToken('');
       setGeminiApiKey('');
+      setSmtpPassword('');
 
       setSaveGlobalSuccess(true);
       setTimeout(() => setSaveGlobalSuccess(false), 3000);
@@ -833,6 +859,120 @@ const Settings: React.FC<SettingsProps> = ({
   ],
   "totalSelected": 3
 }`}</pre>
+              </div>
+            </div>
+          </div>
+
+          {/* SMTP / Email Configuration */}
+          <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/>
+                  <path d="m22 7-10 5L2 7"/>
+                </svg>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">SMTP Email Server</h3>
+                  <p className="text-slate-600 text-sm">Send photos to guests via email using your own SMTP server</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-300">
+                <input
+                  type="checkbox"
+                  checked={smtpEnabled}
+                  onChange={(e) => setSmtpEnabled(e.target.checked)}
+                  className="w-5 h-5 rounded accent-green-700"
+                  id="smtp-enabled"
+                />
+                <label htmlFor="smtp-enabled" className="flex-1 cursor-pointer">
+                  <span className="font-medium text-slate-900">Enable Email Delivery</span>
+                  <p className="text-sm text-slate-600">Allow guests to receive photos via email</p>
+                </label>
+                {smtpEnabled && <Check className="text-green-700" size={20} />}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-900 mb-2">SMTP Host</label>
+                  <input
+                    type="text"
+                    value={smtpHost}
+                    onChange={(e) => setSmtpHost(e.target.value)}
+                    placeholder="smtp.gmail.com"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">Port</label>
+                  <input
+                    type="number"
+                    value={smtpPort}
+                    onChange={(e) => setSmtpPort(e.target.value === '' ? '' : parseInt(e.target.value))}
+                    placeholder="587"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 -mt-2">Use port 465 for SSL, 587 for STARTTLS, or 25 for plain.</p>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-2">Username</label>
+                <input
+                  type="text"
+                  value={smtpUsername}
+                  onChange={(e) => setSmtpUsername(e.target.value)}
+                  placeholder="your.email@gmail.com"
+                  className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-2">Password</label>
+                {globalSettings.smtpPasswordSet && (
+                  <div className="flex items-center gap-2 mb-2 text-sm text-green-700 font-medium">
+                    <Check size={14} />
+                    Password is configured — enter a new value below only to replace it
+                  </div>
+                )}
+                <input
+                  type="password"
+                  value={smtpPassword}
+                  onChange={(e) => setSmtpPassword(e.target.value)}
+                  placeholder={globalSettings.smtpPasswordSet ? 'Enter new password to replace existing' : 'Enter your SMTP password'}
+                  className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">From Email</label>
+                  <input
+                    type="email"
+                    value={smtpFromEmail}
+                    onChange={(e) => setSmtpFromEmail(e.target.value)}
+                    placeholder="photos@yourdomain.com"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">From Name</label>
+                  <input
+                    type="text"
+                    value={smtpFromName}
+                    onChange={(e) => setSmtpFromName(e.target.value)}
+                    placeholder="Lumina Booth"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <strong>Note:</strong> The password is stored securely and never shown again after saving. Only enter a new password if you want to replace the existing one.
+                </p>
               </div>
             </div>
           </div>

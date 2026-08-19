@@ -148,6 +148,15 @@ export interface GlobalSettings {
   smugmugConnectionStatus?: string;
   smugmugUsername?: string;
   libraryWebhookUrl?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUsername?: string;
+  /** Never populated from the server — only sent when admin types a new password */
+  smtpPassword?: string;
+  smtpPasswordSet?: boolean;
+  smtpFromEmail?: string;
+  smtpFromName?: string;
+  smtpEnabled?: boolean;
 }
 
 export interface Prompt {
@@ -200,6 +209,11 @@ export interface Event {
   qrAccessEnabled?: boolean;
   galleryEnabled?: boolean;
   showAccountPromo?: boolean;
+  smsEnabled?: boolean;
+  whatsappEnabled?: boolean;
+  emailEnabled?: boolean;
+  emailSubject?: string;
+  emailBody?: string;
 }
 
 export interface EventAccessCode {

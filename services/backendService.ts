@@ -508,6 +508,13 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     smugmugConnectionStatus: data.smugmug_connection_status,
     smugmugUsername: data.smugmug_username,
     libraryWebhookUrl: data.library_webhook_url,
+    smtpHost: data.smtp_host,
+    smtpPort: data.smtp_port,
+    smtpUsername: data.smtp_username,
+    smtpPasswordSet: !!data.smtp_password,
+    smtpFromEmail: data.smtp_from_email,
+    smtpFromName: data.smtp_from_name,
+    smtpEnabled: data.smtp_enabled || false,
   };
 
   cachedGlobalSettings = settings;
@@ -540,6 +547,13 @@ export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): P
   if (settings.smugmugConnectionStatus !== undefined) updateData.smugmug_connection_status = settings.smugmugConnectionStatus;
   if (settings.smugmugUsername !== undefined) updateData.smugmug_username = settings.smugmugUsername;
   if (settings.libraryWebhookUrl !== undefined) updateData.library_webhook_url = settings.libraryWebhookUrl;
+  if (settings.smtpHost !== undefined) updateData.smtp_host = settings.smtpHost || null;
+  if (settings.smtpPort !== undefined) updateData.smtp_port = settings.smtpPort || null;
+  if (settings.smtpUsername !== undefined) updateData.smtp_username = settings.smtpUsername || null;
+  if (settings.smtpPassword !== undefined) updateData.smtp_password = settings.smtpPassword || null;
+  if (settings.smtpFromEmail !== undefined) updateData.smtp_from_email = settings.smtpFromEmail || null;
+  if (settings.smtpFromName !== undefined) updateData.smtp_from_name = settings.smtpFromName || null;
+  if (settings.smtpEnabled !== undefined) updateData.smtp_enabled = settings.smtpEnabled;
 
   const { data: existingSettings } = await supabase
     .from('global_settings')
@@ -583,7 +597,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -673,6 +687,11 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       qrAccessEnabled: event.qr_access_enabled || false,
       galleryEnabled: event.gallery_enabled || false,
       showAccountPromo: event.show_account_promo !== false,
+      smsEnabled: event.sms_enabled !== false,
+      whatsappEnabled: event.whatsapp_enabled || false,
+      emailEnabled: event.email_enabled || false,
+      emailSubject: event.email_subject,
+      emailBody: event.email_body,
     });
   }
 
@@ -777,6 +796,11 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     qrAccessEnabled: eventData.qr_access_enabled || false,
     galleryEnabled: eventData.gallery_enabled || false,
     showAccountPromo: eventData.show_account_promo !== false,
+    smsEnabled: eventData.sms_enabled !== false,
+    whatsappEnabled: eventData.whatsapp_enabled || false,
+    emailEnabled: eventData.email_enabled || false,
+    emailSubject: eventData.email_subject,
+    emailBody: eventData.email_body,
   };
 };
 
@@ -895,6 +919,11 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     qr_access_enabled: event.qrAccessEnabled || false,
     gallery_enabled: event.galleryEnabled || false,
     show_account_promo: event.showAccountPromo !== false,
+    sms_enabled: event.smsEnabled !== false,
+    whatsapp_enabled: event.whatsappEnabled || false,
+    email_enabled: event.emailEnabled || false,
+    email_subject: event.emailSubject || null,
+    email_body: event.emailBody || null,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1135,6 +1164,72 @@ export const sendSms = async (phoneNumber: string, imageUrl: string, imageId: st
 
   if (response.error) {
     console.error('Failed to send SMS:', response.error);
+    return false;
+  }
+
+  return true;
+};
+
+export const sendWhatsApp = async (phoneNumber: string, imageUrl: string, imageId: string, eventId?: string): Promise<boolean> => {
+  if (!eventId) {
+    throw new Error('Event ID is required to send WhatsApp message');
+  }
+
+  const { data: event } = await supabase
+    .from('events')
+    .select('user_id')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (!event) {
+    throw new Error('Event not found');
+  }
+
+  const response = await supabase.functions.invoke('send-whatsapp', {
+    body: {
+      userId: event.user_id,
+      phoneNumber,
+      imageUrl,
+      imageId,
+      eventId,
+    },
+  });
+
+  if (response.error) {
+    console.error('Failed to send WhatsApp:', response.error);
+    return false;
+  }
+
+  return true;
+};
+
+export const sendEmail = async (emailAddress: string, imageUrl: string, imageId: string, eventId?: string): Promise<boolean> => {
+  if (!eventId) {
+    throw new Error('Event ID is required to send email');
+  }
+
+  const { data: event } = await supabase
+    .from('events')
+    .select('user_id')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (!event) {
+    throw new Error('Event not found');
+  }
+
+  const response = await supabase.functions.invoke('send-email', {
+    body: {
+      userId: event.user_id,
+      emailAddress,
+      imageUrl,
+      imageId,
+      eventId,
+    },
+  });
+
+  if (response.error) {
+    console.error('Failed to send email:', response.error);
     return false;
   }
 
@@ -1845,7 +1940,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1918,6 +2013,11 @@ export const getAllEvents = async (): Promise<Event[]> => {
       qrAccessEnabled: e.qr_access_enabled || false,
       galleryEnabled: e.gallery_enabled || false,
       showAccountPromo: e.show_account_promo !== false,
+      smsEnabled: e.sms_enabled !== false,
+      whatsappEnabled: e.whatsapp_enabled || false,
+      emailEnabled: e.email_enabled || false,
+      emailSubject: e.email_subject,
+      emailBody: e.email_body,
     };
   });
 };
