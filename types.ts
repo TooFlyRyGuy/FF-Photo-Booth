@@ -214,6 +214,7 @@ export interface Event {
   emailEnabled?: boolean;
   emailSubject?: string;
   emailBody?: string;
+  downloadEnabled?: boolean;
 }
 
 export interface EventAccessCode {

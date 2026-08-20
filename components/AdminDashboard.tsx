@@ -598,7 +598,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       whatsappEnabled: false,
       emailEnabled: false,
       emailSubject: '',
-      emailBody: ''
+      emailBody: '',
+      downloadEnabled: true,
     });
     setActiveTab('create_event');
   };
@@ -2262,6 +2263,22 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       <div>
                         <span className="text-black font-medium">Enable WhatsApp sharing</span>
                         <p className="text-xs text-slate-500">Guests can receive their photo via WhatsApp (requires Twilio WhatsApp-enabled number)</p>
+                      </div>
+                    </label>
+                  </div>
+
+                {/* Download */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.downloadEnabled !== false}
+                        onChange={(e) => setEditingEvent({...editingEvent, downloadEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Allow download to device</span>
+                        <p className="text-xs text-slate-500">Guests can save their photo directly to their phone or computer</p>
                       </div>
                     </label>
                   </div>

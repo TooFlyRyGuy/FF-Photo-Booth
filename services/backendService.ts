@@ -597,7 +597,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -692,6 +692,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       emailEnabled: event.email_enabled || false,
       emailSubject: event.email_subject,
       emailBody: event.email_body,
+      downloadEnabled: event.download_enabled !== false,
     });
   }
 
@@ -801,6 +802,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     emailEnabled: eventData.email_enabled || false,
     emailSubject: eventData.email_subject,
     emailBody: eventData.email_body,
+    downloadEnabled: eventData.download_enabled !== false,
   };
 };
 
@@ -924,6 +926,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     email_enabled: event.emailEnabled || false,
     email_subject: event.emailSubject || null,
     email_body: event.emailBody || null,
+    download_enabled: event.downloadEnabled !== false,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1907,7 +1910,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1985,6 +1988,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
       emailEnabled: e.email_enabled || false,
       emailSubject: e.email_subject,
       emailBody: e.email_body,
+      downloadEnabled: e.download_enabled !== false,
     };
   });
 };

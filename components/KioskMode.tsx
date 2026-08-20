@@ -1247,6 +1247,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 <p className="text-sm md:text-base text-slate-600">Check your phone for the link.</p>
 
                 <div className="pt-3 md:pt-6 space-y-2 md:space-y-4">
+                  {event.downloadEnabled !== false && (
                   <button
                     onClick={handleDownload}
                     className="w-full text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-all flex items-center justify-center gap-2 min-h-[44px]"
@@ -1259,6 +1260,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   >
                     <Download size={18} className="md:w-6 md:h-6" /> Download Photo
                   </button>
+                  )}
 
                   <button
                     onClick={() => setView('result')}
@@ -1299,7 +1301,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 <div>
                     <h2 className="text-xl md:text-3xl lg:text-4xl text-slate-900 font-display font-bold mb-1 md:mb-2">Get Your Photo</h2>
                     <p className="text-xs md:text-base text-slate-600">
-                      {generatedImageUrl?.startsWith('data:') ? 'Download now (sharing unavailable)' : 'Download now or get it sent to you.'}
+                      {generatedImageUrl?.startsWith('data:') ? 'Download now (sharing unavailable)' : event.downloadEnabled !== false ? 'Download now or get it sent to you.' : 'Get it sent to you below.'}
                     </p>
                 </div>
 
@@ -1309,6 +1311,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </div>
                 )}
 
+                {event.downloadEnabled !== false && (
                 <button
                     onClick={handleDownload}
                     className="w-full text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl transition-all flex items-center justify-center gap-2 md:gap-3 min-h-[44px]"
@@ -1321,6 +1324,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 >
                     <Download size={18} className="md:w-6 md:h-6" /> Download Now
                 </button>
+                )}
 
                 {!generatedImageUrl?.startsWith('data:') && (event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled) && (
                   <div className="relative py-1">
