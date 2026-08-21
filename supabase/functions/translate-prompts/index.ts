@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
 
     // Fetch Gemini API key from global_settings
     const settingsResponse = await fetch(
-      `${supabaseUrl}/rest/v1/global_settings?select=gemini_api_key,gemini_enabled&limit=1`,
+      `${supabaseUrl}/rest/v1/global_settings?select=gemini_api_key,gemini_enabled,gemini_model&limit=1`,
       {
         headers: {
           "apikey": supabaseServiceKey,
@@ -67,7 +67,7 @@ Deno.serve(async (req: Request) => {
       throw new Error("Global settings not found");
     }
 
-    const { gemini_api_key, gemini_enabled } = settings[0];
+    const { gemini_api_key, gemini_enabled, gemini_model } = settings[0];
 
     if (!gemini_enabled) {
       return new Response(
@@ -105,12 +105,18 @@ Return format (JSON array, same order as input):
   { "name": "translated name", "description": "translated description" }
 ]`;
 
+    // Use the configured model or fall back to a valid text-generation model
+    const textModel = gemini_model || 'gemini-2.5-flash';
+
     // Call Gemini text model for translation
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gemini_api_key}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${textModel}:generateContent`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": gemini_api_key,
+      },
       body: JSON.stringify({
         contents: [{ parts: [{ text: translationPrompt }] }],
         generationConfig: {
