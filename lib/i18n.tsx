@@ -102,6 +102,16 @@ const enUS: TranslationDict = {
   'kiosk.fullscreenPrompt': 'For the best experience, tap anywhere to return to fullscreen mode.',
   'kiosk.loading': 'Loading...',
 
+  // Kiosk - Event Time States
+  'kiosk.eventNotStarted': 'EVENT NOT STARTED',
+  'kiosk.eventNotStartedDesc': 'This event has not started yet',
+  'kiosk.eventStarts': 'Event starts:',
+  'kiosk.eventHasEnded': 'EVENT HAS ENDED',
+  'kiosk.eventConcluded': 'This event has concluded',
+  'kiosk.eventEnded': 'Event ended:',
+  'kiosk.thankYou': 'Thank you for participating!',
+  'kiosk.upgradePrompt': 'Please upgrade your subscription or purchase additional credits to continue using the photo booth.',
+
   // Settings - Account Language
   'settings.accountLanguage': 'Account Language',
   'settings.accountLanguageDesc': 'Choose the language for your dashboard and admin interface.',
@@ -202,6 +212,15 @@ const es: TranslationDict = {
   'kiosk.fullscreenPrompt': 'Para la mejor experiencia, toca en cualquier lugar para volver a pantalla completa.',
   'kiosk.loading': 'Cargando...',
 
+  'kiosk.eventNotStarted': 'EVENTO NO INICIADO',
+  'kiosk.eventNotStartedDesc': 'Este evento aún no ha comenzado',
+  'kiosk.eventStarts': 'El evento comienza:',
+  'kiosk.eventHasEnded': 'EL EVENTO HA TERMINADO',
+  'kiosk.eventConcluded': 'Este evento ha concluido',
+  'kiosk.eventEnded': 'El evento terminó:',
+  'kiosk.thankYou': '¡Gracias por participar!',
+  'kiosk.upgradePrompt': 'Por favor, mejore su suscripción o compre créditos adicionales para continuar usando la cabina de fotos.',
+
   'settings.accountLanguage': 'Idioma de la Cuenta',
   'settings.accountLanguageDesc': 'Elige el idioma para tu panel y interfaz de administración.',
   'settings.saved': 'Configuración guardada con éxito.',
@@ -298,6 +317,15 @@ const fr: TranslationDict = {
   'kiosk.returnToFullscreen': 'Revenir en Plein Écran',
   'kiosk.fullscreenPrompt': 'Pour une meilleure expérience, touchez n\'importe où pour revenir en plein écran.',
   'kiosk.loading': 'Chargement...',
+
+  'kiosk.eventNotStarted': 'ÉVÉNEMENT NON COMMENCÉ',
+  'kiosk.eventNotStartedDesc': 'Cet événement n\'a pas encore commencé',
+  'kiosk.eventStarts': 'L\'événement commence :',
+  'kiosk.eventHasEnded': 'L\'ÉVÉNEMENT EST TERMINÉ',
+  'kiosk.eventConcluded': 'Cet événement est terminé',
+  'kiosk.eventEnded': 'L\'événement s\'est terminé :',
+  'kiosk.thankYou': 'Merci d\'avoir participé !',
+  'kiosk.upgradePrompt': 'Veuillez mettre à niveau votre abonnement ou acheter des crédits supplémentaires pour continuer à utiliser la borne photo.',
 
   'settings.accountLanguage': 'Langue du Compte',
   'settings.accountLanguageDesc': 'Choisissez la langue de votre tableau de bord et interface d\'administration.',
@@ -396,6 +424,15 @@ const de: TranslationDict = {
   'kiosk.fullscreenPrompt': 'Tippen Sie überall, um zum Vollbildmodus zurückzukehren.',
   'kiosk.loading': 'Laden...',
 
+  'kiosk.eventNotStarted': 'EVENT NOCH NICHT GESTARTET',
+  'kiosk.eventNotStartedDesc': 'Dieses Event hat noch nicht begonnen',
+  'kiosk.eventStarts': 'Event beginnt:',
+  'kiosk.eventHasEnded': 'EVENT BEENDET',
+  'kiosk.eventConcluded': 'Dieses Event ist beendet',
+  'kiosk.eventEnded': 'Event beendet:',
+  'kiosk.thankYou': 'Vielen Dank für Ihre Teilnahme!',
+  'kiosk.upgradePrompt': 'Bitte upgraden Sie Ihr Abonnement oder kaufen Sie zusätzliche Guthaben, um die Fotokabine weiter zu nutzen.',
+
   'settings.accountLanguage': 'Kontosprache',
   'settings.accountLanguageDesc': 'Wählen Sie die Sprache für Ihr Dashboard und Ihre Admin-Oberfläche.',
   'settings.saved': 'Einstellungen erfolgreich gespeichert.',
@@ -492,6 +529,15 @@ const pt: TranslationDict = {
   'kiosk.returnToFullscreen': 'Voltar ao Ecrã Inteiro',
   'kiosk.fullscreenPrompt': 'Para a melhor experiência, toque em qualquer lugar para voltar ao ecrã inteiro.',
   'kiosk.loading': 'A carregar...',
+
+  'kiosk.eventNotStarted': 'EVENTO NÃO INICIADO',
+  'kiosk.eventNotStartedDesc': 'Este evento ainda não começou',
+  'kiosk.eventStarts': 'O evento começa:',
+  'kiosk.eventHasEnded': 'O EVENTO TERMINOU',
+  'kiosk.eventConcluded': 'Este evento terminou',
+  'kiosk.eventEnded': 'O evento terminou:',
+  'kiosk.thankYou': 'Obrigado por participar!',
+  'kiosk.upgradePrompt': 'Por favor, melhore a sua assinatura ou compre créditos adicionais para continuar a usar a cabine fotográfica.',
 
   'settings.accountLanguage': 'Idioma da Conta',
   'settings.accountLanguageDesc': 'Escolha o idioma para o seu painel e interface de administração.',
@@ -590,6 +636,15 @@ const zh: TranslationDict = {
   'kiosk.fullscreenPrompt': '为获得最佳体验，请点击任意位置返回全屏模式。',
   'kiosk.loading': '加载中...',
 
+  'kiosk.eventNotStarted': '活动未开始',
+  'kiosk.eventNotStartedDesc': '此活动尚未开始',
+  'kiosk.eventStarts': '活动开始时间：',
+  'kiosk.eventHasEnded': '活动已结束',
+  'kiosk.eventConcluded': '此活动已结束',
+  'kiosk.eventEnded': '活动结束时间：',
+  'kiosk.thankYou': '感谢您的参与！',
+  'kiosk.upgradePrompt': '请升级您的订阅或购买额外额度以继续使用拍照亭。',
+
   'settings.accountLanguage': '账户语言',
   'settings.accountLanguageDesc': '选择您的仪表板和管理界面的语言。',
   'settings.saved': '设置保存成功。',
@@ -686,6 +741,15 @@ const ja: TranslationDict = {
   'kiosk.returnToFullscreen': 'フルスクリーンに戻る',
   'kiosk.fullscreenPrompt': '最高の体験のために、どこかをタップしてフルスクリーンモードに戻ってください。',
   'kiosk.loading': '読み込み中...',
+
+  'kiosk.eventNotStarted': 'イベント未開始',
+  'kiosk.eventNotStartedDesc': 'このイベントはまだ始まっていません',
+  'kiosk.eventStarts': 'イベント開始：',
+  'kiosk.eventHasEnded': 'イベント終了',
+  'kiosk.eventConcluded': 'このイベントは終了しました',
+  'kiosk.eventEnded': 'イベント終了：',
+  'kiosk.thankYou': 'ご参加ありがとうございました！',
+  'kiosk.upgradePrompt': '写真ブースを続けてご利用いただくには、サブスクリプションをアップグレードするか、追加クレジットをご購入ください。',
 
   'settings.accountLanguage': 'アカウント言語',
   'settings.accountLanguageDesc': 'ダッシュボードと管理画面の言語を選択してください。',
