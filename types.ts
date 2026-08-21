@@ -123,6 +123,15 @@ export interface UserSettings {
   dropboxRefreshToken?: string | null;
   dropboxTokenExpiresAt?: string | null;
   dropboxEnabled?: boolean;
+  accountLanguage?: string;
+}
+
+export interface PromptTranslation {
+  id?: string;
+  promptId: string;
+  languageCode: string;
+  name: string;
+  description?: string;
 }
 
 export interface GlobalSettings {
@@ -215,6 +224,7 @@ export interface Event {
   emailSubject?: string;
   emailBody?: string;
   downloadEnabled?: boolean;
+  kioskLanguage?: string;
 }
 
 export interface EventAccessCode {

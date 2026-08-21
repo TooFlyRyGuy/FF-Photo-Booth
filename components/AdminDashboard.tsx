@@ -25,6 +25,8 @@ import QRCodeLib from 'qrcode';
 import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
 import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
+import LanguageModal from './LanguageModal';
+import { Globe } from 'lucide-react';
 
 interface AdminProps {
   onLogout: () => void;
@@ -114,6 +116,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [isGeneratingCodes, setIsGeneratingCodes] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrModalEvent, setQrModalEvent] = useState<Event | null>(null);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -2059,6 +2062,31 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </div>
                 </div>
 
+                {/* Language Settings */}
+                <div className="pt-6 border-t-2 border-slate-200">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">Language</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Set the kiosk language for guests and translate prompt names/descriptions.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowLanguageModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Globe size={16} />
+                      Manage Language
+                    </button>
+                  </div>
+                  {editingEvent.kioskLanguage && editingEvent.kioskLanguage !== 'en-US' && (
+                    <p className="text-xs text-green-700 mt-2 ml-1">
+                      Current kiosk language: {editingEvent.kioskLanguage}
+                    </p>
+                  )}
+                </div>
+
                 <div className="pt-6 space-y-4">
                   <p className="text-sm font-medium text-slate-700">Gallery Upload Options</p>
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -2947,6 +2975,18 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             </div>
           </div>
         </div>
+      )}
+
+      {/* Language Settings Modal */}
+      {showLanguageModal && (
+        <LanguageModal
+          event={editingEvent}
+          prompts={(editingEvent.prompts || []) as unknown as Prompt[]}
+          onClose={() => setShowLanguageModal(false)}
+          onSave={(lang) => {
+            setEditingEvent({ ...editingEvent, kioskLanguage: lang });
+          }}
+        />
       )}
 
       {/* QR Access Codes Modal */}

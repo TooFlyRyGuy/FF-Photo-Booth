@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Event } from './types';
 import { Check, ArrowRight, Camera, Smartphone } from 'lucide-react';
-import { getEventByPasscode, clearUserCache, redeemAccessCode, getDeviceToken } from './services/backendService';
+import { getEventByPasscode, clearUserCache, redeemAccessCode, getDeviceToken, getUserSettings } from './services/backendService';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { I18nProvider, LanguageCode } from './lib/i18n';
 
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const KioskMode = lazy(() => import('./components/KioskMode'));
@@ -31,9 +32,10 @@ const App: React.FC = () => {
   const [eventCode, setEventCode] = useState('');
   const [isLoadingKiosk, setIsLoadingKiosk] = useState(false);
   const [accessError, setAccessError] = useState('');
+  const [accountLanguage, setAccountLanguage] = useState<LanguageCode>('en-US');
 
   return (
-    <>
+    <I18nProvider language={accountLanguage}>
       <AppContent
         view={view}
         setView={setView}
@@ -49,8 +51,10 @@ const App: React.FC = () => {
         setIsLoadingKiosk={setIsLoadingKiosk}
         accessError={accessError}
         setAccessError={setAccessError}
+        accountLanguage={accountLanguage}
+        setAccountLanguage={setAccountLanguage}
       />
-    </>
+    </I18nProvider>
   );
 };
 
@@ -69,6 +73,8 @@ interface AppContentProps {
   setIsLoadingKiosk: (loading: boolean) => void;
   accessError: string;
   setAccessError: (error: string) => void;
+  accountLanguage: LanguageCode;
+  setAccountLanguage: (lang: LanguageCode) => void;
 }
 
 const AppContent: React.FC<AppContentProps> = ({
@@ -85,7 +91,9 @@ const AppContent: React.FC<AppContentProps> = ({
   isLoadingKiosk,
   setIsLoadingKiosk,
   accessError,
-  setAccessError
+  setAccessError,
+  accountLanguage,
+  setAccountLanguage
 }) => {
 
   const viewRef = useRef(view);
@@ -276,6 +284,14 @@ const AppContent: React.FC<AppContentProps> = ({
         setUser(session.user);
         setView('admin');
         console.log('[App] View set to admin');
+        // Load account language preference
+        getUserSettings().then((settings) => {
+          if (settings.accountLanguage) {
+            setAccountLanguage(settings.accountLanguage as LanguageCode);
+          }
+        }).catch((e) => {
+          console.warn('Failed to load account language:', e);
+        });
       } else {
         setUser(null);
         setView('landing');
@@ -332,14 +348,17 @@ const AppContent: React.FC<AppContentProps> = ({
 
   // 1. KIOSK MODE
   if (view === 'kiosk' && activeEvent) {
+    const kioskLang = (activeEvent.kioskLanguage as LanguageCode) || 'en-US';
     return (
-      <Suspense fallback={<LoadingSpinner message="Loading Event..." />}>
-        <KioskMode
-          event={activeEvent}
-          onExit={exitKiosk}
-          onLoaded={() => setIsLoadingKiosk(false)}
-        />
-      </Suspense>
+      <I18nProvider language={kioskLang}>
+        <Suspense fallback={<LoadingSpinner message="Loading Event..." />}>
+          <KioskMode
+            event={activeEvent}
+            onExit={exitKiosk}
+            onLoaded={() => setIsLoadingKiosk(false)}
+          />
+        </Suspense>
+      </I18nProvider>
     );
   }
 

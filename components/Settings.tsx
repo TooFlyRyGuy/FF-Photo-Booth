@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { UserSettings, GlobalSettings, UserProfile } from '../types';
-import { Save, Eye, EyeOff, Check, Sparkles } from 'lucide-react';
+import { Save, Eye, EyeOff, Check, Sparkles, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { SUPPORTED_LANGUAGES, LanguageCode } from '../lib/i18n';
 
 interface SettingsProps {
   userSettings: UserSettings;
@@ -61,6 +62,11 @@ const Settings: React.FC<SettingsProps> = ({
   const [smtpFromName, setSmtpFromName] = useState(globalSettings.smtpFromName || '');
   const [smtpEnabled, setSmtpEnabled] = useState(globalSettings.smtpEnabled || false);
 
+  // Account language
+  const [accountLanguage, setAccountLanguage] = useState<LanguageCode>(
+    (userSettings.accountLanguage as LanguageCode) || 'en-US'
+  );
+
   // Save states
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
@@ -70,7 +76,8 @@ const Settings: React.FC<SettingsProps> = ({
   useEffect(() => {
     setDropboxConnected(!!userSettings.dropboxAccessToken);
     setDropboxEnabled(userSettings.dropboxEnabled || false);
-  }, [userSettings.dropboxAccessToken, userSettings.dropboxEnabled]);
+    setAccountLanguage((userSettings.accountLanguage as LanguageCode) || 'en-US');
+  }, [userSettings.dropboxAccessToken, userSettings.dropboxEnabled, userSettings.accountLanguage]);
 
   useEffect(() => {
     setSmugMugConnected(globalSettings.smugmugConnectionStatus === 'connected');
@@ -255,6 +262,7 @@ const Settings: React.FC<SettingsProps> = ({
     try {
       const updates: Partial<UserSettings> = {
         dropboxEnabled,
+        accountLanguage,
       };
 
       await onSaveUserSettings(updates);
@@ -330,6 +338,65 @@ const Settings: React.FC<SettingsProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Account Language */}
+      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+        <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+          <div className="flex items-center gap-3">
+            <Globe className="text-green-700" size={24} />
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Account Language</h3>
+              <p className="text-slate-600 text-sm">Choose the language for your dashboard and admin interface</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-900 mb-2">Language</label>
+            <select
+              value={accountLanguage}
+              onChange={(e) => setAccountLanguage(e.target.value as LanguageCode)}
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900"
+            >
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.nativeLabel} ({lang.label})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-600 mt-2">
+              This controls the language of your dashboard. Event kiosk language is set per-event in the event editor.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            {saveUserSuccess && (
+              <div className="flex items-center gap-2 text-green-700 animate-fade-in">
+                <Check size={18} />
+                <span className="text-sm font-medium">Settings saved successfully</span>
+              </div>
+            )}
+            <button
+              onClick={handleSaveUserSettings}
+              disabled={isSavingUser}
+              className="bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+            >
+              {isSavingUser ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  Save Language
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Dropbox Integration */}
       <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
         <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">

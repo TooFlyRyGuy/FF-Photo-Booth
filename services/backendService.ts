@@ -1,4 +1,4 @@
-import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult, PromptTranslation } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
 
@@ -375,6 +375,7 @@ export const getUserSettings = async (): Promise<UserSettings> => {
     dropboxRefreshToken: data.dropbox_refresh_token,
     dropboxTokenExpiresAt: data.dropbox_token_expires_at,
     dropboxEnabled: data.dropbox_enabled || false,
+    accountLanguage: data.account_language || 'en-US',
   };
 };
 
@@ -405,6 +406,7 @@ export const getUserSettingsByUserId = async (userId: string | null | undefined)
     dropboxRefreshToken: data.dropbox_refresh_token,
     dropboxTokenExpiresAt: data.dropbox_token_expires_at,
     dropboxEnabled: data.dropbox_enabled || false,
+    accountLanguage: data.account_language || 'en-US',
   };
 };
 
@@ -422,6 +424,7 @@ export const updateUserSettings = async (settings: Partial<UserSettings>): Promi
   if (settings.dropboxRefreshToken !== undefined) updateData.dropbox_refresh_token = settings.dropboxRefreshToken;
   if (settings.dropboxTokenExpiresAt !== undefined) updateData.dropbox_token_expires_at = settings.dropboxTokenExpiresAt;
   if (settings.dropboxEnabled !== undefined) updateData.dropbox_enabled = settings.dropboxEnabled;
+  if (settings.accountLanguage !== undefined) updateData.account_language = settings.accountLanguage;
 
   const { error } = await supabase
     .from('user_settings')
@@ -803,6 +806,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     emailSubject: eventData.email_subject,
     emailBody: eventData.email_body,
     downloadEnabled: eventData.download_enabled !== false,
+    kioskLanguage: eventData.kiosk_language || 'en-US',
   };
 };
 
@@ -927,6 +931,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     email_subject: event.emailSubject || null,
     email_body: event.emailBody || null,
     download_enabled: event.downloadEnabled !== false,
+    kiosk_language: event.kioskLanguage || 'en-US',
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -2531,4 +2536,133 @@ export const redeemAccessCode = async (token: string, deviceToken?: string): Pro
   }
 
   return data as AccessCodeRedemptionResult;
+};
+
+// --- Prompt Translations ---
+
+export const getPromptTranslations = async (promptId: string): Promise<PromptTranslation[]> => {
+  const { data, error } = await supabase
+    .from('prompt_translations')
+    .select('id, prompt_id, language_code, name, description')
+    .eq('prompt_id', promptId);
+
+  if (error) {
+    console.error('Failed to fetch prompt translations:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    promptId: row.prompt_id,
+    languageCode: row.language_code,
+    name: row.name,
+    description: row.description || '',
+  }));
+};
+
+export const getPromptTranslationsBatch = async (promptIds: string[]): Promise<Record<string, PromptTranslation[]>> => {
+  if (promptIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('prompt_translations')
+    .select('id, prompt_id, language_code, name, description')
+    .in('prompt_id', promptIds);
+
+  if (error) {
+    console.error('Failed to fetch prompt translations batch:', error);
+    return {};
+  }
+
+  const result: Record<string, PromptTranslation[]> = {};
+  for (const row of data || []) {
+    const pid = row.prompt_id;
+    if (!result[pid]) result[pid] = [];
+    result[pid].push({
+      id: row.id,
+      promptId: row.prompt_id,
+      languageCode: row.language_code,
+      name: row.name,
+      description: row.description || '',
+    });
+  }
+
+  return result;
+};
+
+export const savePromptTranslation = async (translation: PromptTranslation): Promise<void> => {
+  const { error } = await supabase
+    .from('prompt_translations')
+    .upsert({
+      prompt_id: translation.promptId,
+      language_code: translation.languageCode,
+      name: translation.name,
+      description: translation.description || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'prompt_id,language_code' });
+
+  if (error) {
+    throw new Error(`Failed to save prompt translation: ${error.message}`);
+  }
+};
+
+export const savePromptTranslationsBatch = async (translations: PromptTranslation[]): Promise<void> => {
+  if (translations.length === 0) return;
+
+  const rows = translations.map(t => ({
+    prompt_id: t.promptId,
+    language_code: t.languageCode,
+    name: t.name,
+    description: t.description || null,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error } = await supabase
+    .from('prompt_translations')
+    .upsert(rows, { onConflict: 'prompt_id,language_code' });
+
+  if (error) {
+    throw new Error(`Failed to save prompt translations: ${error.message}`);
+  }
+};
+
+export const deletePromptTranslation = async (promptId: string, languageCode: string): Promise<void> => {
+  const { error } = await supabase
+    .from('prompt_translations')
+    .delete()
+    .eq('prompt_id', promptId)
+    .eq('language_code', languageCode);
+
+  if (error) {
+    throw new Error(`Failed to delete prompt translation: ${error.message}`);
+  }
+};
+
+export const autoTranslatePrompts = async (
+  prompts: { id: string; name: string; description: string }[],
+  targetLanguage: string
+): Promise<{ id: string; name: string; description: string }[]> => {
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-prompts`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ prompts, targetLanguage }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Translation failed (${response.status})`);
+  }
+
+  const data = await response.json();
+
+  if (!data.translations || !Array.isArray(data.translations)) {
+    throw new Error('Invalid translation response');
+  }
+
+  return data.translations;
 };

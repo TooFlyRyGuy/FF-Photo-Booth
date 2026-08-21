@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp, Languages } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
-import { getGlobalSettings } from '../services/backendService';
+import { getGlobalSettings, getPromptTranslations, savePromptTranslationsBatch, autoTranslatePrompts } from '../services/backendService';
+import { SUPPORTED_LANGUAGES, LanguageCode } from '../lib/i18n';
+import { PromptTranslation } from '../types';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -56,6 +58,10 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const hasLoadedRef = useRef(false);
   const [userCredits, setUserCredits] = useState<number>(0);
   const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
+  const [promptTranslations, setPromptTranslations] = useState<Record<string, { name: string; description: string }>>({});
+  const [showTranslations, setShowTranslations] = useState(false);
+  const [isTranslatingPrompt, setIsTranslatingPrompt] = useState(false);
+  const [isSavingTranslations, setIsSavingTranslations] = useState(false);
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
@@ -319,6 +325,84 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setIsCreating(false);
     setIsPublic(prompt.isPublic === true);
     setCategoryIsNew(false);
+    loadPromptTranslations(prompt.id);
+  };
+
+  const loadPromptTranslations = async (promptId: string) => {
+    try {
+      const trans = await getPromptTranslations(promptId);
+      const map: Record<string, { name: string; description: string }> = {};
+      for (const t of trans) {
+        map[t.languageCode] = { name: t.name, description: t.description || '' };
+      }
+      setPromptTranslations(map);
+    } catch {
+      setPromptTranslations({});
+    }
+  };
+
+  const handleAutoTranslatePrompt = async () => {
+    if (!editingPrompt || isCreating) return;
+    setIsTranslatingPrompt(true);
+    try {
+      const newTrans = { ...promptTranslations };
+      for (const lang of SUPPORTED_LANGUAGES) {
+        if (lang.code === 'en-US') continue;
+        try {
+          const results = await autoTranslatePrompts(
+            [{ id: editingPrompt.id, name: editingPrompt.name, description: editingPrompt.description || '' }],
+            lang.code
+          );
+          if (results.length > 0) {
+            newTrans[lang.code] = { name: results[0].name, description: results[0].description || '' };
+          }
+        } catch (err) {
+          console.error(`Translation to ${lang.code} failed:`, err);
+        }
+      }
+      setPromptTranslations(newTrans);
+    } catch (error) {
+      console.error('Auto-translate failed:', error);
+      alert(`Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsTranslatingPrompt(false);
+    }
+  };
+
+  const handleTranslationChange = (lang: LanguageCode, field: 'name' | 'description', value: string) => {
+    setPromptTranslations(prev => {
+      const next = { ...prev };
+      if (!next[lang]) next[lang] = { name: '', description: '' };
+      next[lang] = { ...next[lang], [field]: value };
+      return next;
+    });
+  };
+
+  const handleSaveTranslations = async () => {
+    if (!editingPrompt || isCreating) return;
+    setIsSavingTranslations(true);
+    try {
+      const trans: PromptTranslation[] = [];
+      for (const [langCode, data] of Object.entries(promptTranslations)) {
+        if (data.name.trim()) {
+          trans.push({
+            promptId: editingPrompt.id,
+            languageCode: langCode,
+            name: data.name,
+            description: data.description || '',
+          });
+        }
+      }
+      if (trans.length > 0) {
+        await savePromptTranslationsBatch(trans);
+      }
+      alert('Translations saved.');
+    } catch (error) {
+      console.error('Failed to save translations:', error);
+      alert(`Failed to save translations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSavingTranslations(false);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
@@ -826,6 +910,88 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 </label>
               </div>
             </div>
+
+            {/* Translations Section - only for existing prompts */}
+            {!isCreating && (
+              <div className="border-2 border-slate-200 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowTranslations(!showTranslations)}
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Languages size={18} className="text-slate-700" />
+                    <span className="text-sm font-bold text-slate-900">Translations</span>
+                  </div>
+                  {showTranslations ? <ChevronUp size={20} className="text-slate-600" /> : <ChevronDown size={20} className="text-slate-600" />}
+                </button>
+                {showTranslations && (
+                  <div className="p-4 space-y-4">
+                    <p className="text-xs text-slate-600">
+                      Provide translated names and descriptions for this prompt in other languages. These appear on the kiosk when the event's kiosk language is set to that language.
+                    </p>
+                    <button
+                      onClick={handleAutoTranslatePrompt}
+                      disabled={isTranslatingPrompt}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {isTranslatingPrompt ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Translating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} />
+                          Auto-Translate
+                        </>
+                      )}
+                    </button>
+                    {SUPPORTED_LANGUAGES.filter(l => l.code !== 'en-US').map((lang) => (
+                      <div key={lang.code} className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-slate-500 font-medium">{lang.nativeLabel} Name</label>
+                          <input
+                            type="text"
+                            value={promptTranslations[lang.code]?.name || ''}
+                            onChange={(e) => handleTranslationChange(lang.code, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-green-700 text-sm"
+                            placeholder={editingPrompt.name}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-500 font-medium">{lang.nativeLabel} Description</label>
+                          <input
+                            type="text"
+                            value={promptTranslations[lang.code]?.description || ''}
+                            onChange={(e) => handleTranslationChange(lang.code, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-green-700 text-sm"
+                            placeholder={editingPrompt.description || ''}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      onClick={handleSaveTranslations}
+                      disabled={isSavingTranslations}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {isSavingTranslations ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} />
+                          Save Translations
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
