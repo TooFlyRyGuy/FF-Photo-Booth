@@ -31,14 +31,20 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName, lim
     setLoading(true);
     setError('');
     try {
-      const [analyticsData, chartDataResult, phoneData] = await Promise.all([
+      const [analyticsData, chartDataResult] = await Promise.all([
         getEventAnalytics(eventId),
         getEventChartData(eventId),
-        getEventPhoneNumbers(eventId),
       ]);
       setAnalytics(analyticsData);
       setDateChartData(chartDataResult);
-      setPhoneEntries(phoneData);
+
+      try {
+        const phoneData = await getEventPhoneNumbers(eventId);
+        setPhoneEntries(phoneData);
+      } catch (phoneErr) {
+        console.error('Failed to load phone numbers:', phoneErr);
+        setPhoneEntries([]);
+      }
 
       if (limitPhotosPerDevice) {
         try {

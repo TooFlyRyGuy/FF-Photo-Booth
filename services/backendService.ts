@@ -1349,6 +1349,8 @@ export interface EventPhoneEntry {
   imageId: string;
 }
 
+const SMS_BATCH_SIZE = 100;
+
 export const getEventPhoneNumbers = async (eventId: string): Promise<EventPhoneEntry[]> => {
   const { data: images, error: imgError } = await supabase
     .from('generated_images')
@@ -1359,16 +1361,21 @@ export const getEventPhoneNumbers = async (eventId: string): Promise<EventPhoneE
   if (!images || images.length === 0) return [];
 
   const imageIds = images.map(i => i.id);
+  const allRows: any[] = [];
 
-  const { data, error } = await supabase
-    .from('sms_logs')
-    .select('phone_number, sent_at, status, image_id')
-    .in('image_id', imageIds)
-    .order('sent_at', { ascending: true });
+  for (let i = 0; i < imageIds.length; i += SMS_BATCH_SIZE) {
+    const batch = imageIds.slice(i, i + SMS_BATCH_SIZE);
+    const { data, error } = await supabase
+      .from('sms_logs')
+      .select('phone_number, sent_at, status, image_id')
+      .in('image_id', batch)
+      .order('sent_at', { ascending: true });
 
-  if (error) throw new Error(`Failed to fetch phone numbers: ${error.message}`);
+    if (error) throw new Error(`Failed to fetch phone numbers: ${error.message}`);
+    if (data) allRows.push(...data);
+  }
 
-  return (data || []).map(row => ({
+  return allRows.map(row => ({
     phoneNumber: row.phone_number,
     sentAt: row.sent_at,
     status: row.status,
@@ -1648,17 +1655,25 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       .in('event_id', eventIds);
     imagesCount = imgCount || 0;
 
-    const { data: imageIds } = await supabase
-      .from('generated_images')
-      .select('id')
-      .in('event_id', eventIds);
+    try {
+      const { data: imageIds } = await supabase
+        .from('generated_images')
+        .select('id')
+        .in('event_id', eventIds);
 
-    if (imageIds && imageIds.length > 0) {
-      const { count: smsCountResult } = await supabase
-        .from('sms_logs')
-        .select('*', { count: 'exact', head: true })
-        .in('image_id', imageIds.map(i => i.id));
-      smsCount = smsCountResult || 0;
+      if (imageIds && imageIds.length > 0) {
+        const allImageIds = imageIds.map(i => i.id);
+        for (let i = 0; i < allImageIds.length; i += SMS_BATCH_SIZE) {
+          const batch = allImageIds.slice(i, i + SMS_BATCH_SIZE);
+          const { count: batchCount } = await supabase
+            .from('sms_logs')
+            .select('*', { count: 'exact', head: true })
+            .in('image_id', batch);
+          smsCount += batchCount || 0;
+        }
+      }
+    } catch (smsErr) {
+      console.error('Failed to fetch SMS count, continuing without it:', smsErr);
     }
   }
 
