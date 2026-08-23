@@ -114,8 +114,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const getLogoSizeClass = () => {
     switch (event.logoSize) {
       case 'small': return 'h-8 md:h-16';
-      case 'large': return 'h-20 md:h-32';
-      case 'extra-large': return 'h-28 md:h-44';
+      case 'large': return 'h-24 md:h-40';
+      case 'extra-large': return 'h-36 md:h-64';
       default: return 'h-12 md:h-24';
     }
   };
