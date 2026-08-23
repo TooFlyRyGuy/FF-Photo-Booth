@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Images, MessageCircle, Mail } from 'lucide-react';
+import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
@@ -125,8 +125,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setErrorMsg('Event owner not found. Please contact the administrator.');
       return;
     }
-
-    requestFullscreen();
 
     setIsCheckingCredits(true);
 
@@ -1530,28 +1528,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   return (
     <div ref={kioskContainerRef} className="kiosk-fullscreen-container">
       {renderView()}
-      {!isFullscreen && view !== 'attract' && (
-        <div
-          className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center"
-          onClick={requestFullscreen}
-        >
-          <div className="text-center space-y-4 p-6 max-w-md">
-            <div className="bg-white/10 rounded-full w-20 h-20 flex items-center justify-center mx-auto">
-              <Maximize className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-white">{translateText('kiosk.tapToReturnFullscreen', kioskLanguage)}</h2>
-            <p className="text-sm md:text-base text-slate-300">
-              {translateText('kiosk.fullscreenPrompt', kioskLanguage)}
-            </p>
-            <button
-              onClick={(e) => { e.stopPropagation(); requestFullscreen(); }}
-              className="bg-white text-slate-900 font-bold px-6 py-3 rounded-full text-sm md:text-base hover:bg-slate-100 transition-colors"
-            >
-              {translateText('kiosk.returnToFullscreen', kioskLanguage)}
-            </button>
-          </div>
-        </div>
-      )}
+      <button
+        onClick={() => {
+          if (document.fullscreenElement) {
+            exitFullscreen();
+          } else {
+            requestFullscreen();
+          }
+        }}
+        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[100] bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-sm rounded-full p-2.5 md:p-3 text-white transition-all hover:scale-110 active:scale-95"
+        aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+      >
+        {isFullscreen ? <Minimize className="w-5 h-5 md:w-6 md:h-6" /> : <Maximize className="w-5 h-5 md:w-6 md:h-6" />}
+      </button>
     </div>
   );
 };
