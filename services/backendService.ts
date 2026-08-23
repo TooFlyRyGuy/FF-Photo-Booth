@@ -600,7 +600,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -679,6 +679,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       accentColor: event.accent_color,
       hideLogo: event.hide_logo,
       hideEventName: event.hide_event_name,
+      logoPosition: event.logo_position || 'top-left',
+      logoSize: event.logo_size || 'medium',
       startDatetime: event.start_datetime,
       endDatetime: event.end_datetime,
       smsMessage: event.sms_message,
@@ -789,6 +791,8 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     accentColor: eventData.accent_color,
     hideLogo: eventData.hide_logo,
     hideEventName: eventData.hide_event_name,
+    logoPosition: eventData.logo_position || 'top-left',
+    logoSize: eventData.logo_size || 'medium',
     startDatetime: eventData.start_datetime,
     endDatetime: eventData.end_datetime,
     smsMessage: eventData.sms_message,
@@ -914,6 +918,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     accent_color: event.accentColor,
     hide_logo: event.hideLogo || false,
     hide_event_name: event.hideEventName || false,
+    logo_position: event.logoPosition || 'top-left',
+    logo_size: event.logoSize || 'medium',
     start_datetime: event.startDatetime,
     end_datetime: event.endDatetime,
     sms_message: event.smsMessage,
@@ -1930,7 +1936,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1992,6 +1998,8 @@ export const getAllEvents = async (): Promise<Event[]> => {
       accentColor: e.accent_color,
       hideLogo: e.hide_logo,
       hideEventName: e.hide_event_name,
+      logoPosition: e.logo_position || 'top-left',
+      logoSize: e.logo_size || 'medium',
       startDatetime: e.start_datetime,
       endDatetime: e.end_datetime,
       smsMessage: e.sms_message,

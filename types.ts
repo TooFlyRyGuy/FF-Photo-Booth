@@ -204,6 +204,8 @@ export interface Event {
   accentColor?: string;
   hideLogo?: boolean;
   hideEventName?: boolean;
+  logoPosition?: 'top-left' | 'center' | 'top-right';
+  logoSize?: 'small' | 'medium' | 'large' | 'extra-large';
   startDatetime?: string;
   endDatetime?: string;
   smsMessage?: string;

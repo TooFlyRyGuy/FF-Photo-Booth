@@ -1937,6 +1937,34 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Logo Position</label>
+                      <select
+                        value={editingEvent.logoPosition || 'top-left'}
+                        onChange={(e) => setEditingEvent({...editingEvent, logoPosition: e.target.value as 'top-left' | 'center' | 'top-right'})}
+                        className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      >
+                        <option value="top-left">Top Left</option>
+                        <option value="center">Center</option>
+                        <option value="top-right">Top Right</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Logo Size</label>
+                      <select
+                        value={editingEvent.logoSize || 'medium'}
+                        onChange={(e) => setEditingEvent({...editingEvent, logoSize: e.target.value as 'small' | 'medium' | 'large' | 'extra-large'})}
+                        className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      >
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                        <option value="extra-large">Extra Large</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                       <ImageIcon size={16} />
