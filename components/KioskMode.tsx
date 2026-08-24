@@ -3,12 +3,12 @@ import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, Switc
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
-import { sendSms, sendEmail, saveGeneratedImage, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch } from '../services/backendService';
+import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEventPhotoSmugmugUrl, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
-import { uploadImageWithRetry } from '../services/storageService';
+import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, translateText } from '../lib/i18n';
 
@@ -31,6 +31,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [finalImage, setFinalImage] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generatedImageId, setGeneratedImageId] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [bucketPhotoId, setBucketPhotoId] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
 
   const [emailAddress, setEmailAddress] = useState('');
@@ -346,117 +348,34 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       setFinalImage(genImage);
 
-      // 2 & 3. Upload images in parallel
-      const uploadPromises: Promise<any>[] = [];
-      const backgroundPromises: Promise<any>[] = [];
-      let generatedUrl = genImage;
-      let originalUrl = capturedImage;
-      let uploadedGeneratedToSmugMug = false;
-      let uploadedOriginalToSmugMug = false;
+      // Upload generated image to event-photos bucket (fast, blocking)
+      setUploadProgress('Saving your photo...');
+      const bucketResult = await uploadGeneratedPhoto(genImage, event.id);
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      let bucketUrl = genImage;
+      let bucketPath = '';
 
-      // Upload generated image to SmugMug (MUST wait for SMS)
-      let smugmugGeneratedPromise: Promise<any> | null = null;
-      if (event.smugmugGalleryKey) {
-        const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
-        smugmugGeneratedPromise = (async () => {
-          const compressedImage = await compressForUpload(genImage);
-          return uploadToSmugMug(
-            event.smugmugGalleryKey,
-            compressedImage,
-            fileName,
-            import.meta.env.VITE_SUPABASE_ANON_KEY
-          );
-        })()
-          .then((result) => {
-            generatedUrl = result.imageUrl;
-            uploadedGeneratedToSmugMug = true;
-            console.log('✅ Uploaded generated to SmugMug:', generatedUrl);
-            setGeneratedImageUrl(result.imageUrl);
-            return result;
-          })
-          .catch((smugmugErr) => {
-            console.error('SmugMug upload failed for generated:', smugmugErr);
-            throw smugmugErr;
-          });
-        uploadPromises.push(smugmugGeneratedPromise);
+      if (bucketResult.error) {
+        console.error('Bucket upload failed, falling back to base64:', bucketResult.error);
+      } else {
+        bucketUrl = bucketResult.url;
+        bucketPath = bucketResult.path;
+        console.log('✅ Uploaded generated to event-photos bucket:', bucketUrl);
       }
 
-      // Upload original image to SmugMug (background, not needed for SMS)
-      if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
-        const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
-        backgroundPromises.push(
-          (async () => {
-            const compressedOriginal = await compressForUpload(capturedImage);
-            return uploadToSmugMug(
-              event.smugmugGalleryKey,
-              compressedOriginal,
-              originalFileName,
-              import.meta.env.VITE_SUPABASE_ANON_KEY
-            );
-          })()
-            .then((originalResult) => {
-              originalUrl = originalResult.imageUrl;
-              uploadedOriginalToSmugMug = true;
-              console.log('✅ Uploaded original to SmugMug:', originalUrl);
-            })
-            .catch((smugmugOrigErr) => {
-              console.error('SmugMug upload failed for original:', smugmugOrigErr);
-            })
-        );
+      setGeneratedImageUrl(bucketUrl);
+
+      if (!event.smugmugGalleryKey) {
+        setShareUrl(bucketUrl);
       }
 
-      // Upload generated to Dropbox (fallback if no SmugMug)
-      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
-        const dropboxPromise = uploadImageToDropbox({
-          userId: event.userId,
-          eventId: event.id,
-          eventName: event.name,
-          imageBase64: genImage,
-          imageType: 'generated',
-          promptName: selectedPrompt.name,
-        })
-          .then((dropboxUrl) => {
-            if (!uploadedGeneratedToSmugMug) {
-              generatedUrl = dropboxUrl;
-              setGeneratedImageUrl(dropboxUrl);
-            }
-            console.log('✅ Uploaded generated to Dropbox:', dropboxUrl);
-          })
-          .catch((dropboxErr) => {
-            console.error('Dropbox upload failed for generated:', dropboxErr);
-          });
-
-        if (!event.smugmugGalleryKey) {
-          uploadPromises.push(dropboxPromise);
-        } else {
-          backgroundPromises.push(dropboxPromise);
-        }
-      }
-
-      // Upload original to Dropbox (background)
-      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
-        backgroundPromises.push(
-          uploadImageToDropbox({
-            userId: event.userId,
-            eventId: event.id,
-            eventName: event.name,
-            imageBase64: capturedImage,
-            imageType: 'original',
-            promptName: selectedPrompt.name,
-          })
-            .then((dropboxOrigUrl) => {
-              if (!uploadedOriginalToSmugMug) {
-                originalUrl = dropboxOrigUrl;
-              }
-              console.log('✅ Uploaded original to Dropbox:', dropboxOrigUrl);
-            })
-            .catch((dropboxErr) => {
-              console.error('Dropbox upload failed for original:', dropboxErr);
-            })
-        );
-      }
+      const photoRecordId = await saveEventPhotoRecord(
+        event.id,
+        selectedPrompt.id,
+        bucketPath,
+        bucketUrl
+      );
+      setBucketPhotoId(photoRecordId);
 
       // Save analytics record
       const imageId = await saveGeneratedImage(
@@ -484,22 +403,97 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       setGeneratedImageId(imageId);
       setFinalImage(genImage);
-
-      // Show image immediately
-      if (!event.smugmugGalleryKey && !userSettings?.dropboxEnabled) {
-        setGeneratedImageUrl(genImage);
-      }
+      setUploadProgress('');
 
       setView('result');
 
-      // Wait ONLY for critical uploads needed for SMS
-      if (uploadPromises.length > 0) {
-        console.log(`⏳ Waiting for ${uploadPromises.length} critical upload(s) for SMS...`);
-        await Promise.allSettled(uploadPromises);
-        console.log('✅ Critical uploads complete, SMS ready');
+      // Background uploads (SmugMug, Dropbox) - do not block the user
+      const backgroundPromises: Promise<any>[] = [];
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+      if (event.smugmugGalleryKey) {
+        const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
+        backgroundPromises.push(
+          (async () => {
+            const compressedImage = await compressForUpload(genImage);
+            return uploadToSmugMug(
+              event.smugmugGalleryKey,
+              compressedImage,
+              fileName,
+              import.meta.env.VITE_SUPABASE_ANON_KEY
+            );
+          })()
+            .then((result) => {
+              console.log('✅ Uploaded generated to SmugMug:', result.imageUrl);
+              setShareUrl(result.imageUrl);
+              if (photoRecordId) {
+                updateEventPhotoSmugmugUrl(photoRecordId, result.imageUrl);
+              }
+            })
+            .catch((smugmugErr) => {
+              console.error('SmugMug upload failed for generated:', smugmugErr);
+              setShareUrl(bucketUrl);
+            })
+        );
       }
 
-      // Background uploads continue without blocking
+      if (event.uploadOriginalsToGallery && event.smugmugGalleryKey) {
+        const originalFileName = `${event.name}-${selectedPrompt.name}-original-${timestamp}.jpg`;
+        backgroundPromises.push(
+          (async () => {
+            const compressedOriginal = await compressForUpload(capturedImage);
+            return uploadToSmugMug(
+              event.smugmugGalleryKey,
+              compressedOriginal,
+              originalFileName,
+              import.meta.env.VITE_SUPABASE_ANON_KEY
+            );
+          })()
+            .then((originalResult) => {
+              console.log('✅ Uploaded original to SmugMug:', originalResult.imageUrl);
+            })
+            .catch((smugmugOrigErr) => {
+              console.error('SmugMug upload failed for original:', smugmugOrigErr);
+            })
+        );
+      }
+
+      if (userSettings?.dropboxEnabled && userSettings?.dropboxAccessToken) {
+        backgroundPromises.push(
+          uploadImageToDropbox({
+            userId: event.userId,
+            eventId: event.id,
+            eventName: event.name,
+            imageBase64: genImage,
+            imageType: 'generated',
+            promptName: selectedPrompt.name,
+          })
+            .then((dropboxUrl) => {
+              console.log('✅ Uploaded generated to Dropbox:', dropboxUrl);
+            })
+            .catch((dropboxErr) => {
+              console.error('Dropbox upload failed for generated:', dropboxErr);
+            })
+        );
+
+        backgroundPromises.push(
+          uploadImageToDropbox({
+            userId: event.userId,
+            eventId: event.id,
+            eventName: event.name,
+            imageBase64: capturedImage,
+            imageType: 'original',
+            promptName: selectedPrompt.name,
+          })
+            .then((dropboxOrigUrl) => {
+              console.log('✅ Uploaded original to Dropbox:', dropboxOrigUrl);
+            })
+            .catch((dropboxErr) => {
+              console.error('Dropbox upload failed for original:', dropboxErr);
+            })
+        );
+      }
+
       if (backgroundPromises.length > 0) {
         console.log(`📤 ${backgroundPromises.length} background upload(s) continuing...`);
         Promise.allSettled(backgroundPromises).then((results) => {
@@ -516,18 +510,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
   // --- SMS LOGIC ---
   const handleSendSms = async () => {
-    if (phoneNumber.length < 10 || !generatedImageUrl || !generatedImageId) return;
-
-    // Check if the URL is a data URL (base64) - cannot be sent via SMS
-    if (generatedImageUrl.startsWith('data:')) {
-      setErrorMsg('SMS unavailable: Image hosting is not configured. Please download the image instead.');
-      return;
-    }
+    if (phoneNumber.length < 10 || !shareUrl || !generatedImageId) return;
 
     setIsSending(true);
     setErrorMsg('');
     try {
-      await sendSms(phoneNumber, generatedImageUrl, generatedImageId, event.id);
+      await sendSms(phoneNumber, shareUrl, generatedImageId, event.id);
       setPhoneNumber('');
       setDeliveryCountdown(15);
       setView('delivery');
@@ -540,29 +528,24 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   };
 
   const handleSendWhatsApp = () => {
-    if (!generatedImageUrl || generatedImageUrl.startsWith('data:')) return;
+    if (!shareUrl) return;
 
     const template = event.smsMessage || "Here's your AI-generated photo from {event_name}! {image_url}";
     const message = template
       .replace(/\{event_name\}/g, event.name)
-      .replace(/\{image_url\}/g, generatedImageUrl);
+      .replace(/\{image_url\}/g, shareUrl);
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
     setDeliveryCountdown(15);
     setView('delivery');
   };
 
   const handleSendEmail = async () => {
-    if (!emailAddress || !emailAddress.includes('@') || !generatedImageUrl || !generatedImageId) return;
-
-    if (generatedImageUrl.startsWith('data:')) {
-      setErrorMsg('Email unavailable: Image hosting is not configured. Please download the image instead.');
-      return;
-    }
+    if (!emailAddress || !emailAddress.includes('@') || !shareUrl || !generatedImageId) return;
 
     setIsSending(true);
     setErrorMsg('');
     try {
-      await sendEmail(emailAddress, generatedImageUrl, generatedImageId, event.id);
+      await sendEmail(emailAddress, shareUrl, generatedImageId, event.id);
       setEmailAddress('');
       setDeliveryCountdown(15);
       setView('delivery');
@@ -583,6 +566,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setCapturedImageStorageUrl(null);
     setFinalImage(null);
     setGeneratedImageUrl(null);
+    setShareUrl(null);
+    setBucketPhotoId(null);
     setSelectedPrompt(null);
     setPhoneNumber('');
     setEmailAddress('');
@@ -591,7 +576,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   };
 
   const handleDownload = async () => {
-    if (!finalImage) return;
+    const downloadUrl = generatedImageUrl || finalImage;
+    if (!downloadUrl) return;
 
     const filename = `${event.name.replace(/\s+/g, '_')}_${selectedPrompt?.name.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
 
@@ -599,7 +585,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
     if (isMobile && navigator.share && navigator.canShare) {
       try {
-        const response = await fetch(finalImage);
+        const response = await fetch(downloadUrl);
         const blob = await response.blob();
         const file = new File([blob], filename, { type: 'image/jpeg' });
 
@@ -617,10 +603,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
 
     if (isMobile) {
-      window.open(finalImage, '_blank');
+      window.open(downloadUrl, '_blank');
     } else {
       try {
-        const response = await fetch(finalImage);
+        const response = await fetch(downloadUrl);
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
 
@@ -634,7 +620,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         window.URL.revokeObjectURL(url);
       } catch (error) {
         console.error('Download failed:', error);
-        window.open(finalImage, '_blank');
+        window.open(downloadUrl, '_blank');
       }
     }
   };
@@ -1357,7 +1343,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 <div>
                     <h2 className="text-xl md:text-3xl lg:text-4xl text-slate-900 font-display font-bold mb-1 md:mb-2">{translateText('kiosk.getYourPhoto', kioskLanguage)}</h2>
                     <p className="text-xs md:text-base text-slate-600">
-                      {generatedImageUrl?.startsWith('data:') ? translateText('kiosk.downloadNow', kioskLanguage) : event.downloadEnabled !== false ? translateText('kiosk.downloadNowOrSent', kioskLanguage) : translateText('kiosk.getItSent', kioskLanguage)}
+                      {!shareUrl ? translateText('kiosk.downloadNow', kioskLanguage) : event.downloadEnabled !== false ? translateText('kiosk.downloadNowOrSent', kioskLanguage) : translateText('kiosk.getItSent', kioskLanguage)}
                     </p>
                 </div>
 
@@ -1382,7 +1368,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 </button>
                 )}
 
-                {!generatedImageUrl?.startsWith('data:') && (event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled) && (
+                {shareUrl && (event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled) && (
                   <div className="relative py-1">
                     <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-slate-300"></div>
@@ -1393,7 +1379,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </div>
                 )}
 
-                {!generatedImageUrl?.startsWith('data:') && event.smsEnabled !== false && (
+                {shareUrl && event.smsEnabled !== false && (
                   <div className="space-y-1.5 md:space-y-4">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
                       <Smartphone size={14} /> {translateText('kiosk.sms', kioskLanguage)}
@@ -1414,22 +1400,22 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     />
                     <button
                         onClick={handleSendSms}
-                        disabled={isSending || phoneNumber.length < 3 || !generatedImageUrl}
+                        disabled={isSending || phoneNumber.length < 3 || !shareUrl}
                         className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!generatedImageUrl ? translateText('kiosk.preparingLink', kioskLanguage) : isSending ? translateText('kiosk.sending', kioskLanguage) : <><Send size={18} className="md:w-6 md:h-6" /> {translateText('kiosk.sendSms', kioskLanguage)}</>}
+                        {!shareUrl ? translateText('kiosk.preparingLink', kioskLanguage) : isSending ? translateText('kiosk.sending', kioskLanguage) : <><Send size={18} className="md:w-6 md:h-6" /> {translateText('kiosk.sendSms', kioskLanguage)}</>}
                     </button>
                   </div>
                 )}
 
-                {!generatedImageUrl?.startsWith('data:') && event.whatsappEnabled && (
+                {shareUrl && event.whatsappEnabled && (
                   <div className="space-y-1.5 md:space-y-4">
                     <button
                         onClick={handleSendWhatsApp}
-                        disabled={!generatedImageUrl || generatedImageUrl.startsWith('data:')}
+                        disabled={!shareUrl}
                         className="w-full bg-green-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-green-700 active:bg-green-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!generatedImageUrl ? translateText('kiosk.preparingLink', kioskLanguage) : <><MessageCircle size={18} className="md:w-6 md:h-6" /> {translateText('kiosk.sendViaWhatsApp', kioskLanguage)}</>}
+                        {!shareUrl ? translateText('kiosk.preparingLink', kioskLanguage) : <><MessageCircle size={18} className="md:w-6 md:h-6" /> {translateText('kiosk.sendViaWhatsApp', kioskLanguage)}</>}
                     </button>
                     <p className="text-xs text-slate-500 text-center px-2">
                       {translateText('kiosk.whatsappConsent', kioskLanguage)}
@@ -1437,7 +1423,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </div>
                 )}
 
-                {!generatedImageUrl?.startsWith('data:') && event.emailEnabled && (
+                {shareUrl && event.emailEnabled && (
                   <div className="space-y-1.5 md:space-y-4">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
                       <Mail size={14} /> {translateText('kiosk.email', kioskLanguage)}
@@ -1458,20 +1444,20 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     />
                     <button
                         onClick={handleSendEmail}
-                        disabled={isSending || !emailAddress.includes('@') || !generatedImageUrl}
+                        disabled={isSending || !emailAddress.includes('@') || !shareUrl}
                         className="w-full bg-blue-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-blue-700 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!generatedImageUrl ? translateText('kiosk.preparingLink', kioskLanguage) : isSending ? translateText('kiosk.sending', kioskLanguage) : <><Mail size={18} className="md:w-6 md:h-6" /> {translateText('kiosk.sendViaEmail', kioskLanguage)}</>}
+                        {!shareUrl ? translateText('kiosk.preparingLink', kioskLanguage) : isSending ? translateText('kiosk.sending', kioskLanguage) : <><Mail size={18} className="md:w-6 md:h-6" /> {translateText('kiosk.sendViaEmail', kioskLanguage)}</>}
                     </button>
                   </div>
                 )}
 
-                {generatedImageUrl && !generatedImageUrl.startsWith('data:') && generatedImageUrl.length < 500 && (
+                {shareUrl && shareUrl.length < 500 && (
                   <div className="pt-2 md:pt-8 border-t border-slate-300">
                       <div className="flex items-center gap-2 md:gap-4 bg-slate-50 p-2 md:p-4 rounded-xl border-2 border-slate-300">
                           <div className="bg-white p-1 md:p-2 rounded-lg flex-shrink-0 border border-slate-300">
                               <QRCodeSVG
-                                value={generatedImageUrl}
+                                value={shareUrl}
                                 size={50}
                                 level="M"
                                 includeMargin={false}

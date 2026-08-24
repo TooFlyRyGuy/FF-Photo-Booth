@@ -1272,6 +1272,47 @@ export const saveGeneratedImage = async (
   return data.id;
 };
 
+export const saveEventPhotoRecord = async (
+  eventId: string,
+  promptId: string,
+  storagePath: string,
+  publicUrl: string,
+  smugmugUrl: string | null = null
+): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('event_photos')
+    .insert({
+      event_id: eventId,
+      prompt_id: promptId,
+      storage_path: storagePath,
+      public_url: publicUrl,
+      smugmug_url: smugmugUrl,
+    })
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to save event photo record:', error);
+    return null;
+  }
+
+  return data?.id || null;
+};
+
+export const updateEventPhotoSmugmugUrl = async (
+  photoId: string,
+  smugmugUrl: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('event_photos')
+    .update({ smugmug_url: smugmugUrl })
+    .eq('id', photoId);
+
+  if (error) {
+    console.error('Failed to update event photo SmugMug URL:', error);
+  }
+};
+
 export interface EventAnalytics {
   totalPhotos: number;
   promptStats: Array<{
