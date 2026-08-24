@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download } from 'lucide-react';
 import Settings from './Settings';
@@ -2403,6 +2403,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     isAdmin={userProfile?.role === 'admin'}
                     onSync={async (galleryKey, galleryUrl) => {
                       await syncSmugMugGallery(editingEvent.id, galleryKey, galleryUrl);
+                      const updatedEvent = await getEventById(editingEvent.id);
+                      setEditingEvent(updatedEvent);
+                    }}
+                    onUpdateUrl={async (galleryUrl) => {
+                      await updateSmugMugGalleryUrl(editingEvent.id, galleryUrl);
                       const updatedEvent = await getEventById(editingEvent.id);
                       setEditingEvent(updatedEvent);
                     }}

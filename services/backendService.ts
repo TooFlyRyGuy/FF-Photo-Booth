@@ -2323,6 +2323,27 @@ export const syncSmugMugGallery = async (
   }
 };
 
+export const updateSmugMugGalleryUrl = async (
+  eventId: string,
+  galleryUrl: string
+): Promise<void> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { error } = await supabase
+    .from('events')
+    .update({ smugmug_gallery_url: galleryUrl })
+    .eq('id', eventId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update gallery URL: ${error.message}`);
+  }
+};
+
 export const createSmugMugGalleryForEvent = async (
   eventId: string,
   eventName: string,

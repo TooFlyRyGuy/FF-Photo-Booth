@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, ExternalLink, RefreshCw, ShieldAlert } from 'lucide-react';
+import { Link, ExternalLink, RefreshCw, ShieldAlert, Save } from 'lucide-react';
 
 interface SmugMugGallerySyncProps {
   eventId: string;
@@ -8,6 +8,7 @@ interface SmugMugGallerySyncProps {
   currentGalleryUrl?: string;
   onSync: (galleryKey: string, galleryUrl: string) => Promise<void>;
   onCreateNew: () => Promise<{ galleryKey: string; galleryUrl: string }>;
+  onUpdateUrl: (galleryUrl: string) => Promise<void>;
   isAdmin: boolean;
 }
 
@@ -18,13 +19,16 @@ export function SmugMugGallerySync({
   currentGalleryUrl,
   onSync,
   onCreateNew,
+  onUpdateUrl,
   isAdmin,
 }: SmugMugGallerySyncProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSavingUrl, setIsSavingUrl] = useState(false);
   const [manualGalleryKey, setManualGalleryKey] = useState('');
   const [manualGalleryUrl, setManualGalleryUrl] = useState('');
   const [showManualSync, setShowManualSync] = useState(false);
+  const [editableUrl, setEditableUrl] = useState(currentGalleryUrl || '');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -117,21 +121,48 @@ export function SmugMugGallerySync({
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="text"
-                value={currentGalleryUrl}
-                readOnly
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm"
+                type="url"
+                value={editableUrl}
+                onChange={(e) => setEditableUrl(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="https://www.smugmug.com/..."
               />
+              <button
+                onClick={async () => {
+                  if (!editableUrl) return;
+                  setIsSavingUrl(true);
+                  setError(null);
+                  setSuccess(null);
+                  try {
+                    await onUpdateUrl(editableUrl);
+                    setSuccess('Gallery URL updated successfully!');
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to update gallery URL');
+                    setEditableUrl(currentGalleryUrl || '');
+                  } finally {
+                    setIsSavingUrl(false);
+                  }
+                }}
+                disabled={isSavingUrl || editableUrl === currentGalleryUrl}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+                title="Save URL"
+              >
+                {isSavingUrl ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                <span>Save</span>
+              </button>
               <a
-                href={currentGalleryUrl}
+                href={editableUrl || currentGalleryUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 flex items-center gap-2"
               >
                 <ExternalLink size={16} />
                 <span>Open</span>
               </a>
             </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Edit this URL if your SmugMug gallery link changed. The gallery key (used for uploads) stays the same.
+            </p>
           </div>
 
           <button
