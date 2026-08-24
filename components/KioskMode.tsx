@@ -1517,7 +1517,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </div>
                 )}
 
-                {shareUrl && shareUrl.length < 500 && (
+                {shareUrl && shareUrl.length < 500 && event.qrSharingEnabled !== false && (
                   <div className="pt-2 md:pt-8 border-t border-slate-300">
                       <div className="flex items-center gap-2 md:gap-4 bg-slate-50 p-2 md:p-4 rounded-xl border-2 border-slate-300">
                           <div className="bg-white p-1 md:p-2 rounded-lg flex-shrink-0 border border-slate-300">

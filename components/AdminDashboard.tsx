@@ -603,6 +603,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       emailSubject: '',
       emailBody: '',
       downloadEnabled: true,
+      qrSharingEnabled: true,
     });
     setActiveTab('create_event');
   };
@@ -2339,6 +2340,22 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       <div>
                         <span className="text-black font-medium">Allow download to device</span>
                         <p className="text-xs text-slate-500">Guests can save their photo directly to their phone or computer</p>
+                      </div>
+                    </label>
+                  </div>
+
+                {/* QR Code Sharing */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.qrSharingEnabled !== false}
+                        onChange={(e) => setEditingEvent({...editingEvent, qrSharingEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable QR Code sharing</span>
+                        <p className="text-xs text-slate-500">Guests can scan a QR code on the kiosk to access their photo without entering a phone number or email</p>
                       </div>
                     </label>
                   </div>

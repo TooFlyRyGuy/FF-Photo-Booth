@@ -698,6 +698,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       emailSubject: event.email_subject,
       emailBody: event.email_body,
       downloadEnabled: event.download_enabled !== false,
+      qrSharingEnabled: event.qr_sharing_enabled !== false,
     });
   }
 
@@ -810,6 +811,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     emailSubject: eventData.email_subject,
     emailBody: eventData.email_body,
     downloadEnabled: eventData.download_enabled !== false,
+    qrSharingEnabled: eventData.qr_sharing_enabled !== false,
     kioskLanguage: eventData.kiosk_language || 'en-US',
     kioskLanguages: eventData.kiosk_languages || [],
   };
@@ -938,6 +940,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     email_subject: event.emailSubject || null,
     email_body: event.emailBody || null,
     download_enabled: event.downloadEnabled !== false,
+    qr_sharing_enabled: event.qrSharingEnabled !== false,
     kiosk_language: event.kioskLanguage || 'en-US',
     kiosk_languages: event.kioskLanguages && event.kioskLanguages.length > 0 ? event.kioskLanguages : null,
     event_source: isUpdate ? undefined : eventSource,
@@ -2060,6 +2063,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
       emailSubject: e.email_subject,
       emailBody: e.email_body,
       downloadEnabled: e.download_enabled !== false,
+      qrSharingEnabled: e.qr_sharing_enabled !== false,
     };
   });
 };

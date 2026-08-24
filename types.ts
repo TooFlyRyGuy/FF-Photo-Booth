@@ -234,6 +234,7 @@ export interface Event {
   emailSubject?: string;
   emailBody?: string;
   downloadEnabled?: boolean;
+  qrSharingEnabled?: boolean;
   kioskLanguage?: string;
   kioskLanguages?: string[];
 }
