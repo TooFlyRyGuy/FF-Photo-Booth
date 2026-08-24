@@ -1,4 +1,4 @@
-import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult, PromptTranslation } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult, PromptTranslation, KioskTextOverride } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
 
@@ -2738,6 +2738,90 @@ export const autoTranslatePrompts = async (
     method: 'POST',
     headers,
     body: JSON.stringify({ prompts, targetLanguage }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Translation failed (${response.status})`);
+  }
+
+  const data = await response.json();
+
+  if (!data.translations || !Array.isArray(data.translations)) {
+    throw new Error('Invalid translation response');
+  }
+
+  return data.translations;
+};
+
+// --- Kiosk Text Overrides ---
+
+export const getKioskTextOverrides = async (eventId: string): Promise<KioskTextOverride[]> => {
+  const { data, error } = await supabase
+    .from('kiosk_text_overrides')
+    .select('id, event_id, language_code, text_key, text_value')
+    .eq('event_id', eventId);
+
+  if (error) {
+    console.error('Failed to fetch kiosk text overrides:', error);
+    return [];
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    eventId: row.event_id,
+    languageCode: row.language_code,
+    textKey: row.text_key,
+    textValue: row.text_value,
+  }));
+};
+
+export const saveKioskTextOverrides = async (overrides: KioskTextOverride[]): Promise<void> => {
+  if (overrides.length === 0) return;
+
+  const rows = overrides.map(o => ({
+    event_id: o.eventId,
+    language_code: o.languageCode,
+    text_key: o.textKey,
+    text_value: o.textValue,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error } = await supabase
+    .from('kiosk_text_overrides')
+    .upsert(rows, { onConflict: 'event_id,language_code,text_key' });
+
+  if (error) {
+    throw new Error(`Failed to save kiosk text overrides: ${error.message}`);
+  }
+};
+
+export const deleteKioskTextOverrides = async (eventId: string, languageCode: string): Promise<void> => {
+  const { error } = await supabase
+    .from('kiosk_text_overrides')
+    .delete()
+    .eq('event_id', eventId)
+    .eq('language_code', languageCode);
+
+  if (error) {
+    throw new Error(`Failed to delete kiosk text overrides: ${error.message}`);
+  }
+};
+
+export const autoTranslateKioskText = async (
+  texts: { key: string; value: string }[],
+  targetLanguage: string
+): Promise<{ key: string; value: string }[]> => {
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-kiosk-text`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ texts, targetLanguage }),
   });
 
   if (!response.ok) {

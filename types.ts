@@ -134,6 +134,14 @@ export interface PromptTranslation {
   description?: string;
 }
 
+export interface KioskTextOverride {
+  id?: string;
+  eventId: string;
+  languageCode: string;
+  textKey: string;
+  textValue: string;
+}
+
 export interface GlobalSettings {
   dropboxAppKey?: string;
   dropboxAppSecret?: string;
