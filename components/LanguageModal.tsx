@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Save, Sparkles, Check, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { X, Globe, Save, Sparkles, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { Event, Prompt, PromptTranslation, KioskTextOverride } from '../types';
 import { SUPPORTED_LANGUAGES, LanguageCode, translateText } from '../lib/i18n';
-import { getPromptTranslationsBatch, savePromptTranslationsBatch, autoTranslatePrompts, getKioskTextOverrides, saveKioskTextOverrides, autoTranslateKioskText, deleteSingleKioskTextOverride } from '../services/backendService';
+import { getPromptTranslationsBatch, savePromptTranslationsBatch, autoTranslatePrompts, getKioskTextOverrides, saveKioskTextOverrides, autoTranslateKioskText, deleteSingleKioskTextOverride, deleteKioskTextOverrides, deletePromptTranslation } from '../services/backendService';
 
 interface LanguageModalProps {
   event: Partial<Event>;
@@ -61,6 +61,10 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
       (event.kioskLanguages || (event.kioskLanguage ? [event.kioskLanguage] : ['en-US']))
         .filter((l): l is LanguageCode => SUPPORTED_LANGUAGES.some(s => s.code === l))
     )
+  );
+  const originalLanguages = new Set(
+    (event.kioskLanguages || (event.kioskLanguage ? [event.kioskLanguage] : ['en-US']))
+      .filter((l): l is LanguageCode => SUPPORTED_LANGUAGES.some(s => s.code === l))
   );
   const [translations, setTranslations] = useState<Record<string, Record<string, { name: string; description: string }>>>({});
   const [isTranslating, setIsTranslating] = useState<LanguageCode | null>(null);
@@ -242,17 +246,31 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
     }
   };
 
-  const handleResetToEnglish = (lang: LanguageCode) => {
+  const handleRemoveLanguage = (lang: LanguageCode) => {
+    setSelectedLanguages(prev => {
+      const next = new Set(prev);
+      next.delete(lang);
+      return next;
+    });
     setKioskTextOverrides(prev => {
       const next = { ...prev };
-      if (!next[lang]) next[lang] = {};
-      for (const group of KIOSK_TEXT_GROUPS) {
-        for (const key of group.keys) {
-          next[lang][key] = translateText(key, 'en-US');
-        }
+      delete next[lang];
+      return next;
+    });
+    setTranslations(prev => {
+      const next = { ...prev };
+      for (const pid of Object.keys(next)) {
+        delete next[pid][lang];
       }
       return next;
     });
+  };
+
+  const handleClearAllTranslations = () => {
+    const nonEnglish = Array.from(originalLanguages).filter(l => l !== 'en-US');
+    setSelectedLanguages(new Set(['en-US']));
+    setKioskTextOverrides({});
+    setTranslations({});
   };
 
   const handleSave = async () => {
@@ -301,6 +319,16 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
 
         for (const { langCode, textKey } of overridesToDelete) {
           await deleteSingleKioskTextOverride(event.id, langCode, textKey);
+        }
+
+        const removedLanguages = Array.from(originalLanguages).filter(l => !selectedLanguages.has(l));
+        for (const lang of removedLanguages) {
+          await deleteKioskTextOverrides(event.id, lang);
+          for (const prompt of prompts) {
+            if (prompt.id) {
+              await deletePromptTranslation(prompt.id, lang);
+            }
+          }
         }
       }
 
@@ -370,6 +398,15 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                 );
               })}
             </div>
+            {hasNonEnglishSelected && (
+              <button
+                onClick={handleClearAllTranslations}
+                className="mt-3 flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border-2 border-red-200 rounded-lg text-sm font-medium transition-colors"
+              >
+                <Trash2 size={16} />
+                Clear All Translations & Reset to English Only
+              </button>
+            )}
           </div>
 
           {/* Kiosk Screen Text Overrides */}
@@ -417,11 +454,11 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => handleResetToEnglish(lang.code)}
-                            className="text-xs text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors"
+                            onClick={() => handleRemoveLanguage(lang.code)}
+                            className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors"
                           >
-                            <RotateCcw size={12} />
-                            Reset to English
+                            <X size={12} />
+                            Remove Language
                           </button>
                           <button
                             type="button"
