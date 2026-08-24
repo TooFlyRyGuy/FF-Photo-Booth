@@ -2796,6 +2796,19 @@ export const saveKioskTextOverrides = async (overrides: KioskTextOverride[]): Pr
   }
 };
 
+export const deleteSingleKioskTextOverride = async (eventId: string, languageCode: string, textKey: string): Promise<void> => {
+  const { error } = await supabase
+    .from('kiosk_text_overrides')
+    .delete()
+    .eq('event_id', eventId)
+    .eq('language_code', languageCode)
+    .eq('text_key', textKey);
+
+  if (error) {
+    throw new Error(`Failed to delete kiosk text override: ${error.message}`);
+  }
+};
+
 export const deleteKioskTextOverrides = async (eventId: string, languageCode: string): Promise<void> => {
   const { error } = await supabase
     .from('kiosk_text_overrides')

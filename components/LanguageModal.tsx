@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Globe, Save, Sparkles, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Event, Prompt, PromptTranslation, KioskTextOverride } from '../types';
 import { SUPPORTED_LANGUAGES, LanguageCode, translateText } from '../lib/i18n';
-import { getPromptTranslationsBatch, savePromptTranslationsBatch, autoTranslatePrompts, getKioskTextOverrides, saveKioskTextOverrides, autoTranslateKioskText } from '../services/backendService';
+import { getPromptTranslationsBatch, savePromptTranslationsBatch, autoTranslatePrompts, getKioskTextOverrides, saveKioskTextOverrides, autoTranslateKioskText, deleteSingleKioskTextOverride } from '../services/backendService';
 
 interface LanguageModalProps {
   event: Partial<Event>;
@@ -31,11 +31,11 @@ const KIOSK_TEXT_GROUPS: KioskTextGroup[] = [
   },
   {
     label: 'Prompt Selection',
-    keys: ['kiosk.chooseYourStyle', 'kiosk.cancel', 'kiosk.back'],
+    keys: ['kiosk.chooseYourStyle', 'kiosk.cancel'],
   },
   {
     label: 'Camera',
-    keys: ['kiosk.switchCamera', 'kiosk.switchToFront'],
+    keys: ['kiosk.switchCamera', 'kiosk.switchToFront', 'kiosk.back'],
   },
   {
     label: 'Processing',
@@ -228,6 +228,20 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
     });
   };
 
+  const handleKioskTextBlur = (lang: LanguageCode, textKey: string, value: string) => {
+    if (!value.trim()) {
+      const englishDefault = translateText(textKey, 'en-US');
+      setKioskTextOverrides(prev => {
+        const next = { ...prev };
+        if (next[lang]) {
+          next[lang] = { ...next[lang] };
+          next[lang][textKey] = englishDefault;
+        }
+        return next;
+      });
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
@@ -252,21 +266,29 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
 
       if (event.id) {
         const allKioskOverrides: KioskTextOverride[] = [];
+        const overridesToDelete: { langCode: string; textKey: string }[] = [];
         for (const [langCode, keyMap] of Object.entries(kioskTextOverrides)) {
           for (const [textKey, textValue] of Object.entries(keyMap)) {
-            if (textValue.trim()) {
+            const englishDefault = translateText(textKey, 'en-US');
+            if (textValue.trim() && textValue !== englishDefault) {
               allKioskOverrides.push({
                 eventId: event.id,
                 languageCode: langCode,
                 textKey,
                 textValue,
               });
+            } else {
+              overridesToDelete.push({ langCode, textKey });
             }
           }
         }
 
         if (allKioskOverrides.length > 0) {
           await saveKioskTextOverrides(allKioskOverrides);
+        }
+
+        for (const { langCode, textKey } of overridesToDelete) {
+          await deleteSingleKioskTextOverride(event.id, langCode, textKey);
         }
       }
 
@@ -425,6 +447,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                                         type="text"
                                         value={currentValue}
                                         onChange={(e) => handleKioskTextChange(lang.code, key, e.target.value)}
+                                        onBlur={(e) => handleKioskTextBlur(lang.code, key, e.target.value)}
                                         className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm ${
                                           isModified ? 'border-blue-300 bg-blue-50' : 'border-slate-300'
                                         }`}

@@ -823,14 +823,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             className="text-4xl md:text-6xl lg:text-8xl font-display font-bold"
             style={{ color: colors.secondary }}
           >
-            {t('kiosk.eventNotStarted', kioskLanguage)}
+            {t('kiosk.eventNotStarted')}
           </h1>
           <p className="text-xl md:text-2xl lg:text-3xl text-slate-900 font-light">
-            {t('kiosk.eventNotStartedDesc', kioskLanguage)}
+            {t('kiosk.eventNotStartedDesc')}
           </p>
           {startDate && (
             <div className="mt-8 p-6 bg-white backdrop-blur-sm rounded-xl border-2 border-slate-300">
-              <p className="text-slate-900 text-lg md:text-xl mb-2">{t('kiosk.eventStarts', kioskLanguage)}</p>
+              <p className="text-slate-900 text-lg md:text-xl mb-2">{t('kiosk.eventStarts')}</p>
               <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.primary }}>
                 {startDate.toLocaleString(kioskLanguage, {
                   weekday: 'long',
@@ -846,7 +846,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           )}
         </div>
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
-          <button onClick={handleExitKiosk} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">{t('kiosk.exitKiosk', kioskLanguage)}</button>
+          <button onClick={handleExitKiosk} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">{t('kiosk.exitKiosk')}</button>
         </div>
       </div>
     );
@@ -873,14 +873,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             className="text-4xl md:text-6xl lg:text-8xl font-display font-bold"
             style={{ color: colors.secondary }}
           >
-            {t('kiosk.eventHasEnded', kioskLanguage)}
+            {t('kiosk.eventHasEnded')}
           </h1>
           <p className="text-xl md:text-2xl lg:text-3xl text-slate-900 font-light">
-            {t('kiosk.eventConcluded', kioskLanguage)}
+            {t('kiosk.eventConcluded')}
           </p>
           {endDate && (
             <div className="mt-8 p-6 bg-white backdrop-blur-sm rounded-xl border-2 border-slate-300">
-              <p className="text-slate-900 text-lg md:text-xl mb-2">{t('kiosk.eventEnded', kioskLanguage)}</p>
+              <p className="text-slate-900 text-lg md:text-xl mb-2">{t('kiosk.eventEnded')}</p>
               <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.primary }}>
                 {endDate.toLocaleString(kioskLanguage, {
                   weekday: 'long',
@@ -895,11 +895,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             </div>
           )}
           <p className="text-lg text-slate-700 mt-6">
-            {t('kiosk.thankYou', kioskLanguage)}
+            {t('kiosk.thankYou')}
           </p>
         </div>
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
-          <button onClick={handleExitKiosk} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">{t('kiosk.exitKiosk', kioskLanguage)}</button>
+          <button onClick={handleExitKiosk} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">{t('kiosk.exitKiosk')}</button>
         </div>
       </div>
     );
@@ -935,7 +935,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           {isCheckingCredits ? (
             <>
               <div className="animate-spin rounded-full h-16 w-16 md:h-24 md:w-24 border-b-4 mx-auto" style={{ borderColor: colors.secondary }}></div>
-              <p className="text-xl md:text-3xl text-slate-900 font-light">{t('kiosk.checkingCredits', kioskLanguage)}</p>
+              <p className="text-xl md:text-3xl text-slate-900 font-light">{t('kiosk.checkingCredits')}</p>
             </>
           ) : (
             <>
@@ -943,19 +943,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 className="text-4xl md:text-6xl lg:text-8xl font-display font-bold animate-bounce"
                 style={{ color: colors.secondary }}
               >
-                {t('kiosk.tapToStart', kioskLanguage)}
+                {t('kiosk.tapToStart')}
               </h1>
-              <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">{t('kiosk.aiPhotoExperience', kioskLanguage)}</p>
+              <p className="text-base md:text-xl lg:text-2xl text-slate-900 font-light tracking-[0.3em] md:tracking-[0.5em] uppercase">{t('kiosk.aiPhotoExperience')}</p>
               {event.limitPhotosPerDevice && deviceLimitRemaining !== null && deviceLimitRemaining > 0 && (
                 <p className="text-sm md:text-lg text-slate-700 font-medium mt-2">
-                  {deviceLimitRemaining} of {event.maxPhotosPerDevice} {event.maxPhotosPerDevice === 1 ? t('kiosk.photoRemaining', kioskLanguage) : t('kiosk.photosRemaining', kioskLanguage)}
+                  {deviceLimitRemaining} of {event.maxPhotosPerDevice} {event.maxPhotosPerDevice === 1 ? t('kiosk.photoRemaining') : t('kiosk.photosRemaining')}
                 </p>
               )}
             </>
           )}
         </div>
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
-           <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">{t('kiosk.exitKiosk', kioskLanguage)}</button>
+           <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">{t('kiosk.exitKiosk')}</button>
         </div>
         {eventLanguages.length > 1 && (
           <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50" onClick={(e) => e.stopPropagation()}>
@@ -1014,16 +1014,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             className="text-3xl md:text-5xl lg:text-7xl font-display font-bold"
             style={{ color: colors.secondary }}
           >
-            {t('kiosk.outOfCredits', kioskLanguage)}
+            {t('kiosk.outOfCredits')}
           </h1>
 
           <p className="text-lg md:text-2xl text-slate-900 font-light">
-            {t('kiosk.outOfCreditsDesc', kioskLanguage)}
+            {t('kiosk.outOfCreditsDesc')}
           </p>
 
           <div className="mt-8 space-y-4 md:space-y-6">
             <p className="text-base md:text-lg text-slate-700 mb-6">
-              {t('kiosk.upgradePrompt', kioskLanguage)}
+              {t('kiosk.upgradePrompt')}
             </p>
 
             <div className="space-y-3 md:space-y-4">
@@ -1040,7 +1040,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
                 onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
               >
-                {t('kiosk.upgradeSubscription', kioskLanguage)}
+                {t('kiosk.upgradeSubscription')}
               </button>
 
               <button
@@ -1050,14 +1050,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 }}
                 className="w-full max-w-md mx-auto bg-slate-900 text-white font-bold text-base md:text-xl py-4 md:py-5 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 shadow-lg"
               >
-                {t('kiosk.purchaseCredits', kioskLanguage)}
+                {t('kiosk.purchaseCredits')}
               </button>
             </div>
 
             <div className="mt-8 p-4 md:p-6 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
               <p className="text-sm md:text-base text-slate-700">
-                <strong>{t('kiosk.needHelp', kioskLanguage)}</strong><br />
-                {t('kiosk.contactOrganizer', kioskLanguage)}
+                <strong>{t('kiosk.needHelp')}</strong><br />
+                {t('kiosk.contactOrganizer')}
               </p>
             </div>
           </div>
@@ -1065,7 +1065,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
           <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
-            {t('kiosk.exitKiosk', kioskLanguage)}
+            {t('kiosk.exitKiosk')}
           </button>
         </div>
       </div>
@@ -1102,24 +1102,24 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             className="text-3xl md:text-5xl lg:text-7xl font-display font-bold"
             style={{ color: colors.secondary }}
           >
-            {t('kiosk.photoLimitReached', kioskLanguage)}
+            {t('kiosk.photoLimitReached')}
           </h1>
 
           <p className="text-lg md:text-2xl text-slate-900 font-light">
-            {t('kiosk.deviceLimitDesc', kioskLanguage)}
+            {t('kiosk.deviceLimitDesc')}
           </p>
 
           <div className="mt-8 p-4 md:p-6 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
             <p className="text-sm md:text-base text-slate-700">
-              <strong>{t('kiosk.limit', kioskLanguage)}</strong> {event.maxPhotosPerDevice} {event.maxPhotosPerDevice === 1 ? t('kiosk.photoPerDevice', kioskLanguage) : t('kiosk.photosPerDevice', kioskLanguage)}<br />
-              {t('kiosk.askOrganizer', kioskLanguage)}
+              <strong>{t('kiosk.limit')}</strong> {event.maxPhotosPerDevice} {event.maxPhotosPerDevice === 1 ? t('kiosk.photoPerDevice') : t('kiosk.photosPerDevice')}<br />
+              {t('kiosk.askOrganizer')}
             </p>
           </div>
         </div>
 
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
           <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
-            {t('kiosk.exitKiosk', kioskLanguage)}
+            {t('kiosk.exitKiosk')}
           </button>
         </div>
       </div>
@@ -1130,7 +1130,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'prompt-select') {
     return (
       <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
-        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">{t('kiosk.chooseYourStyle', kioskLanguage)}</h2>
+        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">{t('kiosk.chooseYourStyle')}</h2>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 w-full max-w-7xl mx-auto justify-items-center">
@@ -1162,7 +1162,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         </div>
 
         <div className="flex-shrink-0 text-center pt-2">
-          <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">{t('kiosk.cancel', kioskLanguage)}</button>
+          <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">{t('kiosk.cancel')}</button>
         </div>
       </div>
     );
@@ -1226,7 +1226,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             onClick={toggleCamera}
             disabled={!!countdown}
             className="bg-white/90 backdrop-blur text-slate-900 p-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
-            title={facingMode === 'user' ? t('kiosk.switchCamera', kioskLanguage) : t('kiosk.switchToFront', kioskLanguage)}
+            title={facingMode === 'user' ? t('kiosk.switchCamera') : t('kiosk.switchToFront')}
           >
             <SwitchCamera className="w-5 h-5 md:w-6 md:h-6" />
           </button>
@@ -1234,7 +1234,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
         <div className="fixed bottom-20 md:bottom-24 left-0 right-0 z-40 flex justify-center gap-4 md:gap-8 items-center px-4">
            <button onClick={() => setView('prompt-select')} className="bg-white/90 backdrop-blur text-slate-900 px-4 py-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 text-sm md:text-base min-h-[44px] font-semibold">
-             {t('kiosk.back', kioskLanguage)}
+             {t('kiosk.back')}
            </button>
            <button
              onClick={takePhoto}
@@ -1274,9 +1274,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             />
           </div>
         </div>
-        <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>{t('kiosk.creatingMagic', kioskLanguage)}</h2>
+        <h2 className="text-2xl md:text-4xl font-display animate-pulse text-center" style={{ color: colors.secondary }}>{t('kiosk.creatingMagic')}</h2>
         <p className="text-sm md:text-base text-slate-600 text-center">
-          {uploadProgress || t('kiosk.applyingStyle', kioskLanguage, { style: getPromptDisplayName(selectedPrompt!) })}
+          {uploadProgress || t('kiosk.applyingStyle', { style: getPromptDisplayName(selectedPrompt!) })}
         </p>
       </div>
     );
@@ -1287,7 +1287,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       const colors = getBrandingColors();
       return (
           <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col items-center p-3 md:p-8 overflow-hidden">
-              <h2 className="text-xl md:text-3xl text-slate-900 font-display mb-2 md:mb-4 flex-shrink-0">{t('kiosk.lookGood', kioskLanguage)}</h2>
+              <h2 className="text-xl md:text-3xl text-slate-900 font-display mb-2 md:mb-4 flex-shrink-0">{t('kiosk.lookGood')}</h2>
               {errorMsg && (
                 <div className="w-full max-w-2xl mb-2 md:mb-4 p-2 md:p-4 bg-red-100 border-2 border-red-300 rounded-lg text-red-800 text-center text-sm md:text-base flex-shrink-0">
                   {errorMsg}
@@ -1298,7 +1298,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
               </div>
               <div className="flex gap-2 md:gap-6 mt-3 md:mt-8 w-full max-w-2xl flex-shrink-0">
                   <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-50 active:bg-slate-50 font-bold text-sm md:text-lg min-h-[44px]">
-                    <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.retake', kioskLanguage)}
+                    <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.retake')}
                   </button>
                   <button
                     onClick={handleGenerate}
@@ -1310,7 +1310,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
                     onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                   >
-                    {t('kiosk.generateAI', kioskLanguage)} <ArrowRight size={18} className="md:w-6 md:h-6" />
+                    {t('kiosk.generateAI')} <ArrowRight size={18} className="md:w-6 md:h-6" />
                   </button>
               </div>
           </div>
@@ -1332,7 +1332,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             onContextMenu={(e) => e.stopPropagation()}
           />
           <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-slate-900/80 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md pointer-events-none lg:hidden">
-            {t('kiosk.longPressToSave', kioskLanguage)}
+            {t('kiosk.longPressToSave')}
           </div>
         </div>
 
@@ -1350,8 +1350,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 >
                     <Check size={24} className="md:w-12 md:h-12 text-white" />
                 </div>
-                <h2 className="text-xl md:text-4xl text-slate-900 font-bold">{t('kiosk.sent', kioskLanguage)}</h2>
-                <p className="text-sm md:text-base text-slate-600">{t('kiosk.checkYourPhone', kioskLanguage)}</p>
+                <h2 className="text-xl md:text-4xl text-slate-900 font-bold">{t('kiosk.sent')}</h2>
+                <p className="text-sm md:text-base text-slate-600">{t('kiosk.checkYourPhone')}</p>
 
                 <div className="pt-3 md:pt-6 space-y-2 md:space-y-4">
                   {event.downloadEnabled !== false && (
@@ -1365,7 +1365,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
                     onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                   >
-                    <Download size={18} className="md:w-6 md:h-6" /> {t('kiosk.downloadPhoto', kioskLanguage)}
+                    <Download size={18} className="md:w-6 md:h-6" /> {t('kiosk.downloadPhoto')}
                   </button>
                   )}
 
@@ -1373,7 +1373,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     onClick={() => setView('result')}
                     className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
                   >
-                    <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendToAnother', kioskLanguage)}
+                    <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendToAnother')}
                   </button>
                 </div>
 
@@ -1382,23 +1382,23 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     onClick={() => window.open(event.smugmugGalleryUrl!, '_blank', 'noopener,noreferrer')}
                     className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-colors flex items-center justify-center gap-2 min-h-[44px] border-2 border-slate-300"
                   >
-                    <Images size={18} className="md:w-6 md:h-6" /> {t('kiosk.viewEventGallery', kioskLanguage)}
+                    <Images size={18} className="md:w-6 md:h-6" /> {t('kiosk.viewEventGallery')}
                   </button>
                 )}
 
-                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-8">{t('kiosk.startingOverIn', kioskLanguage, { seconds: deliveryCountdown })}</p>
+                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-8">{t('kiosk.startingOverIn', { seconds: deliveryCountdown })}</p>
                 <button onClick={resetKiosk} className="text-xs md:text-sm text-slate-600 hover:text-slate-900 py-2">
-                  {t('kiosk.startOverNow', kioskLanguage)}
+                  {t('kiosk.startOverNow')}
                 </button>
 
                 {event.showAccountPromo !== false && (
                   <div className="mt-6 pt-6 border-t border-slate-300">
-                    <p className="text-xs md:text-sm text-slate-600 mb-3">{t('kiosk.wantToCreate', kioskLanguage)}</p>
+                    <p className="text-xs md:text-sm text-slate-600 mb-3">{t('kiosk.wantToCreate')}</p>
                     <a
                       href="/"
                       className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
                     >
-                      {t('kiosk.getYourOwnAccount', kioskLanguage)}
+                      {t('kiosk.getYourOwnAccount')}
                     </a>
                   </div>
                 )}
@@ -1406,9 +1406,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
            ) : (
              <>
                 <div>
-                    <h2 className="text-xl md:text-3xl lg:text-4xl text-slate-900 font-display font-bold mb-1 md:mb-2">{t('kiosk.getYourPhoto', kioskLanguage)}</h2>
+                    <h2 className="text-xl md:text-3xl lg:text-4xl text-slate-900 font-display font-bold mb-1 md:mb-2">{t('kiosk.getYourPhoto')}</h2>
                     <p className="text-xs md:text-base text-slate-600">
-                      {!shareUrl ? t('kiosk.downloadNow', kioskLanguage) : event.downloadEnabled !== false ? t('kiosk.downloadNowOrSent', kioskLanguage) : t('kiosk.getItSent', kioskLanguage)}
+                      {!shareUrl ? t('kiosk.downloadNow') : event.downloadEnabled !== false ? t('kiosk.downloadNowOrSent') : t('kiosk.getItSent')}
                     </p>
                 </div>
 
@@ -1429,7 +1429,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
                     onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
-                    <Download size={18} className="md:w-6 md:h-6" /> {t('kiosk.downloadNowBtn', kioskLanguage)}
+                    <Download size={18} className="md:w-6 md:h-6" /> {t('kiosk.downloadNowBtn')}
                 </button>
                 )}
 
@@ -1439,7 +1439,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                         <div className="w-full border-t border-slate-300"></div>
                     </div>
                     <div className="relative flex justify-center text-xs">
-                        <span className="px-2 md:px-4 bg-white text-slate-500">{t('kiosk.orGetItSent', kioskLanguage)}</span>
+                        <span className="px-2 md:px-4 bg-white text-slate-500">{t('kiosk.orGetItSent')}</span>
                     </div>
                   </div>
                 )}
@@ -1447,7 +1447,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 {shareUrl && event.smsEnabled !== false && (
                   <div className="space-y-1.5 md:space-y-4">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                      <Smartphone size={14} /> {t('kiosk.sms', kioskLanguage)}
+                      <Smartphone size={14} /> {t('kiosk.sms')}
                     </label>
                     <input
                         type="tel"
@@ -1468,7 +1468,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                         disabled={isSending || phoneNumber.length < 3 || !shareUrl}
                         className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!shareUrl ? t('kiosk.preparingLink', kioskLanguage) : isSending ? t('kiosk.sending', kioskLanguage) : <><Send size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendSms', kioskLanguage)}</>}
+                        {!shareUrl ? t('kiosk.preparingLink') : isSending ? t('kiosk.sending') : <><Send size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendSms')}</>}
                     </button>
                   </div>
                 )}
@@ -1480,10 +1480,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                         disabled={!shareUrl}
                         className="w-full bg-green-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-green-700 active:bg-green-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!shareUrl ? t('kiosk.preparingLink', kioskLanguage) : <><MessageCircle size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendViaWhatsApp', kioskLanguage)}</>}
+                        {!shareUrl ? t('kiosk.preparingLink') : <><MessageCircle size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendViaWhatsApp')}</>}
                     </button>
                     <p className="text-xs text-slate-500 text-center px-2">
-                      {t('kiosk.whatsappConsent', kioskLanguage)}
+                      {t('kiosk.whatsappConsent')}
                     </p>
                   </div>
                 )}
@@ -1491,7 +1491,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 {shareUrl && event.emailEnabled && (
                   <div className="space-y-1.5 md:space-y-4">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                      <Mail size={14} /> {t('kiosk.email', kioskLanguage)}
+                      <Mail size={14} /> {t('kiosk.email')}
                     </label>
                     <input
                         type="email"
@@ -1512,7 +1512,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                         disabled={isSending || !emailAddress.includes('@') || !shareUrl}
                         className="w-full bg-blue-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-blue-700 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!shareUrl ? t('kiosk.preparingLink', kioskLanguage) : isSending ? t('kiosk.sending', kioskLanguage) : <><Mail size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendViaEmail', kioskLanguage)}</>}
+                        {!shareUrl ? t('kiosk.preparingLink') : isSending ? t('kiosk.sending') : <><Mail size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendViaEmail')}</>}
                     </button>
                   </div>
                 )}
@@ -1530,8 +1530,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                               />
                           </div>
                           <div>
-                              <p className="text-xs md:text-base text-slate-900 font-bold">{t('kiosk.scanForInstantAccess', kioskLanguage)}</p>
-                              <p className="text-xs text-slate-600">{t('kiosk.noPhoneRequired', kioskLanguage)}</p>
+                              <p className="text-xs md:text-base text-slate-900 font-bold">{t('kiosk.scanForInstantAccess')}</p>
+                              <p className="text-xs text-slate-600">{t('kiosk.noPhoneRequired')}</p>
                           </div>
                       </div>
                   </div>
@@ -1542,22 +1542,22 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     onClick={() => window.open(event.smugmugGalleryUrl!, '_blank', 'noopener,noreferrer')}
                     className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-colors flex items-center justify-center gap-2 min-h-[44px] border-2 border-slate-300"
                   >
-                    <Images size={18} className="md:w-6 md:h-6" /> {t('kiosk.viewEventGallery', kioskLanguage)}
+                    <Images size={18} className="md:w-6 md:h-6" /> {t('kiosk.viewEventGallery')}
                   </button>
                 )}
 
                 <button onClick={resetKiosk} className="text-center text-xs md:text-base text-slate-600 hover:text-slate-900 active:text-slate-900 py-2">
-                    {t('kiosk.skipStartOver', kioskLanguage)}
+                    {t('kiosk.skipStartOver')}
                 </button>
 
                 {event.showAccountPromo !== false && (
                   <div className="mt-6 pt-6 border-t border-slate-300">
-                    <p className="text-xs md:text-sm text-slate-600 mb-3">{t('kiosk.wantToCreate', kioskLanguage)}</p>
+                    <p className="text-xs md:text-sm text-slate-600 mb-3">{t('kiosk.wantToCreate')}</p>
                     <a
                       href="/"
                       className="inline-block bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-lg transition-all"
                     >
-                      {t('kiosk.getYourOwnAccount', kioskLanguage)}
+                      {t('kiosk.getYourOwnAccount')}
                     </a>
                   </div>
                 )}
@@ -1568,7 +1568,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     );
   }
 
-  return <div>{t('kiosk.loading', kioskLanguage)}</div>;
+  return <div>{t('kiosk.loading')}</div>;
   };
 
   const handleExitKiosk = () => {
