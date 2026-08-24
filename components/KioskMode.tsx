@@ -10,7 +10,7 @@ import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageU
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
 import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
-import { LanguageCode, translateText } from '../lib/i18n';
+import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
 
 interface KioskProps {
   event: Event;
@@ -21,7 +21,11 @@ interface KioskProps {
 type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
-  const kioskLanguage = (event.kioskLanguage as LanguageCode) || 'en-US';
+  const eventLanguages: LanguageCode[] = (event.kioskLanguages && event.kioskLanguages.length > 0
+    ? event.kioskLanguages
+    : [event.kioskLanguage || 'en-US']
+  ).filter((l): l is LanguageCode => SUPPORTED_LANGUAGES.some(s => s.code === l));
+  const [kioskLanguage, setKioskLanguage] = useState<LanguageCode>(eventLanguages[0] || 'en-US');
   const [promptTranslationsMap, setPromptTranslationsMap] = useState<Record<string, { name: string; description: string }>>({});
   const [view, setView] = useState<KioskState>('attract');
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
@@ -915,6 +919,29 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
            <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">{translateText('kiosk.exitKiosk', kioskLanguage)}</button>
         </div>
+        {eventLanguages.length > 1 && (
+          <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur-sm rounded-full p-1 border border-slate-200 shadow-sm">
+              {eventLanguages.map((lang) => {
+                const langOption = SUPPORTED_LANGUAGES.find(l => l.code === lang);
+                return (
+                  <button
+                    key={lang}
+                    onClick={() => setKioskLanguage(lang)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      kioskLanguage === lang
+                        ? 'bg-slate-900 text-white'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title={langOption?.label}
+                  >
+                    {langOption?.nativeLabel || lang}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }

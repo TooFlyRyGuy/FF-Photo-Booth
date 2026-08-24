@@ -14,7 +14,7 @@ export const SUPPORTED_LANGUAGES: LanguageOption[] = [
   { code: 'fr', label: 'French', nativeLabel: 'Français' },
   { code: 'de', label: 'German', nativeLabel: 'Deutsch' },
   { code: 'pt', label: 'Portuguese', nativeLabel: 'Português' },
-  { code: 'zh', label: 'Mandarin', nativeLabel: '中文' },
+  { code: 'zh', label: 'Chinese (Simplified)', nativeLabel: '简体中文' },
   { code: 'ja', label: 'Japanese', nativeLabel: '日本語' },
 ];
 

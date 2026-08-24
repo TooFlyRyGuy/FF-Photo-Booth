@@ -811,6 +811,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     emailBody: eventData.email_body,
     downloadEnabled: eventData.download_enabled !== false,
     kioskLanguage: eventData.kiosk_language || 'en-US',
+    kioskLanguages: eventData.kiosk_languages || [],
   };
 };
 
@@ -938,6 +939,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     email_body: event.emailBody || null,
     download_enabled: event.downloadEnabled !== false,
     kiosk_language: event.kioskLanguage || 'en-US',
+    kiosk_languages: event.kioskLanguages && event.kioskLanguages.length > 0 ? event.kioskLanguages : null,
     event_source: isUpdate ? undefined : eventSource,
   };
 

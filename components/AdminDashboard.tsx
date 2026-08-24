@@ -2108,7 +2108,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       Manage Language
                     </button>
                   </div>
-                  {editingEvent.kioskLanguage && editingEvent.kioskLanguage !== 'en-US' && (
+                  {editingEvent.kioskLanguages && editingEvent.kioskLanguages.length > 0 ? (
+                    <p className="text-xs text-green-700 mt-2 ml-1">
+                      Current kiosk languages: {editingEvent.kioskLanguages.join(', ')}
+                    </p>
+                  ) : editingEvent.kioskLanguage && editingEvent.kioskLanguage !== 'en-US' && (
                     <p className="text-xs text-green-700 mt-2 ml-1">
                       Current kiosk language: {editingEvent.kioskLanguage}
                     </p>
@@ -3011,8 +3015,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           event={editingEvent}
           prompts={(editingEvent.prompts || []) as unknown as Prompt[]}
           onClose={() => setShowLanguageModal(false)}
-          onSave={(lang) => {
-            setEditingEvent({ ...editingEvent, kioskLanguage: lang });
+          onSave={(langs) => {
+            setEditingEvent({ ...editingEvent, kioskLanguages: langs, kioskLanguage: langs[0] || 'en-US' });
           }}
         />
       )}

@@ -227,6 +227,7 @@ export interface Event {
   emailBody?: string;
   downloadEnabled?: boolean;
   kioskLanguage?: string;
+  kioskLanguages?: string[];
 }
 
 export interface EventAccessCode {
