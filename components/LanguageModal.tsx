@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Save, Sparkles, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Globe, Save, Sparkles, Check, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import { Event, Prompt, PromptTranslation, KioskTextOverride } from '../types';
 import { SUPPORTED_LANGUAGES, LanguageCode, translateText } from '../lib/i18n';
 import { getPromptTranslationsBatch, savePromptTranslationsBatch, autoTranslatePrompts, getKioskTextOverrides, saveKioskTextOverrides, autoTranslateKioskText, deleteSingleKioskTextOverride } from '../services/backendService';
@@ -242,6 +242,19 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
     }
   };
 
+  const handleResetToEnglish = (lang: LanguageCode) => {
+    setKioskTextOverrides(prev => {
+      const next = { ...prev };
+      if (!next[lang]) next[lang] = {};
+      for (const group of KIOSK_TEXT_GROUPS) {
+        for (const key of group.keys) {
+          next[lang][key] = translateText(key, 'en-US');
+        }
+      }
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
@@ -269,8 +282,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
         const overridesToDelete: { langCode: string; textKey: string }[] = [];
         for (const [langCode, keyMap] of Object.entries(kioskTextOverrides)) {
           for (const [textKey, textValue] of Object.entries(keyMap)) {
-            const englishDefault = translateText(textKey, 'en-US');
-            if (textValue.trim() && textValue !== englishDefault) {
+            if (textValue.trim()) {
               allKioskOverrides.push({
                 eventId: event.id,
                 languageCode: langCode,
@@ -402,24 +414,34 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                     <div key={lang.code} className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <h4 className="text-sm font-bold text-slate-900">{lang.nativeLabel} ({lang.label})</h4>
-                        <button
-                          type="button"
-                          onClick={() => handleAutoTranslateKioskText(lang.code)}
-                          disabled={isTranslatingKiosk !== null}
-                          className="text-xs text-blue-600 hover:text-blue-700 disabled:text-slate-400 flex items-center gap-1 transition-colors"
-                        >
-                          {isTranslatingKiosk === lang.code ? (
-                            <>
-                              <div className="w-3 h-3 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
-                              Translating...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles size={12} />
-                              Translate
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleResetToEnglish(lang.code)}
+                            className="text-xs text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors"
+                          >
+                            <RotateCcw size={12} />
+                            Reset to English
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAutoTranslateKioskText(lang.code)}
+                            disabled={isTranslatingKiosk !== null}
+                            className="text-xs text-blue-600 hover:text-blue-700 disabled:text-slate-400 flex items-center gap-1 transition-colors"
+                          >
+                            {isTranslatingKiosk === lang.code ? (
+                              <>
+                                <div className="w-3 h-3 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
+                                Translating...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles size={12} />
+                                Translate
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
 
                       {KIOSK_TEXT_GROUPS.map((group) => {
