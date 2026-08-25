@@ -411,7 +411,9 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-900 truncate">{lang.nativeLabel}</p>
-                      <p className="text-xs text-slate-500 truncate">{lang.label}</p>
+                      {lang.nativeLabel !== lang.label && (
+                        <p className="text-xs text-slate-500 truncate">{lang.label}</p>
+                      )}
                     </div>
                   </button>
                 );
@@ -441,7 +443,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                 className="w-full max-w-sm bg-white border-2 border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-green-700"
               >
                 {SUPPORTED_LANGUAGES.filter(l => selectedLanguages.has(l.code)).map((lang) => (
-                  <option key={lang.code} value={lang.code}>{lang.nativeLabel} ({lang.label})</option>
+                  <option key={lang.code} value={lang.code}>{lang.nativeLabel === lang.label ? lang.nativeLabel : `${lang.nativeLabel} (${lang.label})`}</option>
                 ))}
               </select>
             </div>
@@ -504,7 +506,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                   {translationLanguages.map((lang) => (
                     <div key={lang.code} className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-slate-900">{lang.nativeLabel} ({lang.label})</h4>
+                        <h4 className="text-sm font-bold text-slate-900">{lang.nativeLabel === lang.label ? lang.nativeLabel : `${lang.nativeLabel} (${lang.label})`}</h4>
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
@@ -641,7 +643,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                           <div key={lang.code} className="space-y-2 pl-2 border-l-2 border-slate-100 ml-1">
                             <div className="flex items-center justify-between">
                               <label className="text-xs text-slate-600 font-bold uppercase tracking-wide">
-                                {lang.nativeLabel} ({lang.label})
+                                {lang.nativeLabel === lang.label ? lang.nativeLabel : `${lang.nativeLabel} (${lang.label})`}
                               </label>
                               <button
                                 type="button"

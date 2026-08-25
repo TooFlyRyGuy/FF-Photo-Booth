@@ -360,7 +360,7 @@ const Settings: React.FC<SettingsProps> = ({
             >
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <option key={lang.code} value={lang.code}>
-                  {lang.nativeLabel} ({lang.label})
+                  {lang.nativeLabel === lang.label ? lang.nativeLabel : `${lang.nativeLabel} (${lang.label})`}
                 </option>
               ))}
             </select>
