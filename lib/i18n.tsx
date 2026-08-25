@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-export type LanguageCode = 'en-US' | 'es' | 'fr' | 'de' | 'pt' | 'zh' | 'ja';
+export type LanguageCode = 'en-US' | 'es' | 'fr' | 'de' | 'pt' | 'zh' | 'ja' | 'ko';
 
 export interface LanguageOption {
   code: LanguageCode;
@@ -16,6 +16,7 @@ export const SUPPORTED_LANGUAGES: LanguageOption[] = [
   { code: 'pt', label: 'Portuguese', nativeLabel: 'Português' },
   { code: 'zh', label: 'Chinese (Simplified)', nativeLabel: '简体中文' },
   { code: 'ja', label: 'Japanese', nativeLabel: '日本語' },
+  { code: 'ko', label: 'Korean', nativeLabel: '한국어' },
 ];
 
 export const LANGUAGE_MAP: Record<string, LanguageOption> = SUPPORTED_LANGUAGES.reduce(
@@ -782,6 +783,112 @@ const ja: TranslationDict = {
   'promptLibrary.translationsSaved': '翻訳が保存されました。',
 };
 
+const ko: TranslationDict = {
+  'kiosk.tapToStart': '탭하여 시작',
+  'kiosk.aiPhotoExperience': 'AI 사진 체험',
+  'kiosk.checkingCredits': '크레딧 확인 중...',
+  'kiosk.photosRemaining': '이 기기에 남은 사진',
+  'kiosk.photoRemaining': '이 기기에 남은 사진',
+  'kiosk.exitKiosk': '키오스크 종료',
+
+  'kiosk.outOfCredits': '크레딧 부족',
+  'kiosk.outOfCreditsDesc': '이 이벤트의 이미지 생성 크레딧이 모두 소진되었습니다',
+  'kiosk.upgradeSubscription': '구독 업그레이드',
+  'kiosk.purchaseCredits': '크레딧 구매',
+  'kiosk.needHelp': '도움이 필요하신가요?',
+  'kiosk.contactOrganizer': '이벤트 주최자에게 연락하거나 계정 대시보드에서 크레딧과 구독을 관리하세요.',
+
+  'kiosk.photoLimitReached': '사진 한도 도달',
+  'kiosk.deviceLimitDesc': '이 기기는 이 이벤트에서 허용된 사진 수에 도달했습니다',
+  'kiosk.limit': '한도:',
+  'kiosk.photoPerDevice': '기기당 사진 1장',
+  'kiosk.photosPerDevice': '기기당 사진',
+  'kiosk.askOrganizer': '도움이 필요하시면 이벤트 주최자에게 문의하세요.',
+
+  'kiosk.chooseYourStyle': '스타일 선택',
+  'kiosk.cancel': '취소',
+  'kiosk.back': '뒤로',
+
+  'kiosk.switchCamera': '후면 카메라로 전환',
+  'kiosk.switchToFront': '전면 카메라로 전환',
+
+  'kiosk.creatingMagic': '마법을 만드는 중...',
+  'kiosk.applyingStyle': '{style} 스타일 적용 중',
+  'kiosk.uploadingImage': '이미지 업로드 중...',
+
+  'kiosk.lookGood': '괜찮아 보이나요?',
+  'kiosk.retake': '다시 촬영',
+  'kiosk.generateAI': 'AI 생성',
+
+  'kiosk.getYourPhoto': '사진 받기',
+  'kiosk.downloadNowOrSent': '지금 다운로드하거나 전송받으세요.',
+  'kiosk.downloadNow': '지금 다운로드 (공유 불가)',
+  'kiosk.getItSent': '아래에서 전송받으세요.',
+  'kiosk.downloadNowBtn': '지금 다운로드',
+  'kiosk.downloadPhoto': '사진 다운로드',
+  'kiosk.orGetItSent': '또는 전송받으세요',
+  'kiosk.sms': 'SMS',
+  'kiosk.sendSms': 'SMS 전송',
+  'kiosk.sendViaWhatsApp': 'WhatsApp으로 전송',
+  'kiosk.whatsappConsent': '전송을 선택하면 Fun Frame Photo에서 WhatsApp을 통해 이 사진 링크를 수신하는 데 동의하는 것입니다.',
+  'kiosk.email': '이메일',
+  'kiosk.sendViaEmail': '이메일로 전송',
+  'kiosk.preparingLink': '링크 준비 중...',
+  'kiosk.sending': '전송 중...',
+  'kiosk.scanForInstantAccess': '스캔하여 즉시 접속',
+  'kiosk.noPhoneRequired': '전화번호 불필요',
+  'kiosk.viewEventGallery': '이벤트 갤러리 보기',
+  'kiosk.skipStartOver': '건너뛰고 다시 시작',
+  'kiosk.startOverNow': '지금 다시 시작',
+  'kiosk.sent': '전송됨!',
+  'kiosk.checkYourPhone': '링크를 확인하려면 전화기를 확인하세요.',
+  'kiosk.sendToAnother': '다른 사람에게 전송',
+  'kiosk.startingOverIn': '{seconds}초 후 다시 시작...',
+  'kiosk.wantToCreate': '직접 프롬프트와 이벤트를 만들고 싶으신가요?',
+  'kiosk.getYourOwnAccount': '지금 나만의 계정 만들기',
+  'kiosk.longPressToSave': '길게 눌러 저장',
+  'kiosk.tapToReturnFullscreen': '탭하여 전체 화면으로 돌아가기',
+  'kiosk.returnToFullscreen': '전체 화면으로 돌아가기',
+  'kiosk.fullscreenPrompt': '최상의 경험을 위해 아무 곳이나 탭하여 전체 화면 모드로 돌아가세요.',
+  'kiosk.loading': '로딩 중...',
+
+  'kiosk.eventNotStarted': '이벤트 미시작',
+  'kiosk.eventNotStartedDesc': '이 이벤트는 아직 시작되지 않았습니다',
+  'kiosk.eventStarts': '이벤트 시작:',
+  'kiosk.eventHasEnded': '이벤트 종료',
+  'kiosk.eventConcluded': '이 이벤트는 종료되었습니다',
+  'kiosk.eventEnded': '이벤트 종료:',
+  'kiosk.thankYou': '참여해 주셔서 감사합니다!',
+  'kiosk.upgradePrompt': '포토 부스를 계속 이용하려면 구독을 업그레이드하거나 추가 크레딧을 구매하세요.',
+
+  'settings.accountLanguage': '계정 언어',
+  'settings.accountLanguageDesc': '대시보드 및 관리 인터페이스의 언어를 선택하세요.',
+  'settings.saved': '설정이 성공적으로 저장되었습니다.',
+  'settings.saveFailed': '설정 저장에 실패했습니다. 다시 시도해 주세요.',
+  'settings.saving': '저장 중...',
+
+  'event.languageSettings': '언어 설정',
+  'event.kioskLanguage': '키오스크 언어',
+  'event.kioskLanguageDesc': '이 이벤트의 키오스크 화면에서 게스트가 볼 언어를 선택하세요.',
+  'event.promptTranslations': '프롬프트 번역',
+  'event.promptTranslationsDesc': '게스트를 위해 프롬프트 이름과 설명을 번역하세요. 자동 번역을 클릭하여 번역을 생성한 후 필요에 따라 편집하세요.',
+  'event.autoTranslateAll': '모두 자동 번역',
+  'event.translating': '번역 중...',
+  'event.translate': '번역',
+  'event.englishSource': '영어 (원문)',
+  'event.save': '저장',
+  'event.cancel': '취소',
+  'event.close': '닫기',
+  'event.manageLanguage': '언어 관리',
+
+  'promptLibrary.translations': '번역',
+  'promptLibrary.translationsDesc': '이 프롬프트의 다른 언어 번역 이름과 설명을 입력하세요.',
+  'promptLibrary.autoTranslate': '자동 번역',
+  'promptLibrary.translating': '번역 중...',
+  'promptLibrary.saveTranslations': '번역 저장',
+  'promptLibrary.translationsSaved': '번역이 저장되었습니다.',
+};
+
 const TRANSLATIONS: Record<LanguageCode, TranslationDict> = {
   'en-US': enUS,
   es,
@@ -790,6 +897,7 @@ const TRANSLATIONS: Record<LanguageCode, TranslationDict> = {
   pt,
   zh,
   ja,
+  ko,
 };
 
 interface I18nContextValue {

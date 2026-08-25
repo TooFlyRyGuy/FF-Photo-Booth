@@ -18,6 +18,7 @@ const LANGUAGE_NAMES: Record<string, string> = {
   pt: "Portuguese",
   zh: "Mandarin Chinese (Simplified)",
   ja: "Japanese",
+  ko: "Korean",
 };
 
 Deno.serve(async (req: Request) => {

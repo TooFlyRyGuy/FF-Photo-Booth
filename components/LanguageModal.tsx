@@ -73,6 +73,9 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
       if (defaultLang && langs.includes(defaultLang) && SUPPORTED_LANGUAGES.some(s => s.code === defaultLang)) {
         return defaultLang as LanguageCode;
       }
+      if (langs.includes('en-US')) {
+        return 'en-US';
+      }
       const first = langs.find(l => SUPPORTED_LANGUAGES.some(s => s.code === l));
       return (first as LanguageCode) || 'en-US';
     })()
