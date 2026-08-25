@@ -2671,32 +2671,35 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                             onDragStart={() => handleDragStart(index)}
                             onDragOver={(e) => handleDragOver(e, index)}
                             onDragEnd={handleDragEnd}
-                            className={`flex items-center gap-4 p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all ${
+                            className={`flex items-center gap-2 md:gap-4 p-2 md:p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all ${
                               draggedPromptIndex === index ? 'opacity-50' : ''
                             }`}
                           >
                             <div
-                              className="p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing"
+                              className="p-1 md:p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing flex-shrink-0"
                               title="Drag to reorder"
                             >
-                              <GripVertical size={20} />
+                              <GripVertical size={16} className="md:hidden" />
+                              <GripVertical size={20} className="hidden md:block" />
                             </div>
-                            <img src={prompt.previewImage} alt={prompt.name} className="h-16 w-16 object-cover rounded" />
-                            <div className="flex-1">
-                              <h4 className="font-bold text-sm text-black">{prompt.name}</h4>
-                              <p className="text-xs text-slate-500">{prompt.description || prompt.category}</p>
+                            <img src={prompt.previewImage} alt={prompt.name} className="h-12 w-12 md:h-16 md:w-16 object-cover rounded flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-sm text-black truncate">{prompt.name}</h4>
+                              <p className="text-xs text-slate-500 line-clamp-2">{prompt.description || prompt.category}</p>
                             </div>
                             <button
                               onClick={() => handleStartEditingPrompt(prompt)}
-                              className="px-3 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm flex items-center gap-1"
+                              className="p-2 md:px-3 md:py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm flex items-center gap-1 flex-shrink-0"
                               title="Edit prompt"
+                              aria-label="Edit prompt"
                             >
-                              <Pencil size={14} /> Edit
+                              <Pencil size={14} /> <span className="hidden md:inline">Edit</span>
                             </button>
                             <button
                               onClick={() => togglePromptSelection(prompt)}
-                              className="px-3 py-2 rounded-md border-2 border-red-300 text-red-700 hover:bg-red-50 text-sm"
+                              className="p-2 md:px-3 md:py-2 rounded-md border-2 border-red-300 text-red-700 hover:bg-red-50 text-sm flex-shrink-0"
                               title="Remove from event"
+                              aria-label="Remove from event"
                             >
                               <X size={14} />
                             </button>

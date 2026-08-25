@@ -1552,23 +1552,35 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 )}
 
                 {shareUrl && shareUrl.length < 500 && event.qrSharingEnabled !== false && (
-                  <div className="pt-2 md:pt-8 border-t border-slate-300">
-                      <div className="flex items-center gap-2 md:gap-4 bg-slate-50 p-2 md:p-4 rounded-xl border-2 border-slate-300">
-                          <div className="bg-white p-1 md:p-2 rounded-lg flex-shrink-0 border border-slate-300">
-                              <QRCodeSVG
-                                value={shareUrl}
-                                size={50}
-                                level="M"
-                                includeMargin={false}
-                                className="md:w-20 md:h-20"
-                              />
-                          </div>
-                          <div>
-                              <p className="text-xs md:text-base text-slate-900 font-bold">{t('kiosk.scanForInstantAccess')}</p>
-                              <p className="text-xs text-slate-600">{t('kiosk.noPhoneRequired')}</p>
+                  (() => {
+                    const otherMethodsEnabled = event.downloadEnabled !== false || event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled;
+                    const qrIsPrimary = !otherMethodsEnabled;
+                    return (
+                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-4 md:pt-8' : 'pt-2 md:pt-8'}`}>
+                          <div className={`bg-slate-50 rounded-xl border-2 border-slate-300 ${
+                            qrIsPrimary
+                              ? 'flex flex-col items-center text-center p-4 md:p-8 gap-3 md:gap-4'
+                              : 'flex items-center gap-2 md:gap-4 p-2 md:p-4'
+                          }`}>
+                              <div className={`bg-white rounded-lg flex-shrink-0 border border-slate-300 ${
+                                qrIsPrimary ? 'p-3 md:p-4' : 'p-1 md:p-2'
+                              }`}>
+                                  <QRCodeSVG
+                                    value={shareUrl}
+                                    size={qrIsPrimary ? 180 : 50}
+                                    level="M"
+                                    includeMargin={false}
+                                    className={qrIsPrimary ? '' : 'md:w-20 md:h-20'}
+                                  />
+                              </div>
+                              <div className={qrIsPrimary ? 'text-center' : ''}>
+                                  <p className={`text-slate-900 font-bold ${qrIsPrimary ? 'text-lg md:text-2xl' : 'text-xs md:text-base'}`}>{t('kiosk.scanForInstantAccess')}</p>
+                                  <p className={`text-slate-600 ${qrIsPrimary ? 'text-sm md:text-base mt-1' : 'text-xs'}`}>{t('kiosk.noPhoneRequired')}</p>
+                              </div>
                           </div>
                       </div>
-                  </div>
+                    );
+                  })()
                 )}
 
                 {event.galleryEnabled && event.smugmugGalleryUrl && (
