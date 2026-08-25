@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail } from 'lucide-react';
+import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail, Lock, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
 import { generateBoothImage } from '../services/geminiService';
@@ -25,7 +25,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     ? event.kioskLanguages
     : [event.kioskLanguage || 'en-US']
   ).filter((l): l is LanguageCode => SUPPORTED_LANGUAGES.some(s => s.code === l));
-  const [kioskLanguage, setKioskLanguage] = useState<LanguageCode>(eventLanguages[0] || 'en-US');
+  const initialKioskLanguage: LanguageCode = ((): LanguageCode => {
+    const defaultLang = event.defaultKioskLanguage;
+    if (defaultLang && eventLanguages.includes(defaultLang as LanguageCode)) {
+      return defaultLang as LanguageCode;
+    }
+    return eventLanguages[0] || 'en-US';
+  })();
+  const [kioskLanguage, setKioskLanguage] = useState<LanguageCode>(initialKioskLanguage);
   const [promptTranslationsMap, setPromptTranslationsMap] = useState<Record<string, { name: string; description: string }>>({});
   const [kioskTextOverrides, setKioskTextOverrides] = useState<Record<string, string>>({});
   const [view, setView] = useState<KioskState>('attract');
@@ -50,6 +57,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const [deviceLimitRemaining, setDeviceLimitRemaining] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showPasscodePrompt, setShowPasscodePrompt] = useState(false);
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [passcodeError, setPasscodeError] = useState(false);
+  const [passcodeAction, setPasscodeAction] = useState<'exit' | 'fullscreen'>('exit');
+
+  const hasPasscode = !!(event.kioskPasscode && event.kioskPasscode.trim().length > 0);
+  const fullscreenEnabled = event.fullscreenEnabled === true;
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -680,7 +694,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   // Track fullscreen state changes
   useEffect(() => {
     const handleChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isNowFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isNowFullscreen);
+      if (fullscreenEnabled && !isNowFullscreen && !showPasscodePrompt) {
+        if (hasPasscode) {
+          setPasscodeAction('fullscreen');
+          setPasscodeInput('');
+          setPasscodeError(false);
+          setShowPasscodePrompt(true);
+        } else {
+          requestFullscreen();
+        }
+      }
     };
     document.addEventListener('fullscreenchange', handleChange);
     document.addEventListener('webkitfullscreenchange', handleChange as EventListener);
@@ -688,6 +713,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       document.removeEventListener('fullscreenchange', handleChange);
       document.removeEventListener('webkitfullscreenchange', handleChange as EventListener);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullscreenEnabled, hasPasscode, showPasscodePrompt]);
+
+  // Auto-enter fullscreen on mount when enabled
+  useEffect(() => {
+    if (fullscreenEnabled) {
+      requestFullscreen();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Start camera when entering camera view or when facingMode changes
@@ -954,32 +988,32 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             </>
           )}
         </div>
-        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50 flex flex-col items-start gap-2">
+          {eventLanguages.length > 1 && !event.hideLanguageSelector && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur-sm rounded-full p-1 border border-slate-200 shadow-sm">
+                {eventLanguages.map((lang) => {
+                  const langOption = SUPPORTED_LANGUAGES.find(l => l.code === lang);
+                  return (
+                    <button
+                      key={lang}
+                      onClick={() => setKioskLanguage(lang)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        kioskLanguage === lang
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                      title={langOption?.label}
+                    >
+                      {langOption?.nativeLabel || lang}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
            <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">{t('kiosk.exitKiosk')}</button>
         </div>
-        {eventLanguages.length > 1 && (
-          <div className="absolute bottom-4 right-4 md:bottom-10 md:right-10 z-50" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur-sm rounded-full p-1 border border-slate-200 shadow-sm">
-              {eventLanguages.map((lang) => {
-                const langOption = SUPPORTED_LANGUAGES.find(l => l.code === lang);
-                return (
-                  <button
-                    key={lang}
-                    onClick={() => setKioskLanguage(lang)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                      kioskLanguage === lang
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                    title={langOption?.label}
-                  >
-                    {langOption?.nativeLabel || lang}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -1571,27 +1605,95 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   return <div>{t('kiosk.loading')}</div>;
   };
 
+  const verifyPasscode = (): boolean => {
+    return hasPasscode && passcodeInput === event.kioskPasscode;
+  };
+
+  const handlePasscodeSubmit = () => {
+    if (passcodeInput === event.kioskPasscode) {
+      setShowPasscodePrompt(false);
+      setPasscodeInput('');
+      setPasscodeError(false);
+      if (passcodeAction === 'exit') {
+        exitFullscreen();
+        onExit();
+      }
+    } else {
+      setPasscodeError(true);
+      setPasscodeInput('');
+    }
+  };
+
+  const handlePasscodeCancel = () => {
+    setShowPasscodePrompt(false);
+    setPasscodeInput('');
+    setPasscodeError(false);
+    if (passcodeAction === 'fullscreen' && fullscreenEnabled && !document.fullscreenElement) {
+      requestFullscreen();
+    }
+  };
+
   const handleExitKiosk = () => {
-    exitFullscreen();
-    onExit();
+    if (hasPasscode) {
+      setPasscodeAction('exit');
+      setPasscodeInput('');
+      setPasscodeError(false);
+      setShowPasscodePrompt(true);
+    } else {
+      exitFullscreen();
+      onExit();
+    }
   };
 
   return (
     <div ref={kioskContainerRef} className="kiosk-fullscreen-container">
       {renderView()}
-      <button
-        onClick={() => {
-          if (document.fullscreenElement) {
-            exitFullscreen();
-          } else {
-            requestFullscreen();
-          }
-        }}
-        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[100] bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-sm rounded-full p-2.5 md:p-3 text-white transition-all hover:scale-110 active:scale-95"
-        aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-      >
-        {isFullscreen ? <Minimize className="w-5 h-5 md:w-6 md:h-6" /> : <Maximize className="w-5 h-5 md:w-6 md:h-6" />}
-      </button>
+      {showPasscodePrompt && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="text-slate-700" size={20} />
+                <h3 className="text-lg font-bold text-slate-900">{t('kiosk.enterPasscode')}</h3>
+              </div>
+              <button onClick={handlePasscodeCancel} className="text-slate-400 hover:text-slate-900">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-600">{t('kiosk.enterPasscodeDesc')}</p>
+            <input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              value={passcodeInput}
+              onChange={(e) => { setPasscodeInput(e.target.value); setPasscodeError(false); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handlePasscodeSubmit(); }}
+              className={`w-full text-center text-2xl tracking-[0.5em] font-mono px-4 py-3 border-2 rounded-lg focus:outline-none ${
+                passcodeError ? 'border-red-500 bg-red-50' : 'border-slate-300 focus:border-slate-700'
+              }`}
+              placeholder="••••"
+            />
+            {passcodeError && (
+              <p className="text-sm text-red-600 text-center">{t('kiosk.incorrectPasscode')}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handlePasscodeCancel}
+                className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium"
+              >
+                {t('kiosk.cancel')}
+              </button>
+              <button
+                onClick={handlePasscodeSubmit}
+                disabled={!passcodeInput}
+                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-lg font-medium"
+              >
+                {t('kiosk.enterPasscode')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

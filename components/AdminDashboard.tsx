@@ -2148,15 +2148,51 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               {/* Kiosk Security */}
               <CollapsibleSection title="Kiosk Security" defaultOpen={false}>
                 <div className="space-y-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <div className="pt-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.fullscreenEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, fullscreenEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable automatic fullscreen</span>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          When enabled, the kiosk enters fullscreen automatically when launched and re-enters if a guest exits. The fullscreen toggle is hidden from guests — this is an admin-only setting.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Kiosk exit passcode (optional)</label>
+                    <p className="text-xs text-slate-500 mb-2">
+                      When set, exiting the kiosk or exiting fullscreen requires this passcode, preventing guests from leaving the kiosk app. Leave empty to allow exit without a passcode.
+                    </p>
                     <input
-                      type="checkbox"
-                      checked={editingEvent.limitPhotosPerDevice || false}
-                      onChange={(e) => setEditingEvent({...editingEvent, limitPhotosPerDevice: e.target.checked})}
-                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
+                      value={editingEvent.kioskPasscode || ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, kioskPasscode: e.target.value.replace(/\s/g, '')})}
+                      placeholder="e.g. 1234"
+                      className="w-40 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm font-mono"
                     />
-                    <span className="text-black">Limit photos per device</span>
-                  </label>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.limitPhotosPerDevice || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, limitPhotosPerDevice: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <span className="text-black">Limit photos per device</span>
+                    </label>
+                  </div>
                   <p className="text-xs text-slate-500 ml-8">
                     When enabled, each device (identified by a browser token and IP address) can only take a set number of photos at this event. Only successfully generated photos count toward the limit.
                   </p>
@@ -3037,8 +3073,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           event={editingEvent}
           prompts={(editingEvent.prompts || []) as unknown as Prompt[]}
           onClose={() => setShowLanguageModal(false)}
-          onSave={(langs) => {
-            setEditingEvent({ ...editingEvent, kioskLanguages: langs, kioskLanguage: langs[0] || 'en-US' });
+          onSave={(langs, defaultLang, hideSelector) => {
+            setEditingEvent({ ...editingEvent, kioskLanguages: langs, kioskLanguage: langs[0] || 'en-US', defaultKioskLanguage: defaultLang, hideLanguageSelector: hideSelector });
           }}
         />
       )}

@@ -237,6 +237,10 @@ export interface Event {
   qrSharingEnabled?: boolean;
   kioskLanguage?: string;
   kioskLanguages?: string[];
+  hideLanguageSelector?: boolean;
+  defaultKioskLanguage?: string;
+  fullscreenEnabled?: boolean;
+  kioskPasscode?: string;
 }
 
 export interface EventAccessCode {

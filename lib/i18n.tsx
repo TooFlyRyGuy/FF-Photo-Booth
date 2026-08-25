@@ -100,6 +100,9 @@ const enUS: TranslationDict = {
   'kiosk.tapToReturnFullscreen': 'Tap to Return to Fullscreen',
   'kiosk.returnToFullscreen': 'Return to Fullscreen',
   'kiosk.fullscreenPrompt': 'For the best experience, tap anywhere to return to fullscreen mode.',
+  'kiosk.enterPasscode': 'Enter Passcode',
+  'kiosk.enterPasscodeDesc': 'Enter the passcode to exit the kiosk.',
+  'kiosk.incorrectPasscode': 'Incorrect passcode. Please try again.',
   'kiosk.loading': 'Loading...',
 
   // Kiosk - Event Time States

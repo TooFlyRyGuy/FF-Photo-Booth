@@ -8,7 +8,7 @@ interface LanguageModalProps {
   event: Partial<Event>;
   prompts: Prompt[];
   onClose: () => void;
-  onSave: (kioskLanguages: string[]) => void;
+  onSave: (kioskLanguages: string[], defaultKioskLanguage: string, hideLanguageSelector: boolean) => void;
 }
 
 interface KioskTextGroup {
@@ -66,6 +66,18 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
     (event.kioskLanguages || (event.kioskLanguage ? [event.kioskLanguage] : ['en-US']))
       .filter((l): l is LanguageCode => SUPPORTED_LANGUAGES.some(s => s.code === l))
   );
+  const [defaultKioskLanguage, setDefaultKioskLanguage] = useState<LanguageCode>(
+    ((): LanguageCode => {
+      const langs = event.kioskLanguages || (event.kioskLanguage ? [event.kioskLanguage] : ['en-US']);
+      const defaultLang = event.defaultKioskLanguage;
+      if (defaultLang && langs.includes(defaultLang) && SUPPORTED_LANGUAGES.some(s => s.code === defaultLang)) {
+        return defaultLang as LanguageCode;
+      }
+      const first = langs.find(l => SUPPORTED_LANGUAGES.some(s => s.code === l));
+      return (first as LanguageCode) || 'en-US';
+    })()
+  );
+  const [hideLanguageSelector, setHideLanguageSelector] = useState<boolean>(event.hideLanguageSelector || false);
   const [translations, setTranslations] = useState<Record<string, Record<string, { name: string; description: string }>>>({});
   const [isTranslating, setIsTranslating] = useState<LanguageCode | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -128,6 +140,10 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
       const next = new Set(prev);
       if (next.has(code)) {
         next.delete(code);
+        if (defaultKioskLanguage === code) {
+          const remaining = Array.from(next);
+          setDefaultKioskLanguage(remaining[0] || 'en-US');
+        }
       } else {
         next.add(code);
       }
@@ -332,7 +348,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
         }
       }
 
-      onSave(Array.from(selectedLanguages));
+      onSave(Array.from(selectedLanguages), defaultKioskLanguage, hideLanguageSelector);
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
@@ -407,6 +423,41 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                 Clear All Translations & Reset to English Only
               </button>
             )}
+          </div>
+
+          {/* Default Kiosk Language & Hide Selector */}
+          <div className="border-2 border-slate-200 rounded-xl p-4 space-y-4 bg-slate-50">
+            <div>
+              <label className="block text-sm font-bold text-slate-900 mb-1">Default Kiosk Language</label>
+              <p className="text-xs text-slate-600 mb-2">
+                The language the kiosk starts in when it loads. Guests can switch languages on the attract screen unless you hide the selector below.
+              </p>
+              <select
+                value={defaultKioskLanguage}
+                onChange={(e) => setDefaultKioskLanguage(e.target.value as LanguageCode)}
+                className="w-full max-w-sm bg-white border-2 border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-green-700"
+              >
+                {SUPPORTED_LANGUAGES.filter(l => selectedLanguages.has(l.code)).map((lang) => (
+                  <option key={lang.code} value={lang.code}>{lang.nativeLabel} ({lang.label})</option>
+                ))}
+              </select>
+            </div>
+            <div className="pt-2 border-t border-slate-200">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hideLanguageSelector}
+                  onChange={(e) => setHideLanguageSelector(e.target.checked)}
+                  className="w-5 h-5 rounded border-slate-300 bg-white text-green-700 focus:ring-2 focus:ring-green-700"
+                />
+                <div>
+                  <span className="text-sm font-medium text-slate-900">Hide language selector on kiosk attract screen</span>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    When enabled, guests cannot switch languages on the kiosk. The kiosk stays in the default language set above.
+                  </p>
+                </div>
+              </label>
+            </div>
           </div>
 
           {/* Kiosk Screen Text Overrides */}
