@@ -1259,30 +1259,22 @@ export const saveGeneratedImage = async (
   status: 'processing' | 'completed' | 'failed' = 'processing',
   errorMessage: string | null = null
 ): Promise<string> => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.rpc('save_generated_image', {
+    p_event_id: eventId,
+    p_prompt_id: promptId,
+    p_original_image_url: originalImageUrl,
+    p_generated_image_url: generatedImageUrl,
+    p_phone_number: phoneNumber,
+    p_status: status,
+    p_error_message: errorMessage,
+  });
 
-  const imageData = {
-    event_id: eventId,
-    prompt_id: promptId,
-    original_image_url: originalImageUrl,
-    generated_image_url: generatedImageUrl,
-    phone_number: phoneNumber,
-    status,
-    error_message: errorMessage,
-    user_id: user?.id || null,
-  };
-
-  const { data, error } = await supabase
-    .from('generated_images')
-    .insert([imageData])
-    .select('id')
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to save generated image: ${error.message}`);
+  if (error || typeof data !== 'string') {
+    console.error('Failed to save generated image:', error);
+    throw new Error('The photo was generated, but its record could not be saved. Please try again.');
   }
 
-  return data.id;
+  return data;
 };
 
 export const saveEventPhotoRecord = async (
