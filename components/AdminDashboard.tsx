@@ -2479,8 +2479,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               )}
 
               {/* Prompt Selection Section */}
-              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
-                <div className="flex justify-between items-center mb-6">
+              <div className="bg-white p-4 md:p-8 rounded-xl border-2 border-slate-300">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 md:mb-6">
                   <div>
                     <h3 className="text-lg font-bold text-black">AI Experience Prompts</h3>
                     <p className="text-sm text-slate-600">
@@ -2492,10 +2492,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       )}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={handleAddNewPrompt}
-                      className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+                      className="bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5"
                     >
                       <Plus size={16} /> New Prompt
                     </button>
@@ -2504,7 +2504,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         setPromptLibraryEventContext(editingEvent.id || 'new-event');
                         setShowPromptLibrary(true);
                       }}
-                      className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+                      className="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5"
                     >
                       <BookImage size={16} /> Library
                     </button>
@@ -2671,25 +2671,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                             onDragStart={() => handleDragStart(index)}
                             onDragOver={(e) => handleDragOver(e, index)}
                             onDragEnd={handleDragEnd}
-                            className={`flex items-center gap-2 md:gap-4 p-2 md:p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all ${
+                            className={`flex items-center gap-1.5 sm:gap-2 md:gap-4 p-1.5 sm:p-2 md:p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all overflow-hidden ${
                               draggedPromptIndex === index ? 'opacity-50' : ''
                             }`}
                           >
                             <div
-                              className="p-1 md:p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing flex-shrink-0"
+                              className="p-0.5 sm:p-1 md:p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing flex-shrink-0"
                               title="Drag to reorder"
                             >
-                              <GripVertical size={16} className="md:hidden" />
+                              <GripVertical size={14} className="sm:hidden" />
+                              <GripVertical size={16} className="hidden sm:block md:hidden" />
                               <GripVertical size={20} className="hidden md:block" />
                             </div>
-                            <img src={prompt.previewImage} alt={prompt.name} className="h-12 w-12 md:h-16 md:w-16 object-cover rounded flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-sm text-black truncate">{prompt.name}</h4>
-                              <p className="text-xs text-slate-500 line-clamp-2">{prompt.description || prompt.category}</p>
+                            <img src={prompt.previewImage} alt={prompt.name} className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 object-cover rounded flex-shrink-0" />
+                            <div className="flex-1 min-w-0 overflow-hidden">
+                              <h4 className="font-bold text-xs sm:text-sm text-black truncate">{prompt.name}</h4>
+                              <p className="text-[10px] sm:text-xs text-slate-500 truncate sm:line-clamp-2">{prompt.description || prompt.category}</p>
                             </div>
                             <button
                               onClick={() => handleStartEditingPrompt(prompt)}
-                              className="p-2 md:px-3 md:py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm flex items-center gap-1 flex-shrink-0"
+                              className="p-1.5 sm:p-2 md:px-3 md:py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm flex items-center gap-1 flex-shrink-0"
                               title="Edit prompt"
                               aria-label="Edit prompt"
                             >
@@ -2697,7 +2698,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                             </button>
                             <button
                               onClick={() => togglePromptSelection(prompt)}
-                              className="p-2 md:px-3 md:py-2 rounded-md border-2 border-red-300 text-red-700 hover:bg-red-50 text-sm flex-shrink-0"
+                              className="p-1.5 sm:p-2 md:px-3 md:py-2 rounded-md border-2 border-red-300 text-red-700 hover:bg-red-50 text-sm flex-shrink-0"
                               title="Remove from event"
                               aria-label="Remove from event"
                             >
