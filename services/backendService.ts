@@ -814,6 +814,10 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     qrSharingEnabled: eventData.qr_sharing_enabled !== false,
     kioskLanguage: eventData.kiosk_language || 'en-US',
     kioskLanguages: eventData.kiosk_languages || [],
+    hideLanguageSelector: eventData.hide_language_selector || false,
+    defaultKioskLanguage: eventData.default_kiosk_language || null,
+    fullscreenEnabled: eventData.fullscreen_enabled || false,
+    kioskPasscode: eventData.kiosk_passcode || null,
   };
 };
 
@@ -943,6 +947,10 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     qr_sharing_enabled: event.qrSharingEnabled !== false,
     kiosk_language: event.kioskLanguage || 'en-US',
     kiosk_languages: event.kioskLanguages && event.kioskLanguages.length > 0 ? event.kioskLanguages : null,
+    hide_language_selector: event.hideLanguageSelector || false,
+    default_kiosk_language: event.defaultKioskLanguage || null,
+    fullscreen_enabled: event.fullscreenEnabled || false,
+    kiosk_passcode: event.kioskPasscode || null,
     event_source: isUpdate ? undefined : eventSource,
   };
 
