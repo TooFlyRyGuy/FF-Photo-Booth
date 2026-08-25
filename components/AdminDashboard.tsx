@@ -795,9 +795,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     try {
       await transferEventOwnership(accessModal.eventId, newOwnerId);
 
-      setAccessModal(null);
+      setAccessModal({ ...accessModal, eventOwnerId: newOwnerId });
       setSelectedUserId('');
-      setEventAccessList([]);
 
       await loadData();
 
@@ -3274,6 +3273,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <p className="text-sm text-slate-600">
                   Grant access to users so this event appears in their account. The owner retains full control.
                 </p>
+              </div>
+
+              <div className="border-t-2 border-slate-300 pt-6">
+                <h4 className="text-md font-bold text-slate-900 mb-4">Event Owner</h4>
+                {(() => {
+                  const owner = allUsers.find(u => u.id === accessModal.eventOwnerId);
+                  return (
+                    <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <Crown size={18} className="text-amber-600" />
+                      <div>
+                        <div className="font-medium text-slate-900">
+                          {owner?.full_name || owner?.email || 'Unknown'}
+                        </div>
+                        {owner?.full_name && owner?.email && (
+                          <div className="text-xs text-slate-600">{owner.email}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="border-t-2 border-slate-300 pt-6">

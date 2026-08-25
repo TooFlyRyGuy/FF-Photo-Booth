@@ -1635,23 +1635,14 @@ export const getEventAccessList = async (eventId: string): Promise<Array<{ userI
 };
 
 export const transferEventOwnership = async (eventId: string, newOwnerId: string): Promise<void> => {
-  const { error: updateError } = await supabase
-    .from('events')
-    .update({ user_id: newOwnerId })
-    .eq('id', eventId);
+  const { error } = await supabase
+    .rpc('transfer_event_ownership', {
+      p_event_id: eventId,
+      p_new_owner_id: newOwnerId,
+    });
 
-  if (updateError) {
-    throw new Error(`Failed to transfer ownership: ${updateError.message}`);
-  }
-
-  const { error: deleteError } = await supabase
-    .from('event_access')
-    .delete()
-    .eq('event_id', eventId)
-    .eq('user_id', newOwnerId);
-
-  if (deleteError) {
-    console.warn('Could not remove shared access record (may not exist):', deleteError.message);
+  if (error) {
+    throw new Error(`Failed to transfer ownership: ${error.message}`);
   }
 
   clearEventsCache();
