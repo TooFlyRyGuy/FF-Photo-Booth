@@ -2671,7 +2671,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                             onDragStart={() => handleDragStart(index)}
                             onDragOver={(e) => handleDragOver(e, index)}
                             onDragEnd={handleDragEnd}
-                            className={`flex items-center gap-1.5 sm:gap-2 md:gap-4 p-1.5 sm:p-2 md:p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all overflow-hidden ${
+                            className={`flex items-start gap-1.5 sm:gap-2 md:gap-4 p-1.5 sm:p-2 md:p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all ${
                               draggedPromptIndex === index ? 'opacity-50' : ''
                             }`}
                           >
@@ -2684,9 +2684,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                               <GripVertical size={20} className="hidden md:block" />
                             </div>
                             <img src={prompt.previewImage} alt={prompt.name} className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 object-cover rounded flex-shrink-0" />
-                            <div className="flex-1 min-w-0 overflow-hidden">
-                              <h4 className="font-bold text-xs sm:text-sm text-black truncate">{prompt.name}</h4>
-                              <p className="text-[10px] sm:text-xs text-slate-500 truncate sm:line-clamp-2">{prompt.description || prompt.category}</p>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-xs sm:text-sm text-black break-words">{prompt.name}</h4>
+                              <p className="text-[10px] sm:text-xs text-slate-500 break-words">{prompt.description || prompt.category}</p>
                             </div>
                             <button
                               onClick={() => handleStartEditingPrompt(prompt)}
