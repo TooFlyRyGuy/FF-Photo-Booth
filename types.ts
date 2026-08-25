@@ -189,7 +189,7 @@ export interface Prompt {
   tags?: string[];
 }
 
-export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9';
+export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5';
 
 export interface Event {
   id: string;

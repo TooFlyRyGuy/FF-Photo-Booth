@@ -14,7 +14,7 @@ interface GenerateImageRequest {
   referenceImageBase64?: string;
   referenceImageUrl?: string;
   referenceFileUri?: string;
-  aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | 'square';
+  aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5' | 'square';
   modelName?: string;
   resolution?: '1K' | '2K' | '4K';
 }
@@ -229,6 +229,12 @@ Deno.serve(async (req: Request) => {
           return '9:16';
         case '16:9':
           return '16:9';
+        case '2:3':
+          return '2:3';
+        case '3:2':
+          return '3:2';
+        case '4:5':
+          return '4:5';
         case 'square':
         default:
           return '1:1';
@@ -246,6 +252,12 @@ Deno.serve(async (req: Request) => {
           return 'portrait orientation with 9:16 aspect ratio (width 576px, height 1024px)';
         case '16:9':
           return 'landscape orientation with 16:9 aspect ratio (width 1024px, height 576px)';
+        case '2:3':
+          return 'portrait orientation with 2:3 aspect ratio (width 683px, height 1024px)';
+        case '3:2':
+          return 'landscape orientation with 3:2 aspect ratio (width 1024px, height 683px)';
+        case '4:5':
+          return 'portrait orientation with 4:5 aspect ratio (width 819px, height 1024px)';
         case 'square':
         default:
           return 'square aspect ratio (1024px × 1024px)';
