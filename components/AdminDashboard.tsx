@@ -604,8 +604,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const handleCreateEvent = async () => {
     await loadConcurrentEventLimit();
     setIsStartTimeLocked(false); // New events don't have locked start times
-    const userTz = userProfile?.timezone || detectUserTimezone();
-    setEventTimezone(userTz);
+    const defaultTz = 'America/Los_Angeles';
+    setEventTimezone(defaultTz);
     setEditingEvent({
       id: '',
       name: '',
@@ -628,7 +628,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       emailBody: '',
       downloadEnabled: true,
       qrSharingEnabled: true,
-      timezone: userTz,
+      timezone: defaultTz,
     });
     setActiveTab('create_event');
   };
