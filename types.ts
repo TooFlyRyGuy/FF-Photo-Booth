@@ -241,6 +241,7 @@ export interface Event {
   defaultKioskLanguage?: string;
   fullscreenEnabled?: boolean;
   kioskPasscode?: string;
+  timezone?: string;
 }
 
 export interface EventAccessCode {

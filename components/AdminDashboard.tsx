@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -24,7 +24,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import QRCodeLib from 'qrcode';
 import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
-import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
+import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation, formatTimeInTimezone } from '../services/timezoneService';
 import LanguageModal from './LanguageModal';
 import { Globe } from 'lucide-react';
 
@@ -40,13 +40,16 @@ const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'
   const now = new Date();
   const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
   const endDate = event.endDatetime ? new Date(event.endDatetime) : null;
+  const tz = event.timezone || 'UTC';
 
   if (endDate && now > endDate) {
     return { status: 'ended', label: 'ENDED', colorClass: 'bg-red-100 text-red-800' };
   }
 
   if (startDate && now < startDate) {
-    const formattedDate = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const tz = event.timezone || 'UTC';
+    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: 'short', day: 'numeric', year: 'numeric' });
+    const formattedDate = formatter.format(startDate);
     return { status: 'upcoming', label: `Starts ${formattedDate}`, colorClass: 'bg-yellow-100 text-yellow-800' };
   }
 
@@ -55,6 +58,25 @@ const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'
   }
 
   return { status: 'ended', label: 'INACTIVE', colorClass: 'bg-slate-200 text-slate-600' };
+};
+
+const EventTimeClock: React.FC<{ timezone: string }> = ({ timezone }) => {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const tz = timezone || 'UTC';
+  const timeStr = formatTimeInTimezone(now.toISOString(), tz, true);
+
+  return (
+    <span className="text-slate-500 text-xs flex items-center gap-1">
+      <Clock size={12} className="flex-shrink-0" />
+      <span className="font-mono">{timeStr}</span>
+    </span>
+  );
 };
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
@@ -582,6 +604,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const handleCreateEvent = async () => {
     await loadConcurrentEventLimit();
     setIsStartTimeLocked(false); // New events don't have locked start times
+    const userTz = userProfile?.timezone || detectUserTimezone();
+    setEventTimezone(userTz);
     setEditingEvent({
       id: '',
       name: '',
@@ -604,6 +628,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       emailBody: '',
       downloadEnabled: true,
       qrSharingEnabled: true,
+      timezone: userTz,
     });
     setActiveTab('create_event');
   };
@@ -615,6 +640,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       // Check if event has an activated pass (which locks start time)
       const hasActivatedPass = await hasActivatedEventPass(event.id);
       setIsStartTimeLocked(hasActivatedPass);
+
+      const eventTz = eventWithPrompts.timezone || userProfile?.timezone || detectUserTimezone();
+      setEventTimezone(eventTz);
 
       setEditingEvent({ ...eventWithPrompts });
       setActiveTab('edit_event');
@@ -1313,6 +1341,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                               <span className="text-slate-400">•</span>
                               <span className="text-slate-600 text-sm">{event.date}</span>
                             </div>
+                            <div className="mt-2">
+                              <EventTimeClock timezone={event.timezone || 'UTC'} />
+                            </div>
                             {isAdmin && event.userEmail && (
                               <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded">
                                 <UserIcon size={12} />
@@ -1456,6 +1487,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                                           <span className="text-slate-600 text-sm">{event.city}</span>
                                           <span className="text-slate-400">•</span>
                                           <span className="text-slate-600 text-sm">{event.date}</span>
+                                        </div>
+                                        <div className="mt-2">
+                                          <EventTimeClock timezone={event.timezone || 'UTC'} />
                                         </div>
                                         {isAdmin && event.userEmail && (
                                           <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded">
@@ -1715,7 +1749,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     <label className="text-sm font-medium text-slate-700">Time Zone</label>
                     <select
                       value={eventTimezone}
-                      onChange={(e) => setEventTimezone(e.target.value)}
+                      onChange={(e) => {
+                        setEventTimezone(e.target.value);
+                        setEditingEvent({ ...editingEvent, timezone: e.target.value });
+                      }}
                       className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                     >
                       {COMMON_TIMEZONES.reduce((acc, tz) => {

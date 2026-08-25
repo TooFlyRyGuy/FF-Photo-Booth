@@ -818,6 +818,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     defaultKioskLanguage: eventData.default_kiosk_language || null,
     fullscreenEnabled: eventData.fullscreen_enabled || false,
     kioskPasscode: eventData.kiosk_passcode || null,
+    timezone: eventData.timezone || 'UTC',
   };
 };
 
@@ -951,6 +952,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     default_kiosk_language: event.defaultKioskLanguage || null,
     fullscreen_enabled: event.fullscreenEnabled || false,
     kiosk_passcode: event.kioskPasscode || null,
+    timezone: event.timezone || 'UTC',
     event_source: isUpdate ? undefined : eventSource,
   };
 

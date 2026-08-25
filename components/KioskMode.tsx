@@ -11,6 +11,7 @@ import { checkCreditAvailability, consumeCredit } from '../services/creditServic
 import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
+import { getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface KioskProps {
   event: Event;
@@ -869,7 +870,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             <div className="mt-8 p-6 bg-white backdrop-blur-sm rounded-xl border-2 border-slate-300">
               <p className="text-slate-900 text-lg md:text-xl mb-2">{t('kiosk.eventStarts')}</p>
               <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.primary }}>
-                {startDate.toLocaleString(kioskLanguage, {
+                {new Intl.DateTimeFormat(kioskLanguage, {
+                  timeZone: event.timezone || 'UTC',
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
@@ -877,7 +879,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   hour: 'numeric',
                   minute: '2-digit',
                   hour12: true
-                })}
+                }).format(startDate)}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                {getTimezoneAbbreviation(event.timezone || 'UTC', startDate)}
               </p>
             </div>
           )}
@@ -919,7 +924,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             <div className="mt-8 p-6 bg-white backdrop-blur-sm rounded-xl border-2 border-slate-300">
               <p className="text-slate-900 text-lg md:text-xl mb-2">{t('kiosk.eventEnded')}</p>
               <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.primary }}>
-                {endDate.toLocaleString(kioskLanguage, {
+                {new Intl.DateTimeFormat(kioskLanguage, {
+                  timeZone: event.timezone || 'UTC',
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
@@ -927,7 +933,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   hour: 'numeric',
                   minute: '2-digit',
                   hour12: true
-                })}
+                }).format(endDate)}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                {getTimezoneAbbreviation(event.timezone || 'UTC', endDate)}
               </p>
             </div>
           )}
