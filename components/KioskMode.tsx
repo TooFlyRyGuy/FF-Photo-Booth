@@ -965,19 +965,24 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
            <img src={backgroundImage} className="w-full h-full object-cover animate-pulse-fast" alt="Background" />
         </div>
 
-        {event.logoUrl && !event.hideLogo && (
+        {event.logoUrl && !event.hideLogo && event.logoPosition !== 'center' && (
           <div className={`absolute ${getLogoPositionClass()} z-20`}>
             <img src={event.logoUrl} alt={event.name} className={`${getLogoSizeClass()} object-contain`} />
           </div>
         )}
 
         {!event.hideEventName && (
-          <div className="absolute top-4 right-4 md:top-8 md:right-8 z-20">
+          <div className={`absolute top-4 md:top-8 z-20 ${event.logoPosition === 'top-left' ? 'right-4 md:right-8' : 'right-4 md:right-8'}`}>
             <h2 className="text-lg md:text-3xl font-bold text-slate-900 drop-shadow-sm">{event.name}</h2>
           </div>
         )}
 
         <div className="z-10 text-center space-y-4 md:space-y-6 px-4">
+          {event.logoUrl && !event.hideLogo && event.logoPosition === 'center' && (
+            <div className="flex justify-center mb-4 md:mb-8">
+              <img src={event.logoUrl} alt={event.name} className={`${getLogoSizeClass()} object-contain`} />
+            </div>
+          )}
           {isCheckingCredits ? (
             <>
               <div className="animate-spin rounded-full h-16 w-16 md:h-24 md:w-24 border-b-4 mx-auto" style={{ borderColor: colors.secondary }}></div>
