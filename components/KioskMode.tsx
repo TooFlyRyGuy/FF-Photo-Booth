@@ -979,7 +979,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
         <div className="z-10 text-center space-y-4 md:space-y-6 px-4">
           {event.logoUrl && !event.hideLogo && event.logoPosition === 'center' && (
-            <div className="flex justify-center mb-4 md:mb-8">
+            <div className="flex justify-center mb-12 md:mb-20">
               <img src={event.logoUrl} alt={event.name} className={`${getLogoSizeClass()} object-contain`} />
             </div>
           )}
