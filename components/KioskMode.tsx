@@ -972,7 +972,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         )}
 
         {event.logoUrl && !event.hideLogo && event.logoPosition === 'center' && (
-          <div className="absolute top-6 md:top-10 left-1/2 -translate-x-1/2 z-20">
+          <div className="absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-20">
             <img src={event.logoUrl} alt={event.name} className={`${getLogoSizeClass()} object-contain`} />
           </div>
         )}
@@ -983,7 +983,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           </div>
         )}
 
-        <div className="z-10 text-center space-y-4 md:space-y-6 px-4">
+        <div className={`z-10 text-center space-y-4 md:space-y-6 px-4 ${event.logoUrl && !event.hideLogo && event.logoPosition === 'center' ? 'mt-40 md:mt-60' : ''}`}>
           {isCheckingCredits ? (
             <>
               <div className="animate-spin rounded-full h-16 w-16 md:h-24 md:w-24 border-b-4 mx-auto" style={{ borderColor: colors.secondary }}></div>
