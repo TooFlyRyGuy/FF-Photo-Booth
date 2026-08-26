@@ -379,7 +379,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </head>
           <body>
             <div class="container">
-              ${event.logoUrl ? `<img src="${event.logoUrl}" alt="Event Logo" class="logo" />` : ''}
+              ${(event.logoUrl && !event.hideLogo) ? `<img src="${event.logoUrl}" alt="Event Logo" class="logo" onerror="this.style.display='none'" />` : ''}
               ${!event.hideEventName ? `<h2>${event.name}</h2>` : ''}
               <h1>SCAN HERE TO USE OUR<br>AI PHOTO BOOTH!</h1>
               <div class="qr-container">
