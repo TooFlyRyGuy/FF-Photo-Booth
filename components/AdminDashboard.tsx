@@ -379,6 +379,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </head>
           <body>
             <div class="container">
+              <img src="${window.location.origin}/smaller700x200_logo.png" alt="Fun Frame Photo AI" class="logo" style="max-width: 400px; max-height: 100px; margin-bottom: 24px; object-fit: contain;" />
               ${event.logoUrl ? `<img src="${event.logoUrl}" alt="Event Logo" class="logo" />` : ''}
               ${!event.hideEventName ? `<h2>${event.name}</h2>` : ''}
               <h1>SCAN HERE TO USE OUR<br>AI PHOTO BOOTH!</h1>
