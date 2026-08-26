@@ -309,9 +309,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
+  const getPrintLogoStyles = (logoSize?: string): { maxWidth: string; maxHeight: string } => {
+    switch (logoSize) {
+      case 'small': return { maxWidth: '200px', maxHeight: '100px' };
+      case 'large': return { maxWidth: '450px', maxHeight: '250px' };
+      case 'extra-large': return { maxWidth: '600px', maxHeight: '350px' };
+      default: return { maxWidth: '300px', maxHeight: '175px' };
+    }
+  };
+
   const printQRCode = (event: Event) => {
     const url = `${window.location.origin}/?kiosk=${event.passcode}`;
     const printWindow = window.open('', '_blank', 'width=800,height=600');
+    const logoStyles = getPrintLogoStyles(event.logoSize);
+    const qrSize = 280;
 
     if (printWindow) {
       printWindow.document.write(`
@@ -335,11 +346,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               }
               .container {
                 text-align: center;
-                max-width: 600px;
+                max-width: 700px;
               }
               .logo {
-                max-width: 300px;
-                max-height: 150px;
+                max-width: ${logoStyles.maxWidth};
+                max-height: ${logoStyles.maxHeight};
                 margin-bottom: 32px;
                 object-fit: contain;
               }
@@ -358,7 +369,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               }
               .qr-container {
                 display: inline-block;
-                padding: 32px;
+                padding: 24px;
                 background: white;
                 border: 4px solid #1f2937;
                 border-radius: 16px;
@@ -392,8 +403,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 try {
                   new QRCode(document.getElementById('qr-code'), {
                     text: '${url}',
-                    width: 400,
-                    height: 400,
+                    width: ${qrSize},
+                    height: ${qrSize},
                     colorDark: '#000000',
                     colorLight: '#ffffff',
                     correctLevel: QRCode.CorrectLevel.H
