@@ -264,7 +264,7 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const model = modelName || gemini_model || 'gemini-3.1-flash-image-preview';
+    const model = modelName || gemini_model || 'gemini-3.1-flash-image';
     const imageResolution = resolution || gemini_resolution || '2K';
     const geminiAspectRatio = mapAspectRatioToGemini(aspectRatio);
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);

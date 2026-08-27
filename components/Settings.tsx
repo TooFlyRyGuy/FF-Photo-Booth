@@ -46,7 +46,7 @@ const Settings: React.FC<SettingsProps> = ({
   // geminiApiKey holds a NEW value typed by admin; never receives the stored key from server
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiEnabled, setGeminiEnabled] = useState(globalSettings.geminiEnabled || false);
-  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
+  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3.1-flash-image');
   const [geminiResolution, setGeminiResolution] = useState<'1K' | '2K' | '4K'>(globalSettings.geminiResolution || '1K');
 
   // Library webhook (global, admin only)
@@ -87,7 +87,7 @@ const Settings: React.FC<SettingsProps> = ({
     setTwilioPhone(globalSettings.twilioPhoneNumber || '');
     setTwilioEnabled(globalSettings.twilioEnabled || false);
     setGeminiEnabled(globalSettings.geminiEnabled || false);
-    setGeminiModel(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
+    setGeminiModel(globalSettings.geminiModel || 'gemini-3.1-flash-image');
     setGeminiResolution(globalSettings.geminiResolution || '1K');
     setLibraryWebhookUrl(globalSettings.libraryWebhookUrl || '');
     setSmtpHost(globalSettings.smtpHost || '');
@@ -673,8 +673,8 @@ const Settings: React.FC<SettingsProps> = ({
                   onChange={(e) => setGeminiModel(e.target.value)}
                   className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
                 >
-                  <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Recommended)</option>
-                  <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image (Fast)</option>
+                  <option value="gemini-3-pro-image">Gemini 3 Pro Image (Recommended)</option>
+                  <option value="gemini-3.1-flash-image">Gemini 3.1 Flash Image (Fast)</option>
                   <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Fast)</option>
                 </select>
                 <p className="text-xs text-slate-600 mt-2">
