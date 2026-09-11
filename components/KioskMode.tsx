@@ -359,19 +359,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         globalSettings.geminiResolution
       );
 
-      setUploadProgress('');
-
-      if (event.overlayImageUrl) {
-        try {
-          genImage = await applyOverlayToImage(genImage, event.overlayImageUrl);
-        } catch (overlayErr) {
-          console.error('Failed to apply overlay:', overlayErr);
-        }
-      }
-
-      setFinalImage(genImage);
-
-      // Upload generated image to event-photos bucket (fast, blocking)
+      // Upload clean AI image (no overlay) to event-photos bucket first
       setUploadProgress('Saving your photo...');
       const bucketResult = await uploadGeneratedPhoto(genImage, event.id);
 
@@ -383,7 +371,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       } else {
         bucketUrl = bucketResult.url;
         bucketPath = bucketResult.path;
-        console.log('✅ Uploaded generated to event-photos bucket:', bucketUrl);
+        console.log('✅ Uploaded clean AI image (no overlay) to event-photos bucket:', bucketUrl);
       }
 
       setGeneratedImageUrl(bucketUrl);
@@ -399,6 +387,17 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         bucketUrl
       );
       setBucketPhotoId(photoRecordId);
+
+      // Apply overlay AFTER clean image is saved to storage
+      if (event.overlayImageUrl) {
+        try {
+          genImage = await applyOverlayToImage(genImage, event.overlayImageUrl);
+        } catch (overlayErr) {
+          console.error('Failed to apply overlay:', overlayErr);
+        }
+      }
+
+      setFinalImage(genImage);
 
       // Save analytics record
       const imageId = await saveGeneratedImage(
