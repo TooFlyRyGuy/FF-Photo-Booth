@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding } from '../services/backendService';
-import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle } from 'lucide-react';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes } from '../services/backendService';
+import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -21,7 +21,12 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { QRCodeSVG } from 'qrcode.react';
-import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation } from '../services/timezoneService';
+import QRCodeLib from 'qrcode';
+import JSZip from 'jszip';
+import { jsPDF } from 'jspdf';
+import { COMMON_TIMEZONES, detectUserTimezone, getTimezoneAbbreviation, formatTimeInTimezone } from '../services/timezoneService';
+import LanguageModal from './LanguageModal';
+import { Globe } from 'lucide-react';
 
 interface AdminProps {
   onLogout: () => void;
@@ -35,13 +40,16 @@ const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'
   const now = new Date();
   const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
   const endDate = event.endDatetime ? new Date(event.endDatetime) : null;
+  const tz = event.timezone || 'UTC';
 
   if (endDate && now > endDate) {
     return { status: 'ended', label: 'ENDED', colorClass: 'bg-red-100 text-red-800' };
   }
 
   if (startDate && now < startDate) {
-    const formattedDate = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const tz = event.timezone || 'UTC';
+    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, month: 'short', day: 'numeric', year: 'numeric' });
+    const formattedDate = formatter.format(startDate);
     return { status: 'upcoming', label: `Starts ${formattedDate}`, colorClass: 'bg-yellow-100 text-yellow-800' };
   }
 
@@ -50,6 +58,25 @@ const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'
   }
 
   return { status: 'ended', label: 'INACTIVE', colorClass: 'bg-slate-200 text-slate-600' };
+};
+
+const EventTimeClock: React.FC<{ timezone: string }> = ({ timezone }) => {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const tz = timezone || 'UTC';
+  const timeStr = formatTimeInTimezone(now.toISOString(), tz, true);
+
+  return (
+    <span className="text-slate-500 text-xs flex items-center gap-1">
+      <Clock size={12} className="flex-shrink-0" />
+      <span className="font-mono">{timeStr}</span>
+    </span>
+  );
 };
 
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
@@ -103,6 +130,15 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [eventTimezone, setEventTimezone] = useState<string>('');
   const [isStartTimeLocked, setIsStartTimeLocked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [deviceUsageEntries, setDeviceUsageEntries] = useState<DeviceUsageEntry[]>([]);
+  const [loadingDeviceUsage, setLoadingDeviceUsage] = useState(false);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [accessCodes, setAccessCodes] = useState<EventAccessCode[]>([]);
+  const [qrGenerateCount, setQrGenerateCount] = useState(10);
+  const [isGeneratingCodes, setIsGeneratingCodes] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrModalEvent, setQrModalEvent] = useState<Event | null>(null);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -258,6 +294,24 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     });
   };
 
+  const launchSlideshow = (event: Event) => {
+    const url = `https://display.funframephoto.com/?kiosk=${event.passcode}&autoplay=1`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const getSlideshowUrl = (passcode: string | undefined) => {
+    return `https://display.funframephoto.com/?kiosk=${passcode || ''}`;
+  };
+
+  const copySlideshowLink = (passcode: string | undefined) => {
+    const url = getSlideshowUrl(passcode);
+    navigator.clipboard.writeText(url).then(() => {
+      alert(`Slideshow link copied!\n\n${url}`);
+    }).catch(() => {
+      alert(`Slideshow URL:\n${url}`);
+    });
+  };
+
   const handleBarClick = async (data: any) => {
     if (!data || !data.date) return;
 
@@ -273,9 +327,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     }
   };
 
+  const getPrintLogoStyles = (logoSize?: string): { maxWidth: string; maxHeight: string } => {
+    switch (logoSize) {
+      case 'small': return { maxWidth: '200px', maxHeight: '100px' };
+      case 'large': return { maxWidth: '450px', maxHeight: '250px' };
+      case 'extra-large': return { maxWidth: '600px', maxHeight: '350px' };
+      default: return { maxWidth: '300px', maxHeight: '175px' };
+    }
+  };
+
   const printQRCode = (event: Event) => {
     const url = `${window.location.origin}/?kiosk=${event.passcode}`;
     const printWindow = window.open('', '_blank', 'width=800,height=600');
+    const logoStyles = getPrintLogoStyles(event.logoSize);
+    const qrSize = 280;
 
     if (printWindow) {
       printWindow.document.write(`
@@ -299,11 +364,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               }
               .container {
                 text-align: center;
-                max-width: 600px;
+                max-width: 700px;
               }
               .logo {
-                max-width: 300px;
-                max-height: 150px;
+                max-width: ${logoStyles.maxWidth};
+                max-height: ${logoStyles.maxHeight};
                 margin-bottom: 32px;
                 object-fit: contain;
               }
@@ -322,7 +387,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               }
               .qr-container {
                 display: inline-block;
-                padding: 32px;
+                padding: 24px;
                 background: white;
                 border: 4px solid #1f2937;
                 border-radius: 16px;
@@ -343,7 +408,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           </head>
           <body>
             <div class="container">
-              ${event.logoUrl ? `<img src="${event.logoUrl}" alt="Event Logo" class="logo" />` : ''}
+              ${(event.logoUrl && !event.hideLogo) ? `<img src="${event.logoUrl}" alt="Event Logo" class="logo" onerror="this.style.display='none'" />` : ''}
               ${!event.hideEventName ? `<h2>${event.name}</h2>` : ''}
               <h1>SCAN HERE TO USE OUR<br>AI PHOTO BOOTH!</h1>
               <div class="qr-container">
@@ -356,8 +421,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 try {
                   new QRCode(document.getElementById('qr-code'), {
                     text: '${url}',
-                    width: 400,
-                    height: 400,
+                    width: ${qrSize},
+                    height: ${qrSize},
                     colorDark: '#000000',
                     colorLight: '#ffffff',
                     correctLevel: QRCode.CorrectLevel.H
@@ -375,6 +440,174 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         </html>
       `);
       printWindow.document.close();
+    }
+  };
+
+  const openQrAccessModal = async (event: Event) => {
+    setQrModalEvent(event);
+    setShowQrModal(true);
+    try {
+      const codes = await getEventAccessCodes(event.id);
+      setAccessCodes(codes);
+    } catch (err) {
+      console.error('Failed to load access codes:', err);
+      setAccessCodes([]);
+    }
+  };
+
+  const handleGenerateCodes = async () => {
+    if (!qrModalEvent) return;
+    setIsGeneratingCodes(true);
+    try {
+      await generateAccessCodes(qrModalEvent.id, qrGenerateCount);
+      const codes = await getEventAccessCodes(qrModalEvent.id);
+      setAccessCodes(codes);
+    } catch (err) {
+      alert(`Failed to generate codes: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsGeneratingCodes(false);
+    }
+  };
+
+  const handleDeleteCode = async (codeId: string) => {
+    if (!confirm('Delete this access code? This cannot be undone.')) return;
+    try {
+      await deleteAccessCode(codeId);
+      if (qrModalEvent) {
+        const codes = await getEventAccessCodes(qrModalEvent.id);
+        setAccessCodes(codes);
+      }
+    } catch (err) {
+      alert(`Failed to delete code: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const [isDeletingAllCodes, setIsDeletingAllCodes] = useState(false);
+
+  const handleDeleteAllCodes = async () => {
+    if (!qrModalEvent) return;
+    if (!confirm('ARE YOU SURE? This will remove all tokens')) return;
+    setIsDeletingAllCodes(true);
+    try {
+      await deleteAllAccessCodes(qrModalEvent.id);
+      const codes = await getEventAccessCodes(qrModalEvent.id);
+      setAccessCodes(codes);
+    } catch (err) {
+      alert(`Failed to delete all codes: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsDeletingAllCodes(false);
+    }
+  };
+
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handlePrintQrCodes = async () => {
+    if (!qrModalEvent || accessCodes.length === 0) return;
+    setIsGeneratingPdf(true);
+    try {
+      const origin = window.location.origin;
+      const pdf = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
+
+      const MARGIN = 0.625;
+      const LABEL_SIZE = 1;
+      const GAP = 0.25;
+      const COLS = 6;
+      const ROWS = 8;
+      const QR_SIZE = 0.875;
+      const QR_OFFSET = (LABEL_SIZE - QR_SIZE) / 2;
+      const PER_PAGE = COLS * ROWS;
+      const pageCount = Math.ceil(accessCodes.length / PER_PAGE);
+
+      for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+        if (pageIndex > 0) pdf.addPage();
+
+        const pageCodes = accessCodes.slice(pageIndex * PER_PAGE, (pageIndex + 1) * PER_PAGE);
+
+        for (let slotIndex = 0; slotIndex < pageCodes.length; slotIndex++) {
+          const code = pageCodes[slotIndex];
+          const col = slotIndex % COLS;
+          const row = Math.floor(slotIndex / COLS);
+          const x = MARGIN + col * (LABEL_SIZE + GAP);
+          const y = MARGIN + row * (LABEL_SIZE + GAP);
+
+          const url = `${origin}/?access=${encodeURIComponent(code.token)}`;
+          const canvas = document.createElement('canvas');
+          canvas.width = 300;
+          canvas.height = 300;
+          await QRCodeLib.toCanvas(canvas, url, {
+            width: 300,
+            margin: 1,
+            color: { dark: '#000000', light: '#ffffff' },
+            errorCorrectionLevel: 'M',
+          });
+          const dataUrl = canvas.toDataURL('image/png');
+          pdf.addImage(dataUrl, 'PNG', x + QR_OFFSET, y + QR_OFFSET, QR_SIZE, QR_SIZE);
+        }
+
+        const labelY = MARGIN + ROWS * (LABEL_SIZE + GAP) - GAP + 0.15;
+        pdf.setFontSize(7);
+        pdf.setTextColor(150);
+        pdf.text('Avery Presta 94103 - 1 inch square labels, 48 per sheet', MARGIN, labelY);
+      }
+
+      const safeName = qrModalEvent.name.replace(/[^a-zA-Z0-9]/g, '_');
+      pdf.save(`QR-Codes-${safeName}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert(`Failed to generate PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const [isDownloadingCodes, setIsDownloadingCodes] = useState(false);
+
+  const handleDownloadQrCodes = async () => {
+    if (!qrModalEvent || accessCodes.length === 0) return;
+    const unusedCodes = accessCodes.filter(c => !c.isUsed);
+    if (unusedCodes.length === 0) {
+      alert('No unused codes available to download.');
+      return;
+    }
+    setIsDownloadingCodes(true);
+    try {
+      const origin = window.location.origin;
+      const zip = new JSZip();
+      const folder = zip.folder(`QR-Codes-${qrModalEvent.name.replace(/[^a-zA-Z0-9]/g, '_')}`)!;
+
+      for (let i = 0; i < unusedCodes.length; i++) {
+        const code = unusedCodes[i];
+        const url = `${origin}/?access=${code.token}`;
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 600;
+        await QRCodeLib.toCanvas(canvas, url, {
+          width: 600,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' },
+          errorCorrectionLevel: 'M',
+        });
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.95);
+        });
+        const passNum = accessCodes.indexOf(code) + 1;
+        folder.file(`Pass-${passNum}.jpg`, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const downloadUrl = URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `QR-Codes-${qrModalEvent.name.replace(/[^a-zA-Z0-9]/g, '_')}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert(`Failed to download QR codes: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsDownloadingCodes(false);
     }
   };
 
@@ -400,6 +633,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const handleCreateEvent = async () => {
     await loadConcurrentEventLimit();
     setIsStartTimeLocked(false); // New events don't have locked start times
+    const defaultTz = 'America/Los_Angeles';
+    setEventTimezone(defaultTz);
     setEditingEvent({
       id: '',
       name: '',
@@ -409,7 +644,20 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       isActive: true,
       prompts: [],
       userId: user?.id || '',
-      aspectRatio: 'square'
+      aspectRatio: 'square',
+      limitPhotosPerDevice: false,
+      maxPhotosPerDevice: 0,
+      qrAccessEnabled: false,
+      galleryEnabled: false,
+      showAccountPromo: true,
+      smsEnabled: true,
+      whatsappEnabled: false,
+      emailEnabled: false,
+      emailSubject: '',
+      emailBody: '',
+      downloadEnabled: true,
+      qrSharingEnabled: true,
+      timezone: defaultTz,
     });
     setActiveTab('create_event');
   };
@@ -421,6 +669,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       // Check if event has an activated pass (which locks start time)
       const hasActivatedPass = await hasActivatedEventPass(event.id);
       setIsStartTimeLocked(hasActivatedPass);
+
+      const eventTz = eventWithPrompts.timezone || userProfile?.timezone || detectUserTimezone();
+      setEventTimezone(eventTz);
 
       setEditingEvent({ ...eventWithPrompts });
       setActiveTab('edit_event');
@@ -601,9 +852,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     try {
       await transferEventOwnership(accessModal.eventId, newOwnerId);
 
-      setAccessModal(null);
+      setAccessModal({ ...accessModal, eventOwnerId: newOwnerId });
       setSelectedUserId('');
-      setEventAccessList([]);
 
       await loadData();
 
@@ -1120,6 +1370,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                               <span className="text-slate-400">•</span>
                               <span className="text-slate-600 text-sm">{event.date}</span>
                             </div>
+                            <div className="mt-2">
+                              <EventTimeClock timezone={event.timezone || 'UTC'} />
+                            </div>
                             {isAdmin && event.userEmail && (
                               <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded">
                                 <UserIcon size={12} />
@@ -1144,6 +1397,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold shadow-md shadow-green-900/20 transition-all flex items-center justify-center gap-2"
                       >
                         <Camera size={16} /> Launch Kiosk
+                      </button>
+
+                      <button
+                        onClick={() => launchSlideshow(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold shadow-md shadow-slate-900/20 transition-all flex items-center justify-center gap-2"
+                        title="Launch slideshow in autoplay mode"
+                      >
+                        <MonitorPlay size={16} /> <span className="hidden sm:inline">Slideshow</span>
                       </button>
 
                       {event.smugmugGalleryUrl && (
@@ -1172,7 +1433,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       </button>
 
                       <button
-                        onClick={() => printQRCode(event)}
+                        onClick={() => event.qrAccessEnabled ? openQrAccessModal(event) : printQRCode(event)}
                         className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
                         title="Print QR Code"
                       >
@@ -1264,6 +1525,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                                           <span className="text-slate-400">•</span>
                                           <span className="text-slate-600 text-sm">{event.date}</span>
                                         </div>
+                                        <div className="mt-2">
+                                          <EventTimeClock timezone={event.timezone || 'UTC'} />
+                                        </div>
                                         {isAdmin && event.userEmail && (
                                           <div className="flex items-center gap-2 mt-2 text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded">
                                             <UserIcon size={12} />
@@ -1316,7 +1580,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                                   </button>
 
                                   <button
-                                    onClick={() => printQRCode(event)}
+                                    onClick={() => event.qrAccessEnabled ? openQrAccessModal(event) : printQRCode(event)}
                                     className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium transition-all flex items-center justify-center gap-2"
                                     title="Print QR Code"
                                   >
@@ -1522,7 +1786,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     <label className="text-sm font-medium text-slate-700">Time Zone</label>
                     <select
                       value={eventTimezone}
-                      onChange={(e) => setEventTimezone(e.target.value)}
+                      onChange={(e) => {
+                        setEventTimezone(e.target.value);
+                        setEditingEvent({ ...editingEvent, timezone: e.target.value });
+                      }}
                       className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
                     >
                       {COMMON_TIMEZONES.reduce((acc, tz) => {
@@ -1569,6 +1836,41 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
                   </div>
                 </div>
+
+                {/* Slideshow Link Section */}
+                {editingEvent.passcode && (
+                  <div className="mt-4 p-4 bg-slate-50 border-2 border-slate-200 rounded-lg">
+                    <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                      <MonitorPlay size={16} /> Slideshow Link
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={getSlideshowUrl(editingEvent.passcode)}
+                        className="flex-1 bg-white border-2 border-slate-300 rounded-lg px-4 py-2 text-black font-mono text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => copySlideshowLink(editingEvent.passcode)}
+                          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                        >
+                          <Link2 size={16} /> Copy
+                        </button>
+                        <a
+                          href={getSlideshowUrl(editingEvent.passcode)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                        >
+                          <MonitorPlay size={16} /> Launch
+                        </a>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">Open this URL on a display screen to show a slideshow of photos from this event.</p>
+                  </div>
+                )}
 
                 {/* Event Time Restrictions */}
                 {isStartTimeLocked && (
@@ -1632,13 +1934,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               <CollapsibleSection title="Branding" defaultOpen={false}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
-                  <div className="grid grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
                       { value: 'square', label: 'Square (1:1)', icon: '⬜' },
                       { value: '3:4', label: 'Portrait (3:4)', icon: '📱' },
                       { value: '4:3', label: 'Landscape (4:3)', icon: '🖼️' },
                       { value: '9:16', label: 'Vertical (9:16)', icon: '📲' },
-                      { value: '16:9', label: 'Wide (16:9)', icon: '🎬' }
+                      { value: '16:9', label: 'Wide (16:9)', icon: '🎬' },
+                      { value: '2:3', label: 'Portrait (2:3)', icon: '📷' },
+                      { value: '3:2', label: 'Landscape (3:2)', icon: '🌅' },
+                      { value: '4:5', label: 'Instagram (4:5)', icon: '📸' }
                     ].map((ratio) => (
                       <button
                         key={ratio.value}
@@ -1742,6 +2047,34 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
                       placeholder="Or enter URL: https://example.com/logo.png"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Logo Position</label>
+                      <select
+                        value={editingEvent.logoPosition || 'top-left'}
+                        onChange={(e) => setEditingEvent({...editingEvent, logoPosition: e.target.value as 'top-left' | 'center' | 'top-right'})}
+                        className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      >
+                        <option value="top-left">Top Left</option>
+                        <option value="center">Center</option>
+                        <option value="top-right">Top Right</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Logo Size</label>
+                      <select
+                        value={editingEvent.logoSize || 'medium'}
+                        onChange={(e) => setEditingEvent({...editingEvent, logoSize: e.target.value as 'small' | 'medium' | 'large' | 'extra-large'})}
+                        className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      >
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                        <option value="extra-large">Extra Large</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -1869,6 +2202,35 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </div>
                 </div>
 
+                {/* Language Settings */}
+                <div className="pt-6 border-t-2 border-slate-200">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">Language</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Set the kiosk language for guests and translate prompt names/descriptions.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowLanguageModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Globe size={16} />
+                      Manage Language
+                    </button>
+                  </div>
+                  {editingEvent.kioskLanguages && editingEvent.kioskLanguages.length > 0 ? (
+                    <p className="text-xs text-green-700 mt-2 ml-1">
+                      Current kiosk languages: {editingEvent.kioskLanguages.join(', ')}
+                    </p>
+                  ) : editingEvent.kioskLanguage && editingEvent.kioskLanguage !== 'en-US' && (
+                    <p className="text-xs text-green-700 mt-2 ml-1">
+                      Current kiosk language: {editingEvent.kioskLanguage}
+                    </p>
+                  )}
+                </div>
+
                 <div className="pt-6 space-y-4">
                   <p className="text-sm font-medium text-slate-700">Gallery Upload Options</p>
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -1894,29 +2256,305 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </CollapsibleSection>
 
+              {/* Kiosk Security */}
+              <CollapsibleSection title="Kiosk Security" defaultOpen={false}>
+                <div className="space-y-4">
+                  <div className="pt-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.fullscreenEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, fullscreenEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable automatic fullscreen</span>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          When enabled, the kiosk enters fullscreen automatically when launched and re-enters if a guest exits. The fullscreen toggle is hidden from guests — this is an admin-only setting.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Kiosk exit passcode (optional)</label>
+                    <p className="text-xs text-slate-500 mb-2">
+                      When set, exiting the kiosk or exiting fullscreen requires this passcode, preventing guests from leaving the kiosk app. Leave empty to allow exit without a passcode.
+                    </p>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
+                      value={editingEvent.kioskPasscode || ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, kioskPasscode: e.target.value.replace(/\s/g, '')})}
+                      placeholder="e.g. 1234"
+                      className="w-40 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm font-mono"
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.limitPhotosPerDevice || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, limitPhotosPerDevice: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <span className="text-black">Limit photos per device</span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-slate-500 ml-8">
+                    When enabled, each device (identified by a browser token and IP address) can only take a set number of photos at this event. Only successfully generated photos count toward the limit.
+                  </p>
+
+                  {editingEvent.limitPhotosPerDevice && (
+                    <>
+                      <div className="space-y-2 ml-8 pt-2">
+                        <label className="text-sm font-medium text-slate-700">Maximum photos per device</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={1000}
+                          value={editingEvent.maxPhotosPerDevice || 0}
+                          onChange={(e) => setEditingEvent({...editingEvent, maxPhotosPerDevice: parseInt(e.target.value) || 0})}
+                          className="w-32 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                          placeholder="e.g. 5"
+                        />
+                        <p className="text-xs text-slate-500">
+                          The number of photos each device can generate at this event.
+                        </p>
+                      </div>
+
+                      {editingEvent.id && (
+                        <div className="ml-8 pt-4 border-t border-slate-200">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!editingEvent.id) return;
+                              setShowDeviceModal(true);
+                              setLoadingDeviceUsage(true);
+                              try {
+                                const entries = await getEventDeviceUsage(editingEvent.id);
+                                setDeviceUsageEntries(entries);
+                              } catch (err) {
+                                console.error('Failed to load device usage:', err);
+                              } finally {
+                                setLoadingDeviceUsage(false);
+                              }
+                            }}
+                            className="text-sm text-green-700 hover:text-green-800 font-medium flex items-center gap-2"
+                          >
+                            <Smartphone size={16} />
+                            View Tracked Devices
+                          </button>
+                          <p className="text-xs text-slate-400 mt-2">
+                            Opens a separate window showing each device's photo count with the ability to reset individual devices.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.qrAccessEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, qrAccessEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <span className="text-black">Enable one-time QR access codes</span>
+                    </label>
+                    <p className="text-xs text-slate-500 ml-8">
+                      When enabled, the Print QR button opens a module to generate unique one-time-use QR codes. Each code grants kiosk entry to exactly one guest. Guests scan a code to enter — once used, it cannot be reused.
+                    </p>
+
+                    {editingEvent.qrAccessEnabled && editingEvent.id && (
+                      <div className="ml-8 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => openQrAccessModal(editingEvent as Event)}
+                          className="text-sm text-green-700 hover:text-green-800 font-medium flex items-center gap-2"
+                        >
+                          <QrCode size={16} />
+                          Manage QR Access Codes
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {editingEvent.smugmugGalleryUrl && (
+                    <div className="pt-4 border-t border-slate-200">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingEvent.galleryEnabled || false}
+                          onChange={(e) => setEditingEvent({...editingEvent, galleryEnabled: e.target.checked})}
+                          className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                        />
+                        <span className="text-black">Show gallery at sharing station</span>
+                      </label>
+                      <p className="text-xs text-slate-500 ml-8">
+                        When enabled, guests see a "View Event Gallery" button on the sharing screen that opens your connected SmugMug gallery in a new tab so they can browse all photos from the event.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.showAccountPromo !== false}
+                        onChange={(e) => setEditingEvent({...editingEvent, showAccountPromo: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <span className="text-black">Show "Get Your Own Account" link on sharing screen</span>
+                    </label>
+                    <p className="text-xs text-slate-500 ml-8">
+                      When enabled, the sharing screen shows a "Get Your Own Account Now" link at the bottom. Turn this off for a cleaner, fully branded experience.
+                    </p>
+                  </div>
+                </div>
+              </CollapsibleSection>
+
               {/* Add-Ons Showcase - Hidden for now */}
               {/* <AddOnShowcase /> */}
 
-              {/* SMS Message Customization */}
-              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
-                <h3 className="text-lg font-bold text-black mb-2">SMS Message Settings</h3>
+              {/* Sharing Settings */}
+              <CollapsibleSection title="Sharing Settings" defaultOpen={false}>
                 <p className="text-sm text-slate-600 mb-4">
-                  Customize the text message sent when photos are delivered via SMS
+                  Choose which delivery methods guests see on the kiosk sharing screen
                 </p>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">SMS Message Template</label>
-                  <textarea
-                    value={editingEvent.smsMessage || "Here's your AI-generated photo from {event_name}! {image_url}"}
-                    onChange={(e) => setEditingEvent({...editingEvent, smsMessage: e.target.value})}
-                    rows={3}
-                    placeholder="Here's your AI-generated photo from {event_name}! {image_url}"
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none resize-none"
-                  />
-                  <p className="text-xs text-slate-500">
-                    Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
-                  </p>
+                <div className="space-y-6">
+                  {/* SMS */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.smsEnabled !== false}
+                        onChange={(e) => setEditingEvent({...editingEvent, smsEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable SMS sharing</span>
+                        <p className="text-xs text-slate-500">Guests can receive their photo via text message (requires Twilio)</p>
+                      </div>
+                    </label>
+
+                    {editingEvent.smsEnabled !== false && (
+                      <div className="ml-8 pt-2 border-l-2 border-slate-200 pl-4 space-y-2">
+                        <label className="text-sm font-medium text-slate-700">SMS Message Template</label>
+                        <textarea
+                          value={editingEvent.smsMessage || "Here's your AI-generated photo from {event_name}! {image_url}"}
+                          onChange={(e) => setEditingEvent({...editingEvent, smsMessage: e.target.value})}
+                          rows={3}
+                          placeholder="Here's your AI-generated photo from {event_name}! {image_url}"
+                          className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none resize-none"
+                        />
+                        <p className="text-xs text-slate-500">
+                          Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* WhatsApp */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.whatsappEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, whatsappEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable WhatsApp sharing</span>
+                        <p className="text-xs text-slate-500">Guests can receive their photo via WhatsApp (requires Twilio WhatsApp-enabled number)</p>
+                      </div>
+                    </label>
+                  </div>
+
+                {/* Download */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.downloadEnabled !== false}
+                        onChange={(e) => setEditingEvent({...editingEvent, downloadEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Allow download to device</span>
+                        <p className="text-xs text-slate-500">Guests can save their photo directly to their phone or computer</p>
+                      </div>
+                    </label>
+                  </div>
+
+                {/* QR Code Sharing */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.qrSharingEnabled !== false}
+                        onChange={(e) => setEditingEvent({...editingEvent, qrSharingEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable QR Code sharing</span>
+                        <p className="text-xs text-slate-500">Guests can scan a QR code on the kiosk to access their photo without entering a phone number or email</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.emailEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, emailEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable Email sharing</span>
+                        <p className="text-xs text-slate-500">Guests can receive their photo via email (requires SMTP configuration in Settings)</p>
+                      </div>
+                    </label>
+
+                    {editingEvent.emailEnabled && (
+                      <div className="ml-8 pt-2 border-l-2 border-slate-200 pl-4 space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">Email Subject</label>
+                          <input
+                            type="text"
+                            value={editingEvent.emailSubject || ''}
+                            onChange={(e) => setEditingEvent({...editingEvent, emailSubject: e.target.value})}
+                            placeholder="Your AI photo from {event_name}"
+                            className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                          />
+                          <p className="text-xs text-slate-500">
+                            Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">Email Body (HTML supported)</label>
+                          <textarea
+                            value={editingEvent.emailBody || ''}
+                            onChange={(e) => setEditingEvent({...editingEvent, emailBody: e.target.value})}
+                            rows={6}
+                            placeholder={'<p>Here is your AI photo from {event_name}!</p><p><img src="{image_url}" style="max-width:100%;border-radius:8px;" /></p>'}
+                            className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none font-mono text-sm resize-y"
+                          />
+                          <p className="text-xs text-slate-500">
+                            Enter raw HTML for the email body. Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </CollapsibleSection>
 
               {/* SmugMug Gallery Management - Admin Only */}
               {editingEvent.id && (
@@ -1929,6 +2567,11 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     isAdmin={userProfile?.role === 'admin'}
                     onSync={async (galleryKey, galleryUrl) => {
                       await syncSmugMugGallery(editingEvent.id, galleryKey, galleryUrl);
+                      const updatedEvent = await getEventById(editingEvent.id);
+                      setEditingEvent(updatedEvent);
+                    }}
+                    onUpdateUrl={async (galleryUrl) => {
+                      await updateSmugMugGalleryUrl(editingEvent.id, galleryUrl);
                       const updatedEvent = await getEventById(editingEvent.id);
                       setEditingEvent(updatedEvent);
                     }}
@@ -1947,8 +2590,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               )}
 
               {/* Prompt Selection Section */}
-              <div className="bg-white p-8 rounded-xl border-2 border-slate-300">
-                <div className="flex justify-between items-center mb-6">
+              <div className="bg-white p-4 md:p-8 rounded-xl border-2 border-slate-300">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 md:mb-6">
                   <div>
                     <h3 className="text-lg font-bold text-black">AI Experience Prompts</h3>
                     <p className="text-sm text-slate-600">
@@ -1960,10 +2603,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       )}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={handleAddNewPrompt}
-                      className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+                      className="bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5"
                     >
                       <Plus size={16} /> New Prompt
                     </button>
@@ -1972,7 +2615,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         setPromptLibraryEventContext(editingEvent.id || 'new-event');
                         setShowPromptLibrary(true);
                       }}
-                      className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+                      className="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5"
                     >
                       <BookImage size={16} /> Library
                     </button>
@@ -2139,32 +2782,36 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                             onDragStart={() => handleDragStart(index)}
                             onDragOver={(e) => handleDragOver(e, index)}
                             onDragEnd={handleDragEnd}
-                            className={`flex items-center gap-4 p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all ${
+                            className={`flex items-start gap-1.5 sm:gap-2 md:gap-4 p-1.5 sm:p-2 md:p-3 bg-slate-50 border-2 border-slate-300 rounded-lg cursor-move hover:border-green-700/50 transition-all ${
                               draggedPromptIndex === index ? 'opacity-50' : ''
                             }`}
                           >
                             <div
-                              className="p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing"
+                              className="p-0.5 sm:p-1 md:p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing flex-shrink-0"
                               title="Drag to reorder"
                             >
-                              <GripVertical size={20} />
+                              <GripVertical size={14} className="sm:hidden" />
+                              <GripVertical size={16} className="hidden sm:block md:hidden" />
+                              <GripVertical size={20} className="hidden md:block" />
                             </div>
-                            <img src={prompt.previewImage} alt={prompt.name} className="h-16 w-16 object-cover rounded" />
-                            <div className="flex-1">
-                              <h4 className="font-bold text-sm text-black">{prompt.name}</h4>
-                              <p className="text-xs text-slate-500">{prompt.description || prompt.category}</p>
+                            <img src={prompt.previewImage} alt={prompt.name} className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 object-cover rounded flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-xs sm:text-sm text-black break-words">{prompt.name}</h4>
+                              <p className="text-[10px] sm:text-xs text-slate-500 break-words">{prompt.description || prompt.category}</p>
                             </div>
                             <button
                               onClick={() => handleStartEditingPrompt(prompt)}
-                              className="px-3 py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm flex items-center gap-1"
+                              className="p-1.5 sm:p-2 md:px-3 md:py-2 rounded-md border-2 border-slate-300 text-slate-700 hover:bg-slate-100 text-sm flex items-center gap-1 flex-shrink-0"
                               title="Edit prompt"
+                              aria-label="Edit prompt"
                             >
-                              <Pencil size={14} /> Edit
+                              <Pencil size={14} /> <span className="hidden md:inline">Edit</span>
                             </button>
                             <button
                               onClick={() => togglePromptSelection(prompt)}
-                              className="px-3 py-2 rounded-md border-2 border-red-300 text-red-700 hover:bg-red-50 text-sm"
+                              className="p-1.5 sm:p-2 md:px-3 md:py-2 rounded-md border-2 border-red-300 text-red-700 hover:bg-red-50 text-sm flex-shrink-0"
                               title="Remove from event"
+                              aria-label="Remove from event"
                             >
                               <X size={14} />
                             </button>
@@ -2224,7 +2871,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </div>
             </header>
 
-            <EventAnalytics eventId={analyticsEvent.id} eventName={analyticsEvent.name} />
+            <EventAnalytics eventId={analyticsEvent.id} eventName={analyticsEvent.name} limitPhotosPerDevice={analyticsEvent.limitPhotosPerDevice} maxPhotosPerDevice={analyticsEvent.maxPhotosPerDevice} />
           </div>
         )}
 
@@ -2425,6 +3072,295 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         />
       )}
 
+      {/* Tracked Devices Modal */}
+      {showDeviceModal && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDeviceModal(false)}
+          onKeyDown={() => {}}
+        >
+          <div
+            className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-100 p-2 rounded-lg">
+                  <Smartphone className="text-amber-700" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Tracked Devices</h3>
+                  <p className="text-sm text-slate-500">{editingEvent.name}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!editingEvent.id) return;
+                    setLoadingDeviceUsage(true);
+                    try {
+                      const entries = await getEventDeviceUsage(editingEvent.id);
+                      setDeviceUsageEntries(entries);
+                    } catch (err) {
+                      console.error('Failed to load device usage:', err);
+                    } finally {
+                      setLoadingDeviceUsage(false);
+                    }
+                  }}
+                  className="text-xs text-green-700 hover:text-green-800 font-medium flex items-center gap-1"
+                >
+                  <RotateCcw size={14} /> Refresh
+                </button>
+                <button
+                  onClick={() => setShowDeviceModal(false)}
+                  className="text-slate-600 hover:text-slate-900 text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingDeviceUsage ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-700"></div>
+                </div>
+              ) : deviceUsageEntries.length === 0 ? (
+                <div className="text-center py-12">
+                  <Smartphone className="mx-auto mb-4 text-slate-300" size={48} />
+                  <p className="text-slate-500">No devices tracked yet.</p>
+                  <p className="text-sm text-slate-400 mt-1">Device usage will appear here once guests start using the kiosk.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm text-slate-600">
+                      <strong>{deviceUsageEntries.length}</strong> {deviceUsageEntries.length === 1 ? 'device' : 'devices'} tracked
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Limit: {editingEvent.maxPhotosPerDevice} {editingEvent.maxPhotosPerDevice === 1 ? 'photo' : 'photos'} per device
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {deviceUsageEntries.map(entry => (
+                      <div key={entry.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-800 font-mono truncate">
+                            {entry.deviceToken.substring(0, 18)}...
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {entry.photoCount} {entry.photoCount === 1 ? 'photo' : 'photos'} | {entry.ipAddress || 'IP unknown'} | Last used: {new Date(entry.lastInteractionAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await resetDeviceUsage(entry.id);
+                              setDeviceUsageEntries(prev => prev.filter(e => e.id !== entry.id));
+                            } catch (err) {
+                              console.error('Failed to reset device:', err);
+                              alert('Failed to reset device. Please try again.');
+                            }
+                          }}
+                          className="ml-3 p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          title="Reset this device's count"
+                        >
+                          <RotateCcw size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-4">
+                    Click the reset icon to clear a device's count, allowing that device to take photos again.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Language Settings Modal */}
+      {showLanguageModal && (
+        <LanguageModal
+          event={editingEvent}
+          prompts={(editingEvent.prompts || []) as unknown as Prompt[]}
+          onClose={() => setShowLanguageModal(false)}
+          onSave={(langs, defaultLang, hideSelector) => {
+            setEditingEvent({ ...editingEvent, kioskLanguages: langs, kioskLanguage: langs[0] || 'en-US', defaultKioskLanguage: defaultLang, hideLanguageSelector: hideSelector });
+          }}
+        />
+      )}
+
+      {/* QR Access Codes Modal */}
+      {showQrModal && qrModalEvent && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); }}
+        >
+          <div
+            className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b-2 border-slate-300 flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="bg-green-100 p-2 rounded-lg">
+                  <QrCode className="text-green-700" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">QR Access Codes</h3>
+                  <p className="text-sm text-slate-500">{qrModalEvent.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); }}
+                className="text-slate-600 hover:text-slate-900 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-slate-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-slate-900">{accessCodes.length}</p>
+                  <p className="text-xs text-slate-500 mt-1">Total Codes</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-green-700">{accessCodes.filter(c => !c.isUsed).length}</p>
+                  <p className="text-xs text-slate-500 mt-1">Unused</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-red-600">{accessCodes.filter(c => c.isUsed).length}</p>
+                  <p className="text-xs text-slate-500 mt-1">Used</p>
+                </div>
+              </div>
+
+              {/* Generate */}
+              <div className="border-2 border-slate-200 rounded-lg p-4 space-y-3">
+                <h4 className="text-sm font-bold text-slate-900">Generate New Codes</h4>
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-slate-600">How many?</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={qrGenerateCount}
+                    onChange={(e) => setQrGenerateCount(Math.max(1, Math.min(500, parseInt(e.target.value) || 1)))}
+                    className="w-24 bg-slate-50 border-2 border-slate-300 rounded-lg px-3 py-2 text-sm text-black focus:ring-2 focus:ring-green-700 focus:outline-none"
+                  />
+                  <button
+                    onClick={handleGenerateCodes}
+                    disabled={isGeneratingCodes}
+                    className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isGeneratingCodes ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Generating...</>
+                    ) : (
+                      <><Plus size={16} /> Generate</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Print / Download */}
+              {accessCodes.length > 0 && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={handlePrintQrCodes}
+                    disabled={isGeneratingPdf}
+                    className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isGeneratingPdf ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Generating PDF...</>
+                    ) : (
+                      <><Printer size={18} /> Print QR Codes (PDF)</>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleDownloadQrCodes}
+                    disabled={isDownloadingCodes}
+                    className="flex-1 bg-green-700 hover:bg-green-800 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isDownloadingCodes ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Zipping...</>
+                    ) : (
+                      <><Download size={18} /> Download QR Codes</>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Code List */}
+              {accessCodes.length === 0 ? (
+                <div className="text-center py-12">
+                  <QrCode className="mx-auto mb-4 text-slate-300" size={48} />
+                  <p className="text-slate-500">No codes generated yet.</p>
+                  <p className="text-sm text-slate-400 mt-1">Generate codes above, then print or download them for distribution.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-slate-700">All Codes</h4>
+                    <button
+                      onClick={handleDeleteAllCodes}
+                      disabled={isDeletingAllCodes}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isDeletingAllCodes ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 size={14} />
+                          Delete All
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {accessCodes.map((code, i) => (
+                    <div key={code.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-800">Pass {i + 1}</span>
+                          {code.isUsed ? (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Used</span>
+                          ) : (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Available</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 font-mono truncate">
+                          {window.location.origin}/?access={code.token}
+                        </p>
+                        {code.redeemedAt && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            Redeemed: {new Date(code.redeemedAt).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      {!code.isUsed && (
+                        <button
+                          onClick={() => handleDeleteCode(code.id)}
+                          className="ml-3 p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          title="Delete this code"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Event Access Management Modal */}
       {accessModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -2449,6 +3385,26 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <p className="text-sm text-slate-600">
                   Grant access to users so this event appears in their account. The owner retains full control.
                 </p>
+              </div>
+
+              <div className="border-t-2 border-slate-300 pt-6">
+                <h4 className="text-md font-bold text-slate-900 mb-4">Event Owner</h4>
+                {(() => {
+                  const owner = allUsers.find(u => u.id === accessModal.eventOwnerId);
+                  return (
+                    <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <Crown size={18} className="text-amber-600" />
+                      <div>
+                        <div className="font-medium text-slate-900">
+                          {owner?.full_name || owner?.email || 'Unknown'}
+                        </div>
+                        {owner?.full_name && owner?.email && (
+                          <div className="text-xs text-slate-600">{owner.email}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="border-t-2 border-slate-300 pt-6">

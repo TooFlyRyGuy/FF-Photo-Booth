@@ -123,6 +123,23 @@ export interface UserSettings {
   dropboxRefreshToken?: string | null;
   dropboxTokenExpiresAt?: string | null;
   dropboxEnabled?: boolean;
+  accountLanguage?: string;
+}
+
+export interface PromptTranslation {
+  id?: string;
+  promptId: string;
+  languageCode: string;
+  name: string;
+  description?: string;
+}
+
+export interface KioskTextOverride {
+  id?: string;
+  eventId: string;
+  languageCode: string;
+  textKey: string;
+  textValue: string;
 }
 
 export interface GlobalSettings {
@@ -148,6 +165,15 @@ export interface GlobalSettings {
   smugmugConnectionStatus?: string;
   smugmugUsername?: string;
   libraryWebhookUrl?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUsername?: string;
+  /** Never populated from the server — only sent when admin types a new password */
+  smtpPassword?: string;
+  smtpPasswordSet?: boolean;
+  smtpFromEmail?: string;
+  smtpFromName?: string;
+  smtpEnabled?: boolean;
 }
 
 export interface Prompt {
@@ -163,7 +189,7 @@ export interface Prompt {
   tags?: string[];
 }
 
-export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9';
+export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5';
 
 export interface Event {
   id: string;
@@ -186,6 +212,8 @@ export interface Event {
   accentColor?: string;
   hideLogo?: boolean;
   hideEventName?: boolean;
+  logoPosition?: 'top-left' | 'center' | 'top-right';
+  logoSize?: 'small' | 'medium' | 'large' | 'extra-large';
   startDatetime?: string;
   endDatetime?: string;
   smsMessage?: string;
@@ -195,6 +223,62 @@ export interface Event {
   passId?: string;
   passExpiresAt?: string;
   eventSource?: 'subscription' | 'event_pass' | 'admin';
+  limitPhotosPerDevice?: boolean;
+  maxPhotosPerDevice?: number;
+  qrAccessEnabled?: boolean;
+  galleryEnabled?: boolean;
+  showAccountPromo?: boolean;
+  smsEnabled?: boolean;
+  whatsappEnabled?: boolean;
+  emailEnabled?: boolean;
+  emailSubject?: string;
+  emailBody?: string;
+  downloadEnabled?: boolean;
+  qrSharingEnabled?: boolean;
+  kioskLanguage?: string;
+  kioskLanguages?: string[];
+  hideLanguageSelector?: boolean;
+  defaultKioskLanguage?: string;
+  fullscreenEnabled?: boolean;
+  kioskPasscode?: string;
+  timezone?: string;
+}
+
+export interface EventAccessCode {
+  id: string;
+  eventId: string;
+  token: string;
+  isUsed: boolean;
+  redeemedAt?: string | null;
+  redeemedIp?: string | null;
+  redeemedDeviceToken?: string | null;
+  createdAt: string;
+  batchId?: string;
+}
+
+export interface AccessCodeRedemptionResult {
+  status: 'success' | 'already_used' | 'invalid' | 'disabled';
+  passcode?: string;
+  eventName?: string;
+  message?: string;
+}
+
+export interface DeviceUsageEntry {
+  id: string;
+  deviceId: string;
+  deviceToken: string;
+  ipAddress: string | null;
+  photoCount: number;
+  lastInteractionAt: string;
+  createdAt: string;
+}
+
+export interface DeviceLimitCheckResult {
+  allowed: boolean;
+  limitEnabled: boolean;
+  photoCount: number;
+  maxPhotos: number;
+  remaining: number | null;
 }
 
 export interface GeneratedImage {

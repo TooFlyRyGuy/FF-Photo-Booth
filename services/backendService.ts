@@ -1,4 +1,4 @@
-import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit } from '../types';
+import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult, PromptTranslation, KioskTextOverride } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
 
@@ -375,6 +375,7 @@ export const getUserSettings = async (): Promise<UserSettings> => {
     dropboxRefreshToken: data.dropbox_refresh_token,
     dropboxTokenExpiresAt: data.dropbox_token_expires_at,
     dropboxEnabled: data.dropbox_enabled || false,
+    accountLanguage: data.account_language || 'en-US',
   };
 };
 
@@ -405,6 +406,7 @@ export const getUserSettingsByUserId = async (userId: string | null | undefined)
     dropboxRefreshToken: data.dropbox_refresh_token,
     dropboxTokenExpiresAt: data.dropbox_token_expires_at,
     dropboxEnabled: data.dropbox_enabled || false,
+    accountLanguage: data.account_language || 'en-US',
   };
 };
 
@@ -422,6 +424,7 @@ export const updateUserSettings = async (settings: Partial<UserSettings>): Promi
   if (settings.dropboxRefreshToken !== undefined) updateData.dropbox_refresh_token = settings.dropboxRefreshToken;
   if (settings.dropboxTokenExpiresAt !== undefined) updateData.dropbox_token_expires_at = settings.dropboxTokenExpiresAt;
   if (settings.dropboxEnabled !== undefined) updateData.dropbox_enabled = settings.dropboxEnabled;
+  if (settings.accountLanguage !== undefined) updateData.account_language = settings.accountLanguage;
 
   const { error } = await supabase
     .from('user_settings')
@@ -508,6 +511,13 @@ export const getGlobalSettings = async (skipCache: boolean = false): Promise<Glo
     smugmugConnectionStatus: data.smugmug_connection_status,
     smugmugUsername: data.smugmug_username,
     libraryWebhookUrl: data.library_webhook_url,
+    smtpHost: data.smtp_host,
+    smtpPort: data.smtp_port,
+    smtpUsername: data.smtp_username,
+    smtpPasswordSet: !!data.smtp_password,
+    smtpFromEmail: data.smtp_from_email,
+    smtpFromName: data.smtp_from_name,
+    smtpEnabled: data.smtp_enabled || false,
   };
 
   cachedGlobalSettings = settings;
@@ -540,6 +550,13 @@ export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): P
   if (settings.smugmugConnectionStatus !== undefined) updateData.smugmug_connection_status = settings.smugmugConnectionStatus;
   if (settings.smugmugUsername !== undefined) updateData.smugmug_username = settings.smugmugUsername;
   if (settings.libraryWebhookUrl !== undefined) updateData.library_webhook_url = settings.libraryWebhookUrl;
+  if (settings.smtpHost !== undefined) updateData.smtp_host = settings.smtpHost || null;
+  if (settings.smtpPort !== undefined) updateData.smtp_port = settings.smtpPort || null;
+  if (settings.smtpUsername !== undefined) updateData.smtp_username = settings.smtpUsername || null;
+  if (settings.smtpPassword !== undefined) updateData.smtp_password = settings.smtpPassword || null;
+  if (settings.smtpFromEmail !== undefined) updateData.smtp_from_email = settings.smtpFromEmail || null;
+  if (settings.smtpFromName !== undefined) updateData.smtp_from_name = settings.smtpFromName || null;
+  if (settings.smtpEnabled !== undefined) updateData.smtp_enabled = settings.smtpEnabled;
 
   const { data: existingSettings } = await supabase
     .from('global_settings')
@@ -583,7 +600,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -660,14 +677,36 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       primaryColor: event.primary_color,
       secondaryColor: event.secondary_color,
       accentColor: event.accent_color,
+      logoUrl: event.logo_url,
       hideLogo: event.hide_logo,
       hideEventName: event.hide_event_name,
+      logoPosition: event.logo_position || 'top-left',
+      logoSize: event.logo_size || 'medium',
       startDatetime: event.start_datetime,
       endDatetime: event.end_datetime,
       smsMessage: event.sms_message,
       smugmugGalleryKey: event.smugmug_gallery_key,
       smugmugGalleryUrl: event.smugmug_gallery_url,
       uploadOriginalsToGallery: event.upload_originals_to_gallery,
+      limitPhotosPerDevice: event.limit_photos_per_device || false,
+      maxPhotosPerDevice: event.max_photos_per_device || 0,
+      qrAccessEnabled: event.qr_access_enabled || false,
+      galleryEnabled: event.gallery_enabled || false,
+      showAccountPromo: event.show_account_promo !== false,
+      smsEnabled: event.sms_enabled !== false,
+      whatsappEnabled: event.whatsapp_enabled || false,
+      emailEnabled: event.email_enabled || false,
+      emailSubject: event.email_subject,
+      emailBody: event.email_body,
+      downloadEnabled: event.download_enabled !== false,
+      qrSharingEnabled: event.qr_sharing_enabled !== false,
+      kioskLanguage: event.kiosk_language || 'en-US',
+      kioskLanguages: event.kiosk_languages || [],
+      hideLanguageSelector: event.hide_language_selector || false,
+      defaultKioskLanguage: event.default_kiosk_language || null,
+      fullscreenEnabled: event.fullscreen_enabled || false,
+      kioskPasscode: event.kiosk_passcode || null,
+      timezone: event.timezone || 'UTC',
     });
   }
 
@@ -761,12 +800,33 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     accentColor: eventData.accent_color,
     hideLogo: eventData.hide_logo,
     hideEventName: eventData.hide_event_name,
+    logoPosition: eventData.logo_position || 'top-left',
+    logoSize: eventData.logo_size || 'medium',
     startDatetime: eventData.start_datetime,
     endDatetime: eventData.end_datetime,
     smsMessage: eventData.sms_message,
     smugmugGalleryKey: eventData.smugmug_gallery_key,
     smugmugGalleryUrl: eventData.smugmug_gallery_url,
     uploadOriginalsToGallery: eventData.upload_originals_to_gallery,
+    limitPhotosPerDevice: eventData.limit_photos_per_device || false,
+    maxPhotosPerDevice: eventData.max_photos_per_device || 0,
+    qrAccessEnabled: eventData.qr_access_enabled || false,
+    galleryEnabled: eventData.gallery_enabled || false,
+    showAccountPromo: eventData.show_account_promo !== false,
+    smsEnabled: eventData.sms_enabled !== false,
+    whatsappEnabled: eventData.whatsapp_enabled || false,
+    emailEnabled: eventData.email_enabled || false,
+    emailSubject: eventData.email_subject,
+    emailBody: eventData.email_body,
+    downloadEnabled: eventData.download_enabled !== false,
+    qrSharingEnabled: eventData.qr_sharing_enabled !== false,
+    kioskLanguage: eventData.kiosk_language || 'en-US',
+    kioskLanguages: eventData.kiosk_languages || [],
+    hideLanguageSelector: eventData.hide_language_selector || false,
+    defaultKioskLanguage: eventData.default_kiosk_language || null,
+    fullscreenEnabled: eventData.fullscreen_enabled || false,
+    kioskPasscode: eventData.kiosk_passcode || null,
+    timezone: eventData.timezone || 'UTC',
   };
 };
 
@@ -874,12 +934,33 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     accent_color: event.accentColor,
     hide_logo: event.hideLogo || false,
     hide_event_name: event.hideEventName || false,
+    logo_position: event.logoPosition || 'top-left',
+    logo_size: event.logoSize || 'medium',
     start_datetime: event.startDatetime,
     end_datetime: event.endDatetime,
     sms_message: event.smsMessage,
     smugmug_gallery_key: event.smugmugGalleryKey,
     smugmug_gallery_url: event.smugmugGalleryUrl,
     upload_originals_to_gallery: event.uploadOriginalsToGallery || false,
+    limit_photos_per_device: event.limitPhotosPerDevice || false,
+    max_photos_per_device: event.maxPhotosPerDevice || 0,
+    qr_access_enabled: event.qrAccessEnabled || false,
+    gallery_enabled: event.galleryEnabled || false,
+    show_account_promo: event.showAccountPromo !== false,
+    sms_enabled: event.smsEnabled !== false,
+    whatsapp_enabled: event.whatsappEnabled || false,
+    email_enabled: event.emailEnabled || false,
+    email_subject: event.emailSubject || null,
+    email_body: event.emailBody || null,
+    download_enabled: event.downloadEnabled !== false,
+    qr_sharing_enabled: event.qrSharingEnabled !== false,
+    kiosk_language: event.kioskLanguage || 'en-US',
+    kiosk_languages: event.kioskLanguages && event.kioskLanguages.length > 0 ? event.kioskLanguages : null,
+    hide_language_selector: event.hideLanguageSelector || false,
+    default_kiosk_language: event.defaultKioskLanguage || null,
+    fullscreen_enabled: event.fullscreenEnabled || false,
+    kiosk_passcode: event.kioskPasscode || null,
+    timezone: event.timezone || 'UTC',
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1126,6 +1207,39 @@ export const sendSms = async (phoneNumber: string, imageUrl: string, imageId: st
   return true;
 };
 
+export const sendEmail = async (emailAddress: string, imageUrl: string, imageId: string, eventId?: string): Promise<boolean> => {
+  if (!eventId) {
+    throw new Error('Event ID is required to send email');
+  }
+
+  const { data: event } = await supabase
+    .from('events')
+    .select('user_id')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (!event) {
+    throw new Error('Event not found');
+  }
+
+  const response = await supabase.functions.invoke('send-email', {
+    body: {
+      userId: event.user_id,
+      emailAddress,
+      imageUrl,
+      imageId,
+      eventId,
+    },
+  });
+
+  if (response.error) {
+    console.error('Failed to send email:', response.error);
+    return false;
+  }
+
+  return true;
+};
+
 export const getEventByPasscode = async (passcode: string): Promise<Event | null> => {
   const { data: eventData, error } = await supabase
     .from('events')
@@ -1155,30 +1269,63 @@ export const saveGeneratedImage = async (
   status: 'processing' | 'completed' | 'failed' = 'processing',
   errorMessage: string | null = null
 ): Promise<string> => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.rpc('save_generated_image', {
+    p_event_id: eventId,
+    p_prompt_id: promptId,
+    p_original_image_url: originalImageUrl,
+    p_generated_image_url: generatedImageUrl,
+    p_phone_number: phoneNumber,
+    p_status: status,
+    p_error_message: errorMessage,
+  });
 
-  const imageData = {
-    event_id: eventId,
-    prompt_id: promptId,
-    original_image_url: originalImageUrl,
-    generated_image_url: generatedImageUrl,
-    phone_number: phoneNumber,
-    status,
-    error_message: errorMessage,
-    user_id: user?.id || null,
-  };
-
-  const { data, error } = await supabase
-    .from('generated_images')
-    .insert([imageData])
-    .select('id')
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to save generated image: ${error.message}`);
+  if (error || typeof data !== 'string') {
+    console.error('Failed to save generated image:', error);
+    throw new Error('The photo was generated, but its record could not be saved. Please try again.');
   }
 
-  return data.id;
+  return data;
+};
+
+export const saveEventPhotoRecord = async (
+  eventId: string,
+  promptId: string,
+  storagePath: string,
+  publicUrl: string,
+  smugmugUrl: string | null = null
+): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('event_photos')
+    .insert({
+      event_id: eventId,
+      prompt_id: promptId,
+      storage_path: storagePath,
+      public_url: publicUrl,
+      smugmug_url: smugmugUrl,
+    })
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to save event photo record:', error);
+    return null;
+  }
+
+  return data?.id || null;
+};
+
+export const updateEventPhotoSmugmugUrl = async (
+  photoId: string,
+  smugmugUrl: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('event_photos')
+    .update({ smugmug_url: smugmugUrl })
+    .eq('id', photoId);
+
+  if (error) {
+    console.error('Failed to update event photo SmugMug URL:', error);
+  }
 };
 
 export interface EventAnalytics {
@@ -1264,6 +1411,8 @@ export interface EventPhoneEntry {
   imageId: string;
 }
 
+const SMS_BATCH_SIZE = 100;
+
 export const getEventPhoneNumbers = async (eventId: string): Promise<EventPhoneEntry[]> => {
   const { data: images, error: imgError } = await supabase
     .from('generated_images')
@@ -1274,21 +1423,116 @@ export const getEventPhoneNumbers = async (eventId: string): Promise<EventPhoneE
   if (!images || images.length === 0) return [];
 
   const imageIds = images.map(i => i.id);
+  const allRows: any[] = [];
 
-  const { data, error } = await supabase
-    .from('sms_logs')
-    .select('phone_number, sent_at, status, image_id')
-    .in('image_id', imageIds)
-    .order('sent_at', { ascending: true });
+  for (let i = 0; i < imageIds.length; i += SMS_BATCH_SIZE) {
+    const batch = imageIds.slice(i, i + SMS_BATCH_SIZE);
+    const { data, error } = await supabase
+      .from('sms_logs')
+      .select('phone_number, sent_at, status, image_id')
+      .in('image_id', batch)
+      .order('sent_at', { ascending: true });
 
-  if (error) throw new Error(`Failed to fetch phone numbers: ${error.message}`);
+    if (error) throw new Error(`Failed to fetch phone numbers: ${error.message}`);
+    if (data) allRows.push(...data);
+  }
 
-  return (data || []).map(row => ({
+  return allRows.map(row => ({
     phoneNumber: row.phone_number,
     sentAt: row.sent_at,
     status: row.status,
     imageId: row.image_id,
   }));
+};
+
+// --- Per-Device Photo Limit ---
+
+const DEVICE_TOKEN_KEY = 'ffp_device_token';
+
+export const getDeviceToken = (): string => {
+  let token = localStorage.getItem(DEVICE_TOKEN_KEY);
+  if (!token) {
+    token = crypto.randomUUID() + '-' + Date.now().toString(36);
+    localStorage.setItem(DEVICE_TOKEN_KEY, token);
+  }
+  return token;
+};
+
+export const checkDeviceLimit = async (eventId: string): Promise<DeviceLimitCheckResult> => {
+  const deviceToken = getDeviceToken();
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-device-limit`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ eventId, deviceToken, action: 'check' }),
+  });
+  if (!response.ok) {
+    throw new Error(`Device limit check failed (${response.status})`);
+  }
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+  return data as DeviceLimitCheckResult;
+};
+
+export const incrementDeviceUsage = async (eventId: string): Promise<DeviceLimitCheckResult> => {
+  const deviceToken = getDeviceToken();
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-device-limit`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ eventId, deviceToken, action: 'increment' }),
+  });
+  if (!response.ok && response.status !== 403) {
+    throw new Error(`Device usage increment failed (${response.status})`);
+  }
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+  return data as DeviceLimitCheckResult;
+};
+
+export const getEventDeviceUsage = async (eventId: string): Promise<DeviceUsageEntry[]> => {
+  const { data, error } = await supabase
+    .from('event_device_usage')
+    .select('id, device_token, ip_address, photo_count, last_interaction_at, created_at')
+    .eq('event_id', eventId)
+    .order('last_interaction_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch device usage: ${error.message}`);
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    deviceId: row.id,
+    deviceToken: row.device_token,
+    ipAddress: row.ip_address,
+    photoCount: row.photo_count,
+    lastInteractionAt: row.last_interaction_at,
+    createdAt: row.created_at,
+  }));
+};
+
+export const resetDeviceUsage = async (deviceUsageId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('event_device_usage')
+    .delete()
+    .eq('id', deviceUsageId);
+
+  if (error) {
+    throw new Error(`Failed to reset device: ${error.message}`);
+  }
 };
 
 export const deleteEvent = async (eventId: string): Promise<void> => {
@@ -1393,23 +1637,14 @@ export const getEventAccessList = async (eventId: string): Promise<Array<{ userI
 };
 
 export const transferEventOwnership = async (eventId: string, newOwnerId: string): Promise<void> => {
-  const { error: updateError } = await supabase
-    .from('events')
-    .update({ user_id: newOwnerId })
-    .eq('id', eventId);
+  const { error } = await supabase
+    .rpc('transfer_event_ownership', {
+      p_event_id: eventId,
+      p_new_owner_id: newOwnerId,
+    });
 
-  if (updateError) {
-    throw new Error(`Failed to transfer ownership: ${updateError.message}`);
-  }
-
-  const { error: deleteError } = await supabase
-    .from('event_access')
-    .delete()
-    .eq('event_id', eventId)
-    .eq('user_id', newOwnerId);
-
-  if (deleteError) {
-    console.warn('Could not remove shared access record (may not exist):', deleteError.message);
+  if (error) {
+    throw new Error(`Failed to transfer ownership: ${error.message}`);
   }
 
   clearEventsCache();
@@ -1473,17 +1708,25 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       .in('event_id', eventIds);
     imagesCount = imgCount || 0;
 
-    const { data: imageIds } = await supabase
-      .from('generated_images')
-      .select('id')
-      .in('event_id', eventIds);
+    try {
+      const { data: imageIds } = await supabase
+        .from('generated_images')
+        .select('id')
+        .in('event_id', eventIds);
 
-    if (imageIds && imageIds.length > 0) {
-      const { count: smsCountResult } = await supabase
-        .from('sms_logs')
-        .select('*', { count: 'exact', head: true })
-        .in('image_id', imageIds.map(i => i.id));
-      smsCount = smsCountResult || 0;
+      if (imageIds && imageIds.length > 0) {
+        const allImageIds = imageIds.map(i => i.id);
+        for (let i = 0; i < allImageIds.length; i += SMS_BATCH_SIZE) {
+          const batch = allImageIds.slice(i, i + SMS_BATCH_SIZE);
+          const { count: batchCount } = await supabase
+            .from('sms_logs')
+            .select('*', { count: 'exact', head: true })
+            .in('image_id', batch);
+          smsCount += batchCount || 0;
+        }
+      }
+    } catch (smsErr) {
+      console.error('Failed to fetch SMS count, continuing without it:', smsErr);
     }
   }
 
@@ -1740,7 +1983,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -1800,14 +2043,36 @@ export const getAllEvents = async (): Promise<Event[]> => {
       primaryColor: e.primary_color,
       secondaryColor: e.secondary_color,
       accentColor: e.accent_color,
+      logoUrl: e.logo_url,
       hideLogo: e.hide_logo,
       hideEventName: e.hide_event_name,
+      logoPosition: e.logo_position || 'top-left',
+      logoSize: e.logo_size || 'medium',
       startDatetime: e.start_datetime,
       endDatetime: e.end_datetime,
       smsMessage: e.sms_message,
       smugmugGalleryKey: e.smugmug_gallery_key,
       smugmugGalleryUrl: e.smugmug_gallery_url,
       uploadOriginalsToGallery: e.upload_originals_to_gallery,
+      limitPhotosPerDevice: e.limit_photos_per_device || false,
+      maxPhotosPerDevice: e.max_photos_per_device || 0,
+      qrAccessEnabled: e.qr_access_enabled || false,
+      galleryEnabled: e.gallery_enabled || false,
+      showAccountPromo: e.show_account_promo !== false,
+      smsEnabled: e.sms_enabled !== false,
+      whatsappEnabled: e.whatsapp_enabled || false,
+      emailEnabled: e.email_enabled || false,
+      emailSubject: e.email_subject,
+      emailBody: e.email_body,
+      downloadEnabled: e.download_enabled !== false,
+      qrSharingEnabled: e.qr_sharing_enabled !== false,
+      kioskLanguage: e.kiosk_language || 'en-US',
+      kioskLanguages: e.kiosk_languages || [],
+      hideLanguageSelector: e.hide_language_selector || false,
+      defaultKioskLanguage: e.default_kiosk_language || null,
+      fullscreenEnabled: e.fullscreen_enabled || false,
+      kioskPasscode: e.kiosk_passcode || null,
+      timezone: e.timezone || 'UTC',
     };
   });
 };
@@ -2071,6 +2336,27 @@ export const syncSmugMugGallery = async (
   }
 };
 
+export const updateSmugMugGalleryUrl = async (
+  eventId: string,
+  galleryUrl: string
+): Promise<void> => {
+  const userId = await getUserId();
+
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const { error } = await supabase
+    .from('events')
+    .update({ smugmug_gallery_url: galleryUrl })
+    .eq('id', eventId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to update gallery URL: ${error.message}`);
+  }
+};
+
 export const createSmugMugGalleryForEvent = async (
   eventId: string,
   eventName: string,
@@ -2239,4 +2525,341 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
   }
 
   return data === true;
+};
+
+// --- One-Time-Use QR Access Codes ---
+
+const generateSecureToken = (): string => {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+export const generateAccessCodes = async (eventId: string, count: number): Promise<EventAccessCode[]> => {
+  if (count < 1 || count > 500) {
+    throw new Error('Count must be between 1 and 500');
+  }
+
+  const batchId = crypto.randomUUID();
+  const codes = Array.from({ length: count }, () => ({
+    event_id: eventId,
+    token: generateSecureToken(),
+    is_used: false,
+    batch_id: batchId,
+  }));
+
+  const { data, error } = await supabase
+    .from('event_access_codes')
+    .insert(codes)
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to generate access codes: ${error.message}`);
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    eventId: row.event_id,
+    token: row.token,
+    isUsed: row.is_used,
+    redeemedAt: row.redeemed_at,
+    redeemedIp: row.redeemed_ip,
+    redeemedDeviceToken: row.redeemed_device_token,
+    createdAt: row.created_at,
+    batchId: row.batch_id,
+  }));
+};
+
+export const getEventAccessCodes = async (eventId: string): Promise<EventAccessCode[]> => {
+  const { data, error } = await supabase
+    .from('event_access_codes')
+    .select('*')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch access codes: ${error.message}`);
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    eventId: row.event_id,
+    token: row.token,
+    isUsed: row.is_used,
+    redeemedAt: row.redeemed_at,
+    redeemedIp: row.redeemed_ip,
+    redeemedDeviceToken: row.redeemed_device_token,
+    createdAt: row.created_at,
+    batchId: row.batch_id,
+  }));
+};
+
+export const deleteAccessCode = async (codeId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('event_access_codes')
+    .delete()
+    .eq('id', codeId);
+
+  if (error) {
+    throw new Error(`Failed to delete access code: ${error.message}`);
+  }
+};
+
+export const deleteAllAccessCodes = async (eventId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('event_access_codes')
+    .delete()
+    .eq('event_id', eventId);
+
+  if (error) {
+    throw new Error(`Failed to delete all access codes: ${error.message}`);
+  }
+};
+
+export const redeemAccessCode = async (token: string, deviceToken?: string): Promise<AccessCodeRedemptionResult> => {
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/redeem-access-code`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ token, deviceToken }),
+  });
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  return data as AccessCodeRedemptionResult;
+};
+
+// --- Prompt Translations ---
+
+export const getPromptTranslations = async (promptId: string): Promise<PromptTranslation[]> => {
+  const { data, error } = await supabase
+    .from('prompt_translations')
+    .select('id, prompt_id, language_code, name, description')
+    .eq('prompt_id', promptId);
+
+  if (error) {
+    console.error('Failed to fetch prompt translations:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    promptId: row.prompt_id,
+    languageCode: row.language_code,
+    name: row.name,
+    description: row.description || '',
+  }));
+};
+
+export const getPromptTranslationsBatch = async (promptIds: string[]): Promise<Record<string, PromptTranslation[]>> => {
+  if (promptIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('prompt_translations')
+    .select('id, prompt_id, language_code, name, description')
+    .in('prompt_id', promptIds);
+
+  if (error) {
+    console.error('Failed to fetch prompt translations batch:', error);
+    return {};
+  }
+
+  const result: Record<string, PromptTranslation[]> = {};
+  for (const row of data || []) {
+    const pid = row.prompt_id;
+    if (!result[pid]) result[pid] = [];
+    result[pid].push({
+      id: row.id,
+      promptId: row.prompt_id,
+      languageCode: row.language_code,
+      name: row.name,
+      description: row.description || '',
+    });
+  }
+
+  return result;
+};
+
+export const savePromptTranslation = async (translation: PromptTranslation): Promise<void> => {
+  const { error } = await supabase
+    .from('prompt_translations')
+    .upsert({
+      prompt_id: translation.promptId,
+      language_code: translation.languageCode,
+      name: translation.name,
+      description: translation.description || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'prompt_id,language_code' });
+
+  if (error) {
+    throw new Error(`Failed to save prompt translation: ${error.message}`);
+  }
+};
+
+export const savePromptTranslationsBatch = async (translations: PromptTranslation[]): Promise<void> => {
+  if (translations.length === 0) return;
+
+  const rows = translations.map(t => ({
+    prompt_id: t.promptId,
+    language_code: t.languageCode,
+    name: t.name,
+    description: t.description || null,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error } = await supabase
+    .from('prompt_translations')
+    .upsert(rows, { onConflict: 'prompt_id,language_code' });
+
+  if (error) {
+    throw new Error(`Failed to save prompt translations: ${error.message}`);
+  }
+};
+
+export const deletePromptTranslation = async (promptId: string, languageCode: string): Promise<void> => {
+  const { error } = await supabase
+    .from('prompt_translations')
+    .delete()
+    .eq('prompt_id', promptId)
+    .eq('language_code', languageCode);
+
+  if (error) {
+    throw new Error(`Failed to delete prompt translation: ${error.message}`);
+  }
+};
+
+export const autoTranslatePrompts = async (
+  prompts: { id: string; name: string; description: string }[],
+  targetLanguage: string
+): Promise<{ id: string; name: string; description: string }[]> => {
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-prompts`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ prompts, targetLanguage }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Translation failed (${response.status})`);
+  }
+
+  const data = await response.json();
+
+  if (!data.translations || !Array.isArray(data.translations)) {
+    throw new Error('Invalid translation response');
+  }
+
+  return data.translations;
+};
+
+// --- Kiosk Text Overrides ---
+
+export const getKioskTextOverrides = async (eventId: string): Promise<KioskTextOverride[]> => {
+  const { data, error } = await supabase
+    .from('kiosk_text_overrides')
+    .select('id, event_id, language_code, text_key, text_value')
+    .eq('event_id', eventId);
+
+  if (error) {
+    console.error('Failed to fetch kiosk text overrides:', error);
+    return [];
+  }
+
+  return (data || []).map(row => ({
+    id: row.id,
+    eventId: row.event_id,
+    languageCode: row.language_code,
+    textKey: row.text_key,
+    textValue: row.text_value,
+  }));
+};
+
+export const saveKioskTextOverrides = async (overrides: KioskTextOverride[]): Promise<void> => {
+  if (overrides.length === 0) return;
+
+  const rows = overrides.map(o => ({
+    event_id: o.eventId,
+    language_code: o.languageCode,
+    text_key: o.textKey,
+    text_value: o.textValue,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error } = await supabase
+    .from('kiosk_text_overrides')
+    .upsert(rows, { onConflict: 'event_id,language_code,text_key' });
+
+  if (error) {
+    throw new Error(`Failed to save kiosk text overrides: ${error.message}`);
+  }
+};
+
+export const deleteSingleKioskTextOverride = async (eventId: string, languageCode: string, textKey: string): Promise<void> => {
+  const { error } = await supabase
+    .from('kiosk_text_overrides')
+    .delete()
+    .eq('event_id', eventId)
+    .eq('language_code', languageCode)
+    .eq('text_key', textKey);
+
+  if (error) {
+    throw new Error(`Failed to delete kiosk text override: ${error.message}`);
+  }
+};
+
+export const deleteKioskTextOverrides = async (eventId: string, languageCode: string): Promise<void> => {
+  const { error } = await supabase
+    .from('kiosk_text_overrides')
+    .delete()
+    .eq('event_id', eventId)
+    .eq('language_code', languageCode);
+
+  if (error) {
+    throw new Error(`Failed to delete kiosk text overrides: ${error.message}`);
+  }
+};
+
+export const autoTranslateKioskText = async (
+  texts: { key: string; value: string }[],
+  targetLanguage: string
+): Promise<{ key: string; value: string }[]> => {
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-kiosk-text`;
+  const headers = {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  };
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ texts, targetLanguage }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Translation failed (${response.status})`);
+  }
+
+  const data = await response.json();
+
+  if (!data.translations || !Array.isArray(data.translations)) {
+    throw new Error('Invalid translation response');
+  }
+
+  return data.translations;
 };
