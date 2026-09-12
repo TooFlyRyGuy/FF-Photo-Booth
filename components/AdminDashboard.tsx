@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -291,6 +291,24 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       alert(`Kiosk link copied!\n\nShare this URL with guests:\n${url}`);
     }).catch(() => {
       alert(`Kiosk URL:\n${url}\n\n(Copy this link to share with guests)`);
+    });
+  };
+
+  const launchSlideshow = (event: Event) => {
+    const url = `https://display.funframephoto.com/?kiosk=${event.passcode}&autoplay=1`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const getSlideshowUrl = (passcode: string | undefined) => {
+    return `https://display.funframephoto.com/?kiosk=${passcode || ''}`;
+  };
+
+  const copySlideshowLink = (passcode: string | undefined) => {
+    const url = getSlideshowUrl(passcode);
+    navigator.clipboard.writeText(url).then(() => {
+      alert(`Slideshow link copied!\n\n${url}`);
+    }).catch(() => {
+      alert(`Slideshow URL:\n${url}`);
     });
   };
 
@@ -1381,6 +1399,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         <Camera size={16} /> Launch Kiosk
                       </button>
 
+                      <button
+                        onClick={() => launchSlideshow(event)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold shadow-md shadow-slate-900/20 transition-all flex items-center justify-center gap-2"
+                        title="Launch slideshow in autoplay mode"
+                      >
+                        <MonitorPlay size={16} /> <span className="hidden sm:inline">Slideshow</span>
+                      </button>
+
                       {event.smugmugGalleryUrl && (
                         <a
                           href={event.smugmugGalleryUrl}
@@ -1810,6 +1836,41 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     <p className="text-xs text-slate-500">4-digit code for kiosk access. Must be unique.</p>
                   </div>
                 </div>
+
+                {/* Slideshow Link Section */}
+                {editingEvent.passcode && (
+                  <div className="mt-4 p-4 bg-slate-50 border-2 border-slate-200 rounded-lg">
+                    <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                      <MonitorPlay size={16} /> Slideshow Link
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={getSlideshowUrl(editingEvent.passcode)}
+                        className="flex-1 bg-white border-2 border-slate-300 rounded-lg px-4 py-2 text-black font-mono text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => copySlideshowLink(editingEvent.passcode)}
+                          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                        >
+                          <Link2 size={16} /> Copy
+                        </button>
+                        <a
+                          href={getSlideshowUrl(editingEvent.passcode)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                        >
+                          <MonitorPlay size={16} /> Launch
+                        </a>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">Open this URL on a display screen to show a slideshow of photos from this event.</p>
+                  </div>
+                )}
 
                 {/* Event Time Restrictions */}
                 {isStartTimeLocked && (
