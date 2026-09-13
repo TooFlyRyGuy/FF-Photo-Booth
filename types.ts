@@ -185,6 +185,7 @@ export interface Prompt {
   promptText: string;
   category: string;
   isPublic: boolean;
+  isActive?: boolean;
   userId?: string;
   tags?: string[];
 }

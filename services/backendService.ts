@@ -1087,10 +1087,11 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
     description: prompt.description,
     category: prompt.category,
     prompt_text: prompt.promptText,
-    preview_image_url: previewImageUrl,
+    preview_image_url: previewImageUrl || '',
     reference_image_url: referenceImageUrl,
     is_active: true,
     user_id: userId,
+    updated_at: new Date().toISOString(),
   };
 
   const { data: newPrompt, error } = await supabase
@@ -1115,7 +1116,7 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
   if (prompt.category !== undefined) updateData.category = prompt.category;
   if (prompt.promptText !== undefined) updateData.prompt_text = prompt.promptText;
 
-  if (prompt.previewImage) {
+  if (prompt.previewImage !== undefined) {
     if (prompt.previewImage.startsWith('data:image')) {
       const existingPrompt = await getPromptById(promptId);
       if (existingPrompt.previewImage) {
@@ -1123,7 +1124,7 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
       }
       updateData.preview_image_url = await uploadImageToStorage(prompt.previewImage, 'preview', promptId);
     } else {
-      updateData.preview_image_url = prompt.previewImage;
+      updateData.preview_image_url = prompt.previewImage || '';
     }
   }
 
@@ -1138,6 +1139,11 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
       updateData.reference_image_url = prompt.referenceImage;
     }
   }
+
+  if (prompt.tags !== undefined) updateData.tags = prompt.tags;
+  if (prompt.isActive !== undefined) updateData.is_active = prompt.isActive;
+  if (prompt.isPublic !== undefined) updateData.is_public = prompt.isPublic;
+  updateData.updated_at = new Date().toISOString();
 
   const { error } = await supabase
     .from('prompts')

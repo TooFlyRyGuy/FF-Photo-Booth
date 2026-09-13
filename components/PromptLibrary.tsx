@@ -509,12 +509,13 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           description: editingPrompt.description,
           category: editingPrompt.category,
           prompt_text: editingPrompt.promptText,
-          preview_image_url: editingPrompt.previewImage || null,
+          preview_image_url: editingPrompt.previewImage || '',
           reference_image_url: editingPrompt.referenceImage || null,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
           is_public: isPublic,
           user_id: userId,
+          updated_at: new Date().toISOString(),
         });
 
         if (error) throw error;
@@ -526,11 +527,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             description: editingPrompt.description,
             category: editingPrompt.category,
             prompt_text: editingPrompt.promptText,
-            preview_image_url: editingPrompt.previewImage || null,
+            preview_image_url: editingPrompt.previewImage || '',
             reference_image_url: editingPrompt.referenceImage || null,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
             is_public: isPublic,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', editingPrompt.id);
 
