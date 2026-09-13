@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { UserSettings, GlobalSettings, UserProfile } from '../types';
-import { Save, Eye, EyeOff, Check, Sparkles } from 'lucide-react';
+import { Save, Eye, EyeOff, Check, Sparkles, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { SUPPORTED_LANGUAGES, LanguageCode } from '../lib/i18n';
 
 interface SettingsProps {
   userSettings: UserSettings;
@@ -45,11 +46,26 @@ const Settings: React.FC<SettingsProps> = ({
   // geminiApiKey holds a NEW value typed by admin; never receives the stored key from server
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiEnabled, setGeminiEnabled] = useState(globalSettings.geminiEnabled || false);
-  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
+  const [geminiModel, setGeminiModel] = useState(globalSettings.geminiModel || 'gemini-3.1-flash-image');
   const [geminiResolution, setGeminiResolution] = useState<'1K' | '2K' | '4K'>(globalSettings.geminiResolution || '1K');
 
   // Library webhook (global, admin only)
   const [libraryWebhookUrl, setLibraryWebhookUrl] = useState(globalSettings.libraryWebhookUrl || '');
+
+  // SMTP states (global, admin only)
+  // smtpPassword holds a NEW value typed by admin; never receives the stored password from server
+  const [smtpHost, setSmtpHost] = useState(globalSettings.smtpHost || '');
+  const [smtpPort, setSmtpPort] = useState<number | ''>(globalSettings.smtpPort || '');
+  const [smtpUsername, setSmtpUsername] = useState(globalSettings.smtpUsername || '');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpFromEmail, setSmtpFromEmail] = useState(globalSettings.smtpFromEmail || '');
+  const [smtpFromName, setSmtpFromName] = useState(globalSettings.smtpFromName || '');
+  const [smtpEnabled, setSmtpEnabled] = useState(globalSettings.smtpEnabled || false);
+
+  // Account language
+  const [accountLanguage, setAccountLanguage] = useState<LanguageCode>(
+    (userSettings.accountLanguage as LanguageCode) || 'en-US'
+  );
 
   // Save states
   const [isSavingUser, setIsSavingUser] = useState(false);
@@ -60,7 +76,8 @@ const Settings: React.FC<SettingsProps> = ({
   useEffect(() => {
     setDropboxConnected(!!userSettings.dropboxAccessToken);
     setDropboxEnabled(userSettings.dropboxEnabled || false);
-  }, [userSettings.dropboxAccessToken, userSettings.dropboxEnabled]);
+    setAccountLanguage((userSettings.accountLanguage as LanguageCode) || 'en-US');
+  }, [userSettings.dropboxAccessToken, userSettings.dropboxEnabled, userSettings.accountLanguage]);
 
   useEffect(() => {
     setSmugMugConnected(globalSettings.smugmugConnectionStatus === 'connected');
@@ -70,9 +87,15 @@ const Settings: React.FC<SettingsProps> = ({
     setTwilioPhone(globalSettings.twilioPhoneNumber || '');
     setTwilioEnabled(globalSettings.twilioEnabled || false);
     setGeminiEnabled(globalSettings.geminiEnabled || false);
-    setGeminiModel(globalSettings.geminiModel || 'gemini-3.1-flash-image-preview');
+    setGeminiModel(globalSettings.geminiModel || 'gemini-3.1-flash-image');
     setGeminiResolution(globalSettings.geminiResolution || '1K');
     setLibraryWebhookUrl(globalSettings.libraryWebhookUrl || '');
+    setSmtpHost(globalSettings.smtpHost || '');
+    setSmtpPort(globalSettings.smtpPort || '');
+    setSmtpUsername(globalSettings.smtpUsername || '');
+    setSmtpFromEmail(globalSettings.smtpFromEmail || '');
+    setSmtpFromName(globalSettings.smtpFromName || '');
+    setSmtpEnabled(globalSettings.smtpEnabled || false);
     // Never populate key fields from server — admin must type a new value to update
   }, [globalSettings]);
 
@@ -239,6 +262,7 @@ const Settings: React.FC<SettingsProps> = ({
     try {
       const updates: Partial<UserSettings> = {
         dropboxEnabled,
+        accountLanguage,
       };
 
       await onSaveUserSettings(updates);
@@ -276,6 +300,12 @@ const Settings: React.FC<SettingsProps> = ({
         geminiModel,
         geminiResolution,
         libraryWebhookUrl,
+        smtpHost,
+        smtpPort: smtpPort === '' ? undefined : Number(smtpPort),
+        smtpUsername,
+        smtpFromEmail,
+        smtpFromName,
+        smtpEnabled,
       };
 
       // Only send the new token/key if admin actually typed one
@@ -285,12 +315,16 @@ const Settings: React.FC<SettingsProps> = ({
       if (geminiApiKey.trim()) {
         updates.geminiApiKey = geminiApiKey.trim();
       }
+      if (smtpPassword.trim()) {
+        updates.smtpPassword = smtpPassword.trim();
+      }
 
       await onSaveGlobalSettings(updates);
 
       // Clear the input fields after save so they don't persist in state
       setTwilioToken('');
       setGeminiApiKey('');
+      setSmtpPassword('');
 
       setSaveGlobalSuccess(true);
       setTimeout(() => setSaveGlobalSuccess(false), 3000);
@@ -304,6 +338,65 @@ const Settings: React.FC<SettingsProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Account Language */}
+      <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+        <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+          <div className="flex items-center gap-3">
+            <Globe className="text-green-700" size={24} />
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Account Language</h3>
+              <p className="text-slate-600 text-sm">Choose the language for your dashboard and admin interface</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-900 mb-2">Language</label>
+            <select
+              value={accountLanguage}
+              onChange={(e) => setAccountLanguage(e.target.value as LanguageCode)}
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900"
+            >
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.nativeLabel === lang.label ? lang.nativeLabel : `${lang.nativeLabel} (${lang.label})`}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-600 mt-2">
+              This controls the language of your dashboard. Event kiosk language is set per-event in the event editor.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            {saveUserSuccess && (
+              <div className="flex items-center gap-2 text-green-700 animate-fade-in">
+                <Check size={18} />
+                <span className="text-sm font-medium">Settings saved successfully</span>
+              </div>
+            )}
+            <button
+              onClick={handleSaveUserSettings}
+              disabled={isSavingUser}
+              className="bg-green-700 hover:bg-green-800 disabled:bg-slate-300 disabled:text-slate-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors"
+            >
+              {isSavingUser ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  Save Language
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Dropbox Integration */}
       <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
         <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
@@ -580,8 +673,8 @@ const Settings: React.FC<SettingsProps> = ({
                   onChange={(e) => setGeminiModel(e.target.value)}
                   className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
                 >
-                  <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Recommended)</option>
-                  <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image (Fast)</option>
+                  <option value="gemini-3-pro-image">Gemini 3 Pro Image (Recommended)</option>
+                  <option value="gemini-3.1-flash-image">Gemini 3.1 Flash Image (Fast)</option>
                   <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Fast)</option>
                 </select>
                 <p className="text-xs text-slate-600 mt-2">
@@ -833,6 +926,120 @@ const Settings: React.FC<SettingsProps> = ({
   ],
   "totalSelected": 3
 }`}</pre>
+              </div>
+            </div>
+          </div>
+
+          {/* SMTP / Email Configuration */}
+          <div className="bg-white rounded-xl border-2 border-slate-300 overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b-2 border-slate-300">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/>
+                  <path d="m22 7-10 5L2 7"/>
+                </svg>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">SMTP Email Server</h3>
+                  <p className="text-slate-600 text-sm">Send photos to guests via email using your own SMTP server</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border-2 border-slate-300">
+                <input
+                  type="checkbox"
+                  checked={smtpEnabled}
+                  onChange={(e) => setSmtpEnabled(e.target.checked)}
+                  className="w-5 h-5 rounded accent-green-700"
+                  id="smtp-enabled"
+                />
+                <label htmlFor="smtp-enabled" className="flex-1 cursor-pointer">
+                  <span className="font-medium text-slate-900">Enable Email Delivery</span>
+                  <p className="text-sm text-slate-600">Allow guests to receive photos via email</p>
+                </label>
+                {smtpEnabled && <Check className="text-green-700" size={20} />}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-900 mb-2">SMTP Host</label>
+                  <input
+                    type="text"
+                    value={smtpHost}
+                    onChange={(e) => setSmtpHost(e.target.value)}
+                    placeholder="smtp.gmail.com"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">Port</label>
+                  <input
+                    type="number"
+                    value={smtpPort}
+                    onChange={(e) => setSmtpPort(e.target.value === '' ? '' : parseInt(e.target.value))}
+                    placeholder="587"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 -mt-2">Use port 465 for SSL, 587 for STARTTLS, or 25 for plain.</p>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-2">Username</label>
+                <input
+                  type="text"
+                  value={smtpUsername}
+                  onChange={(e) => setSmtpUsername(e.target.value)}
+                  placeholder="your.email@gmail.com"
+                  className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-2">Password</label>
+                {globalSettings.smtpPasswordSet && (
+                  <div className="flex items-center gap-2 mb-2 text-sm text-green-700 font-medium">
+                    <Check size={14} />
+                    Password is configured — enter a new value below only to replace it
+                  </div>
+                )}
+                <input
+                  type="password"
+                  value={smtpPassword}
+                  onChange={(e) => setSmtpPassword(e.target.value)}
+                  placeholder={globalSettings.smtpPasswordSet ? 'Enter new password to replace existing' : 'Enter your SMTP password'}
+                  className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">From Email</label>
+                  <input
+                    type="email"
+                    value={smtpFromEmail}
+                    onChange={(e) => setSmtpFromEmail(e.target.value)}
+                    placeholder="photos@yourdomain.com"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">From Name</label>
+                  <input
+                    type="text"
+                    value={smtpFromName}
+                    onChange={(e) => setSmtpFromName(e.target.value)}
+                    placeholder="Lumina Booth"
+                    className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <strong>Note:</strong> The password is stored securely and never shown again after saving. Only enter a new password if you want to replace the existing one.
+                </p>
               </div>
             </div>
           </div>

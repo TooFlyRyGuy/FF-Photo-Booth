@@ -133,6 +133,46 @@ export async function uploadImageToStorage(
   }
 }
 
+export async function uploadGeneratedPhoto(
+  base64Image: string,
+  eventId: string,
+  fileName?: string
+): Promise<UploadImageResult> {
+  try {
+    const blob = await base64ToBlob(base64Image);
+
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const finalFileName = fileName || `photo-${timestamp}-${randomStr}.jpg`;
+    const filePath = `${eventId}/${finalFileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('event-photos')
+      .upload(filePath, blob, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Event photo upload error:', error);
+      return { url: '', path: '', error: error.message };
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('event-photos')
+      .getPublicUrl(data.path);
+
+    return { url: publicUrl, path: data.path };
+  } catch (error) {
+    console.error('Event photo upload error:', error);
+    return {
+      url: '',
+      path: '',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
 export async function deleteImageFromStorage(path: string): Promise<boolean> {
   try {
     const { error } = await supabase.storage
