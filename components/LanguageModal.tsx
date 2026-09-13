@@ -365,8 +365,8 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
     }
   };
 
-  const translationLanguages = SUPPORTED_LANGUAGES.filter(l => selectedLanguages.has(l.code) && l.code !== 'en-US');
-  const hasNonEnglishSelected = translationLanguages.length > 0;
+  const allSelectedLanguages = SUPPORTED_LANGUAGES.filter(l => selectedLanguages.has(l.code));
+  const hasNonEnglishSelected = allSelectedLanguages.some(l => l.code !== 'en-US');
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -466,7 +466,6 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
           </div>
 
           {/* Kiosk Screen Text Overrides */}
-          {hasNonEnglishSelected && (
             <div className="border-2 border-slate-300 rounded-xl overflow-hidden">
               <div className="bg-slate-50 px-4 py-3 border-b-2 border-slate-300">
                 <div className="flex items-center justify-between gap-3">
@@ -476,23 +475,25 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                       Customize the text guests see on the kiosk screen for each language. Edit any text below, or click auto-translate to generate translations from the English defaults.
                     </p>
                   </div>
-                  <button
-                    onClick={handleAutoTranslateAllKioskText}
-                    disabled={isTranslatingKiosk !== null}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
-                  >
-                    {isTranslatingKiosk !== null ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Translating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={16} />
-                        Auto-Translate All
-                      </>
-                    )}
-                  </button>
+                  {hasNonEnglishSelected && (
+                    <button
+                      onClick={handleAutoTranslateAllKioskText}
+                      disabled={isTranslatingKiosk !== null}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                    >
+                      {isTranslatingKiosk !== null ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Translating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} />
+                          Auto-Translate All
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -503,37 +504,43 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                 </div>
               ) : (
                 <div className="divide-y divide-slate-200">
-                  {translationLanguages.map((lang) => (
+                  {allSelectedLanguages.map((lang) => {
+                    const isEnglish = lang.code === 'en-US';
+                    return (
                     <div key={lang.code} className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <h4 className="text-sm font-bold text-slate-900">{lang.nativeLabel === lang.label ? lang.nativeLabel : `${lang.nativeLabel} (${lang.label})`}</h4>
                         <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveLanguage(lang.code)}
-                            className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors"
-                          >
-                            <X size={12} />
-                            Remove Language
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleAutoTranslateKioskText(lang.code)}
-                            disabled={isTranslatingKiosk !== null}
-                            className="text-xs text-blue-600 hover:text-blue-700 disabled:text-slate-400 flex items-center gap-1 transition-colors"
-                          >
-                            {isTranslatingKiosk === lang.code ? (
-                              <>
-                                <div className="w-3 h-3 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
-                                Translating...
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles size={12} />
-                                Translate
-                              </>
-                            )}
-                          </button>
+                          {!isEnglish && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLanguage(lang.code)}
+                              className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors"
+                            >
+                              <X size={12} />
+                              Remove Language
+                            </button>
+                          )}
+                          {!isEnglish && (
+                            <button
+                              type="button"
+                              onClick={() => handleAutoTranslateKioskText(lang.code)}
+                              disabled={isTranslatingKiosk !== null}
+                              className="text-xs text-blue-600 hover:text-blue-700 disabled:text-slate-400 flex items-center gap-1 transition-colors"
+                            >
+                              {isTranslatingKiosk === lang.code ? (
+                                <>
+                                  <div className="w-3 h-3 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
+                                  Translating...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles size={12} />
+                                  Translate
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -562,7 +569,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                                         type="text"
                                         value={currentValue}
                                         onChange={(e) => handleKioskTextChange(lang.code, key, e.target.value)}
-                                        onBlur={(e) => handleKioskTextBlur(lang.code, key, e.target.value)}
+                                        onBlur={(e) => !isEnglish && handleKioskTextBlur(lang.code, key, e.target.value)}
                                         className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm ${
                                           isModified ? 'border-blue-300 bg-blue-50' : 'border-slate-300'
                                         }`}
@@ -577,40 +584,42 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                         );
                       })}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
-          )}
 
           {/* Prompt Translations */}
-          {prompts.length > 0 && hasNonEnglishSelected && (
+          {prompts.length > 0 && (
             <div className="border-2 border-slate-300 rounded-xl overflow-hidden">
               <div className="bg-slate-50 px-4 py-3 border-b-2 border-slate-300">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Prompt Translations</h3>
                     <p className="text-xs text-slate-600 mt-1">
-                      Translate prompt names and descriptions for guests in the selected languages. Click auto-translate to generate, then edit as needed.
+                      Edit prompt names and descriptions for each language. English fields show the prompt's current name and description. Click auto-translate to generate other languages, then edit as needed.
                     </p>
                   </div>
-                  <button
-                    onClick={handleAutoTranslateAll}
-                    disabled={isTranslating !== null}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 text-white rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
-                  >
-                    {isTranslating !== null ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Translating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={16} />
-                        Auto-Translate All
-                      </>
-                    )}
-                  </button>
+                  {hasNonEnglishSelected && (
+                    <button
+                      onClick={handleAutoTranslateAll}
+                      disabled={isTranslating !== null}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 text-white rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                    >
+                      {isTranslating !== null ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Translating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} />
+                          Auto-Translate All
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -637,47 +646,52 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                         </div>
                       </div>
 
-                      {translationLanguages.map((lang) => {
+                      {allSelectedLanguages.map((lang) => {
+                        const isEnglish = lang.code === 'en-US';
                         const trans = translations[prompt.id]?.[lang.code];
+                        const englishName = isEnglish ? (trans?.name || prompt.name) : (trans?.name || '');
+                        const englishDesc = isEnglish ? (trans?.description || prompt.description || '') : (trans?.description || '');
                         return (
                           <div key={lang.code} className="space-y-2 pl-2 border-l-2 border-slate-100 ml-1">
                             <div className="flex items-center justify-between">
                               <label className="text-xs text-slate-600 font-bold uppercase tracking-wide">
                                 {lang.nativeLabel === lang.label ? lang.nativeLabel : `${lang.nativeLabel} (${lang.label})`}
                               </label>
-                              <button
-                                type="button"
-                                onClick={() => handleAutoTranslate(lang.code)}
-                                disabled={isTranslating !== null}
-                                className="text-xs text-green-700 hover:text-green-800 disabled:text-slate-400 flex items-center gap-1 transition-colors"
-                              >
-                                {isTranslating === lang.code ? (
-                                  <>
-                                    <div className="w-3 h-3 border-2 border-slate-300 border-t-green-700 rounded-full animate-spin" />
-                                    Translating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles size={12} />
-                                    Translate
-                                  </>
-                                )}
-                              </button>
+                              {!isEnglish && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAutoTranslate(lang.code)}
+                                  disabled={isTranslating !== null}
+                                  className="text-xs text-green-700 hover:text-green-800 disabled:text-slate-400 flex items-center gap-1 transition-colors"
+                                >
+                                  {isTranslating === lang.code ? (
+                                    <>
+                                      <div className="w-3 h-3 border-2 border-slate-300 border-t-green-700 rounded-full animate-spin" />
+                                      Translating...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles size={12} />
+                                      Translate
+                                    </>
+                                  )}
+                                </button>
+                              )}
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                               <input
                                 type="text"
-                                value={trans?.name || ''}
+                                value={isEnglish ? englishName : (trans?.name || '')}
                                 onChange={(e) => handleTranslationChange(prompt.id, lang.code, 'name', e.target.value)}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-green-700 text-sm"
-                                placeholder={`${lang.nativeLabel} name...`}
+                                placeholder={isEnglish ? 'English name...' : `${lang.nativeLabel} name...`}
                               />
                               <input
                                 type="text"
-                                value={trans?.description || ''}
+                                value={isEnglish ? englishDesc : (trans?.description || '')}
                                 onChange={(e) => handleTranslationChange(prompt.id, lang.code, 'description', e.target.value)}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-green-700 text-sm"
-                                placeholder={`${lang.nativeLabel} description...`}
+                                placeholder={isEnglish ? 'English description...' : `${lang.nativeLabel} description...`}
                               />
                             </div>
                           </div>
@@ -690,15 +704,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
             </div>
           )}
 
-          {prompts.length > 0 && !hasNonEnglishSelected && (
-            <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                Only English is selected. Select additional languages above to enable prompt translations and kiosk screen text customization.
-              </p>
-            </div>
-          )}
-
-          {prompts.length === 0 && !hasNonEnglishSelected && (
+          {prompts.length === 0 && (
             <div className="p-4 bg-slate-50 border-2 border-slate-200 rounded-lg">
               <p className="text-sm text-slate-600">
                 No prompts are assigned to this event yet. Add prompts to the event first, then return here to translate them.

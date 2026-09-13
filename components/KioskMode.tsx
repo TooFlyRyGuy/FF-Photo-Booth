@@ -168,6 +168,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       if (!creditCheck.available) {
         setView('no-credits');
+      } else if (event.prompts && event.prompts.length === 1) {
+        setSelectedPrompt(event.prompts[0]);
+        setView('camera');
       } else {
         setView('prompt-select');
       }
@@ -763,7 +766,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   // Load prompt translations for the kiosk language
   useEffect(() => {
     const loadTranslations = async () => {
-      if (!event.prompts || event.prompts.length === 0 || kioskLanguage === 'en-US') return;
+      if (!event.prompts || event.prompts.length === 0) return;
       try {
         const promptIds = event.prompts.map(p => p.id).filter(Boolean);
         if (promptIds.length === 0) return;
@@ -787,7 +790,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   // Load kiosk text overrides for the kiosk language
   useEffect(() => {
     const loadOverrides = async () => {
-      if (!event.id || kioskLanguage === 'en-US') {
+      if (!event.id) {
         setKioskTextOverrides({});
         return;
       }
@@ -822,14 +825,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   }, [kioskTextOverrides, kioskLanguage]);
 
   const getPromptDisplayName = (prompt: Prompt): string => {
-    if (kioskLanguage !== 'en-US' && promptTranslationsMap[prompt.id]?.name) {
+    if (promptTranslationsMap[prompt.id]?.name) {
       return promptTranslationsMap[prompt.id].name;
     }
     return prompt.name;
   };
 
   const getPromptDisplayDescription = (prompt: Prompt): string => {
-    if (kioskLanguage !== 'en-US' && promptTranslationsMap[prompt.id]?.description) {
+    if (promptTranslationsMap[prompt.id]?.description) {
       return promptTranslationsMap[prompt.id].description;
     }
     return prompt.description;
