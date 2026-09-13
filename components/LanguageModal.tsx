@@ -386,7 +386,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
           <div>
             <label className="block text-sm font-bold text-slate-900 mb-2">Kiosk Languages</label>
             <p className="text-sm text-slate-600 mb-3">
-              Select one or more languages guests will see on the kiosk screen for this event. English is always included.
+              Select one or more languages guests will see on the kiosk screen for this event.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {SUPPORTED_LANGUAGES.map((lang) => {
@@ -396,13 +396,12 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ event, prompts, onClose, 
                   <button
                     key={lang.code}
                     type="button"
-                    onClick={() => !isEnglish && toggleLanguage(lang.code)}
-                    disabled={isEnglish}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${
+                    onClick={() => toggleLanguage(lang.code)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left cursor-pointer ${
                       isSelected
                         ? 'border-green-700 bg-green-50'
                         : 'border-slate-300 bg-white hover:border-slate-400'
-                    } ${isEnglish ? 'opacity-60 cursor-default' : 'cursor-pointer'}`}
+                    }`}
                   >
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
                       isSelected ? 'border-green-700 bg-green-700' : 'border-slate-300'
