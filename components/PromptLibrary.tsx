@@ -55,6 +55,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
   const [hasMoreToLoad, setHasMoreToLoad] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 24;
   const hasLoadedRef = useRef(false);
   const [userCredits, setUserCredits] = useState<number>(0);
   const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
@@ -67,8 +70,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
       loadPrompts();
-      loadAllTags();
-      loadAllCategories();
       checkUserCredits();
     }
   }, [userId]);
@@ -80,29 +81,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     } catch (error) {
       console.error('Error checking credits:', error);
       setUserCredits(0);
-    }
-  };
-
-  const loadAllTags = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('prompts')
-        .select('tags')
-        .eq('is_active', true);
-
-      if (error) throw error;
-
-      const tagSet = new Set<string>();
-      data.forEach(prompt => {
-        if (prompt.tags && Array.isArray(prompt.tags)) {
-          prompt.tags.forEach(tag => tagSet.add(tag));
-        }
-      });
-
-      setAllTags(Array.from(tagSet).sort());
-    } catch (error) {
-      console.error('Error loading tags:', error);
-      setAllTags([]);
     }
   };
 
@@ -119,12 +97,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setPrompts([]);
 
     try {
+      const { count, error: countError } = await supabase
+        .from('prompts')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      if (countError) throw countError;
+      setTotalCount(count || 0);
+
       const { data, error } = await supabase
         .from('prompts')
         .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
         .eq('is_active', true)
         .order('category')
-        .order('name');
+        .order('name')
+        .range(0, PAGE_SIZE - 1);
 
       if (error) throw error;
 
@@ -145,11 +132,55 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       setPrompts(allPrompts);
       extractAllCategories(allPrompts);
-      setHasMoreToLoad(false);
+      extractAllTags(allPrompts);
+      setHasMoreToLoad((count || 0) > PAGE_SIZE);
     } catch (error) {
       console.error('Error loading prompts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMorePrompts = async () => {
+    if (isLoadingMore || !hasMoreToLoad) return;
+    setIsLoadingMore(true);
+
+    try {
+      const nextPage = Math.floor(prompts.length / PAGE_SIZE);
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
+        .eq('is_active', true)
+        .order('category')
+        .order('name')
+        .range(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      const morePrompts = data.map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        description: prompt.description,
+        category: prompt.category,
+        promptText: '',
+        previewImage: prompt.preview_image_url || '',
+        referenceImage: prompt.reference_image_url || '',
+        tags: prompt.tags || [],
+        isActive: prompt.is_active,
+        usageCount: prompt.usage_count || 0,
+        userId: prompt.user_id,
+        isPublic: prompt.is_public,
+      }));
+
+      const combined = [...prompts, ...morePrompts];
+      setPrompts(combined);
+      extractAllCategories(combined);
+      extractAllTags(combined);
+      setHasMoreToLoad(combined.length < totalCount);
+    } catch (error) {
+      console.error('Error loading more prompts:', error);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -167,22 +198,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       if (prompt.category) categorySet.add(prompt.category);
     });
     setAllCategories(Array.from(categorySet).sort());
-  };
-
-  const loadAllCategories = async () => {
-    try {
-      const { data } = await supabase
-        .from('prompts')
-        .select('category')
-        .eq('is_active', true)
-        .not('category', 'is', null);
-      if (data) {
-        const cats = [...new Set(data.map((r: any) => r.category).filter(Boolean))].sort() as string[];
-        setAllCategories(cats);
-      }
-    } catch (err) {
-      console.error('Error loading categories:', err);
-    }
   };
 
   const searchPrompts = async (query: string) => {
@@ -1246,6 +1261,25 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 </div>
                 ))}
               </div>
+
+              {hasMoreToLoad && !searchQuery && selectedTags.length === 0 && !selectedCategory && (
+                <div className="text-center mt-6 mb-4">
+                  <button
+                    onClick={loadMorePrompts}
+                    disabled={isLoadingMore}
+                    className="px-6 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 text-white rounded-lg font-medium transition-colors"
+                  >
+                    {isLoadingMore ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        Loading...
+                      </span>
+                    ) : (
+                      `Load More (${prompts.length} of ${totalCount})`
+                    )}
+                  </button>
+                </div>
+              )}
 
             </>
           )}
