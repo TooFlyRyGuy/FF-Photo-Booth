@@ -426,10 +426,9 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     try {
       let query = supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id, created_at')
         .eq('is_active', true)
-        .order('category')
-        .order('name');
+        .order('created_at', { ascending: false });
 
       if (!isAdmin) {
         query = query.eq('is_public', true);
