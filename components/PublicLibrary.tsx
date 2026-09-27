@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload, Info, CircleAlert as AlertCircle, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
+import PromptVariableBuilder from './PromptVariableBuilder';
 
 interface CartItem {
   prompt: Prompt;
@@ -202,11 +203,11 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
 
           <div>
             <label className="block text-sm font-bold text-slate-900 mb-2">AI Prompt Text</label>
-            <textarea
-              value={editingPrompt.promptText}
-              onChange={e => setEditingPrompt({ ...editingPrompt, promptText: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 min-h-[120px] font-mono text-sm"
-              placeholder="Detailed AI generation prompt"
+            <PromptVariableBuilder
+              fields={editingPrompt.customFields || []}
+              onChange={(fields) => setEditingPrompt({ ...editingPrompt, customFields: fields })}
+              promptText={editingPrompt.promptText}
+              onPromptTextChange={(text) => setEditingPrompt({ ...editingPrompt, promptText: text })}
             />
           </div>
 
@@ -426,7 +427,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     try {
       let query = supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id, created_at')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id, created_at, custom_fields')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -448,6 +449,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         isPublic: p.is_public,
         userId: p.user_id,
         tags: p.tags || [],
+        customFields: (p as any).custom_fields || undefined,
       }));
 
       setPrompts(mapped);
@@ -505,6 +507,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         reference_image_url: updated.referenceImage || null,
         is_public: updated.isPublic,
         tags: updated.tags || [],
+        custom_fields: updated.customFields && updated.customFields.length > 0 ? updated.customFields : null,
       })
       .eq('id', updated.id);
 
@@ -568,6 +571,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         is_active: true,
         tags: newPrompt.tags || [],
         user_id: user.id,
+        custom_fields: newPrompt.customFields && newPrompt.customFields.length > 0 ? newPrompt.customFields : null,
       })
       .select('id')
       .single();

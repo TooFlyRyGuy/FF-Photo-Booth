@@ -145,6 +145,12 @@ const enUS: TranslationDict = {
   'promptLibrary.translating': 'Translating...',
   'promptLibrary.saveTranslations': 'Save Translations',
   'promptLibrary.translationsSaved': 'Translations saved.',
+
+  // Kiosk - Prompt Customize (Guest Input)
+  'kiosk.tellUsAboutYou': 'Tell Us About You',
+  'kiosk.continue': 'Continue',
+  'kiosk.requiredField': 'This field is required',
+  'kiosk.aiGenerating': 'AI is writing this for you...',
 };
 
 const es: TranslationDict = {
@@ -251,6 +257,12 @@ const es: TranslationDict = {
   'promptLibrary.translating': 'Traduciendo...',
   'promptLibrary.saveTranslations': 'Guardar Traducciones',
   'promptLibrary.translationsSaved': 'Traducciones guardadas.',
+
+  // Kiosk - Prompt Customize (Guest Input)
+  'kiosk.tellUsAboutYou': 'Cuéntanos Sobre Ti',
+  'kiosk.continue': 'Continuar',
+  'kiosk.requiredField': 'Este campo es obligatorio',
+  'kiosk.aiGenerating': 'La IA está escribiendo esto para ti...',
 };
 
 const fr: TranslationDict = {
@@ -357,6 +369,12 @@ const fr: TranslationDict = {
   'promptLibrary.translating': 'Traduction...',
   'promptLibrary.saveTranslations': 'Enregistrer les Traductions',
   'promptLibrary.translationsSaved': 'Traductions enregistrées.',
+
+  // Kiosk - Prompt Customize (Guest Input)
+  'kiosk.tellUsAboutYou': 'Parlez-nous de Vous',
+  'kiosk.continue': 'Continuer',
+  'kiosk.requiredField': 'Ce champ est obligatoire',
+  'kiosk.aiGenerating': "L'IA écrit ceci pour vous...",
 };
 
 const de: TranslationDict = {
@@ -463,6 +481,12 @@ const de: TranslationDict = {
   'promptLibrary.translating': 'Übersetzen...',
   'promptLibrary.saveTranslations': 'Übersetzungen speichern',
   'promptLibrary.translationsSaved': 'Übersetzungen gespeichert.',
+
+  // Kiosk - Prompt Customize (Guest Input)
+  'kiosk.tellUsAboutYou': 'Erzähl uns über dich',
+  'kiosk.continue': 'Weiter',
+  'kiosk.requiredField': 'Dieses Feld ist erforderlich',
+  'kiosk.aiGenerating': 'Die KI schreibt dies für dich...',
 };
 
 const pt: TranslationDict = {
@@ -569,6 +593,12 @@ const pt: TranslationDict = {
   'promptLibrary.translating': 'A traduzir...',
   'promptLibrary.saveTranslations': 'Guardar Traduções',
   'promptLibrary.translationsSaved': 'Traduções guardadas.',
+
+  // Kiosk - Prompt Customize (Guest Input)
+  'kiosk.tellUsAboutYou': 'Conte-nos Sobre Você',
+  'kiosk.continue': 'Continuar',
+  'kiosk.requiredField': 'Este campo é obrigatório',
+  'kiosk.aiGenerating': 'A IA está escrevendo isso para você...',
 };
 
 const zh: TranslationDict = {
@@ -675,6 +705,12 @@ const zh: TranslationDict = {
   'promptLibrary.translating': '翻译中...',
   'promptLibrary.saveTranslations': '保存翻译',
   'promptLibrary.translationsSaved': '翻译已保存。',
+
+  // Kiosk - Prompt Customize (Guest Input)
+  'kiosk.tellUsAboutYou': '告诉我们关于你的信息',
+  'kiosk.continue': '继续',
+  'kiosk.requiredField': '此字段为必填项',
+  'kiosk.aiGenerating': 'AI正在为您生成...',
 };
 
 const ja: TranslationDict = {
@@ -781,6 +817,12 @@ const ja: TranslationDict = {
   'promptLibrary.translating': '翻訳中...',
   'promptLibrary.saveTranslations': '翻訳を保存',
   'promptLibrary.translationsSaved': '翻訳が保存されました。',
+
+  // Kiosk - Prompt Customize (Guest Input)
+  'kiosk.tellUsAboutYou': 'あなたについて教えてください',
+  'kiosk.continue': '続ける',
+  'kiosk.requiredField': 'この項目は必須です',
+  'kiosk.aiGenerating': 'AIがあなたのために書いています...',
 };
 
 const ko: TranslationDict = {
@@ -887,6 +929,12 @@ const ko: TranslationDict = {
   'promptLibrary.translating': '번역 중...',
   'promptLibrary.saveTranslations': '번역 저장',
   'promptLibrary.translationsSaved': '번역이 저장되었습니다.',
+
+  // Kiosk - Prompt Customize (Guest Input)
+  'kiosk.tellUsAboutYou': '당신에 대해 알려주세요',
+  'kiosk.continue': '계속',
+  'kiosk.requiredField': '이 필드는 필수 항목입니다',
+  'kiosk.aiGenerating': 'AI가 당신을 위해 작성 중입니다...',
 };
 
 const TRANSLATIONS: Record<LanguageCode, TranslationDict> = {

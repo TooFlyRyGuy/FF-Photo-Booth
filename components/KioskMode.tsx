@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail, Lock, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings } from '../types';
-import { generateBoothImage } from '../services/geminiService';
+import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings, PromptCustomField } from '../types';
+import { generateBoothImage, substitutePromptVariables, resolveCustomFields } from '../services/geminiService';
 import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEventPhotoSmugmugUrl, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch, getKioskTextOverrides } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
@@ -19,7 +19,7 @@ interface KioskProps {
   onLoaded?: () => void;
 }
 
-type KioskState = 'attract' | 'prompt-select' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
+type KioskState = 'attract' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const eventLanguages: LanguageCode[] = (event.kioskLanguages && event.kioskLanguages.length > 0
@@ -72,6 +72,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [isCheckingCredits, setIsCheckingCredits] = useState(false);
+  const [guestAnswers, setGuestAnswers] = useState<Record<string, string>>({});
+  const [customizeErrors, setCustomizeErrors] = useState<Record<string, boolean>>({});
 
   const requestFullscreen = useCallback(async () => {
     try {
@@ -169,8 +171,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       if (!creditCheck.available) {
         setView('no-credits');
       } else if (event.prompts && event.prompts.length === 1) {
-        setSelectedPrompt(event.prompts[0]);
-        setView('camera');
+        const p = event.prompts[0];
+        setSelectedPrompt(p);
+        if (p.customFields && p.customFields.some(f => !f.aiGenerated)) {
+          setGuestAnswers({});
+          setCustomizeErrors({});
+          setView('prompt-customize');
+        } else {
+          setView('camera');
+        }
       } else {
         setView('prompt-select');
       }
@@ -353,9 +362,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       let referenceImageUrl = selectedPrompt.referenceImage;
 
+      let finalPromptText = selectedPrompt.promptText;
+      if (selectedPrompt.customFields && selectedPrompt.customFields.length > 0) {
+        setUploadProgress('Personalizing your prompt...');
+        const resolved = await resolveCustomFields(selectedPrompt.customFields, guestAnswers);
+        finalPromptText = substitutePromptVariables(selectedPrompt.promptText, resolved);
+      }
+
       let genImage = await generateBoothImage(
         uploadedImageUrl,
-        selectedPrompt.promptText,
+        finalPromptText,
         referenceImageUrl,
         event.aspectRatio,
         globalSettings.geminiModel,
@@ -597,6 +613,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setPhoneNumber('');
     setEmailAddress('');
     setUploadProgress('');
+    setGuestAnswers({});
+    setCustomizeErrors({});
     stopCamera();
   };
 
@@ -1191,7 +1209,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             {event.prompts.map(prompt => (
               <button
                 key={prompt.id}
-                onClick={() => { setSelectedPrompt(prompt); setView('camera'); }}
+                onClick={() => {
+                  setSelectedPrompt(prompt);
+                  if (prompt.customFields && prompt.customFields.some(f => !f.aiGenerated)) {
+                    setGuestAnswers({});
+                    setCustomizeErrors({});
+                    setView('prompt-customize');
+                  } else {
+                    setView('camera');
+                  }
+                }}
                 className="relative group rounded-2xl overflow-hidden border-2 border-slate-300 transition-all transform active:scale-95 hover:scale-105 aspect-square w-full max-w-[300px] sm:max-w-[280px] md:max-w-[320px] lg:max-w-[360px]"
                 style={{
                   borderColor: '#cbd5e1',
@@ -1217,6 +1244,173 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
         <div className="flex-shrink-0 text-center pt-2">
           <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">{t('kiosk.cancel')}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3b. PROMPT CUSTOMIZE (Guest Input Form)
+  if (view === 'prompt-customize' && selectedPrompt) {
+    const visibleFields = (selectedPrompt.customFields || []).filter(f => !f.aiGenerated);
+
+    const handleCustomizeContinue = () => {
+      const errors: Record<string, boolean> = {};
+      visibleFields.forEach(f => {
+        if (f.required && !guestAnswers[f.placeholder]?.trim()) {
+          errors[f.placeholder] = true;
+        }
+      });
+      if (Object.keys(errors).length > 0) {
+        setCustomizeErrors(errors);
+        return;
+      }
+      setView('camera');
+    };
+
+    return (
+      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
+        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">{t('kiosk.tellUsAboutYou')}</h2>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
+          <div className="w-full max-w-2xl mx-auto space-y-4">
+            {visibleFields.map(field => (
+              <div key={field.id}>
+                <label className="block text-sm md:text-base font-semibold text-slate-700 mb-1.5">
+                  {field.label}{field.required && <span className="text-red-500 ml-0.5">*</span>}
+                </label>
+                {field.type === 'text' && (
+                  <input
+                    type="text"
+                    value={guestAnswers[field.placeholder] || ''}
+                    onChange={e => {
+                      setGuestAnswers({ ...guestAnswers, [field.placeholder]: e.target.value });
+                      if (customizeErrors[field.placeholder]) {
+                        setCustomizeErrors({ ...customizeErrors, [field.placeholder]: false });
+                      }
+                    }}
+                    className={`w-full px-4 py-3 border-2 rounded-lg text-base focus:outline-none focus:border-green-700 ${customizeErrors[field.placeholder] ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
+                  />
+                )}
+                {field.type === 'textarea' && (
+                  <textarea
+                    value={guestAnswers[field.placeholder] || ''}
+                    onChange={e => {
+                      setGuestAnswers({ ...guestAnswers, [field.placeholder]: e.target.value });
+                      if (customizeErrors[field.placeholder]) {
+                        setCustomizeErrors({ ...customizeErrors, [field.placeholder]: false });
+                      }
+                    }}
+                    rows={3}
+                    className={`w-full px-4 py-3 border-2 rounded-lg text-base focus:outline-none focus:border-green-700 ${customizeErrors[field.placeholder] ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
+                  />
+                )}
+                {field.type === 'number' && (
+                  <input
+                    type="number"
+                    value={guestAnswers[field.placeholder] || ''}
+                    onChange={e => {
+                      setGuestAnswers({ ...guestAnswers, [field.placeholder]: e.target.value });
+                      if (customizeErrors[field.placeholder]) {
+                        setCustomizeErrors({ ...customizeErrors, [field.placeholder]: false });
+                      }
+                    }}
+                    inputMode="numeric"
+                    className={`w-full px-4 py-3 border-2 rounded-lg text-base focus:outline-none focus:border-green-700 ${customizeErrors[field.placeholder] ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
+                  />
+                )}
+                {field.type === 'select' && (
+                  <select
+                    value={guestAnswers[field.placeholder] || ''}
+                    onChange={e => {
+                      setGuestAnswers({ ...guestAnswers, [field.placeholder]: e.target.value });
+                      if (customizeErrors[field.placeholder]) {
+                        setCustomizeErrors({ ...customizeErrors, [field.placeholder]: false });
+                      }
+                    }}
+                    className={`w-full px-4 py-3 border-2 rounded-lg text-base focus:outline-none focus:border-green-700 bg-white ${customizeErrors[field.placeholder] ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
+                  >
+                    <option value="">-- Select --</option>
+                    {(field.options || []).map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                )}
+                {field.type === 'color' && (
+                  <div className="flex flex-wrap gap-2">
+                    {['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#ffffff','#000000'].map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          setGuestAnswers({ ...guestAnswers, [field.placeholder]: color });
+                          if (customizeErrors[field.placeholder]) {
+                            setCustomizeErrors({ ...customizeErrors, [field.placeholder]: false });
+                          }
+                        }}
+                        className={`w-10 h-10 rounded-full border-2 transition-all ${guestAnswers[field.placeholder] === color ? 'border-green-700 scale-110 ring-2 ring-green-700' : 'border-slate-300'}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                    <input
+                      type="text"
+                      value={guestAnswers[field.placeholder] || ''}
+                      onChange={e => {
+                        setGuestAnswers({ ...guestAnswers, [field.placeholder]: e.target.value });
+                        if (customizeErrors[field.placeholder]) {
+                          setCustomizeErrors({ ...customizeErrors, [field.placeholder]: false });
+                        }
+                      }}
+                      placeholder="#hex"
+                      className="w-20 px-2 py-2 border-2 border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:border-green-700"
+                    />
+                  </div>
+                )}
+                {field.type === 'checkbox' && (
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGuestAnswers({ ...guestAnswers, [field.placeholder]: field.trueLabel || 'Yes' });
+                        if (customizeErrors[field.placeholder]) {
+                          setCustomizeErrors({ ...customizeErrors, [field.placeholder]: false });
+                        }
+                      }}
+                      className={`flex-1 px-4 py-3 rounded-lg border-2 font-semibold transition-all ${guestAnswers[field.placeholder] === (field.trueLabel || 'Yes') ? 'border-green-700 bg-green-50 text-green-800' : 'border-slate-300 text-slate-700'}`}
+                    >
+                      {field.trueLabel || 'Yes'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGuestAnswers({ ...guestAnswers, [field.placeholder]: field.falseLabel || 'No' });
+                        if (customizeErrors[field.placeholder]) {
+                          setCustomizeErrors({ ...customizeErrors, [field.placeholder]: false });
+                        }
+                      }}
+                      className={`flex-1 px-4 py-3 rounded-lg border-2 font-semibold transition-all ${guestAnswers[field.placeholder] === (field.falseLabel || 'No') ? 'border-slate-700 bg-slate-100 text-slate-800' : 'border-slate-300 text-slate-700'}`}
+                    >
+                      {field.falseLabel || 'No'}
+                    </button>
+                  </div>
+                )}
+                {customizeErrors[field.placeholder] && (
+                  <p className="text-red-500 text-xs mt-1">{t('kiosk.requiredField')}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-shrink-0 flex justify-center gap-4 pt-2">
+          <button onClick={() => setView('prompt-select')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">
+            {t('kiosk.back')}
+          </button>
+          <button
+            onClick={handleCustomizeContinue}
+            className="px-8 py-3 bg-green-700 hover:bg-green-800 text-white rounded-full font-bold text-sm md:text-base min-h-[44px] flex items-center gap-2"
+          >
+            {t('kiosk.continue')} <ArrowRight size={18} />
+          </button>
         </div>
       </div>
     );

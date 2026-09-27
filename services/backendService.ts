@@ -642,6 +642,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
               referenceImage: p.reference_image_url,
               promptText: p.prompt_text,
               category: p.category,
+              customFields: (p as any).custom_fields || undefined,
             }));
         }
       }
@@ -761,6 +762,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
           referenceImage: p.reference_image_url,
           promptText: p.prompt_text,
           category: p.category,
+          customFields: (p as any).custom_fields || undefined,
         }));
     }
   }
@@ -864,6 +866,7 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
     referenceImage: p.reference_image_url,
     promptText: p.prompt_text,
     category: p.category,
+    customFields: (p as any).custom_fields || undefined,
   }));
 
   cachedPrompts = prompts;
@@ -895,6 +898,7 @@ export const getPromptById = async (promptId: string): Promise<Prompt> => {
     referenceImage: promptData.reference_image_url,
     promptText: promptData.prompt_text,
     category: promptData.category,
+    customFields: (promptData as any).custom_fields || undefined,
   };
 };
 
@@ -1092,6 +1096,7 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
     is_active: true,
     user_id: userId,
     updated_at: new Date().toISOString(),
+    custom_fields: prompt.customFields || null,
   };
 
   const { data: newPrompt, error } = await supabase
@@ -1143,6 +1148,7 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
   if (prompt.tags !== undefined) updateData.tags = prompt.tags;
   if (prompt.isActive !== undefined) updateData.is_active = prompt.isActive;
   if (prompt.isPublic !== undefined) updateData.is_public = prompt.isPublic;
+  if (prompt.customFields !== undefined) updateData.custom_fields = prompt.customFields.length > 0 ? prompt.customFields : null;
   updateData.updated_at = new Date().toISOString();
 
   const { error } = await supabase

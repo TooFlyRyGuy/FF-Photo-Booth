@@ -1,5 +1,4 @@
-import { AspectRatio } from '../types';
-import { resizeImageToAspectRatio } from './imageUtils';
+import { AspectRatio, PromptCustomField } from '../types';
 import { supabase } from '../lib/supabase';
 
 export const generateBoothImage = async (
@@ -61,4 +60,52 @@ export const generateBoothImage = async (
     console.error("Gemini Generation Error:", error);
     throw error;
   }
+};
+
+export const generateCustomFieldText = async (
+  instruction: string,
+  context: Record<string, string>
+): Promise<string> => {
+  const { data, error } = await supabase.functions.invoke('gemini-generate-text', {
+    body: { instruction, context }
+  });
+
+  if (error) {
+    console.error("gemini-generate-text error:", error);
+    throw new Error(error.message || "Failed to generate text");
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || "Failed to generate text");
+  }
+
+  return data.generatedText || '';
+};
+
+export const substitutePromptVariables = (
+  promptText: string,
+  values: Record<string, string>
+): string => {
+  let result = promptText;
+  for (const key in values) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), values[key]);
+  }
+  return result;
+};
+
+export const resolveCustomFields = async (
+  fields: PromptCustomField[],
+  guestAnswers: Record<string, string>
+): Promise<Record<string, string>> => {
+  const resolved: Record<string, string> = { ...guestAnswers };
+
+  for (const field of fields) {
+    if (field.aiGenerated && field.aiPrompt) {
+      const instruction = substitutePromptVariables(field.aiPrompt, resolved);
+      const generated = await generateCustomFieldText(instruction, resolved);
+      resolved[field.placeholder] = generated.trim();
+    }
+  }
+
+  return resolved;
 };

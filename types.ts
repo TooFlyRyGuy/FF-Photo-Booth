@@ -176,6 +176,21 @@ export interface GlobalSettings {
   smtpEnabled?: boolean;
 }
 
+export type CustomFieldType = 'text' | 'textarea' | 'number' | 'select' | 'color' | 'checkbox';
+
+export interface PromptCustomField {
+  id: string;
+  label: string;
+  placeholder: string;
+  type: CustomFieldType;
+  options?: string[];
+  aiGenerated?: boolean;
+  aiPrompt?: string;
+  required?: boolean;
+  trueLabel?: string;
+  falseLabel?: string;
+}
+
 export interface Prompt {
   id: string;
   name: string;
@@ -188,6 +203,7 @@ export interface Prompt {
   isActive?: boolean;
   userId?: string;
   tags?: string[];
+  customFields?: PromptCustomField[];
 }
 
 export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5';

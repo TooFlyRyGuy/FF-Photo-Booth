@@ -368,6 +368,9 @@ verify_jwt = false
 [functions.gemini-generate-image]
 verify_jwt = true
 
+[functions.gemini-generate-text]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327
