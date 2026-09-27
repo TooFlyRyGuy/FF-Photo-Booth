@@ -7,7 +7,7 @@ import { checkCreditAvailability, consumeCredit } from '../services/creditServic
 import { getGlobalSettings, getPromptTranslations, savePromptTranslationsBatch, autoTranslatePrompts } from '../services/backendService';
 import { SUPPORTED_LANGUAGES, LanguageCode } from '../lib/i18n';
 import { PromptTranslation, PromptCustomField } from '../types';
-import PromptVariableBuilder from './PromptVariableBuilder';
+import PromptEditor from './PromptEditor';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -779,10 +779,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">AI Prompt Text</label>
-              <PromptVariableBuilder
-                fields={editingPrompt.customFields || []}
-                onChange={(fields) => setEditingPrompt({ ...editingPrompt, customFields: fields })}
+              <PromptEditor
+                customFields={editingPrompt.customFields || []}
+                onCustomFieldsChange={(fields) => setEditingPrompt({ ...editingPrompt, customFields: fields })}
                 promptText={editingPrompt.promptText}
                 onPromptTextChange={(text) => setEditingPrompt({ ...editingPrompt, promptText: text })}
               />

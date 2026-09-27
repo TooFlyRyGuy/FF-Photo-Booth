@@ -17,7 +17,7 @@ import { CollapsibleSection } from './CollapsibleSection';
 import { AddOnShowcase } from './AddOnShowcase';
 import HelpCenter from './HelpCenter';
 import OnboardingTutorial from './OnboardingTutorial';
-import PromptVariableBuilder from './PromptVariableBuilder';
+import PromptEditor from './PromptEditor';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -2680,12 +2680,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-slate-700 mb-1">AI Prompt Text</label>
-                              <PromptVariableBuilder
-                                fields={editingPromptData?.customFields || []}
-                                onChange={(fields) => setEditingPromptData({ ...editingPromptData, customFields: fields })}
+                              <PromptEditor
+                                customFields={editingPromptData?.customFields || []}
+                                onCustomFieldsChange={(fields) => setEditingPromptData({ ...editingPromptData, customFields: fields })}
                                 promptText={editingPromptData?.promptText || ''}
                                 onPromptTextChange={(text) => setEditingPromptData({ ...editingPromptData, promptText: text })}
+                                labelClassName="block text-xs font-medium text-slate-700 mb-1"
+                                textareaClassName="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none min-h-[100px] font-mono text-xs"
                               />
                             </div>
                             <div className="grid grid-cols-2 gap-4">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart, X, Tag, ChevronDown, ChevronUp, Check, ListFilter as Filter, Loader, Pencil, ShieldCheck, Globe, Lock, Plus, Save, Image as ImageIcon, Upload, Info, CircleAlert as AlertCircle, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Prompt } from '../types';
-import PromptVariableBuilder from './PromptVariableBuilder';
+import PromptEditor from './PromptEditor';
 
 interface CartItem {
   prompt: Prompt;
@@ -202,10 +202,9 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({ prompt, allCategories
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-900 mb-2">AI Prompt Text</label>
-            <PromptVariableBuilder
-              fields={editingPrompt.customFields || []}
-              onChange={(fields) => setEditingPrompt({ ...editingPrompt, customFields: fields })}
+            <PromptEditor
+              customFields={editingPrompt.customFields || []}
+              onCustomFieldsChange={(fields) => setEditingPrompt({ ...editingPrompt, customFields: fields })}
               promptText={editingPrompt.promptText}
               onPromptTextChange={(text) => setEditingPrompt({ ...editingPrompt, promptText: text })}
             />
