@@ -6,7 +6,8 @@ import { compressBase64Image } from '../services/imageCompression';
 import { checkCreditAvailability, consumeCredit } from '../services/creditService';
 import { getGlobalSettings, getPromptTranslations, savePromptTranslationsBatch, autoTranslatePrompts } from '../services/backendService';
 import { SUPPORTED_LANGUAGES, LanguageCode } from '../lib/i18n';
-import { PromptTranslation } from '../types';
+import { PromptTranslation, PromptCustomField } from '../types';
+import PromptVariableBuilder from './PromptVariableBuilder';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -23,6 +24,7 @@ interface Prompt {
   usageCount: number;
   userId?: string | null;
   isPublic?: boolean;
+  customFields?: PromptCustomField[];
 }
 
 interface PromptLibraryProps {
@@ -107,7 +109,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public, custom_fields')
         .eq('is_active', true)
         .order('category')
         .order('name')
@@ -128,6 +130,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
         isPublic: prompt.is_public,
+        customFields: (prompt as any).custom_fields || undefined,
       }));
 
       setPrompts(allPrompts);
@@ -149,7 +152,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       const nextPage = Math.floor(prompts.length / PAGE_SIZE);
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public, custom_fields')
         .eq('is_active', true)
         .order('category')
         .order('name')
@@ -170,6 +173,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
         isPublic: prompt.is_public,
+        customFields: (prompt as any).custom_fields || undefined,
       }));
 
       const combined = [...prompts, ...morePrompts];
@@ -207,7 +211,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       // Get all prompts for client-side tag filtering
       let dbQuery = supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public, custom_fields')
         .eq('is_active', true)
         .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
         .order('created_at', { ascending: false });
@@ -229,6 +233,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
         isPublic: prompt.is_public,
+        customFields: (prompt as any).custom_fields || undefined,
       }));
 
       // Also include results that match tags
@@ -323,12 +328,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     if (!prompt.promptText) {
       const { data, error } = await supabase
         .from('prompts')
-        .select('prompt_text')
+        .select('prompt_text, custom_fields')
         .eq('id', prompt.id)
         .maybeSingle();
 
       if (data && !error) {
-        const fullPrompt = { ...prompt, promptText: data.prompt_text || '' };
+        const fullPrompt = { ...prompt, promptText: data.prompt_text || '', customFields: (data as any).custom_fields || prompt.customFields || undefined };
         setEditingPrompt(fullPrompt);
         setPrompts(prev => prev.map(p => p.id === prompt.id ? fullPrompt : p));
       } else {
@@ -530,6 +535,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           is_active: editingPrompt.isActive,
           is_public: isPublic,
           user_id: userId,
+          custom_fields: editingPrompt.customFields || null,
           updated_at: new Date().toISOString(),
         });
 
@@ -547,6 +553,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
             is_public: isPublic,
+            custom_fields: editingPrompt.customFields || null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingPrompt.id);
@@ -773,11 +780,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
             <div>
               <label className="block text-sm font-bold text-slate-900 mb-2">AI Prompt Text</label>
-              <textarea
-                value={editingPrompt.promptText}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, promptText: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 min-h-[120px] font-mono text-sm"
-                placeholder="Detailed AI generation prompt"
+              <PromptVariableBuilder
+                fields={editingPrompt.customFields || []}
+                onChange={(fields) => setEditingPrompt({ ...editingPrompt, customFields: fields })}
+                promptText={editingPrompt.promptText}
+                onPromptTextChange={(text) => setEditingPrompt({ ...editingPrompt, promptText: text })}
               />
             </div>
 
