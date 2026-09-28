@@ -871,7 +871,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     const startDate = event.startDatetime ? new Date(event.startDatetime) : null;
 
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="w-full h-full bg-gradient-to-br from-green-700 to-green-800"></div>
         </div>
@@ -925,7 +925,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     const endDate = event.endDatetime ? new Date(event.endDatetime) : null;
 
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="w-full h-full bg-gradient-to-br from-green-700 to-green-800"></div>
         </div>
@@ -985,7 +985,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     return (
       <div
         onClick={handleTapToStart}
-        className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+        className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center cursor-pointer overflow-hidden"
       >
         <div className="absolute inset-0 opacity-20">
            <img src={backgroundImage} className="w-full h-full object-cover animate-pulse-fast" alt="Background" />
@@ -1066,7 +1066,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'no-credits') {
     const colors = getBrandingColors();
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden px-4">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden px-4">
         <div className="absolute inset-0 opacity-10">
           <div className="w-full h-full bg-gradient-to-br from-red-700 to-red-900"></div>
         </div>
@@ -1154,7 +1154,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'device-limit-reached') {
     const colors = getBrandingColors();
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden px-4">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden px-4">
         <div className="absolute inset-0 opacity-10">
           <div className="w-full h-full bg-gradient-to-br from-amber-600 to-amber-800"></div>
         </div>
@@ -1207,7 +1207,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   // 3. PROMPT SELECT
   if (view === 'prompt-select') {
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
         <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">{t('kiosk.chooseYourStyle')}</h2>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
@@ -1274,7 +1274,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     };
 
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
         <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">{t('kiosk.tellUsAboutYou')}</h2>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
@@ -1441,7 +1441,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     };
 
     return (
-      <div className="h-screen w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
+      <div className="h-[100dvh] w-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
         <video
           ref={videoRef}
           autoPlay
@@ -1515,7 +1515,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'processing') {
     const colors = getBrandingColors();
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col items-center justify-center text-slate-900 space-y-4 md:space-y-8 px-4">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col items-center justify-center text-slate-900 space-y-4 md:space-y-8 px-4">
         <div className="relative h-32 w-32 md:h-48 md:w-48">
           <div
             className="absolute inset-0 rounded-full border-4 animate-spin"
@@ -1546,7 +1546,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'review') {
       const colors = getBrandingColors();
       return (
-          <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col items-center p-3 md:p-8 overflow-hidden">
+          <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col items-center p-3 md:p-8 overflow-hidden">
               <h2 className="text-xl md:text-3xl text-slate-900 font-display mb-2 md:mb-4 flex-shrink-0">{t('kiosk.lookGood')}</h2>
               {errorMsg && (
                 <div className="w-full max-w-2xl mb-2 md:mb-4 p-2 md:p-4 bg-red-100 border-2 border-red-300 rounded-lg text-red-800 text-center text-sm md:text-base flex-shrink-0">
@@ -1581,7 +1581,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'result' || view === 'delivery') {
     const colors = getBrandingColors();
     return (
-      <div className="h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
         {/* Image Side */}
         <div className="lg:w-2/3 h-[35vh] lg:h-full bg-white p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0">
           <img
