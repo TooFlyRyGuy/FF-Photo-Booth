@@ -708,6 +708,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       fullscreenEnabled: event.fullscreen_enabled || false,
       kioskPasscode: event.kiosk_passcode || null,
       timezone: event.timezone || 'UTC',
+      imageResolution: event.image_resolution || null,
     });
   }
 
@@ -829,6 +830,7 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     fullscreenEnabled: eventData.fullscreen_enabled || false,
     kioskPasscode: eventData.kiosk_passcode || null,
     timezone: eventData.timezone || 'UTC',
+    imageResolution: eventData.image_resolution || null,
   };
 };
 
@@ -965,6 +967,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     fullscreen_enabled: event.fullscreenEnabled || false,
     kiosk_passcode: event.kioskPasscode || null,
     timezone: event.timezone || 'UTC',
+    image_resolution: event.imageResolution || null,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -2085,6 +2088,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
       fullscreenEnabled: e.fullscreen_enabled || false,
       kioskPasscode: e.kiosk_passcode || null,
       timezone: e.timezone || 'UTC',
+      imageResolution: e.image_resolution || null,
     };
   });
 };

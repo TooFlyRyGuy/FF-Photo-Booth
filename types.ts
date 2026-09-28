@@ -259,6 +259,7 @@ export interface Event {
   fullscreenEnabled?: boolean;
   kioskPasscode?: string;
   timezone?: string;
+  imageResolution?: '1K' | '2K' | '4K' | null;
 }
 
 export interface EventAccessCode {

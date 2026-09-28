@@ -166,9 +166,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         }
       }
 
+      const effectiveResolution = event.imageResolution || globalSettings?.geminiResolution || '1K';
+      const creditCost = effectiveResolution === '4K' ? 4 : effectiveResolution === '2K' ? 2 : 1;
+
       const creditCheck = await checkCreditAvailability(event.userId, 'image');
 
-      if (!creditCheck.available) {
+      if (!creditCheck.available || (creditCheck.remaining !== undefined && creditCheck.remaining < creditCost)) {
         setView('no-credits');
       } else if (event.prompts && event.prompts.length === 1) {
         const p = event.prompts[0];
@@ -357,7 +360,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       console.log('🎨 Starting Gemini image generation...', {
         geminiEnabled: globalSettings.geminiEnabled,
         model: globalSettings.geminiModel,
-        resolution: globalSettings.geminiResolution,
+        resolution: event.imageResolution || globalSettings.geminiResolution,
       });
 
       let referenceImageUrl = selectedPrompt.referenceImage;
@@ -375,7 +378,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         referenceImageUrl,
         event.aspectRatio,
         globalSettings.geminiModel,
-        globalSettings.geminiResolution
+        event.imageResolution || globalSettings.geminiResolution
       );
 
       // Upload clean AI image (no overlay) to event-photos bucket first
@@ -428,7 +431,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         'completed'
       );
 
-      const consumed = await consumeCredit(event.userId);
+      const effectiveResolution = event.imageResolution || globalSettings?.geminiResolution || '1K';
+      const creditCost = effectiveResolution === '4K' ? 4 : effectiveResolution === '2K' ? 2 : 1;
+
+      const consumed = await consumeCredit(event.userId, creditCost);
       if (!consumed) {
         console.error('Failed to consume credit, but image was generated');
       }

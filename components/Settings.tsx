@@ -689,26 +689,18 @@ const Settings: React.FC<SettingsProps> = ({
                   onChange={(e) => setGeminiResolution(e.target.value as '1K' | '2K' | '4K')}
                   className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
                 >
-                  <option value="1K">1K (Standard - Fastest)</option>
-                  <option value="2K">2K (High Quality)</option>
-                  <option value="4K">4K (Ultra Quality - Slowest)</option>
+                  <option value="1K">1K (Standard - 1 credit per photo)</option>
+                  <option value="2K">2K (High Quality - 2 credits per photo)</option>
+                  <option value="4K">4K (Ultra Quality - 4 credits per photo)</option>
                 </select>
                 <p className="text-xs text-slate-600 mt-2">
-                  Higher resolutions provide better image quality but may take longer to generate
+                  Higher resolutions provide better image quality but cost more credits per photo. Individual events can override this setting.
                 </p>
               </div>
 
-              <div className="p-4 bg-green-50 border-2 border-green-700/30 rounded-lg">
-                <p className="text-sm text-green-800">
-                  <strong>Note:</strong> Get started for free at{' '}
-                  <a
-                    href="https://ai.google.dev/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-green-700"
-                  >
-                    Google AI for Developers
-                  </a>
+              <div className="p-4 bg-amber-50 border-2 border-amber-400/50 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  <strong>Credit costs:</strong> 1K = 1 credit/photo, 2K = 2 credits/photo, 4K = 4 credits/photo. This is the default resolution -- individual events can override it.
                 </p>
               </div>
             </div>

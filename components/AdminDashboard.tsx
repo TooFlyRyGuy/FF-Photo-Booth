@@ -1963,6 +1963,30 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </div>
                 </div>
 
+                <div className="space-y-2 pt-4">
+                  <label className="text-sm font-medium text-slate-700">Image Resolution</label>
+                  <select
+                    value={editingEvent.imageResolution || ''}
+                    onChange={(e) => setEditingEvent({...editingEvent, imageResolution: (e.target.value || null) as '1K' | '2K' | '4K' | null})}
+                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                  >
+                    <option value="">Use Global Default</option>
+                    <option value="1K">1K - Standard (1 credit per photo)</option>
+                    <option value="2K">2K - High Quality (2 credits per photo)</option>
+                    <option value="4K">4K - Ultra Quality (4 credits per photo)</option>
+                  </select>
+                  <p className="text-xs text-slate-500">
+                    Controls the AI image resolution for this event. When set to "Use Global Default", the resolution from your global settings applies.
+                  </p>
+                  {editingEvent.imageResolution && editingEvent.imageResolution !== '1K' && (
+                    <div className="p-3 bg-amber-50 border-2 border-amber-400/50 rounded-lg">
+                      <p className="text-sm text-amber-800">
+                        <strong>Warning:</strong> {editingEvent.imageResolution === '2K' ? '2K' : '4K'} resolution costs {editingEvent.imageResolution === '2K' ? '2' : '4'} credits per photo instead of 1. This will consume credits {editingEvent.imageResolution === '2K' ? '2x' : '4x'} faster. Make sure the event owner has enough credits.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
