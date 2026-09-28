@@ -131,7 +131,7 @@ const PromptVariableBuilder: React.FC<PromptVariableBuilderProps> = ({
                   const label = e.target.value;
                   updateField(field.id, {
                     label,
-                    placeholder: field.placeholder || slugify(label),
+                    placeholder: slugify(label),
                   });
                 }}
                 placeholder="e.g. Player Name"
@@ -168,7 +168,7 @@ const PromptVariableBuilder: React.FC<PromptVariableBuilderProps> = ({
               <label className="text-[11px] font-semibold text-slate-500 block mb-0.5">Options (one per line)</label>
               <textarea
                 value={(field.options || []).join('\n')}
-                onChange={e => updateField(field.id, { options: e.target.value.split('\n').filter(Boolean) })}
+                onChange={e => updateField(field.id, { options: e.target.value.split('\n') })}
                 placeholder={'Forward\nDefense\nGoalie'}
                 rows={3}
                 className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-green-700"

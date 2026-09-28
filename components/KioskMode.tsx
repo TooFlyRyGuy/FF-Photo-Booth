@@ -1330,7 +1330,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     className={`w-full px-4 py-3 border-2 rounded-lg text-base focus:outline-none focus:border-green-700 bg-white ${customizeErrors[field.placeholder] ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                   >
                     <option value="">-- Select --</option>
-                    {(field.options || []).map(opt => (
+                    {(field.options || []).filter(Boolean).map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
