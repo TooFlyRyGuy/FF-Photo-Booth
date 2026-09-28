@@ -1553,10 +1553,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   {errorMsg}
                 </div>
               )}
-              <div className="w-full max-w-2xl bg-white rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-300 flex-shrink min-h-0" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+              <div className="w-full max-w-2xl bg-white rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-300 flex-1 min-h-0">
                 <img src={capturedImage || ''} className="w-full h-full object-contain" alt="captured" />
               </div>
-              <div className="flex gap-2 md:gap-6 mt-3 md:mt-8 w-full max-w-2xl flex-shrink-0">
+              <div className="flex gap-2 md:gap-6 mt-3 md:mt-6 w-full max-w-2xl flex-shrink-0 pb-2">
                   <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-50 active:bg-slate-50 font-bold text-sm md:text-lg min-h-[44px]">
                     <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.retake')}
                   </button>
