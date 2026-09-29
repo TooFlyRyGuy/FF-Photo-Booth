@@ -11,6 +11,7 @@ interface LowCreditWarningRequest {
   userId: string;
   eventName: string;
   remainingCredits: number;
+  warningLevel: 'warning' | 'low' | 'critical';
 }
 
 Deno.serve(async (req: Request) => {
@@ -26,11 +27,11 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { userId, eventName, remainingCredits }: LowCreditWarningRequest = await req.json();
+    const { userId, eventName, remainingCredits, warningLevel }: LowCreditWarningRequest = await req.json();
 
-    if (!userId || remainingCredits === undefined) {
+    if (!userId || remainingCredits === undefined || !warningLevel) {
       return new Response(
-        JSON.stringify({ success: false, error: 'userId and remainingCredits are required' }),
+        JSON.stringify({ success: false, error: 'userId, remainingCredits, and warningLevel are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -92,13 +93,33 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const subject = `Low Credit Warning - ${eventName}`;
+    let subject: string;
+    let headingText: string;
+    let headingColor: string;
+    let bodyText: string;
+
+    if (warningLevel === 'critical') {
+      subject = `CRITICAL: Credits Almost Exhausted - ${eventName}`;
+      headingText = 'CRITICAL: Credits Almost Exhausted';
+      headingColor = '#991b1b';
+      bodyText = `The image credits for the event <strong>${eventName}</strong> are critically low. Immediate action is required to prevent interruption during the event.`;
+    } else if (warningLevel === 'low') {
+      subject = `Low Credit Warning - ${eventName}`;
+      headingText = 'Low Credit Warning';
+      headingColor = '#dc2626';
+      bodyText = `The image credits for the event <strong>${eventName}</strong> are running low. Please purchase additional credits or upgrade the subscription plan to avoid interruption during the event.`;
+    } else {
+      subject = `Credit Warning - ${eventName}`;
+      headingText = 'Credit Warning';
+      headingColor = '#d97706';
+      bodyText = `The image credits for the event <strong>${eventName}</strong> are starting to run low. Consider purchasing additional credits or upgrading the subscription plan soon.`;
+    }
+
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #dc2626;">Low Credit Warning</h2>
-        <p>The image credits for the event <strong>${eventName}</strong> are running low.</p>
-        <p style="font-size: 18px; margin: 20px 0;">Remaining credits: <strong style="color: #dc2626;">${remainingCredits}</strong></p>
-        <p>The credit balance has dropped to 50 or below. Please purchase additional credits or upgrade the subscription plan to avoid interruption during the event.</p>
+        <h2 style="color: ${headingColor};">${headingText}</h2>
+        <p>${bodyText}</p>
+        <p style="font-size: 18px; margin: 20px 0;">Remaining credits: <strong style="color: ${headingColor};">${remainingCredits}</strong></p>
         <p>You can purchase credits from your dashboard under the Credits section.</p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="color: #6b7280; font-size: 12px;">This is an automated message from Fun Frame AI.</p>

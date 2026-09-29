@@ -441,24 +441,33 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       try {
         const remaining = await getTotalCredits(event.userId);
-        if (remaining <= 50) {
-          const warningKey = `ffp_low_credit_warned_${event.userId}`;
-          const lastWarned = localStorage.getItem(warningKey);
-          if (!lastWarned || parseInt(lastWarned) > 50) {
-            localStorage.setItem(warningKey, String(remaining));
-            const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/low-credit-warning`;
-            fetch(apiUrl, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                userId: event.userId,
-                eventName: event.name,
-                remainingCredits: remaining,
-              }),
-            }).catch(err => console.error('Low credit warning failed:', err));
+        const thresholds = [
+          { level: 'critical' as const, max: 10, key: `ffp_credit_warned_critical_${event.userId}` },
+          { level: 'low' as const, max: 50, key: `ffp_credit_warned_low_${event.userId}` },
+          { level: 'warning' as const, max: 100, key: `ffp_credit_warned_warning_${event.userId}` },
+        ];
+        for (const t of thresholds) {
+          if (remaining <= t.max) {
+            const alreadyWarned = localStorage.getItem(t.key);
+            if (!alreadyWarned) {
+              localStorage.setItem(t.key, '1');
+              const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/low-credit-warning`;
+              fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId: event.userId,
+                  eventName: event.name,
+                  remainingCredits: remaining,
+                  warningLevel: t.level,
+                }),
+              }).catch(err => console.error(`Credit warning (${t.level}) failed:`, err));
+            }
+          } else {
+            localStorage.removeItem(t.key);
           }
         }
       } catch (err) {
