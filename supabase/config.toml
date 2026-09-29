@@ -371,6 +371,9 @@ verify_jwt = true
 [functions.gemini-generate-text]
 verify_jwt = true
 
+[functions.low-credit-warning]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

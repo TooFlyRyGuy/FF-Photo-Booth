@@ -7,7 +7,7 @@ import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEve
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
-import { checkCreditAvailability, consumeCredit } from '../services/creditService';
+import { checkCreditAvailability, consumeCredit, getTotalCredits } from '../services/creditService';
 import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
@@ -437,6 +437,32 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       const consumed = await consumeCredit(event.userId, creditCost);
       if (!consumed) {
         console.error('Failed to consume credit, but image was generated');
+      }
+
+      try {
+        const remaining = await getTotalCredits(event.userId);
+        if (remaining <= 50) {
+          const warningKey = `ffp_low_credit_warned_${event.userId}`;
+          const lastWarned = localStorage.getItem(warningKey);
+          if (!lastWarned || parseInt(lastWarned) > 50) {
+            localStorage.setItem(warningKey, String(remaining));
+            const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/low-credit-warning`;
+            fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: event.userId,
+                eventName: event.name,
+                remainingCredits: remaining,
+              }),
+            }).catch(err => console.error('Low credit warning failed:', err));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check credits for warning:', err);
       }
 
       if (event.limitPhotosPerDevice) {

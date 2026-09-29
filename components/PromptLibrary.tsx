@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp, Languages } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
-import { checkCreditAvailability, consumeCredit } from '../services/creditService';
+import { checkCreditAvailability, consumeCredit, getTotalCredits } from '../services/creditService';
 import { getGlobalSettings, getPromptTranslations, savePromptTranslationsBatch, autoTranslatePrompts } from '../services/backendService';
 import { SUPPORTED_LANGUAGES, LanguageCode } from '../lib/i18n';
 import { PromptTranslation, PromptCustomField } from '../types';
@@ -695,6 +695,32 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       const consumeResult = await consumeCredit(userId, 1);
       if (!consumeResult.success) {
         console.warn('Failed to consume credit, but image was generated:', consumeResult.error);
+      }
+
+      try {
+        const remaining = await getTotalCredits(userId);
+        if (remaining <= 50) {
+          const warningKey = `ffp_low_credit_warned_${userId}`;
+          const lastWarned = localStorage.getItem(warningKey);
+          if (!lastWarned || parseInt(lastWarned) > 50) {
+            localStorage.setItem(warningKey, String(remaining));
+            const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/low-credit-warning`;
+            fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId,
+                eventName: 'Prompt Library',
+                remainingCredits: remaining,
+              }),
+            }).catch(err => console.error('Low credit warning failed:', err));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check credits for warning:', err);
       }
 
       setTestGeneratedImage(generatedImage);

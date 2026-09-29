@@ -739,56 +739,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
   return events;
 };
 
-export const getEventById = async (eventId: string): Promise<Event> => {
-  const { data: eventData, error } = await supabase
-    .from('events')
-    .select('*')
-    .eq('id', eventId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Failed to fetch event: ${error.message}`);
-  }
-
-  if (!eventData) {
-    throw new Error('Event not found');
-  }
-
-  const { data: eventPromptsData } = await supabase
-    .from('event_prompts')
-    .select('prompt_id, display_order')
-    .eq('event_id', eventId)
-    .order('display_order', { ascending: true });
-
-  let prompts: Prompt[] = [];
-
-  if (eventPromptsData && eventPromptsData.length > 0) {
-    const promptIds = eventPromptsData.map(ep => ep.prompt_id);
-
-    const { data: promptsData } = await supabase
-      .from('prompts')
-      .select('*')
-      .in('id', promptIds)
-      .eq('is_active', true);
-
-    if (promptsData) {
-      const promptsMap = new Map(promptsData.map(p => [p.id, p]));
-      prompts = eventPromptsData
-        .map(ep => promptsMap.get(ep.prompt_id))
-        .filter((p): p is any => p !== undefined)
-        .map(p => ({
-          id: p.id,
-          name: p.name,
-          description: p.description || '',
-          previewImage: p.preview_image_url,
-          referenceImage: p.reference_image_url,
-          promptText: p.prompt_text,
-          category: p.category,
-          customFields: (p as any).custom_fields || undefined,
-        }));
-    }
-  }
-
+const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
   const now = new Date();
   let isActive = eventData.is_active;
 
@@ -853,6 +804,64 @@ export const getEventById = async (eventId: string): Promise<Event> => {
     timezone: eventData.timezone || 'UTC',
     imageResolution: eventData.image_resolution || null,
   };
+};
+
+const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
+  const { data: eventPromptsData } = await supabase
+    .from('event_prompts')
+    .select('prompt_id, display_order')
+    .eq('event_id', eventId)
+    .order('display_order', { ascending: true });
+
+  if (!eventPromptsData || eventPromptsData.length === 0) {
+    return [];
+  }
+
+  const promptIds = eventPromptsData.map(ep => ep.prompt_id);
+
+  const { data: promptsData } = await supabase
+    .from('prompts')
+    .select('*')
+    .in('id', promptIds)
+    .eq('is_active', true);
+
+  if (!promptsData) {
+    return [];
+  }
+
+  const promptsMap = new Map(promptsData.map(p => [p.id, p]));
+  return eventPromptsData
+    .map(ep => promptsMap.get(ep.prompt_id))
+    .filter((p): p is any => p !== undefined)
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || '',
+      previewImage: p.preview_image_url,
+      referenceImage: p.reference_image_url,
+      promptText: p.prompt_text,
+      category: p.category,
+      customFields: (p as any).custom_fields || undefined,
+    }));
+};
+
+export const getEventById = async (eventId: string): Promise<Event> => {
+  const [eventResult, prompts] = await Promise.all([
+    supabase.from('events').select('*').eq('id', eventId).maybeSingle(),
+    loadEventPrompts(eventId),
+  ]);
+
+  const { data: eventData, error } = eventResult;
+
+  if (error) {
+    throw new Error(`Failed to fetch event: ${error.message}`);
+  }
+
+  if (!eventData) {
+    throw new Error('Event not found');
+  }
+
+  return mapEventDataToEvent(eventData, prompts);
 };
 
 export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> => {
@@ -1293,7 +1302,8 @@ export const getEventByPasscode = async (passcode: string): Promise<Event | null
     return null;
   }
 
-  return getEventById(eventData.id);
+  const prompts = await loadEventPrompts(eventData.id);
+  return mapEventDataToEvent(eventData, prompts);
 };
 
 export const saveGeneratedImage = async (
