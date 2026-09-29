@@ -44,6 +44,20 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [allTags, setAllTags] = useState<string[]>([]);
   const [allCategories, setAllCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [isCategoryFilterOpen, setIsCategoryFilterOpen] = useState(false);
+  const categoryFilterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isCategoryFilterOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (categoryFilterRef.current && !categoryFilterRef.current.contains(e.target as Node)) {
+        setIsCategoryFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isCategoryFilterOpen]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -1071,16 +1085,45 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               />
             </div>
             <div className="flex gap-3">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="flex-1 sm:flex-none px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900 font-medium"
-              >
-                <option value="">All Categories</option>
-                {allCategories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+              <div ref={categoryFilterRef} className="relative flex-1 sm:flex-none sm:min-w-[180px]">
+                <button
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={isCategoryFilterOpen}
+                  onClick={() => setIsCategoryFilterOpen(!isCategoryFilterOpen)}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900 font-medium flex items-center justify-between gap-3"
+                >
+                  <span className="truncate">{selectedCategory || 'All Categories'}</span>
+                  {isCategoryFilterOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+                {isCategoryFilterOpen && (
+                  <div
+                    role="listbox"
+                    aria-label="Prompt categories"
+                    className="absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto overscroll-contain rounded-lg border-2 border-slate-300 bg-white py-1 shadow-xl z-20"
+                  >
+                    {['', ...allCategories].map(category => (
+                      <button
+                        key={category || 'all'}
+                        type="button"
+                        role="option"
+                        aria-selected={selectedCategory === category}
+                        onClick={() => {
+                          setSelectedCategory(category);
+                          setIsCategoryFilterOpen(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm font-medium transition-colors ${
+                          selectedCategory === category
+                            ? 'bg-green-700 text-white'
+                            : 'text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        {category || 'All Categories'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={handleCreateNew}
                 className="px-4 sm:px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center gap-2 whitespace-nowrap"
