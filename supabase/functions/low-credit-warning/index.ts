@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
     const fromName = settings.smtp_from_name || 'Fun Frame AI';
     const fromAddress = `${fromName} <${settings.smtp_from_email}>`;
 
-    const sendResults: { email: string; success: boolean; error?: string }[] = [];
+    const sendResults: { email: string; success: boolean }[] = [];
 
     for (const recipient of recipients) {
       try {
@@ -153,7 +153,7 @@ Deno.serve(async (req: Request) => {
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         console.error(`Failed to send low credit warning to ${recipient.email}:`, errMsg);
-        sendResults.push({ email: recipient.email, success: false, error: errMsg });
+        sendResults.push({ email: recipient.email, success: false });
       }
     }
 
@@ -168,9 +168,8 @@ Deno.serve(async (req: Request) => {
     );
   } catch (error) {
     console.error('Low credit warning error:', error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
+      JSON.stringify({ success: false, error: 'Failed to send low credit warning email' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
