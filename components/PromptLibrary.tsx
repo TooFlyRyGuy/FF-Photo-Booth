@@ -148,9 +148,20 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       }));
 
       setPrompts(allPrompts);
-      extractAllCategories(allPrompts);
       extractAllTags(allPrompts);
       setHasMoreToLoad((count || 0) > PAGE_SIZE);
+
+      const { data: catData } = await supabase
+        .from('prompts')
+        .select('category')
+        .eq('is_active', true)
+        .not('category', 'is', null)
+        .neq('category', '');
+      if (catData) {
+        const catSet = new Set<string>();
+        catData.forEach((row: any) => { if (row.category) catSet.add(row.category); });
+        setAllCategories(Array.from(catSet).sort());
+      }
     } catch (error) {
       console.error('Error loading prompts:', error);
     } finally {
@@ -192,7 +203,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
 
       const combined = [...prompts, ...morePrompts];
       setPrompts(combined);
-      extractAllCategories(combined);
       extractAllTags(combined);
       setHasMoreToLoad(combined.length < totalCount);
     } catch (error) {
@@ -208,14 +218,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       prompt.tags.forEach(tag => tagSet.add(tag));
     });
     setAllTags(Array.from(tagSet).sort());
-  };
-
-  const extractAllCategories = (promptList: Prompt[]) => {
-    const categorySet = new Set<string>();
-    promptList.forEach(prompt => {
-      if (prompt.category) categorySet.add(prompt.category);
-    });
-    setAllCategories(Array.from(categorySet).sort());
   };
 
   const searchPrompts = async (query: string) => {

@@ -927,7 +927,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
             <div className="overflow-y-auto flex-1 p-4 space-y-4">
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Category</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
                   <button
                     onClick={() => setSelectedCategory('')}
                     className={`px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-colors ${!selectedCategory ? 'bg-green-700 border-green-700 text-white' : 'bg-white border-slate-200 text-slate-600'}`}
@@ -996,7 +996,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
             <div className="px-4 py-3 bg-slate-50 border-b-2 border-slate-200">
               <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Category</h3>
             </div>
-            <div className="p-2">
+            <div className="p-2 max-h-[60vh] overflow-y-auto">
               <button
                 onClick={() => setSelectedCategory('')}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${!selectedCategory ? 'bg-green-50 text-green-800 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}
