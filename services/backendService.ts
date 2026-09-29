@@ -598,6 +598,23 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
     return cachedEvents;
   }
 
+  let profile: UserProfile | null = null;
+  try {
+    profile = await getUserProfile();
+  } catch (e) {
+    console.error('Failed to load profile for event filtering:', e);
+  }
+  const isAdmin = profile?.role?.toLowerCase() === 'admin';
+
+  let accessibleEventIds: Set<string> | null = null;
+  if (!isAdmin) {
+    const { data: accessData } = await supabase
+      .from('event_access')
+      .select('event_id')
+      .eq('user_id', userId);
+    accessibleEventIds = new Set((accessData || []).map(a => a.event_id));
+  }
+
   const { data: eventsData, error } = await supabase
     .from('events')
     .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone')
@@ -608,9 +625,13 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
     throw new Error(`Failed to fetch events: ${error.message}`);
   }
 
+  const filteredEventsData = isAdmin
+    ? (eventsData || [])
+    : (eventsData || []).filter(e => e.user_id === userId || (accessibleEventIds && accessibleEventIds.has(e.id)));
+
   const events: Event[] = [];
 
-  for (const event of eventsData || []) {
+  for (const event of filteredEventsData) {
     let prompts: Prompt[] = [];
 
     if (includePrompts) {
