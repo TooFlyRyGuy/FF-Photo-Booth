@@ -419,7 +419,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [deletingPrompt, setDeletingPrompt] = useState<Prompt | null>(null);
   const [deleteError, setDeleteError] = useState('');
-  const [visibleCount, setVisibleCount] = useState(12);
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -491,7 +490,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     }
 
     setFiltered(result);
-    setVisibleCount(12);
   }, [prompts, searchQuery, selectedCategory, selectedTags]);
 
   const handleSavePrompt = async (updated: Prompt) => {
@@ -731,7 +729,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
           {/* Title row with actions */}
           <div className="flex items-center gap-2">
-            <h1 className="flex-1 text-sm font-bold text-slate-900 leading-tight truncate min-w-0">AI Prompt Library</h1>
+            <h1 className="flex-1 text-sm font-bold text-slate-900 leading-tight truncate min-w-0">AI Prompt Library <span className="text-xs font-normal text-slate-400">{prompts.length}</span></h1>
             {isAdmin && (
               <button
                 onClick={() => setCreatingPrompt(true)}
@@ -795,7 +793,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                 className="h-8 w-auto object-contain"
               />
             </a>
-            <h1 className="flex-1 text-base font-bold text-slate-900 leading-tight truncate min-w-0">AI Prompt Library</h1>
+            <h1 className="flex-1 text-base font-bold text-slate-900 leading-tight truncate min-w-0">AI Prompt Library <span className="text-sm font-normal text-slate-400">{prompts.length}</span></h1>
 
             {isAdmin && (
               <button
@@ -1003,15 +1001,19 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
               >
                 All Categories
               </button>
-              {allCategories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === cat ? 'bg-green-50 text-green-800 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}
-                >
-                  {cat}
-                </button>
-              ))}
+              {allCategories.map(cat => {
+                const count = prompts.filter(p => p.category === cat).length;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${selectedCategory === cat ? 'bg-green-50 text-green-800 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <span className="truncate">{cat}</span>
+                    <span className="ml-2 text-xs text-slate-400 shrink-0">{count}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1057,42 +1059,57 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
 
         {/* Main content */}
         <main className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs sm:text-sm text-slate-500">
-              {loading ? 'Loading...' : `${filtered.length} theme${filtered.length !== 1 ? 's' : ''}${hasActiveFilters ? ' matching filters' : ''}`}
-            </p>
-            {hasActiveFilters && (
-              <button onClick={clearFilters} className="text-xs text-red-600 hover:underline">Clear filters</button>
-            )}
-          </div>
-
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <Loader size={32} className="text-green-700 animate-spin" />
             </div>
           ) : error ? (
             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6 text-center text-red-700 text-sm">{error}</div>
-          ) : filtered.length === 0 ? (
-            <div className="bg-white border-2 border-slate-200 rounded-xl p-10 text-center">
-              <Search size={36} className="mx-auto text-slate-300 mb-3" />
-              <p className="text-slate-600 font-medium">No themes found</p>
-              <p className="text-slate-400 text-sm mt-1">Try adjusting your search or filters</p>
-              {hasActiveFilters && (
-                <button onClick={clearFilters} className="mt-4 text-sm text-green-700 font-semibold hover:underline">
-                  Clear all filters
-                </button>
-              )}
+          ) : !hasActiveFilters ? (
+            <div className="space-y-4">
+              <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4">
+                <p className="text-sm text-slate-600">
+                  <span className="font-bold text-slate-900 text-base">{prompts.length}</span> themes available. Select a category or tag to browse, or search above.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {allCategories.map(cat => {
+                  const count = prompts.filter(p => p.category === cat).length;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className="flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-green-700 hover:shadow-sm transition-all text-left"
+                    >
+                      <span className="font-semibold text-slate-900 truncate">{cat}</span>
+                      <span className="ml-2 text-sm font-medium text-slate-500 shrink-0">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
-              {selectedCategory ? (
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs sm:text-sm text-slate-500">
+                  {`${filtered.length} of ${prompts.length} theme${filtered.length !== 1 ? 's' : ''} matching filters`}
+                </p>
+                <button onClick={clearFilters} className="text-xs text-red-600 hover:underline">Clear filters</button>
+              </div>
+
+              {filtered.length === 0 ? (
+                <div className="bg-white border-2 border-slate-200 rounded-xl p-10 text-center">
+                  <Search size={36} className="mx-auto text-slate-300 mb-3" />
+                  <p className="text-slate-600 font-medium">No themes found</p>
+                  <p className="text-slate-400 text-sm mt-1">Try adjusting your search or filters</p>
+                  <button onClick={clearFilters} className="mt-4 text-sm text-green-700 font-semibold hover:underline">
+                    Clear all filters
+                  </button>
+                </div>
+              ) : selectedCategory ? (
                 (() => {
-                  let shown = 0;
                   const sections: React.ReactNode[] = [];
                   for (const [category, categoryPrompts] of Object.entries(byCategory)) {
-                    if (shown >= visibleCount) break;
-                    const slice = categoryPrompts.slice(0, visibleCount - shown);
-                    shown += slice.length;
                     sections.push(
                       <section key={category}>
                         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-2.5 flex items-center gap-2">
@@ -1101,7 +1118,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                           <span className="text-slate-400 font-normal text-xs normal-case">({categoryPrompts.length})</span>
                         </h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-                          {slice.map(prompt => (
+                          {categoryPrompts.map(prompt => (
                             <PromptCard
                               key={prompt.id}
                               prompt={prompt}
@@ -1121,7 +1138,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                 })()
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-                  {filtered.slice(0, visibleCount).map(prompt => (
+                  {filtered.map(prompt => (
                     <PromptCard
                       key={prompt.id}
                       prompt={prompt}
@@ -1133,17 +1150,6 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
                       onDelete={() => { setDeleteError(''); setDeletingPrompt(prompt); }}
                     />
                   ))}
-                </div>
-              )}
-
-              {filtered.length > visibleCount && (
-                <div className="flex justify-center pt-2 pb-4">
-                  <button
-                    onClick={() => setVisibleCount(c => c + 12)}
-                    className="px-6 py-2.5 bg-white border-2 border-slate-200 hover:border-green-600 hover:text-green-700 text-slate-700 font-semibold text-sm rounded-xl transition-colors shadow-sm"
-                  >
-                    Load More ({filtered.length - visibleCount} remaining)
-                  </button>
                 </div>
               )}
             </div>

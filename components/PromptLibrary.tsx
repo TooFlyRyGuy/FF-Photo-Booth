@@ -70,10 +70,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [testGeneratedImage, setTestGeneratedImage] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
-  const [hasMoreToLoad, setHasMoreToLoad] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
-  const PAGE_SIZE = 24;
   const hasLoadedRef = useRef(false);
   const [userCredits, setUserCredits] = useState<number>(0);
   const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
@@ -113,21 +110,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setPrompts([]);
 
     try {
-      const { count, error: countError } = await supabase
-        .from('prompts')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
-
-      if (countError) throw countError;
-      setTotalCount(count || 0);
-
       const { data, error } = await supabase
         .from('prompts')
         .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public, custom_fields')
         .eq('is_active', true)
         .order('category')
-        .order('name')
-        .range(0, PAGE_SIZE - 1);
+        .order('name');
 
       if (error) throw error;
 
@@ -148,67 +136,16 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       }));
 
       setPrompts(allPrompts);
+      setTotalCount(allPrompts.length);
       extractAllTags(allPrompts);
-      setHasMoreToLoad((count || 0) > PAGE_SIZE);
 
-      const { data: catData } = await supabase
-        .from('prompts')
-        .select('category')
-        .eq('is_active', true)
-        .not('category', 'is', null)
-        .neq('category', '');
-      if (catData) {
-        const catSet = new Set<string>();
-        catData.forEach((row: any) => { if (row.category) catSet.add(row.category); });
-        setAllCategories(Array.from(catSet).sort());
-      }
+      const catSet = new Set<string>();
+      allPrompts.forEach(p => { if (p.category) catSet.add(p.category); });
+      setAllCategories(Array.from(catSet).sort());
     } catch (error) {
       console.error('Error loading prompts:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadMorePrompts = async () => {
-    if (isLoadingMore || !hasMoreToLoad) return;
-    setIsLoadingMore(true);
-
-    try {
-      const nextPage = Math.floor(prompts.length / PAGE_SIZE);
-      const { data, error } = await supabase
-        .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public, custom_fields')
-        .eq('is_active', true)
-        .order('category')
-        .order('name')
-        .range(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE - 1);
-
-      if (error) throw error;
-
-      const morePrompts = data.map((prompt) => ({
-        id: prompt.id,
-        name: prompt.name,
-        description: prompt.description,
-        category: prompt.category,
-        promptText: '',
-        previewImage: prompt.preview_image_url || '',
-        referenceImage: prompt.reference_image_url || '',
-        tags: prompt.tags || [],
-        isActive: prompt.is_active,
-        usageCount: prompt.usage_count || 0,
-        userId: prompt.user_id,
-        isPublic: prompt.is_public,
-        customFields: (prompt as any).custom_fields || undefined,
-      }));
-
-      const combined = [...prompts, ...morePrompts];
-      setPrompts(combined);
-      extractAllTags(combined);
-      setHasMoreToLoad(combined.length < totalCount);
-    } catch (error) {
-      console.error('Error loading more prompts:', error);
-    } finally {
-      setIsLoadingMore(false);
     }
   };
 
@@ -220,84 +157,24 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setAllTags(Array.from(tagSet).sort());
   };
 
-  const searchPrompts = async (query: string) => {
-    try {
-      const searchTerm = query.toLowerCase().trim();
+  const searchPrompts = (query: string) => {
+    const searchTerm = query.toLowerCase().trim();
+    let results = prompts.filter(p =>
+      p.name.toLowerCase().includes(searchTerm) ||
+      (p.description || '').toLowerCase().includes(searchTerm) ||
+      p.category.toLowerCase().includes(searchTerm) ||
+      (p.tags || []).some(t => t.toLowerCase().includes(searchTerm))
+    );
 
-      // Get all prompts for client-side tag filtering
-      let dbQuery = supabase
-        .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public, custom_fields')
-        .eq('is_active', true)
-        .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
-        .order('created_at', { ascending: false });
-
-      const { data, error } = await dbQuery;
-
-      if (error) throw error;
-
-      let searchResults = data.map((prompt) => ({
-        id: prompt.id,
-        name: prompt.name,
-        description: prompt.description,
-        category: prompt.category,
-        promptText: '',
-        previewImage: prompt.preview_image_url || '',
-        referenceImage: prompt.reference_image_url || '',
-        tags: prompt.tags || [],
-        isActive: prompt.is_active,
-        usageCount: prompt.usage_count || 0,
-        userId: prompt.user_id,
-        isPublic: prompt.is_public,
-        customFields: (prompt as any).custom_fields || undefined,
-      }));
-
-      // Also include results that match tags
-      const tagMatchResults = data
-        .filter(prompt =>
-          prompt.tags &&
-          Array.isArray(prompt.tags) &&
-          prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-        )
-        .map((prompt) => ({
-          id: prompt.id,
-          name: prompt.name,
-          description: prompt.description,
-          category: prompt.category,
-          promptText: '',
-          previewImage: prompt.preview_image_url || '',
-          referenceImage: prompt.reference_image_url || '',
-          tags: prompt.tags || [],
-          isActive: prompt.is_active,
-          usageCount: prompt.usage_count || 0,
-          userId: prompt.user_id,
-        }));
-
-      // Merge and deduplicate results
-      const allResults = [...searchResults];
-      tagMatchResults.forEach(tagResult => {
-        if (!allResults.find(r => r.id === tagResult.id)) {
-          allResults.push(tagResult);
-        }
-      });
-
-      searchResults = allResults;
-
-      if (selectedCategory) {
-        searchResults = searchResults.filter(prompt => prompt.category === selectedCategory);
-      }
-
-      if (selectedTags.length > 0) {
-        searchResults = searchResults.filter(prompt =>
-          selectedTags.some(tag => prompt.tags.includes(tag))
-        );
-      }
-
-      setFilteredPrompts(searchResults);
-    } catch (error) {
-      console.error('Error searching prompts:', error);
-      setFilteredPrompts([]);
+    if (selectedCategory) {
+      results = results.filter(p => p.category === selectedCategory);
     }
+
+    if (selectedTags.length > 0) {
+      results = results.filter(p => selectedTags.some(tag => (p.tags || []).includes(tag)));
+    }
+
+    setFilteredPrompts(results);
   };
 
   const filterPrompts = () => {
@@ -1096,6 +973,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           <div className="min-w-0 flex-1">
             <h2 className="text-xl md:text-2xl font-bold text-slate-900 truncate">
               {eventId ? 'Browse Prompt Library' : 'Prompt Library'}
+              <span className="ml-2 text-sm font-normal text-slate-500">{totalCount} total</span>
             </h2>
             <p className="text-sm md:text-base text-slate-600 mt-1">
               {eventId ? 'Select prompts to add to your event' : 'Manage AI prompts for your events'}
@@ -1231,6 +1109,29 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               <div className="w-12 h-12 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-slate-600">Loading prompts...</p>
             </div>
+          ) : !searchQuery && !selectedCategory && selectedTags.length === 0 ? (
+            <div className="space-y-4">
+              <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4">
+                <p className="text-sm text-slate-600">
+                  <span className="font-bold text-slate-900 text-base">{totalCount}</span> prompts in your library. Select a category or tag to browse, or search above.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {allCategories.map(cat => {
+                  const count = prompts.filter(p => p.category === cat).length;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className="flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-green-700 hover:shadow-sm transition-all text-left"
+                    >
+                      <span className="font-semibold text-slate-900 truncate">{cat}</span>
+                      <span className="ml-2 text-sm font-medium text-slate-500 shrink-0">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ) : filteredPrompts.length === 0 ? (
             <div className="text-center py-12">
               <ImageIcon className="mx-auto mb-4 text-slate-400" size={48} />
@@ -1243,6 +1144,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             </div>
           ) : (
             <>
+              <p className="text-sm text-slate-600 mb-3">
+                Showing {filteredPrompts.length} of {totalCount} prompts
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {filteredPrompts.map(prompt => (
                 <div
@@ -1347,26 +1251,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 </div>
                 ))}
               </div>
-
-              {hasMoreToLoad && !searchQuery && selectedTags.length === 0 && !selectedCategory && (
-                <div className="text-center mt-6 mb-4">
-                  <button
-                    onClick={loadMorePrompts}
-                    disabled={isLoadingMore}
-                    className="px-6 py-3 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 text-white rounded-lg font-medium transition-colors"
-                  >
-                    {isLoadingMore ? (
-                      <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        Loading...
-                      </span>
-                    ) : (
-                      `Load More (${prompts.length} of ${totalCount})`
-                    )}
-                  </button>
-                </div>
-              )}
-
             </>
           )}
         </div>
