@@ -662,7 +662,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   };
 
   const handleDownload = async () => {
-    const downloadUrl = generatedImageUrl || finalImage;
+    const downloadUrl = finalImage || generatedImageUrl;
     if (!downloadUrl) return;
 
     const filename = `${event.name.replace(/\s+/g, '_')}_${selectedPrompt?.name.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
