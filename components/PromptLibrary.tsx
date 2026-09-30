@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp, Languages } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
-import { checkCreditAvailability, consumeCredit } from '../services/creditService';
-import { getGlobalSettings } from '../services/backendService';
+import { checkCreditAvailability, consumeCredit, getTotalCredits } from '../services/creditService';
+import { getGlobalSettings, getPromptTranslations, savePromptTranslationsBatch, autoTranslatePrompts } from '../services/backendService';
+import { SUPPORTED_LANGUAGES, LanguageCode } from '../lib/i18n';
+import { PromptTranslation, PromptCustomField } from '../types';
+import PromptEditor from './PromptEditor';
 
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -16,11 +19,14 @@ interface Prompt {
   promptText: string;
   previewImage: string;
   referenceImage: string | null;
+  referenceImages?: { url: string; strength?: number }[];
+  referenceStrength?: number;
   tags: string[];
   isActive: boolean;
   usageCount: number;
   userId?: string | null;
   isPublic?: boolean;
+  customFields?: PromptCustomField[];
 }
 
 interface PromptLibraryProps {
@@ -40,6 +46,21 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [allTags, setAllTags] = useState<string[]>([]);
   const [allCategories, setAllCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [isCategoryFilterOpen, setIsCategoryFilterOpen] = useState(false);
+  const categoryFilterRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isCategoryFilterOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (categoryFilterRef.current && !categoryFilterRef.current.contains(e.target as Node)) {
+        setIsCategoryFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isCategoryFilterOpen]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -52,17 +73,19 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [testGeneratedImage, setTestGeneratedImage] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string>('');
-  const [hasMoreToLoad, setHasMoreToLoad] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
   const hasLoadedRef = useRef(false);
   const [userCredits, setUserCredits] = useState<number>(0);
   const [isTagFilterOpen, setIsTagFilterOpen] = useState(false);
+  const [promptTranslations, setPromptTranslations] = useState<Record<string, { name: string; description: string }>>({});
+  const [showTranslations, setShowTranslations] = useState(false);
+  const [isTranslatingPrompt, setIsTranslatingPrompt] = useState(false);
+  const [isSavingTranslations, setIsSavingTranslations] = useState(false);
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
       loadPrompts();
-      loadAllTags();
-      loadAllCategories();
       checkUserCredits();
     }
   }, [userId]);
@@ -74,29 +97,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     } catch (error) {
       console.error('Error checking credits:', error);
       setUserCredits(0);
-    }
-  };
-
-  const loadAllTags = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('prompts')
-        .select('tags')
-        .eq('is_active', true);
-
-      if (error) throw error;
-
-      const tagSet = new Set<string>();
-      data.forEach(prompt => {
-        if (prompt.tags && Array.isArray(prompt.tags)) {
-          prompt.tags.forEach(tag => tagSet.add(tag));
-        }
-      });
-
-      setAllTags(Array.from(tagSet).sort());
-    } catch (error) {
-      console.error('Error loading tags:', error);
-      setAllTags([]);
     }
   };
 
@@ -115,14 +115,14 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     try {
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, reference_images, reference_strength, usage_count, user_id, is_active, is_public, custom_fields')
         .eq('is_active', true)
         .order('category')
         .order('name');
 
       if (error) throw error;
 
-      const allPrompts = data.map((prompt) => ({
+      const allPrompts = data.map((prompt: any) => ({
         id: prompt.id,
         name: prompt.name,
         description: prompt.description,
@@ -130,16 +130,23 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         promptText: '',
         previewImage: prompt.preview_image_url || '',
         referenceImage: prompt.reference_image_url || '',
+        referenceImages: (prompt as any).reference_images || undefined,
+        referenceStrength: (prompt as any).reference_strength ?? 50,
         tags: prompt.tags || [],
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
         userId: prompt.user_id,
         isPublic: prompt.is_public,
+        customFields: (prompt as any).custom_fields || undefined,
       }));
 
       setPrompts(allPrompts);
-      extractAllCategories(allPrompts);
-      setHasMoreToLoad(false);
+      setTotalCount(allPrompts.length);
+      extractAllTags(allPrompts);
+
+      const catSet = new Set<string>();
+      allPrompts.forEach(p => { if (p.category) catSet.add(p.category); });
+      setAllCategories(Array.from(catSet).sort());
     } catch (error) {
       console.error('Error loading prompts:', error);
     } finally {
@@ -155,107 +162,24 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     setAllTags(Array.from(tagSet).sort());
   };
 
-  const extractAllCategories = (promptList: Prompt[]) => {
-    const categorySet = new Set<string>();
-    promptList.forEach(prompt => {
-      if (prompt.category) categorySet.add(prompt.category);
-    });
-    setAllCategories(Array.from(categorySet).sort());
-  };
+  const searchPrompts = (query: string) => {
+    const searchTerm = query.toLowerCase().trim();
+    let results = prompts.filter(p =>
+      p.name.toLowerCase().includes(searchTerm) ||
+      (p.description || '').toLowerCase().includes(searchTerm) ||
+      p.category.toLowerCase().includes(searchTerm) ||
+      (p.tags || []).some(t => t.toLowerCase().includes(searchTerm))
+    );
 
-  const loadAllCategories = async () => {
-    try {
-      const { data } = await supabase
-        .from('prompts')
-        .select('category')
-        .eq('is_active', true)
-        .not('category', 'is', null);
-      if (data) {
-        const cats = [...new Set(data.map((r: any) => r.category).filter(Boolean))].sort() as string[];
-        setAllCategories(cats);
-      }
-    } catch (err) {
-      console.error('Error loading categories:', err);
+    if (selectedCategory) {
+      results = results.filter(p => p.category === selectedCategory);
     }
-  };
 
-  const searchPrompts = async (query: string) => {
-    try {
-      const searchTerm = query.toLowerCase().trim();
-
-      // Get all prompts for client-side tag filtering
-      let dbQuery = supabase
-        .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public')
-        .eq('is_active', true)
-        .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`)
-        .order('created_at', { ascending: false });
-
-      const { data, error } = await dbQuery;
-
-      if (error) throw error;
-
-      let searchResults = data.map((prompt) => ({
-        id: prompt.id,
-        name: prompt.name,
-        description: prompt.description,
-        category: prompt.category,
-        promptText: '',
-        previewImage: prompt.preview_image_url || '',
-        referenceImage: prompt.reference_image_url || '',
-        tags: prompt.tags || [],
-        isActive: prompt.is_active,
-        usageCount: prompt.usage_count || 0,
-        userId: prompt.user_id,
-        isPublic: prompt.is_public,
-      }));
-
-      // Also include results that match tags
-      const tagMatchResults = data
-        .filter(prompt =>
-          prompt.tags &&
-          Array.isArray(prompt.tags) &&
-          prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-        )
-        .map((prompt) => ({
-          id: prompt.id,
-          name: prompt.name,
-          description: prompt.description,
-          category: prompt.category,
-          promptText: '',
-          previewImage: prompt.preview_image_url || '',
-          referenceImage: prompt.reference_image_url || '',
-          tags: prompt.tags || [],
-          isActive: prompt.is_active,
-          usageCount: prompt.usage_count || 0,
-          userId: prompt.user_id,
-        }));
-
-      // Merge and deduplicate results
-      const allResults = [...searchResults];
-      tagMatchResults.forEach(tagResult => {
-        if (!allResults.find(r => r.id === tagResult.id)) {
-          allResults.push(tagResult);
-        }
-      });
-
-      searchResults = allResults;
-
-      if (selectedCategory) {
-        searchResults = searchResults.filter(prompt => prompt.category === selectedCategory);
-      }
-
-      if (selectedTags.length > 0) {
-        searchResults = searchResults.filter(prompt =>
-          selectedTags.some(tag => prompt.tags.includes(tag))
-        );
-      }
-
-      setFilteredPrompts(searchResults);
-    } catch (error) {
-      console.error('Error searching prompts:', error);
-      setFilteredPrompts([]);
+    if (selectedTags.length > 0) {
+      results = results.filter(p => selectedTags.some(tag => (p.tags || []).includes(tag)));
     }
+
+    setFilteredPrompts(results);
   };
 
   const filterPrompts = () => {
@@ -289,6 +213,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       promptText: '',
       previewImage: '',
       referenceImage: null,
+      referenceImages: [],
+      referenceStrength: 50,
       tags: [],
       isActive: true,
       usageCount: 0,
@@ -299,26 +225,112 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   };
 
   const handleEdit = async (prompt: Prompt) => {
+    const mergeLegacyRef = (p: Prompt): Prompt => {
+      const hasRefs = p.referenceImages && p.referenceImages.length > 0;
+      if (!hasRefs && p.referenceImage) {
+        return { ...p, referenceImages: [{ url: p.referenceImage, strength: p.referenceStrength ?? 50 }] };
+      }
+      return p;
+    };
+
     if (!prompt.promptText) {
       const { data, error } = await supabase
         .from('prompts')
-        .select('prompt_text')
+        .select('prompt_text, custom_fields')
         .eq('id', prompt.id)
         .maybeSingle();
 
       if (data && !error) {
-        const fullPrompt = { ...prompt, promptText: data.prompt_text || '' };
+        const fullPrompt = mergeLegacyRef({ ...prompt, promptText: data.prompt_text || '', customFields: (data as any).custom_fields || prompt.customFields || undefined });
         setEditingPrompt(fullPrompt);
         setPrompts(prev => prev.map(p => p.id === prompt.id ? fullPrompt : p));
       } else {
-        setEditingPrompt({ ...prompt });
+        setEditingPrompt(mergeLegacyRef({ ...prompt }));
       }
     } else {
-      setEditingPrompt({ ...prompt });
+      setEditingPrompt(mergeLegacyRef({ ...prompt }));
     }
     setIsCreating(false);
     setIsPublic(prompt.isPublic === true);
     setCategoryIsNew(false);
+    loadPromptTranslations(prompt.id);
+  };
+
+  const loadPromptTranslations = async (promptId: string) => {
+    try {
+      const trans = await getPromptTranslations(promptId);
+      const map: Record<string, { name: string; description: string }> = {};
+      for (const t of trans) {
+        map[t.languageCode] = { name: t.name, description: t.description || '' };
+      }
+      setPromptTranslations(map);
+    } catch {
+      setPromptTranslations({});
+    }
+  };
+
+  const handleAutoTranslatePrompt = async () => {
+    if (!editingPrompt || isCreating) return;
+    setIsTranslatingPrompt(true);
+    try {
+      const newTrans = { ...promptTranslations };
+      for (const lang of SUPPORTED_LANGUAGES) {
+        if (lang.code === 'en-US') continue;
+        try {
+          const results = await autoTranslatePrompts(
+            [{ id: editingPrompt.id, name: editingPrompt.name, description: editingPrompt.description || '' }],
+            lang.code
+          );
+          if (results.length > 0) {
+            newTrans[lang.code] = { name: results[0].name, description: results[0].description || '' };
+          }
+        } catch (err) {
+          console.error(`Translation to ${lang.code} failed:`, err);
+        }
+      }
+      setPromptTranslations(newTrans);
+    } catch (error) {
+      console.error('Auto-translate failed:', error);
+      alert(`Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsTranslatingPrompt(false);
+    }
+  };
+
+  const handleTranslationChange = (lang: LanguageCode, field: 'name' | 'description', value: string) => {
+    setPromptTranslations(prev => {
+      const next = { ...prev };
+      if (!next[lang]) next[lang] = { name: '', description: '' };
+      next[lang] = { ...next[lang], [field]: value };
+      return next;
+    });
+  };
+
+  const handleSaveTranslations = async () => {
+    if (!editingPrompt || isCreating) return;
+    setIsSavingTranslations(true);
+    try {
+      const trans: PromptTranslation[] = [];
+      for (const [langCode, data] of Object.entries(promptTranslations)) {
+        if (data.name.trim()) {
+          trans.push({
+            promptId: editingPrompt.id,
+            languageCode: langCode,
+            name: data.name,
+            description: data.description || '',
+          });
+        }
+      }
+      if (trans.length > 0) {
+        await savePromptTranslationsBatch(trans);
+      }
+      alert('Translations saved.');
+    } catch (error) {
+      console.error('Failed to save translations:', error);
+      alert(`Failed to save translations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSavingTranslations(false);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'previewImage' | 'referenceImage') => {
@@ -332,21 +344,59 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       const filePath = `${userId}/${fileName}`;
 
       if (field === 'referenceImage') {
-        const { error: uploadError } = await supabase.storage
-          .from('prompt-images')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: file.type
-          });
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const img = new Image();
+            img.onload = async () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) throw new Error('Failed to get canvas context');
 
-        if (uploadError) throw uploadError;
+              ctx.drawImage(img, 0, 0);
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('prompt-images')
-          .getPublicUrl(filePath);
+              canvas.toBlob(async (blob) => {
+                if (!blob) throw new Error('Failed to convert image to JPG');
 
-        setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+                const jpgFileName = `${field}_${timestamp}.jpg`;
+                const jpgFilePath = `${userId}/${jpgFileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                  .from('prompt-images')
+                  .upload(jpgFilePath, blob, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: 'image/jpeg'
+                  });
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                  .from('prompt-images')
+                  .getPublicUrl(jpgFilePath);
+
+                setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+              }, 'image/jpeg', 0.92);
+            };
+
+            img.onerror = () => {
+              throw new Error('Failed to load image');
+            };
+
+            img.src = event.target?.result as string;
+          } catch (error) {
+            console.error('Error processing image:', error);
+            alert('Failed to process image. Please try again.');
+          }
+        };
+
+        reader.onerror = () => {
+          alert('Failed to read image file. Please try again.');
+        };
+
+        reader.readAsDataURL(file);
       } else {
         const reader = new FileReader();
         reader.onload = async (event) => {
@@ -425,12 +475,16 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           description: editingPrompt.description,
           category: editingPrompt.category,
           prompt_text: editingPrompt.promptText,
-          preview_image_url: editingPrompt.previewImage || null,
-          reference_image_url: editingPrompt.referenceImage || null,
+          preview_image_url: editingPrompt.previewImage || '',
+          reference_image_url: (editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0) ? editingPrompt.referenceImages[0].url : null,
+          reference_images: editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? editingPrompt.referenceImages : null,
+          reference_strength: editingPrompt.referenceStrength ?? 50,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
           is_public: isPublic,
           user_id: userId,
+          custom_fields: editingPrompt.customFields || null,
+          updated_at: new Date().toISOString(),
         });
 
         if (error) throw error;
@@ -442,11 +496,15 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             description: editingPrompt.description,
             category: editingPrompt.category,
             prompt_text: editingPrompt.promptText,
-            preview_image_url: editingPrompt.previewImage || null,
-            reference_image_url: editingPrompt.referenceImage || null,
+            preview_image_url: editingPrompt.previewImage || '',
+            reference_image_url: (editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0) ? editingPrompt.referenceImages[0].url : null,
+            reference_images: editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? editingPrompt.referenceImages : null,
+            reference_strength: editingPrompt.referenceStrength ?? 50,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
             is_public: isPublic,
+            custom_fields: editingPrompt.customFields || null,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', editingPrompt.id);
 
@@ -558,6 +616,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       }
 
       const referenceImage = testReferenceImage || testingPrompt.referenceImage || undefined;
+      const referenceImages = testingPrompt.referenceImages;
 
       const generatedImage = await generateBoothImage(
         testSourceImage,
@@ -565,12 +624,48 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         referenceImage,
         'square',
         settings.geminiModel || 'gemini-3.1-flash-image-preview',
-        settings.geminiResolution || '1K'
+        settings.geminiResolution || '1K',
+        referenceImages
       );
 
       const consumeResult = await consumeCredit(userId, 1);
       if (!consumeResult.success) {
         console.warn('Failed to consume credit, but image was generated:', consumeResult.error);
+      }
+
+      try {
+        const remaining = await getTotalCredits(userId);
+        const thresholds = [
+          { level: 'critical' as const, max: 10, key: `ffp_credit_warned_critical_${userId}` },
+          { level: 'low' as const, max: 50, key: `ffp_credit_warned_low_${userId}` },
+          { level: 'warning' as const, max: 100, key: `ffp_credit_warned_warning_${userId}` },
+        ];
+        for (const t of thresholds) {
+          if (remaining <= t.max) {
+            const alreadyWarned = localStorage.getItem(t.key);
+            if (!alreadyWarned) {
+              localStorage.setItem(t.key, '1');
+              const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/low-credit-warning`;
+              fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId,
+                  eventName: 'Prompt Library',
+                  remainingCredits: remaining,
+                  warningLevel: t.level,
+                }),
+              }).catch(err => console.error(`Credit warning (${t.level}) failed:`, err));
+            }
+          } else {
+            localStorage.removeItem(t.key);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check credits for warning:', err);
       }
 
       setTestGeneratedImage(generatedImage);
@@ -671,12 +766,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">AI Prompt Text</label>
-              <textarea
-                value={editingPrompt.promptText}
-                onChange={(e) => setEditingPrompt({ ...editingPrompt, promptText: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 min-h-[120px] font-mono text-sm"
-                placeholder="Detailed AI generation prompt"
+              <PromptEditor
+                customFields={editingPrompt.customFields || []}
+                onCustomFieldsChange={(fields) => setEditingPrompt({ ...editingPrompt, customFields: fields })}
+                promptText={editingPrompt.promptText}
+                onPromptTextChange={(text) => setEditingPrompt({ ...editingPrompt, promptText: text })}
               />
             </div>
 
@@ -721,38 +815,193 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               <div>
                 <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
                   <ImageIcon size={16} />
-                  AI Style Reference (Optional)
+                  AI Style References (Optional)
                 </label>
-                {editingPrompt.referenceImage ? (
-                  <div className="relative">
-                    <img
-                      src={editingPrompt.referenceImage}
-                      alt="AI Style Reference"
-                      className="w-full aspect-video object-contain rounded-lg border-2 border-slate-300 bg-slate-100"
-                    />
-                    <button
-                      onClick={() => setEditingPrompt({ ...editingPrompt, referenceImage: null })}
-                      className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
-                      title="Remove image"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="cursor-pointer block">
-                    <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
-                      <Upload size={32} className="text-slate-400 mb-2" />
-                      <span className="text-sm text-slate-600">Click to Upload Style Ref</span>
-                    </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="text-xs font-semibold text-slate-600 flex-shrink-0">Default Strength</span>
                     <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleImageUpload(e, 'referenceImage')}
-                      className="hidden"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={editingPrompt.referenceStrength ?? 50}
+                      onChange={(e) => setEditingPrompt({ ...editingPrompt, referenceStrength: parseInt(e.target.value) })}
+                      className="flex-1 accent-green-700"
                     />
-                  </label>
-                )}
-                <p className="text-xs text-slate-500 mt-2">Upload a sample photo that defines the visual style for the AI to mimic</p>
+                    <span className="text-xs font-bold text-slate-900 w-10 text-right">{editingPrompt.referenceStrength ?? 50}%</span>
+                  </div>
+
+                  {(editingPrompt.referenceImages || []).map((ref, idx) => (
+                    <div key={idx} className="flex gap-3 items-start p-3 border-2 border-slate-200 rounded-lg">
+                      <div className="relative flex-shrink-0">
+                        <img
+                          src={ref.url}
+                          alt={`Reference ${idx + 1}`}
+                          className="w-20 h-20 object-cover rounded-lg border border-slate-300"
+                        />
+                        <button
+                          onClick={() => {
+                            const newRefs = (editingPrompt.referenceImages || []).filter((_, i) => i !== idx);
+                            setEditingPrompt({ ...editingPrompt, referenceImages: newRefs });
+                          }}
+                          className="absolute -top-1 -right-1 p-1 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg"
+                          title="Remove reference"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-slate-700">Ref {idx + 1} Strength</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={ref.strength ?? editingPrompt.referenceStrength ?? 50}
+                            onChange={(e) => {
+                              const newRefs = [...(editingPrompt.referenceImages || [])];
+                              newRefs[idx] = { ...newRefs[idx], strength: parseInt(e.target.value) };
+                              setEditingPrompt({ ...editingPrompt, referenceImages: newRefs });
+                            }}
+                            className="flex-1 accent-green-700"
+                          />
+                          <span className="text-xs font-bold text-slate-900 w-10 text-right">{ref.strength ?? editingPrompt.referenceStrength ?? 50}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!editingPrompt.referenceImages || editingPrompt.referenceImages.length === 0) ? (
+                    <label className="cursor-pointer block">
+                      <div className="w-full border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center py-4 hover:border-green-700 hover:bg-green-50 transition-colors">
+                        <Upload size={24} className="text-slate-400 mb-1" />
+                        <span className="text-sm text-slate-600">Click to Upload Style Reference</span>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !editingPrompt) return;
+                          try {
+                            const timestamp = Date.now();
+                            const reader = new FileReader();
+                            reader.onload = async (event) => {
+                              try {
+                                const img = new Image();
+                                img.onload = async () => {
+                                  const canvas = document.createElement('canvas');
+                                  canvas.width = img.width;
+                                  canvas.height = img.height;
+                                  const ctx = canvas.getContext('2d');
+                                  if (!ctx) throw new Error('Failed to get canvas context');
+                                  ctx.drawImage(img, 0, 0);
+                                  canvas.toBlob(async (blob) => {
+                                    if (!blob) throw new Error('Failed to convert image to JPG');
+                                    const fileName = `reference_${timestamp}.jpg`;
+                                    const filePath = `${userId}/${fileName}`;
+                                    const { error: uploadError } = await supabase.storage
+                                      .from('prompt-images')
+                                      .upload(filePath, blob, {
+                                        cacheControl: '3600',
+                                        upsert: false,
+                                        contentType: 'image/jpeg'
+                                      });
+                                    if (uploadError) throw uploadError;
+                                    const { data: { publicUrl } } = supabase.storage
+                                      .from('prompt-images')
+                                      .getPublicUrl(filePath);
+                                    const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 50 };
+                                    setEditingPrompt({ ...editingPrompt, referenceImages: [newRef] });
+                                  }, 'image/jpeg', 0.92);
+                                };
+                                img.onerror = () => { throw new Error('Failed to load image'); };
+                                img.src = event.target?.result as string;
+                              } catch (error) {
+                                console.error('Error processing image:', error);
+                                alert('Failed to process image. Please try again.');
+                              }
+                            };
+                            reader.onerror = () => { alert('Failed to read image file. Please try again.'); };
+                            reader.readAsDataURL(file);
+                          } catch (error) {
+                            console.error('Error uploading reference:', error);
+                            alert('Failed to upload reference image. Please try again.');
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-green-700 rounded-lg text-green-700 hover:bg-green-50 transition-colors font-medium text-sm"
+                    >
+                      <Plus size={18} />
+                      Add Additional Reference Image
+                    </button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !editingPrompt) return;
+                      e.target.value = '';
+                      try {
+                        const timestamp = Date.now();
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                          try {
+                            const img = new Image();
+                            img.onload = async () => {
+                              const canvas = document.createElement('canvas');
+                              canvas.width = img.width;
+                              canvas.height = img.height;
+                              const ctx = canvas.getContext('2d');
+                              if (!ctx) throw new Error('Failed to get canvas context');
+                              ctx.drawImage(img, 0, 0);
+                              canvas.toBlob(async (blob) => {
+                                if (!blob) throw new Error('Failed to convert image to JPG');
+                                const fileName = `reference_${timestamp}.jpg`;
+                                const filePath = `${userId}/${fileName}`;
+                                const { error: uploadError } = await supabase.storage
+                                  .from('prompt-images')
+                                  .upload(filePath, blob, {
+                                    cacheControl: '3600',
+                                    upsert: false,
+                                    contentType: 'image/jpeg'
+                                  });
+                                if (uploadError) throw uploadError;
+                                const { data: { publicUrl } } = supabase.storage
+                                  .from('prompt-images')
+                                  .getPublicUrl(filePath);
+                                const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 50 };
+                                const currentRefs = editingPrompt.referenceImages || [];
+                                setEditingPrompt({ ...editingPrompt, referenceImages: [...currentRefs, newRef] });
+                              }, 'image/jpeg', 0.92);
+                            };
+                            img.onerror = () => { throw new Error('Failed to load image'); };
+                            img.src = event.target?.result as string;
+                          } catch (error) {
+                            console.error('Error processing image:', error);
+                            alert('Failed to process image. Please try again.');
+                          }
+                        };
+                        reader.onerror = () => { alert('Failed to read image file. Please try again.'); };
+                        reader.readAsDataURL(file);
+                      } catch (error) {
+                        console.error('Error uploading reference:', error);
+                        alert('Failed to upload reference image. Please try again.');
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Upload sample photos that define the visual style for the AI to mimic. Each reference can have its own strength weighting.</p>
               </div>
             </div>
 
@@ -827,6 +1076,88 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               </div>
             </div>
 
+            {/* Translations Section - only for existing prompts */}
+            {!isCreating && (
+              <div className="border-2 border-slate-200 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowTranslations(!showTranslations)}
+                  className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Languages size={18} className="text-slate-700" />
+                    <span className="text-sm font-bold text-slate-900">Translations</span>
+                  </div>
+                  {showTranslations ? <ChevronUp size={20} className="text-slate-600" /> : <ChevronDown size={20} className="text-slate-600" />}
+                </button>
+                {showTranslations && (
+                  <div className="p-4 space-y-4">
+                    <p className="text-xs text-slate-600">
+                      Provide translated names and descriptions for this prompt in other languages. These appear on the kiosk when the event's kiosk language is set to that language.
+                    </p>
+                    <button
+                      onClick={handleAutoTranslatePrompt}
+                      disabled={isTranslatingPrompt}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 disabled:bg-slate-300 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {isTranslatingPrompt ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Translating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} />
+                          Auto-Translate
+                        </>
+                      )}
+                    </button>
+                    {SUPPORTED_LANGUAGES.filter(l => l.code !== 'en-US').map((lang) => (
+                      <div key={lang.code} className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-slate-500 font-medium">{lang.nativeLabel} Name</label>
+                          <input
+                            type="text"
+                            value={promptTranslations[lang.code]?.name || ''}
+                            onChange={(e) => handleTranslationChange(lang.code, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-green-700 text-sm"
+                            placeholder={editingPrompt.name}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-500 font-medium">{lang.nativeLabel} Description</label>
+                          <input
+                            type="text"
+                            value={promptTranslations[lang.code]?.description || ''}
+                            onChange={(e) => handleTranslationChange(lang.code, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-green-700 text-sm"
+                            placeholder={editingPrompt.description || ''}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      onClick={handleSaveTranslations}
+                      disabled={isSavingTranslations}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {isSavingTranslations ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} />
+                          Save Translations
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 onClick={handleSave}
@@ -856,6 +1187,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           <div className="min-w-0 flex-1">
             <h2 className="text-xl md:text-2xl font-bold text-slate-900 truncate">
               {eventId ? 'Browse Prompt Library' : 'Prompt Library'}
+              <span className="ml-2 text-sm font-normal text-slate-500">{totalCount} total</span>
             </h2>
             <p className="text-sm md:text-base text-slate-600 mt-1">
               {eventId ? 'Select prompts to add to your event' : 'Manage AI prompts for your events'}
@@ -882,16 +1214,45 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               />
             </div>
             <div className="flex gap-3">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="flex-1 sm:flex-none px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900 font-medium"
-              >
-                <option value="">All Categories</option>
-                {allCategories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+              <div ref={categoryFilterRef} className="relative flex-1 sm:flex-none sm:min-w-[180px]">
+                <button
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={isCategoryFilterOpen}
+                  onClick={() => setIsCategoryFilterOpen(!isCategoryFilterOpen)}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white text-slate-900 font-medium flex items-center justify-between gap-3"
+                >
+                  <span className="truncate">{selectedCategory || 'All Categories'}</span>
+                  {isCategoryFilterOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+                {isCategoryFilterOpen && (
+                  <div
+                    role="listbox"
+                    aria-label="Prompt categories"
+                    className="absolute left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto overscroll-contain rounded-lg border-2 border-slate-300 bg-white py-1 shadow-xl z-20"
+                  >
+                    {['', ...allCategories].map(category => (
+                      <button
+                        key={category || 'all'}
+                        type="button"
+                        role="option"
+                        aria-selected={selectedCategory === category}
+                        onClick={() => {
+                          setSelectedCategory(category);
+                          setIsCategoryFilterOpen(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm font-medium transition-colors ${
+                          selectedCategory === category
+                            ? 'bg-green-700 text-white'
+                            : 'text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        {category || 'All Categories'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={handleCreateNew}
                 className="px-4 sm:px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-lg font-bold flex items-center gap-2 whitespace-nowrap"
@@ -962,6 +1323,29 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               <div className="w-12 h-12 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-slate-600">Loading prompts...</p>
             </div>
+          ) : !searchQuery && !selectedCategory && selectedTags.length === 0 ? (
+            <div className="space-y-4">
+              <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4">
+                <p className="text-sm text-slate-600">
+                  <span className="font-bold text-slate-900 text-base">{totalCount}</span> prompts in your library. Select a category or tag to browse, or search above.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {allCategories.map(cat => {
+                  const count = prompts.filter(p => p.category === cat).length;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className="flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-green-700 hover:shadow-sm transition-all text-left"
+                    >
+                      <span className="font-semibold text-slate-900 truncate">{cat}</span>
+                      <span className="ml-2 text-sm font-medium text-slate-500 shrink-0">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ) : filteredPrompts.length === 0 ? (
             <div className="text-center py-12">
               <ImageIcon className="mx-auto mb-4 text-slate-400" size={48} />
@@ -974,6 +1358,9 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             </div>
           ) : (
             <>
+              <p className="text-sm text-slate-600 mb-3">
+                Showing {filteredPrompts.length} of {totalCount} prompts
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {filteredPrompts.map(prompt => (
                 <div
@@ -1078,7 +1465,6 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 </div>
                 ))}
               </div>
-
             </>
           )}
         </div>

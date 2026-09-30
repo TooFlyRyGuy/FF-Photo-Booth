@@ -1,5 +1,4 @@
-import { AspectRatio } from '../types';
-import { resizeImageToAspectRatio } from './imageUtils';
+import { AspectRatio, PromptCustomField, ReferenceImage } from '../types';
 import { supabase } from '../lib/supabase';
 
 export const generateBoothImage = async (
@@ -8,7 +7,8 @@ export const generateBoothImage = async (
   referenceImageUrlOrBase64?: string,
   aspectRatio?: AspectRatio,
   modelName?: string,
-  resolution?: '1K' | '2K' | '4K'
+  resolution?: '1K' | '2K' | '4K',
+  referenceImages?: ReferenceImage[]
 ): Promise<string> => {
   try {
     const isImageUrl = imageUrlOrBase64.startsWith('http://') || imageUrlOrBase64.startsWith('https://');
@@ -27,7 +27,12 @@ export const generateBoothImage = async (
       body.imageBase64 = imageUrlOrBase64;
     }
 
-    if (referenceImageUrlOrBase64) {
+    if (referenceImages && referenceImages.length > 0) {
+      body.referenceImages = referenceImages.map(ref => ({
+        url: ref.url,
+        strength: ref.strength
+      }));
+    } else if (referenceImageUrlOrBase64) {
       if (isReferenceUrl) {
         body.referenceImageUrl = referenceImageUrlOrBase64;
       } else {
@@ -61,4 +66,52 @@ export const generateBoothImage = async (
     console.error("Gemini Generation Error:", error);
     throw error;
   }
+};
+
+export const generateCustomFieldText = async (
+  instruction: string,
+  context: Record<string, string>
+): Promise<string> => {
+  const { data, error } = await supabase.functions.invoke('gemini-generate-text', {
+    body: { instruction, context }
+  });
+
+  if (error) {
+    console.error("gemini-generate-text error:", error);
+    throw new Error(error.message || "Failed to generate text");
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || "Failed to generate text");
+  }
+
+  return data.generatedText || '';
+};
+
+export const substitutePromptVariables = (
+  promptText: string,
+  values: Record<string, string>
+): string => {
+  let result = promptText;
+  for (const key in values) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), values[key]);
+  }
+  return result;
+};
+
+export const resolveCustomFields = async (
+  fields: PromptCustomField[],
+  guestAnswers: Record<string, string>
+): Promise<Record<string, string>> => {
+  const resolved: Record<string, string> = { ...guestAnswers };
+
+  for (const field of fields) {
+    if (field.aiGenerated && field.aiPrompt) {
+      const instruction = substitutePromptVariables(field.aiPrompt, resolved);
+      const generated = await generateCustomFieldText(instruction, resolved);
+      resolved[field.placeholder] = generated.trim();
+    }
+  }
+
+  return resolved;
 };

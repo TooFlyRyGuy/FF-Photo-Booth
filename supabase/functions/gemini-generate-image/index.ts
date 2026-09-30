@@ -6,6 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+interface ReferenceImageItem {
+  url?: string;
+  strength?: number;
+}
+
 interface GenerateImageRequest {
   imageBase64?: string;
   imageUrl?: string;
@@ -14,7 +19,8 @@ interface GenerateImageRequest {
   referenceImageBase64?: string;
   referenceImageUrl?: string;
   referenceFileUri?: string;
-  aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | 'square';
+  referenceImages?: ReferenceImageItem[];
+  aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5' | 'square';
   modelName?: string;
   resolution?: '1K' | '2K' | '4K';
 }
@@ -59,6 +65,7 @@ Deno.serve(async (req: Request) => {
       referenceImageBase64,
       referenceImageUrl,
       referenceFileUri,
+      referenceImages,
       aspectRatio,
       modelName,
       resolution
@@ -229,6 +236,12 @@ Deno.serve(async (req: Request) => {
           return '9:16';
         case '16:9':
           return '16:9';
+        case '2:3':
+          return '2:3';
+        case '3:2':
+          return '3:2';
+        case '4:5':
+          return '4:5';
         case 'square':
         default:
           return '1:1';
@@ -246,13 +259,19 @@ Deno.serve(async (req: Request) => {
           return 'portrait orientation with 9:16 aspect ratio (width 576px, height 1024px)';
         case '16:9':
           return 'landscape orientation with 16:9 aspect ratio (width 1024px, height 576px)';
+        case '2:3':
+          return 'portrait orientation with 2:3 aspect ratio (width 683px, height 1024px)';
+        case '3:2':
+          return 'landscape orientation with 3:2 aspect ratio (width 1024px, height 683px)';
+        case '4:5':
+          return 'portrait orientation with 4:5 aspect ratio (width 819px, height 1024px)';
         case 'square':
         default:
           return 'square aspect ratio (1024px × 1024px)';
       }
     };
 
-    const model = modelName || gemini_model || 'gemini-3.1-flash-image-preview';
+    const model = modelName || gemini_model || 'gemini-3.1-flash-image';
     const imageResolution = resolution || gemini_resolution || '2K';
     const geminiAspectRatio = mapAspectRatioToGemini(aspectRatio);
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
@@ -291,8 +310,24 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Add reference image if provided - always use File API (fileUri > URL > base64)
-    if (referenceFileUri) {
+    // Add reference images - multiple references with strength, or single legacy reference
+    if (referenceImages && referenceImages.length > 0) {
+      for (let i = 0; i < referenceImages.length; i++) {
+        const ref = referenceImages[i];
+        if (ref.url) {
+          const { uri, mimeType: refMime } = await uploadUrlToGemini(ref.url);
+          parts.push({
+            fileData: {
+              mimeType: refMime,
+              fileUri: uri
+            }
+          });
+        }
+        const strength = ref.strength ?? 50;
+        const imageNum = i + 2;
+        finalPrompt += ` Use image ${imageNum} as a style reference with ${strength}% strength for color palette, lighting, and composition.`;
+      }
+    } else if (referenceFileUri) {
       parts.push({
         fileData: {
           mimeType: 'image/jpeg',
