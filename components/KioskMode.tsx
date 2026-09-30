@@ -156,11 +156,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       if (event.limitPhotosPerDevice) {
         try {
           const deviceCheck = await checkDeviceLimit(event.id);
-          if (!deviceCheck.allowed) {
+          if (deviceCheck.limitEnabled && !deviceCheck.allowed) {
             setView('device-limit-reached');
             return;
           }
-          setDeviceLimitRemaining(deviceCheck.remaining);
+          if (deviceCheck.limitEnabled) {
+            setDeviceLimitRemaining(deviceCheck.remaining);
+          }
         } catch (err) {
           console.error('Device limit check failed, allowing through:', err);
         }
@@ -1189,18 +1191,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'device-limit-reached') {
     const colors = getBrandingColors();
     return (
-      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center justify-center overflow-hidden px-4">
-        <div className="absolute inset-0 opacity-10">
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center overflow-y-auto overflow-x-hidden px-4 pt-6 md:pt-8 pb-16">
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
           <div className="w-full h-full bg-gradient-to-br from-amber-600 to-amber-800"></div>
         </div>
 
         {event.logoUrl && !event.hideLogo && (
-          <div className={`absolute ${getLogoPositionClass()} z-20`}>
+          <div className="relative z-20 flex-shrink-0 mb-6 md:mb-8">
             <img src={event.logoUrl} alt={event.name} className={`${getLogoSizeClass()} object-contain`} />
           </div>
         )}
 
-        <div className="z-10 text-center space-y-6 md:space-y-8 max-w-2xl">
+        <div className="relative z-10 text-center space-y-6 md:space-y-8 max-w-2xl flex-1 flex flex-col justify-center">
           <div
             className="h-20 w-20 md:h-32 md:w-32 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-lg"
             style={{

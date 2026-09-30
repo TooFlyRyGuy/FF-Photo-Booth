@@ -953,14 +953,12 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     eventSource = 'event_pass';
   }
 
-  const eventData = {
+  const eventData: Record<string, any> = {
     name: event.name,
     city: event.city,
     event_date: event.date,
     passcode: event.passcode,
     is_active: event.isActive,
-    user_id: userId,
-    created_by: userId,
     aspect_ratio: event.aspectRatio || 'square',
     background_image_url: event.backgroundImageUrl,
     logo_url: event.logoUrl,
@@ -1013,6 +1011,9 @@ export const saveEvent = async (event: Event): Promise<Event> => {
       throw new Error(`Failed to update event: ${error.message}`);
     }
   } else {
+    eventData.user_id = userId;
+    eventData.created_by = userId;
+
     const { data: newEvent, error } = await supabase
       .from('events')
       .insert([eventData])
