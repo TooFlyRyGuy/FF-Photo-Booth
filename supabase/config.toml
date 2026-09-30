@@ -374,6 +374,9 @@ verify_jwt = true
 [functions.low-credit-warning]
 verify_jwt = false
 
+[functions.redeem-access-code]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

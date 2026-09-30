@@ -103,6 +103,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Reset the device's photo usage so the new QR code gives a fresh allotment.
+    // This lets a device that already hit its limit on a previous QR code
+    // start over when it redeems a new single-use QR code.
+    if (deviceToken) {
+      const { error: resetError } = await supabase
+        .from('event_device_usage')
+        .delete()
+        .eq('event_id', redeemed.event_id)
+        .eq('device_token', deviceToken);
+
+      if (resetError) {
+        console.error('Failed to reset device usage on QR redemption:', resetError);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         status: 'success',
