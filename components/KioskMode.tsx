@@ -366,6 +366,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       });
 
       let referenceImageUrl = selectedPrompt.referenceImage;
+      let referenceImages = selectedPrompt.referenceImages;
 
       let finalPromptText = selectedPrompt.promptText;
       if (selectedPrompt.customFields && selectedPrompt.customFields.length > 0) {
@@ -380,7 +381,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         referenceImageUrl,
         event.aspectRatio,
         globalSettings.geminiModel,
-        event.imageResolution || globalSettings.geminiResolution
+        event.imageResolution || globalSettings.geminiResolution,
+        referenceImages
       );
 
       // Upload clean AI image (no overlay) to event-photos bucket first

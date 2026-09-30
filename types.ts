@@ -191,12 +191,19 @@ export interface PromptCustomField {
   falseLabel?: string;
 }
 
+export interface ReferenceImage {
+  url: string;
+  strength?: number;
+}
+
 export interface Prompt {
   id: string;
   name: string;
   description: string;
   previewImage: string;
   referenceImage?: string;
+  referenceImages?: ReferenceImage[];
+  referenceStrength?: number;
   promptText: string;
   category: string;
   isPublic: boolean;

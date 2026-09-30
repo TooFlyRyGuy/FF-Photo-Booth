@@ -19,6 +19,8 @@ interface Prompt {
   promptText: string;
   previewImage: string;
   referenceImage: string | null;
+  referenceImages?: { url: string; strength?: number }[];
+  referenceStrength?: number;
   tags: string[];
   isActive: boolean;
   usageCount: number;
@@ -112,14 +114,14 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     try {
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, usage_count, user_id, is_active, is_public, custom_fields')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, reference_images, reference_strength, usage_count, user_id, is_active, is_public, custom_fields')
         .eq('is_active', true)
         .order('category')
         .order('name');
 
       if (error) throw error;
 
-      const allPrompts = data.map((prompt) => ({
+      const allPrompts = data.map((prompt: any) => ({
         id: prompt.id,
         name: prompt.name,
         description: prompt.description,
@@ -127,6 +129,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         promptText: '',
         previewImage: prompt.preview_image_url || '',
         referenceImage: prompt.reference_image_url || '',
+        referenceImages: (prompt as any).reference_images || undefined,
+        referenceStrength: (prompt as any).reference_strength ?? 50,
         tags: prompt.tags || [],
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
@@ -208,6 +212,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       promptText: '',
       previewImage: '',
       referenceImage: null,
+      referenceImages: [],
+      referenceStrength: 50,
       tags: [],
       isActive: true,
       usageCount: 0,
@@ -329,21 +335,59 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       const filePath = `${userId}/${fileName}`;
 
       if (field === 'referenceImage') {
-        const { error: uploadError } = await supabase.storage
-          .from('prompt-images')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: file.type
-          });
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const img = new Image();
+            img.onload = async () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) throw new Error('Failed to get canvas context');
 
-        if (uploadError) throw uploadError;
+              ctx.drawImage(img, 0, 0);
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('prompt-images')
-          .getPublicUrl(filePath);
+              canvas.toBlob(async (blob) => {
+                if (!blob) throw new Error('Failed to convert image to JPG');
 
-        setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+                const jpgFileName = `${field}_${timestamp}.jpg`;
+                const jpgFilePath = `${userId}/${jpgFileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                  .from('prompt-images')
+                  .upload(jpgFilePath, blob, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: 'image/jpeg'
+                  });
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                  .from('prompt-images')
+                  .getPublicUrl(jpgFilePath);
+
+                setEditingPrompt(prev => prev ? { ...prev, [field]: publicUrl } : null);
+              }, 'image/jpeg', 0.92);
+            };
+
+            img.onerror = () => {
+              throw new Error('Failed to load image');
+            };
+
+            img.src = event.target?.result as string;
+          } catch (error) {
+            console.error('Error processing image:', error);
+            alert('Failed to process image. Please try again.');
+          }
+        };
+
+        reader.onerror = () => {
+          alert('Failed to read image file. Please try again.');
+        };
+
+        reader.readAsDataURL(file);
       } else {
         const reader = new FileReader();
         reader.onload = async (event) => {
@@ -424,6 +468,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           prompt_text: editingPrompt.promptText,
           preview_image_url: editingPrompt.previewImage || '',
           reference_image_url: editingPrompt.referenceImage || null,
+          reference_images: editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? editingPrompt.referenceImages : null,
+          reference_strength: editingPrompt.referenceStrength ?? 50,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
           is_public: isPublic,
@@ -443,6 +489,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             prompt_text: editingPrompt.promptText,
             preview_image_url: editingPrompt.previewImage || '',
             reference_image_url: editingPrompt.referenceImage || null,
+            reference_images: editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? editingPrompt.referenceImages : null,
+            reference_strength: editingPrompt.referenceStrength ?? 50,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
             is_public: isPublic,
@@ -559,6 +607,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       }
 
       const referenceImage = testReferenceImage || testingPrompt.referenceImage || undefined;
+      const referenceImages = testingPrompt.referenceImages;
 
       const generatedImage = await generateBoothImage(
         testSourceImage,
@@ -566,7 +615,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         referenceImage,
         'square',
         settings.geminiModel || 'gemini-3.1-flash-image-preview',
-        settings.geminiResolution || '1K'
+        settings.geminiResolution || '1K',
+        referenceImages
       );
 
       const consumeResult = await consumeCredit(userId, 1);
@@ -756,38 +806,136 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
               <div>
                 <label className="block text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
                   <ImageIcon size={16} />
-                  AI Style Reference (Optional)
+                  AI Style References (Optional)
                 </label>
-                {editingPrompt.referenceImage ? (
-                  <div className="relative">
-                    <img
-                      src={editingPrompt.referenceImage}
-                      alt="AI Style Reference"
-                      className="w-full aspect-video object-contain rounded-lg border-2 border-slate-300 bg-slate-100"
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="text-xs font-semibold text-slate-600 flex-shrink-0">Default Strength</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={editingPrompt.referenceStrength ?? 50}
+                      onChange={(e) => setEditingPrompt({ ...editingPrompt, referenceStrength: parseInt(e.target.value) })}
+                      className="flex-1 accent-green-700"
                     />
-                    <button
-                      onClick={() => setEditingPrompt({ ...editingPrompt, referenceImage: null })}
-                      className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
-                      title="Remove image"
-                    >
-                      <X size={16} />
-                    </button>
+                    <span className="text-xs font-bold text-slate-900 w-10 text-right">{editingPrompt.referenceStrength ?? 50}%</span>
                   </div>
-                ) : (
+
+                  {editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 && editingPrompt.referenceImages.map((ref, idx) => (
+                    <div key={idx} className="flex gap-3 items-start p-3 border-2 border-slate-200 rounded-lg">
+                      <div className="relative flex-shrink-0">
+                        <img
+                          src={ref.url}
+                          alt={`Reference ${idx + 1}`}
+                          className="w-20 h-20 object-cover rounded-lg border border-slate-300"
+                        />
+                        <button
+                          onClick={() => {
+                            const newRefs = editingPrompt.referenceImages!.filter((_, i) => i !== idx);
+                            setEditingPrompt({ ...editingPrompt, referenceImages: newRefs });
+                          }}
+                          className="absolute -top-1 -right-1 p-1 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg"
+                          title="Remove reference"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-slate-700">Ref {idx + 1} Strength</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={ref.strength ?? editingPrompt.referenceStrength ?? 50}
+                            onChange={(e) => {
+                              const newRefs = [...editingPrompt.referenceImages!];
+                              newRefs[idx] = { ...newRefs[idx], strength: parseInt(e.target.value) };
+                              setEditingPrompt({ ...editingPrompt, referenceImages: newRefs });
+                            }}
+                            className="flex-1 accent-green-700"
+                          />
+                          <span className="text-xs font-bold text-slate-900 w-10 text-right">{ref.strength ?? editingPrompt.referenceStrength ?? 50}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
                   <label className="cursor-pointer block">
-                    <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
-                      <Upload size={32} className="text-slate-400 mb-2" />
-                      <span className="text-sm text-slate-600">Click to Upload Style Ref</span>
+                    <div className="w-full border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center py-4 hover:border-green-700 hover:bg-green-50 transition-colors">
+                      <Upload size={24} className="text-slate-400 mb-1" />
+                      <span className="text-sm text-slate-600">
+                        {editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? 'Add Another Reference' : 'Click to Upload Style Ref'}
+                      </span>
                     </div>
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => handleImageUpload(e, 'referenceImage')}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !editingPrompt) return;
+                        try {
+                          const timestamp = Date.now();
+                          const reader = new FileReader();
+                          reader.onload = async (event) => {
+                            try {
+                              const img = new Image();
+                              img.onload = async () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                const ctx = canvas.getContext('2d');
+                                if (!ctx) throw new Error('Failed to get canvas context');
+                                ctx.drawImage(img, 0, 0);
+                                canvas.toBlob(async (blob) => {
+                                  if (!blob) throw new Error('Failed to convert image to JPG');
+                                  const fileName = `reference_${timestamp}.jpg`;
+                                  const filePath = `${userId}/${fileName}`;
+                                  const { error: uploadError } = await supabase.storage
+                                    .from('prompt-images')
+                                    .upload(filePath, blob, {
+                                      cacheControl: '3600',
+                                      upsert: false,
+                                      contentType: 'image/jpeg'
+                                    });
+                                  if (uploadError) throw uploadError;
+                                  const { data: { publicUrl } } = supabase.storage
+                                    .from('prompt-images')
+                                    .getPublicUrl(filePath);
+                                  const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 50 };
+                                  const currentRefs = editingPrompt.referenceImages || [];
+                                  setEditingPrompt({ ...editingPrompt, referenceImages: [...currentRefs, newRef] });
+                                }, 'image/jpeg', 0.92);
+                              };
+                              img.onerror = () => { throw new Error('Failed to load image'); };
+                              img.src = event.target?.result as string;
+                            } catch (error) {
+                              console.error('Error processing image:', error);
+                              alert('Failed to process image. Please try again.');
+                            }
+                          };
+                          reader.onerror = () => { alert('Failed to read image file. Please try again.'); };
+                          reader.readAsDataURL(file);
+                        } catch (error) {
+                          console.error('Error uploading reference:', error);
+                          alert('Failed to upload reference image. Please try again.');
+                        }
+                      }}
                       className="hidden"
                     />
                   </label>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Upload sample photos that define the visual style for the AI to mimic. Each reference can have its own strength weighting.</p>
+
+                {editingPrompt.referenceImage && (
+                  <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-800">
+                      A legacy single reference image is also set. The multiple references above will take priority during generation.
+                    </p>
+                  </div>
                 )}
-                <p className="text-xs text-slate-500 mt-2">Upload a sample photo that defines the visual style for the AI to mimic</p>
               </div>
             </div>
 

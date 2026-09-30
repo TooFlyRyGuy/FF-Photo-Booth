@@ -6,6 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+interface ReferenceImageItem {
+  url?: string;
+  strength?: number;
+}
+
 interface GenerateImageRequest {
   imageBase64?: string;
   imageUrl?: string;
@@ -14,6 +19,7 @@ interface GenerateImageRequest {
   referenceImageBase64?: string;
   referenceImageUrl?: string;
   referenceFileUri?: string;
+  referenceImages?: ReferenceImageItem[];
   aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5' | 'square';
   modelName?: string;
   resolution?: '1K' | '2K' | '4K';
@@ -59,6 +65,7 @@ Deno.serve(async (req: Request) => {
       referenceImageBase64,
       referenceImageUrl,
       referenceFileUri,
+      referenceImages,
       aspectRatio,
       modelName,
       resolution
@@ -303,8 +310,24 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Add reference image if provided - always use File API (fileUri > URL > base64)
-    if (referenceFileUri) {
+    // Add reference images - multiple references with strength, or single legacy reference
+    if (referenceImages && referenceImages.length > 0) {
+      for (let i = 0; i < referenceImages.length; i++) {
+        const ref = referenceImages[i];
+        if (ref.url) {
+          const { uri, mimeType: refMime } = await uploadUrlToGemini(ref.url);
+          parts.push({
+            fileData: {
+              mimeType: refMime,
+              fileUri: uri
+            }
+          });
+        }
+        const strength = ref.strength ?? 50;
+        const imageNum = i + 2;
+        finalPrompt += ` Use image ${imageNum} as a style reference with ${strength}% strength for color palette, lighting, and composition.`;
+      }
+    } else if (referenceFileUri) {
       parts.push({
         fileData: {
           mimeType: 'image/jpeg',

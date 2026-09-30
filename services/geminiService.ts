@@ -1,4 +1,4 @@
-import { AspectRatio, PromptCustomField } from '../types';
+import { AspectRatio, PromptCustomField, ReferenceImage } from '../types';
 import { supabase } from '../lib/supabase';
 
 export const generateBoothImage = async (
@@ -7,7 +7,8 @@ export const generateBoothImage = async (
   referenceImageUrlOrBase64?: string,
   aspectRatio?: AspectRatio,
   modelName?: string,
-  resolution?: '1K' | '2K' | '4K'
+  resolution?: '1K' | '2K' | '4K',
+  referenceImages?: ReferenceImage[]
 ): Promise<string> => {
   try {
     const isImageUrl = imageUrlOrBase64.startsWith('http://') || imageUrlOrBase64.startsWith('https://');
@@ -26,7 +27,12 @@ export const generateBoothImage = async (
       body.imageBase64 = imageUrlOrBase64;
     }
 
-    if (referenceImageUrlOrBase64) {
+    if (referenceImages && referenceImages.length > 0) {
+      body.referenceImages = referenceImages.map(ref => ({
+        url: ref.url,
+        strength: ref.strength
+      }));
+    } else if (referenceImageUrlOrBase64) {
       if (isReferenceUrl) {
         body.referenceImageUrl = referenceImageUrlOrBase64;
       } else {
