@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail, Lock, X } from 'lucide-react';
+import { RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail, Lock, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings, PromptCustomField } from '../types';
 import { generateBoothImage, substitutePromptVariables, resolveCustomFields } from '../services/geminiService';
@@ -1202,29 +1202,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           </div>
         )}
 
-        <div className="relative z-10 text-center space-y-6 md:space-y-8 max-w-2xl flex-1 flex flex-col justify-center">
-          <div
-            className="h-20 w-20 md:h-32 md:w-32 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-lg"
-            style={{
-              backgroundColor: '#f59e0b',
-              boxShadow: '0 10px 30px rgba(245, 158, 11, 0.5)',
-            }}
-          >
-            <Camera className="w-10 h-10 md:w-16 md:h-16 text-white" />
-          </div>
-
+        <div className="relative z-10 text-center space-y-4 md:space-y-6 max-w-2xl flex-1 flex flex-col justify-center">
           <h1
-            className="text-3xl md:text-5xl lg:text-7xl font-display font-bold"
+            className="text-2xl md:text-4xl lg:text-5xl font-display font-bold"
             style={{ color: colors.secondary }}
           >
             {t('kiosk.photoLimitReached')}
           </h1>
 
-          <p className="text-lg md:text-2xl text-slate-900 font-light">
+          <p className="text-base md:text-xl text-slate-900 font-light">
             {t('kiosk.deviceLimitDesc')}
           </p>
 
-          <div className="mt-8 p-4 md:p-6 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
+          <div className="mt-6 p-4 md:p-5 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
             <p className="text-sm md:text-base text-slate-700">
               <strong>{t('kiosk.limit')}</strong> {event.maxPhotosPerDevice} {event.maxPhotosPerDevice === 1 ? t('kiosk.photoPerDevice') : t('kiosk.photosPerDevice')}<br />
               {t('kiosk.askOrganizer')}
