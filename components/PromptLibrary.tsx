@@ -48,6 +48,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [isCategoryFilterOpen, setIsCategoryFilterOpen] = useState(false);
   const categoryFilterRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isCategoryFilterOpen) return;
@@ -224,6 +225,14 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   };
 
   const handleEdit = async (prompt: Prompt) => {
+    const mergeLegacyRef = (p: Prompt): Prompt => {
+      const hasRefs = p.referenceImages && p.referenceImages.length > 0;
+      if (!hasRefs && p.referenceImage) {
+        return { ...p, referenceImages: [{ url: p.referenceImage, strength: p.referenceStrength ?? 50 }] };
+      }
+      return p;
+    };
+
     if (!prompt.promptText) {
       const { data, error } = await supabase
         .from('prompts')
@@ -232,14 +241,14 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         .maybeSingle();
 
       if (data && !error) {
-        const fullPrompt = { ...prompt, promptText: data.prompt_text || '', customFields: (data as any).custom_fields || prompt.customFields || undefined };
+        const fullPrompt = mergeLegacyRef({ ...prompt, promptText: data.prompt_text || '', customFields: (data as any).custom_fields || prompt.customFields || undefined });
         setEditingPrompt(fullPrompt);
         setPrompts(prev => prev.map(p => p.id === prompt.id ? fullPrompt : p));
       } else {
-        setEditingPrompt({ ...prompt });
+        setEditingPrompt(mergeLegacyRef({ ...prompt }));
       }
     } else {
-      setEditingPrompt({ ...prompt });
+      setEditingPrompt(mergeLegacyRef({ ...prompt }));
     }
     setIsCreating(false);
     setIsPublic(prompt.isPublic === true);
@@ -467,7 +476,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           category: editingPrompt.category,
           prompt_text: editingPrompt.promptText,
           preview_image_url: editingPrompt.previewImage || '',
-          reference_image_url: editingPrompt.referenceImage || null,
+          reference_image_url: (editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0) ? editingPrompt.referenceImages[0].url : null,
           reference_images: editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? editingPrompt.referenceImages : null,
           reference_strength: editingPrompt.referenceStrength ?? 50,
           tags: editingPrompt.tags,
@@ -488,7 +497,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             category: editingPrompt.category,
             prompt_text: editingPrompt.promptText,
             preview_image_url: editingPrompt.previewImage || '',
-            reference_image_url: editingPrompt.referenceImage || null,
+            reference_image_url: (editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0) ? editingPrompt.referenceImages[0].url : null,
             reference_images: editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? editingPrompt.referenceImages : null,
             reference_strength: editingPrompt.referenceStrength ?? 50,
             tags: editingPrompt.tags,
@@ -823,7 +832,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                     <span className="text-xs font-bold text-slate-900 w-10 text-right">{editingPrompt.referenceStrength ?? 50}%</span>
                   </div>
 
-                  {editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 && editingPrompt.referenceImages.map((ref, idx) => (
+                  {(editingPrompt.referenceImages || []).map((ref, idx) => (
                     <div key={idx} className="flex gap-3 items-start p-3 border-2 border-slate-200 rounded-lg">
                       <div className="relative flex-shrink-0">
                         <img
@@ -833,7 +842,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                         />
                         <button
                           onClick={() => {
-                            const newRefs = editingPrompt.referenceImages!.filter((_, i) => i !== idx);
+                            const newRefs = (editingPrompt.referenceImages || []).filter((_, i) => i !== idx);
                             setEditingPrompt({ ...editingPrompt, referenceImages: newRefs });
                           }}
                           className="absolute -top-1 -right-1 p-1 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg"
@@ -851,7 +860,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                             max="100"
                             value={ref.strength ?? editingPrompt.referenceStrength ?? 50}
                             onChange={(e) => {
-                              const newRefs = [...editingPrompt.referenceImages!];
+                              const newRefs = [...(editingPrompt.referenceImages || [])];
                               newRefs[idx] = { ...newRefs[idx], strength: parseInt(e.target.value) };
                               setEditingPrompt({ ...editingPrompt, referenceImages: newRefs });
                             }}
@@ -863,79 +872,136 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                     </div>
                   ))}
 
-                  <label className="cursor-pointer block">
-                    <div className="w-full border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center py-4 hover:border-green-700 hover:bg-green-50 transition-colors">
-                      <Upload size={24} className="text-slate-400 mb-1" />
-                      <span className="text-sm text-slate-600">
-                        {editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? 'Add Another Reference' : 'Click to Upload Style Ref'}
-                      </span>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file || !editingPrompt) return;
-                        try {
-                          const timestamp = Date.now();
-                          const reader = new FileReader();
-                          reader.onload = async (event) => {
-                            try {
-                              const img = new Image();
-                              img.onload = async () => {
-                                const canvas = document.createElement('canvas');
-                                canvas.width = img.width;
-                                canvas.height = img.height;
-                                const ctx = canvas.getContext('2d');
-                                if (!ctx) throw new Error('Failed to get canvas context');
-                                ctx.drawImage(img, 0, 0);
-                                canvas.toBlob(async (blob) => {
-                                  if (!blob) throw new Error('Failed to convert image to JPG');
-                                  const fileName = `reference_${timestamp}.jpg`;
-                                  const filePath = `${userId}/${fileName}`;
-                                  const { error: uploadError } = await supabase.storage
-                                    .from('prompt-images')
-                                    .upload(filePath, blob, {
-                                      cacheControl: '3600',
-                                      upsert: false,
-                                      contentType: 'image/jpeg'
-                                    });
-                                  if (uploadError) throw uploadError;
-                                  const { data: { publicUrl } } = supabase.storage
-                                    .from('prompt-images')
-                                    .getPublicUrl(filePath);
-                                  const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 50 };
-                                  const currentRefs = editingPrompt.referenceImages || [];
-                                  setEditingPrompt({ ...editingPrompt, referenceImages: [...currentRefs, newRef] });
-                                }, 'image/jpeg', 0.92);
-                              };
-                              img.onerror = () => { throw new Error('Failed to load image'); };
-                              img.src = event.target?.result as string;
-                            } catch (error) {
-                              console.error('Error processing image:', error);
-                              alert('Failed to process image. Please try again.');
-                            }
-                          };
-                          reader.onerror = () => { alert('Failed to read image file. Please try again.'); };
-                          reader.readAsDataURL(file);
-                        } catch (error) {
-                          console.error('Error uploading reference:', error);
-                          alert('Failed to upload reference image. Please try again.');
-                        }
-                      }}
-                      className="hidden"
-                    />
-                  </label>
+                  {(!editingPrompt.referenceImages || editingPrompt.referenceImages.length === 0) ? (
+                    <label className="cursor-pointer block">
+                      <div className="w-full border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center py-4 hover:border-green-700 hover:bg-green-50 transition-colors">
+                        <Upload size={24} className="text-slate-400 mb-1" />
+                        <span className="text-sm text-slate-600">Click to Upload Style Reference</span>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !editingPrompt) return;
+                          try {
+                            const timestamp = Date.now();
+                            const reader = new FileReader();
+                            reader.onload = async (event) => {
+                              try {
+                                const img = new Image();
+                                img.onload = async () => {
+                                  const canvas = document.createElement('canvas');
+                                  canvas.width = img.width;
+                                  canvas.height = img.height;
+                                  const ctx = canvas.getContext('2d');
+                                  if (!ctx) throw new Error('Failed to get canvas context');
+                                  ctx.drawImage(img, 0, 0);
+                                  canvas.toBlob(async (blob) => {
+                                    if (!blob) throw new Error('Failed to convert image to JPG');
+                                    const fileName = `reference_${timestamp}.jpg`;
+                                    const filePath = `${userId}/${fileName}`;
+                                    const { error: uploadError } = await supabase.storage
+                                      .from('prompt-images')
+                                      .upload(filePath, blob, {
+                                        cacheControl: '3600',
+                                        upsert: false,
+                                        contentType: 'image/jpeg'
+                                      });
+                                    if (uploadError) throw uploadError;
+                                    const { data: { publicUrl } } = supabase.storage
+                                      .from('prompt-images')
+                                      .getPublicUrl(filePath);
+                                    const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 50 };
+                                    setEditingPrompt({ ...editingPrompt, referenceImages: [newRef] });
+                                  }, 'image/jpeg', 0.92);
+                                };
+                                img.onerror = () => { throw new Error('Failed to load image'); };
+                                img.src = event.target?.result as string;
+                              } catch (error) {
+                                console.error('Error processing image:', error);
+                                alert('Failed to process image. Please try again.');
+                              }
+                            };
+                            reader.onerror = () => { alert('Failed to read image file. Please try again.'); };
+                            reader.readAsDataURL(file);
+                          } catch (error) {
+                            console.error('Error uploading reference:', error);
+                            alert('Failed to upload reference image. Please try again.');
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-green-700 rounded-lg text-green-700 hover:bg-green-50 transition-colors font-medium text-sm"
+                    >
+                      <Plus size={18} />
+                      Add Additional Reference Image
+                    </button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !editingPrompt) return;
+                      e.target.value = '';
+                      try {
+                        const timestamp = Date.now();
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                          try {
+                            const img = new Image();
+                            img.onload = async () => {
+                              const canvas = document.createElement('canvas');
+                              canvas.width = img.width;
+                              canvas.height = img.height;
+                              const ctx = canvas.getContext('2d');
+                              if (!ctx) throw new Error('Failed to get canvas context');
+                              ctx.drawImage(img, 0, 0);
+                              canvas.toBlob(async (blob) => {
+                                if (!blob) throw new Error('Failed to convert image to JPG');
+                                const fileName = `reference_${timestamp}.jpg`;
+                                const filePath = `${userId}/${fileName}`;
+                                const { error: uploadError } = await supabase.storage
+                                  .from('prompt-images')
+                                  .upload(filePath, blob, {
+                                    cacheControl: '3600',
+                                    upsert: false,
+                                    contentType: 'image/jpeg'
+                                  });
+                                if (uploadError) throw uploadError;
+                                const { data: { publicUrl } } = supabase.storage
+                                  .from('prompt-images')
+                                  .getPublicUrl(filePath);
+                                const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 50 };
+                                const currentRefs = editingPrompt.referenceImages || [];
+                                setEditingPrompt({ ...editingPrompt, referenceImages: [...currentRefs, newRef] });
+                              }, 'image/jpeg', 0.92);
+                            };
+                            img.onerror = () => { throw new Error('Failed to load image'); };
+                            img.src = event.target?.result as string;
+                          } catch (error) {
+                            console.error('Error processing image:', error);
+                            alert('Failed to process image. Please try again.');
+                          }
+                        };
+                        reader.onerror = () => { alert('Failed to read image file. Please try again.'); };
+                        reader.readAsDataURL(file);
+                      } catch (error) {
+                        console.error('Error uploading reference:', error);
+                        alert('Failed to upload reference image. Please try again.');
+                      }
+                    }}
+                    className="hidden"
+                  />
                 </div>
                 <p className="text-xs text-slate-500 mt-2">Upload sample photos that define the visual style for the AI to mimic. Each reference can have its own strength weighting.</p>
-
-                {editingPrompt.referenceImage && (
-                  <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-800">
-                      A legacy single reference image is also set. The multiple references above will take priority during generation.
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 
