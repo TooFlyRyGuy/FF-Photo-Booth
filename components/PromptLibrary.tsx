@@ -131,7 +131,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         previewImage: prompt.preview_image_url || '',
         referenceImage: prompt.reference_image_url || '',
         referenceImages: (prompt as any).reference_images || undefined,
-        referenceStrength: (prompt as any).reference_strength ?? 50,
+        referenceStrength: (prompt as any).reference_strength ?? 30,
         tags: prompt.tags || [],
         isActive: prompt.is_active,
         usageCount: prompt.usage_count || 0,
@@ -214,7 +214,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       previewImage: '',
       referenceImage: null,
       referenceImages: [],
-      referenceStrength: 50,
+      referenceStrength: 30,
       tags: [],
       isActive: true,
       usageCount: 0,
@@ -228,7 +228,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     const mergeLegacyRef = (p: Prompt): Prompt => {
       const hasRefs = p.referenceImages && p.referenceImages.length > 0;
       if (!hasRefs && p.referenceImage) {
-        return { ...p, referenceImages: [{ url: p.referenceImage, strength: p.referenceStrength ?? 50 }] };
+        return { ...p, referenceImages: [{ url: p.referenceImage, strength: p.referenceStrength ?? 30 }] };
       }
       return p;
     };
@@ -478,7 +478,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           preview_image_url: editingPrompt.previewImage || '',
           reference_image_url: (editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0) ? editingPrompt.referenceImages[0].url : null,
           reference_images: editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? editingPrompt.referenceImages : null,
-          reference_strength: editingPrompt.referenceStrength ?? 50,
+          reference_strength: editingPrompt.referenceStrength ?? 30,
           tags: editingPrompt.tags,
           is_active: editingPrompt.isActive,
           is_public: isPublic,
@@ -499,7 +499,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             preview_image_url: editingPrompt.previewImage || '',
             reference_image_url: (editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0) ? editingPrompt.referenceImages[0].url : null,
             reference_images: editingPrompt.referenceImages && editingPrompt.referenceImages.length > 0 ? editingPrompt.referenceImages : null,
-            reference_strength: editingPrompt.referenceStrength ?? 50,
+            reference_strength: editingPrompt.referenceStrength ?? 30,
             tags: editingPrompt.tags,
             is_active: editingPrompt.isActive,
             is_public: isPublic,
@@ -825,11 +825,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                       type="range"
                       min="0"
                       max="100"
-                      value={editingPrompt.referenceStrength ?? 50}
+                      value={editingPrompt.referenceStrength ?? 30}
                       onChange={(e) => setEditingPrompt({ ...editingPrompt, referenceStrength: parseInt(e.target.value) })}
                       className="flex-1 accent-green-700"
                     />
-                    <span className="text-xs font-bold text-slate-900 w-10 text-right">{editingPrompt.referenceStrength ?? 50}%</span>
+                    <span className="text-xs font-bold text-slate-900 w-10 text-right">{editingPrompt.referenceStrength ?? 30}%</span>
                   </div>
 
                   {(editingPrompt.referenceImages || []).map((ref, idx) => (
@@ -858,7 +858,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                             type="range"
                             min="0"
                             max="100"
-                            value={ref.strength ?? editingPrompt.referenceStrength ?? 50}
+                            value={ref.strength ?? editingPrompt.referenceStrength ?? 30}
                             onChange={(e) => {
                               const newRefs = [...(editingPrompt.referenceImages || [])];
                               newRefs[idx] = { ...newRefs[idx], strength: parseInt(e.target.value) };
@@ -866,7 +866,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                             }}
                             className="flex-1 accent-green-700"
                           />
-                          <span className="text-xs font-bold text-slate-900 w-10 text-right">{ref.strength ?? editingPrompt.referenceStrength ?? 50}%</span>
+                          <span className="text-xs font-bold text-slate-900 w-10 text-right">{ref.strength ?? editingPrompt.referenceStrength ?? 30}%</span>
                         </div>
                       </div>
                     </div>
@@ -912,7 +912,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                                     const { data: { publicUrl } } = supabase.storage
                                       .from('prompt-images')
                                       .getPublicUrl(filePath);
-                                    const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 50 };
+                                    const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 30 };
                                     setEditingPrompt({ ...editingPrompt, referenceImages: [newRef] });
                                   }, 'image/jpeg', 0.92);
                                 };
@@ -979,7 +979,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                                 const { data: { publicUrl } } = supabase.storage
                                   .from('prompt-images')
                                   .getPublicUrl(filePath);
-                                const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 50 };
+                                const newRef = { url: publicUrl, strength: editingPrompt.referenceStrength ?? 30 };
                                 const currentRefs = editingPrompt.referenceImages || [];
                                 setEditingPrompt({ ...editingPrompt, referenceImages: [...currentRefs, newRef] });
                               }, 'image/jpeg', 0.92);
