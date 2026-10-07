@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay, AlertCircle } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -137,6 +137,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [accessCodes, setAccessCodes] = useState<EventAccessCode[]>([]);
   const [qrGenerateCount, setQrGenerateCount] = useState(10);
   const [isGeneratingCodes, setIsGeneratingCodes] = useState(false);
+  const [qrLoadError, setQrLoadError] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrModalEvent, setQrModalEvent] = useState<Event | null>(null);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
@@ -447,12 +448,14 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const openQrAccessModal = async (event: Event) => {
     setQrModalEvent(event);
     setShowQrModal(true);
+    setQrLoadError(null);
     try {
       const codes = await getEventAccessCodes(event.id);
       setAccessCodes(codes);
     } catch (err) {
       console.error('Failed to load access codes:', err);
       setAccessCodes([]);
+      setQrLoadError(err instanceof Error ? err.message : 'Failed to load codes');
     }
   };
 
@@ -3227,7 +3230,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       {showQrModal && qrModalEvent && (
         <div
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); }}
+          onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); setQrLoadError(null); }}
         >
           <div
             className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
@@ -3244,7 +3247,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </div>
               <button
-                onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); }}
+                onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); setQrLoadError(null); }}
                 className="text-slate-600 hover:text-slate-900 text-2xl leading-none"
               >
                 ×
@@ -3252,6 +3255,15 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {qrLoadError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                  <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800">Failed to load QR codes</p>
+                    <p className="text-xs text-red-600 mt-1">{qrLoadError}</p>
+                  </div>
+                </div>
+              )}
               {/* Summary */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-slate-50 rounded-lg p-4 text-center">
