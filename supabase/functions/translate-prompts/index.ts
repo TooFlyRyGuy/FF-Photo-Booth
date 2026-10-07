@@ -121,7 +121,6 @@ Return format (JSON array, same order as input):
       body: JSON.stringify({
         contents: [{ parts: [{ text: translationPrompt }] }],
         generationConfig: {
-          temperature: 0.3,
           maxOutputTokens: 4096,
         },
       }),

@@ -371,6 +371,12 @@ verify_jwt = true
 [functions.gemini-generate-text]
 verify_jwt = true
 
+[functions.translate-prompts]
+verify_jwt = true
+
+[functions.translate-kiosk-text]
+verify_jwt = true
+
 [functions.low-credit-warning]
 verify_jwt = false
 
