@@ -383,6 +383,9 @@ verify_jwt = false
 [functions.redeem-access-code]
 verify_jwt = false
 
+[functions.storage-cleanup]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

@@ -3,7 +3,7 @@ import { RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera,
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings, PromptCustomField } from '../types';
 import { generateBoothImage, substitutePromptVariables, resolveCustomFields } from '../services/geminiService';
-import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEventPhotoSmugmugUrl, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch, getKioskTextOverrides, saveDisclaimerAcknowledgment } from '../services/backendService';
+import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEventPhotoSmugmugUrl, updateEventPhotoOverlayUrl, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch, getKioskTextOverrides, saveDisclaimerAcknowledgment } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
@@ -403,41 +403,81 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         referenceImages
       );
 
-      // Upload clean AI image (no overlay) to event-photos bucket first
-      setUploadProgress('Saving your photo...');
-      const bucketResult = await uploadGeneratedPhoto(genImage, event.id);
+      const isPrivateMode = event.privateSharingMode === true;
+      const shouldSkipClean = isPrivateMode && event.skipCleanVersion === true;
+      const retentionDays = event.photoRetentionDays ?? 30;
 
       let bucketUrl = genImage;
       let bucketPath = '';
+      let photoRecordId: string | null = null;
 
-      if (bucketResult.error) {
-        console.error('Bucket upload failed, falling back to base64:', bucketResult.error);
-      } else {
-        bucketUrl = bucketResult.url;
-        bucketPath = bucketResult.path;
-        console.log('✅ Uploaded clean AI image (no overlay) to event-photos bucket:', bucketUrl);
+      if (!shouldSkipClean) {
+        setUploadProgress('Saving your photo...');
+        const bucketResult = await uploadGeneratedPhoto(genImage, event.id);
+        if (bucketResult.error) {
+          console.error('Bucket upload failed, falling back to base64:', bucketResult.error);
+        } else {
+          bucketUrl = bucketResult.url;
+          bucketPath = bucketResult.path;
+          console.log('✅ Uploaded clean AI image (no overlay) to event-photos bucket:', bucketUrl);
+        }
+        setGeneratedImageUrl(bucketUrl);
+        if (!isPrivateMode && !event.smugmugGalleryKey) {
+          setShareUrl(bucketUrl);
+        }
+        photoRecordId = await saveEventPhotoRecord(
+          event.id,
+          selectedPrompt.id,
+          bucketPath,
+          bucketUrl,
+          null,
+          null,
+          null,
+          retentionDays
+        );
+        setBucketPhotoId(photoRecordId);
       }
 
-      setGeneratedImageUrl(bucketUrl);
-
-      if (!event.smugmugGalleryKey) {
-        setShareUrl(bucketUrl);
-      }
-
-      const photoRecordId = await saveEventPhotoRecord(
-        event.id,
-        selectedPrompt.id,
-        bucketPath,
-        bucketUrl
-      );
-      setBucketPhotoId(photoRecordId);
-
-      // Apply overlay AFTER clean image is saved to storage
+      // Apply overlay
       if (event.overlayImageUrl) {
         try {
+          setUploadProgress('Applying finishing touches...');
           genImage = await applyOverlayToImage(genImage, event.overlayImageUrl);
         } catch (overlayErr) {
           console.error('Failed to apply overlay:', overlayErr);
+        }
+      }
+
+      // In private sharing mode, upload the overlaid version to storage and use it for sharing
+      if (isPrivateMode) {
+        setUploadProgress('Saving your photo...');
+        const overlayResult = await uploadGeneratedPhoto(genImage, event.id);
+        let overlayUrl = genImage;
+        let overlayPath = '';
+        if (overlayResult.error) {
+          console.error('Overlay bucket upload failed, falling back to base64:', overlayResult.error);
+        } else {
+          overlayUrl = overlayResult.url;
+          overlayPath = overlayResult.path;
+          console.log('✅ Uploaded overlaid image to event-photos bucket:', overlayUrl);
+        }
+        setGeneratedImageUrl(overlayUrl);
+        setShareUrl(overlayUrl);
+
+        if (shouldSkipClean || !photoRecordId) {
+          photoRecordId = await saveEventPhotoRecord(
+            event.id,
+            selectedPrompt.id,
+            shouldSkipClean ? overlayPath : bucketPath,
+            shouldSkipClean ? overlayUrl : bucketUrl,
+            null,
+            overlayPath || null,
+            overlayUrl || null,
+            retentionDays
+          );
+          setBucketPhotoId(photoRecordId);
+        } else if (photoRecordId) {
+          await updateEventPhotoOverlayUrl(photoRecordId, overlayPath, overlayUrl);
         }
       }
 
@@ -529,14 +569,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           })()
             .then((result) => {
               console.log('✅ Uploaded generated to SmugMug:', result.imageUrl);
-              setShareUrl(result.imageUrl);
+              if (!isPrivateMode) {
+                setShareUrl(result.imageUrl);
+              }
               if (photoRecordId) {
                 updateEventPhotoSmugmugUrl(photoRecordId, result.imageUrl);
               }
             })
             .catch((smugmugErr) => {
               console.error('SmugMug upload failed for generated:', smugmugErr);
-              setShareUrl(bucketUrl);
+              if (!isPrivateMode) {
+                setShareUrl(bucketUrl);
+              }
             })
         );
       }
@@ -1714,7 +1758,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </button>
                 </div>
 
-                {event.galleryEnabled && event.smugmugGalleryUrl && (
+                {event.galleryEnabled && !event.privateSharingMode && event.smugmugGalleryUrl && (
                   <button
                     onClick={() => window.open(event.smugmugGalleryUrl!, '_blank', 'noopener,noreferrer')}
                     className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-colors flex items-center justify-center gap-2 min-h-[44px] border-2 border-slate-300"
@@ -1886,7 +1930,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   })()
                 )}
 
-                {event.galleryEnabled && event.smugmugGalleryUrl && (
+                {event.galleryEnabled && !event.privateSharingMode && event.smugmugGalleryUrl && (
                   <button
                     onClick={() => window.open(event.smugmugGalleryUrl!, '_blank', 'noopener,noreferrer')}
                     className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl transition-colors flex items-center justify-center gap-2 min-h-[44px] border-2 border-slate-300"

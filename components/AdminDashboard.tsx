@@ -2533,6 +2533,82 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </CollapsibleSection>
 
+              {/* Photo Privacy & Retention */}
+              <CollapsibleSection title="Photo Privacy & Retention" defaultOpen={false}>
+                <p className="text-sm text-slate-600 mb-4">
+                  Control how guests receive their photos and how long photos are stored.
+                </p>
+                <div className="space-y-4">
+                  <div className="pt-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.privateSharingMode || false}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setEditingEvent({
+                            ...editingEvent,
+                            privateSharingMode: enabled,
+                            galleryEnabled: enabled ? false : editingEvent.galleryEnabled,
+                          });
+                        }}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Private sharing mode</span>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          When enabled, each guest receives a direct link to only their own photo instead of a link to the full event gallery. Guests cannot browse other guests' photos. The "Show gallery at sharing station" option is turned off automatically.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {editingEvent.privateSharingMode && (
+                    <div className="pt-4 border-t border-slate-200 ml-8">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingEvent.skipCleanVersion || false}
+                          onChange={(e) => setEditingEvent({...editingEvent, skipCleanVersion: e.target.checked})}
+                          className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                        />
+                        <div>
+                          <span className="text-black font-medium">Save only the final photo</span>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            When enabled, only the final overlaid photo is saved to storage — the pre-overlay version is skipped to avoid keeping duplicate copies. Recommended when private sharing mode is on.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Photo retention period</label>
+                    <p className="text-xs text-slate-500 mb-2">
+                      How long photos are kept in storage before automatic cleanup. This applies to photos saved for guest sharing. SmugMug gallery backups are not affected.
+                    </p>
+                    <select
+                      value={editingEvent.photoRetentionDays ?? 30}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditingEvent({
+                          ...editingEvent,
+                          photoRetentionDays: val === 'never' ? null : parseInt(val, 10),
+                        });
+                      }}
+                      className="w-48 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                    >
+                      <option value="7">7 days</option>
+                      <option value="14">14 days</option>
+                      <option value="30">30 days</option>
+                      <option value="60">60 days</option>
+                      <option value="90">90 days</option>
+                      <option value="never">Never (keep forever)</option>
+                    </select>
+                  </div>
+                </div>
+              </CollapsibleSection>
+
               {/* Add-Ons Showcase - Hidden for now */}
               {/* <AddOnShowcase /> */}
 

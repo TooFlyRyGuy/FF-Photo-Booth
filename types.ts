@@ -269,6 +269,9 @@ export interface Event {
   imageResolution?: '1K' | '2K' | '4K' | null;
   disclaimerEnabled?: boolean;
   disclaimerText?: string;
+  privateSharingMode?: boolean;
+  skipCleanVersion?: boolean;
+  photoRetentionDays?: number | null;
 }
 
 export interface EventAccessCode {

@@ -617,7 +617,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -732,6 +732,9 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       disclaimerText: event.disclaimer_text || null,
       timezone: event.timezone || 'UTC',
       imageResolution: event.image_resolution || null,
+      privateSharingMode: event.private_sharing_mode || false,
+      skipCleanVersion: event.skip_clean_version || false,
+      photoRetentionDays: event.photo_retention_days ?? 30,
     });
   }
 
@@ -807,6 +810,9 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
     disclaimerText: eventData.disclaimer_text || null,
     timezone: eventData.timezone || 'UTC',
     imageResolution: eventData.image_resolution || null,
+    privateSharingMode: eventData.private_sharing_mode || false,
+    skipCleanVersion: eventData.skip_clean_version || false,
+    photoRetentionDays: eventData.photo_retention_days ?? 30,
   };
 };
 
@@ -1002,6 +1008,9 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     image_resolution: event.imageResolution || null,
     disclaimer_enabled: event.disclaimerEnabled || false,
     disclaimer_text: event.disclaimerText || null,
+    private_sharing_mode: event.privateSharingMode || false,
+    skip_clean_version: event.skipCleanVersion || false,
+    photo_retention_days: event.photoRetentionDays ?? 30,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1345,8 +1354,18 @@ export const saveEventPhotoRecord = async (
   promptId: string,
   storagePath: string,
   publicUrl: string,
-  smugmugUrl: string | null = null
+  smugmugUrl: string | null = null,
+  overlayStoragePath: string | null = null,
+  overlayPublicUrl: string | null = null,
+  retentionDays: number | null = 30
 ): Promise<string | null> => {
+  let retentionExpiresAt: string | null = null;
+  if (retentionDays !== null) {
+    const expires = new Date();
+    expires.setDate(expires.getDate() + retentionDays);
+    retentionExpiresAt = expires.toISOString();
+  }
+
   const { data, error } = await supabase
     .from('event_photos')
     .insert({
@@ -1355,6 +1374,9 @@ export const saveEventPhotoRecord = async (
       storage_path: storagePath,
       public_url: publicUrl,
       smugmug_url: smugmugUrl,
+      overlay_storage_path: overlayStoragePath,
+      overlay_public_url: overlayPublicUrl,
+      retention_expires_at: retentionExpiresAt,
     })
     .select('id')
     .maybeSingle();
@@ -1378,6 +1400,24 @@ export const updateEventPhotoSmugmugUrl = async (
 
   if (error) {
     console.error('Failed to update event photo SmugMug URL:', error);
+  }
+};
+
+export const updateEventPhotoOverlayUrl = async (
+  photoId: string,
+  overlayStoragePath: string,
+  overlayPublicUrl: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('event_photos')
+    .update({
+      overlay_storage_path: overlayStoragePath,
+      overlay_public_url: overlayPublicUrl,
+    })
+    .eq('id', photoId);
+
+  if (error) {
+    console.error('Failed to update event photo overlay URL:', error);
   }
 };
 
@@ -2097,7 +2137,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -2190,6 +2230,9 @@ export const getAllEvents = async (): Promise<Event[]> => {
       disclaimerText: e.disclaimer_text || null,
       timezone: e.timezone || 'UTC',
       imageResolution: e.image_resolution || null,
+      privateSharingMode: e.private_sharing_mode || false,
+      skipCleanVersion: e.skip_clean_version || false,
+      photoRetentionDays: e.photo_retention_days ?? 30,
     };
   });
 };
