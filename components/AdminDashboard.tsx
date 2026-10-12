@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount } from '../services/backendService';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay, AlertCircle, FileText } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -142,6 +142,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrModalEvent, setQrModalEvent] = useState<Event | null>(null);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [disclaimerAckCount, setDisclaimerAckCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -2347,6 +2348,65 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       className="w-40 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm font-mono"
                     />
                   </div>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.disclaimerEnabled || false}
+                        onChange={(e) => setEditingEvent({...editingEvent, disclaimerEnabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Show disclaimer before starting</span>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          When enabled, guests see a disclaimer screen after pressing "Touch to Start" and must agree before proceeding. Every acknowledgment is logged for compliance.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {editingEvent.disclaimerEnabled && (
+                    <div className="space-y-2 ml-8 pt-2">
+                      <label className="text-sm font-medium text-slate-700">Disclaimer text</label>
+                      <textarea
+                        value={editingEvent.disclaimerText || ''}
+                        onChange={(e) => setEditingEvent({...editingEvent, disclaimerText: e.target.value})}
+                        rows={6}
+                        placeholder="Enter the disclaimer text that guests must agree to before using the kiosk..."
+                        className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none resize-none text-sm"
+                      />
+                      <p className="text-xs text-slate-500">
+                        This text is shown verbatim to each guest. A snapshot of the text at the time of agreement is stored with each acknowledgment record.
+                      </p>
+                      {editingEvent.id && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!editingEvent.id) return;
+                              try {
+                                const count = await getDisclaimerAcknowledgmentCount(editingEvent.id);
+                                setDisclaimerAckCount(count);
+                              } catch (err) {
+                                console.error('Failed to load disclaimer acknowledgment count:', err);
+                                setDisclaimerAckCount(null);
+                              }
+                            }}
+                            className="text-sm text-green-700 hover:text-green-800 font-medium flex items-center gap-2"
+                          >
+                            <FileText size={16} />
+                            View acknowledgment count
+                          </button>
+                          {disclaimerAckCount !== null && (
+                            <p className="text-xs text-slate-600 mt-2">
+                              Total acknowledgments logged: <span className="font-semibold">{disclaimerAckCount}</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="pt-4 border-t border-slate-200">
                     <label className="flex items-center gap-3 cursor-pointer">

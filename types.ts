@@ -267,6 +267,8 @@ export interface Event {
   kioskPasscode?: string;
   timezone?: string;
   imageResolution?: '1K' | '2K' | '4K' | null;
+  disclaimerEnabled?: boolean;
+  disclaimerText?: string;
 }
 
 export interface EventAccessCode {

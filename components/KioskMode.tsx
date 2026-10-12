@@ -3,7 +3,7 @@ import { RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera,
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings, PromptCustomField } from '../types';
 import { generateBoothImage, substitutePromptVariables, resolveCustomFields } from '../services/geminiService';
-import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEventPhotoSmugmugUrl, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch, getKioskTextOverrides } from '../services/backendService';
+import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEventPhotoSmugmugUrl, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch, getKioskTextOverrides, saveDisclaimerAcknowledgment } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
@@ -19,7 +19,7 @@ interface KioskProps {
   onLoaded?: () => void;
 }
 
-type KioskState = 'attract' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
+type KioskState = 'attract' | 'disclaimer' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const eventLanguages: LanguageCode[] = (event.kioskLanguages && event.kioskLanguages.length > 0
@@ -65,6 +65,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
   const hasPasscode = !!(event.kioskPasscode && event.kioskPasscode.trim().length > 0);
   const fullscreenEnabled = event.fullscreenEnabled === true;
+  const intentionalExitRef = useRef(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -144,6 +145,22 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
   };
 
+  const proceedToPrompts = () => {
+    if (event.prompts && event.prompts.length === 1) {
+      const p = event.prompts[0];
+      setSelectedPrompt(p);
+      if (p.customFields && p.customFields.some(f => !f.aiGenerated)) {
+        setGuestAnswers({});
+        setCustomizeErrors({});
+        setView('prompt-customize');
+      } else {
+        setView('camera');
+      }
+    } else {
+      setView('prompt-select');
+    }
+  };
+
   const handleTapToStart = async () => {
     if (!event.userId) {
       setErrorMsg('Event owner not found. Please contact the administrator.');
@@ -175,22 +192,23 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       if (!creditCheck.available || (creditCheck.remaining !== undefined && creditCheck.remaining < creditCost)) {
         setView('no-credits');
-      } else if (event.prompts && event.prompts.length === 1) {
-        const p = event.prompts[0];
-        setSelectedPrompt(p);
-        if (p.customFields && p.customFields.some(f => !f.aiGenerated)) {
-          setGuestAnswers({});
-          setCustomizeErrors({});
-          setView('prompt-customize');
-        } else {
-          setView('camera');
-        }
+      } else if (event.disclaimerEnabled && event.disclaimerText) {
+        setView('disclaimer');
       } else {
-        setView('prompt-select');
+        proceedToPrompts();
       }
     } finally {
       setIsCheckingCredits(false);
     }
+  };
+
+  const handleDisclaimerAgree = () => {
+    if (event.id && event.disclaimerText) {
+      saveDisclaimerAcknowledgment(event.id, event.disclaimerText).catch(err => {
+        console.error('Disclaimer acknowledgment save failed:', err);
+      });
+    }
+    proceedToPrompts();
   };
 
   const getAspectRatioDimensions = (ratio: string = 'square'): { width: number; height: number } => {
@@ -766,14 +784,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       const isNowFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isNowFullscreen);
       if (fullscreenEnabled && !isNowFullscreen && !showPasscodePrompt) {
-        if (hasPasscode) {
-          setPasscodeAction('fullscreen');
-          setPasscodeInput('');
-          setPasscodeError(false);
-          setShowPasscodePrompt(true);
-        } else {
-          requestFullscreen();
+        if (intentionalExitRef.current) {
+          intentionalExitRef.current = false;
+          return;
         }
+        requestFullscreen();
       }
     };
     document.addEventListener('fullscreenchange', handleChange);
@@ -1227,6 +1242,39 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
           <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
             {t('kiosk.exitKiosk')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 2b. DISCLAIMER SCREEN
+  if (view === 'disclaimer') {
+    const colors = getBrandingColors();
+    return (
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
+        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">Please Review Before Continuing</h2>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
+          <div className="w-full max-w-2xl mx-auto">
+            <div className="bg-white rounded-xl border-2 border-slate-300 p-6 md:p-8 shadow-lg">
+              <p className="text-sm md:text-base text-slate-800 whitespace-pre-wrap leading-relaxed">
+                {event.disclaimerText}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-shrink-0 flex flex-col items-center gap-3 pt-2">
+          <button
+            onClick={handleDisclaimerAgree}
+            className="px-8 py-3 bg-green-700 hover:bg-green-800 text-white rounded-full font-bold text-sm md:text-base min-h-[44px] flex items-center gap-2"
+            style={{ backgroundColor: colors.primary }}
+          >
+            I Agree & Continue <ArrowRight size={18} />
+          </button>
+          <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">
+            {t('kiosk.cancel')}
           </button>
         </div>
       </div>
@@ -1882,6 +1930,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setPasscodeInput('');
       setPasscodeError(false);
       if (passcodeAction === 'exit') {
+        intentionalExitRef.current = true;
         exitFullscreen();
         onExit();
       }
@@ -1895,18 +1944,17 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setShowPasscodePrompt(false);
     setPasscodeInput('');
     setPasscodeError(false);
-    if (passcodeAction === 'fullscreen' && fullscreenEnabled && !document.fullscreenElement) {
-      requestFullscreen();
-    }
   };
 
   const handleExitKiosk = () => {
     if (hasPasscode) {
+      intentionalExitRef.current = true;
       setPasscodeAction('exit');
       setPasscodeInput('');
       setPasscodeError(false);
       setShowPasscodePrompt(true);
     } else {
+      intentionalExitRef.current = true;
       exitFullscreen();
       onExit();
     }

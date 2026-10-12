@@ -617,7 +617,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -728,6 +728,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       defaultKioskLanguage: event.default_kiosk_language || null,
       fullscreenEnabled: event.fullscreen_enabled || false,
       kioskPasscode: event.kiosk_passcode || null,
+      disclaimerEnabled: event.disclaimer_enabled || false,
+      disclaimerText: event.disclaimer_text || null,
       timezone: event.timezone || 'UTC',
       imageResolution: event.image_resolution || null,
     });
@@ -801,6 +803,8 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
     defaultKioskLanguage: eventData.default_kiosk_language || null,
     fullscreenEnabled: eventData.fullscreen_enabled || false,
     kioskPasscode: eventData.kiosk_passcode || null,
+    disclaimerEnabled: eventData.disclaimer_enabled || false,
+    disclaimerText: eventData.disclaimer_text || null,
     timezone: eventData.timezone || 'UTC',
     imageResolution: eventData.image_resolution || null,
   };
@@ -996,6 +1000,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     kiosk_passcode: event.kioskPasscode || null,
     timezone: event.timezone || 'UTC',
     image_resolution: event.imageResolution || null,
+    disclaimer_enabled: event.disclaimerEnabled || false,
+    disclaimer_text: event.disclaimerText || null,
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1582,6 +1588,67 @@ export const resetDeviceUsage = async (deviceUsageId: string): Promise<void> => 
   }
 };
 
+export interface DisclaimerAcknowledgment {
+  id: string;
+  eventId: string;
+  deviceToken: string | null;
+  ipAddress: string | null;
+  disclaimerTextSnapshot: string;
+  acknowledgedAt: string;
+}
+
+export const saveDisclaimerAcknowledgment = async (
+  eventId: string,
+  disclaimerText: string,
+  deviceToken?: string | null
+): Promise<void> => {
+  const { error } = await supabase
+    .from('disclaimer_acknowledgments')
+    .insert({
+      event_id: eventId,
+      disclaimer_text_snapshot: disclaimerText,
+      device_token: deviceToken || null,
+    });
+
+  if (error) {
+    console.error('Failed to save disclaimer acknowledgment:', error);
+  }
+};
+
+export const getDisclaimerAcknowledgments = async (eventId: string): Promise<DisclaimerAcknowledgment[]> => {
+  const { data, error } = await supabase
+    .from('disclaimer_acknowledgments')
+    .select('id, event_id, device_token, ip_address, disclaimer_text_snapshot, acknowledged_at')
+    .eq('event_id', eventId)
+    .order('acknowledged_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch disclaimer acknowledgments: ${error.message}`);
+  }
+
+  return (data || []).map(item => ({
+    id: item.id,
+    eventId: item.event_id,
+    deviceToken: item.device_token,
+    ipAddress: item.ip_address,
+    disclaimerTextSnapshot: item.disclaimer_text_snapshot,
+    acknowledgedAt: item.acknowledged_at,
+  }));
+};
+
+export const getDisclaimerAcknowledgmentCount = async (eventId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('disclaimer_acknowledgments')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', eventId);
+
+  if (error) {
+    return 0;
+  }
+
+  return count || 0;
+};
+
 export const deleteEvent = async (eventId: string): Promise<void> => {
   const { error } = await supabase
     .from('events')
@@ -2030,7 +2097,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -2119,6 +2186,8 @@ export const getAllEvents = async (): Promise<Event[]> => {
       defaultKioskLanguage: e.default_kiosk_language || null,
       fullscreenEnabled: e.fullscreen_enabled || false,
       kioskPasscode: e.kiosk_passcode || null,
+      disclaimerEnabled: e.disclaimer_enabled || false,
+      disclaimerText: e.disclaimer_text || null,
       timezone: e.timezone || 'UTC',
       imageResolution: e.image_resolution || null,
     };
