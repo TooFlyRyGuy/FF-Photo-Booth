@@ -137,6 +137,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   const [accessCodes, setAccessCodes] = useState<EventAccessCode[]>([]);
   const [qrGenerateCount, setQrGenerateCount] = useState(10);
   const [isGeneratingCodes, setIsGeneratingCodes] = useState(false);
+  const [lastGeneratedBatchId, setLastGeneratedBatchId] = useState<string | null>(null);
   const [qrLoadError, setQrLoadError] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrModalEvent, setQrModalEvent] = useState<Event | null>(null);
@@ -463,7 +464,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     if (!qrModalEvent) return;
     setIsGeneratingCodes(true);
     try {
-      await generateAccessCodes(qrModalEvent.id, qrGenerateCount);
+      const newCodes = await generateAccessCodes(qrModalEvent.id, qrGenerateCount);
+      if (newCodes.length > 0 && newCodes[0].batchId) {
+        setLastGeneratedBatchId(newCodes[0].batchId);
+      }
       const codes = await getEventAccessCodes(qrModalEvent.id);
       setAccessCodes(codes);
     } catch (err) {
@@ -505,8 +509,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  const handlePrintQrCodes = async () => {
-    if (!qrModalEvent || accessCodes.length === 0) return;
+  const generateQrPdf = async (codesToPrint: EventAccessCode[], filenameSuffix: string) => {
+    if (!qrModalEvent || codesToPrint.length === 0) return;
     setIsGeneratingPdf(true);
     try {
       const origin = window.location.origin;
@@ -520,12 +524,12 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       const QR_SIZE = 0.875;
       const QR_OFFSET = (LABEL_SIZE - QR_SIZE) / 2;
       const PER_PAGE = COLS * ROWS;
-      const pageCount = Math.ceil(accessCodes.length / PER_PAGE);
+      const pageCount = Math.ceil(codesToPrint.length / PER_PAGE);
 
       for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
         if (pageIndex > 0) pdf.addPage();
 
-        const pageCodes = accessCodes.slice(pageIndex * PER_PAGE, (pageIndex + 1) * PER_PAGE);
+        const pageCodes = codesToPrint.slice(pageIndex * PER_PAGE, (pageIndex + 1) * PER_PAGE);
 
         for (let slotIndex = 0; slotIndex < pageCodes.length; slotIndex++) {
           const code = pageCodes[slotIndex];
@@ -551,17 +555,37 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
         const labelY = MARGIN + ROWS * (LABEL_SIZE + GAP) - GAP + 0.15;
         pdf.setFontSize(7);
         pdf.setTextColor(150);
-        pdf.text('Avery Presta 94103 - 1 inch square labels, 48 per sheet', MARGIN, labelY);
+        pdf.text(`Avery Presta 94103 - 1 inch square labels, 48 per sheet | ${filenameSuffix} - ${codesToPrint.length} codes`, MARGIN, labelY);
       }
 
       const safeName = qrModalEvent.name.replace(/[^a-zA-Z0-9]/g, '_');
-      pdf.save(`QR-Codes-${safeName}.pdf`);
+      pdf.save(`QR-Codes-${safeName}-${filenameSuffix}.pdf`);
     } catch (err) {
       console.error('PDF generation failed:', err);
       alert(`Failed to generate PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsGeneratingPdf(false);
     }
+  };
+
+  const handlePrintNewCodes = async () => {
+    if (!qrModalEvent || !lastGeneratedBatchId || accessCodes.length === 0) return;
+    const newCodes = accessCodes.filter(c => c.batchId === lastGeneratedBatchId && !c.isUsed);
+    if (newCodes.length === 0) {
+      alert('No unused codes from the latest batch. They may have already been used or printed.');
+      return;
+    }
+    await generateQrPdf(newCodes, 'New-Batch');
+  };
+
+  const handlePrintAllUnused = async () => {
+    if (!qrModalEvent || accessCodes.length === 0) return;
+    const unusedCodes = accessCodes.filter(c => !c.isUsed);
+    if (unusedCodes.length === 0) {
+      alert('No unused codes available to print.');
+      return;
+    }
+    await generateQrPdf(unusedCodes, 'All-Unused');
   };
 
   const [isDownloadingCodes, setIsDownloadingCodes] = useState(false);
@@ -3230,7 +3254,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       {showQrModal && qrModalEvent && (
         <div
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); setQrLoadError(null); }}
+          onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); setQrLoadError(null); setLastGeneratedBatchId(null); }}
         >
           <div
             className="bg-white border-2 border-slate-300 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
@@ -3247,7 +3271,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </div>
               <button
-                onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); setQrLoadError(null); }}
+                onClick={() => { setShowQrModal(false); setQrModalEvent(null); setAccessCodes([]); setQrLoadError(null); setLastGeneratedBatchId(null); }}
                 className="text-slate-600 hover:text-slate-900 text-2xl leading-none"
               >
                 ×
@@ -3265,7 +3289,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               )}
               {/* Summary */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="bg-slate-50 rounded-lg p-4 text-center">
                   <p className="text-2xl font-bold text-slate-900">{accessCodes.length}</p>
                   <p className="text-xs text-slate-500 mt-1">Total Codes</p>
@@ -3277,6 +3301,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 <div className="bg-red-50 rounded-lg p-4 text-center">
                   <p className="text-2xl font-bold text-red-600">{accessCodes.filter(c => c.isUsed).length}</p>
                   <p className="text-xs text-slate-500 mt-1">Used</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-blue-700">{lastGeneratedBatchId ? accessCodes.filter(c => c.batchId === lastGeneratedBatchId && !c.isUsed).length : 0}</p>
+                  <p className="text-xs text-slate-500 mt-1">New Codes</p>
                 </div>
               </div>
 
@@ -3309,27 +3337,42 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
               {/* Print / Download */}
               {accessCodes.length > 0 && (
-                <div className="flex gap-3">
-                  <button
-                    onClick={handlePrintQrCodes}
-                    disabled={isGeneratingPdf}
-                    className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {isGeneratingPdf ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Generating PDF...</>
-                    ) : (
-                      <><Printer size={18} /> Print QR Codes (PDF)</>
-                    )}
-                  </button>
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handlePrintNewCodes}
+                      disabled={isGeneratingPdf || !lastGeneratedBatchId || accessCodes.filter(c => c.batchId === lastGeneratedBatchId && !c.isUsed).length === 0}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Print only the codes from the most recent generation batch"
+                    >
+                      {isGeneratingPdf ? (
+                        <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Generating PDF...</>
+                      ) : (
+                        <><Printer size={18} /> Print New Codes ({lastGeneratedBatchId ? accessCodes.filter(c => c.batchId === lastGeneratedBatchId && !c.isUsed).length : 0})</>
+                      )}
+                    </button>
+                    <button
+                      onClick={handlePrintAllUnused}
+                      disabled={isGeneratingPdf || accessCodes.filter(c => !c.isUsed).length === 0}
+                      className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Print all unused codes across every batch"
+                    >
+                      {isGeneratingPdf ? (
+                        <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Generating PDF...</>
+                      ) : (
+                        <><Printer size={18} /> Print All Unused ({accessCodes.filter(c => !c.isUsed).length})</>
+                      )}
+                    </button>
+                  </div>
                   <button
                     onClick={handleDownloadQrCodes}
                     disabled={isDownloadingCodes}
-                    className="flex-1 bg-green-700 hover:bg-green-800 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {isDownloadingCodes ? (
                       <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Zipping...</>
                     ) : (
-                      <><Download size={18} /> Download QR Codes</>
+                      <><Download size={18} /> Download All Unused as Images (ZIP)</>
                     )}
                   </button>
                 </div>
