@@ -211,6 +211,8 @@ export interface Prompt {
   userId?: string;
   tags?: string[];
   customFields?: PromptCustomField[];
+  /** NULL/undefined = use event-level or account-level model */
+  geminiModel?: string | null;
 }
 
 export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5';
@@ -267,6 +269,8 @@ export interface Event {
   kioskPasscode?: string;
   timezone?: string;
   imageResolution?: '1K' | '2K' | '4K' | null;
+  /** NULL / omitted = use global_settings.gemini_model. 'latest' maps to Nano Banana 2.1 at generation time. */
+  geminiModel?: string | null;
   disclaimerEnabled?: boolean;
   disclaimerText?: string;
   privateSharingMode?: boolean;

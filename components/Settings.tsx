@@ -673,12 +673,17 @@ const Settings: React.FC<SettingsProps> = ({
                   onChange={(e) => setGeminiModel(e.target.value)}
                   className="w-full bg-white border-2 border-slate-300 text-slate-900 rounded-lg px-4 py-3 focus:outline-none focus:border-green-700"
                 >
+                  <option value="latest">Latest</option>
+                  <option value="gemini-nano-banana-2.1">Nano Banana 2.1</option>
                   <option value="gemini-3-pro-image">Gemini 3 Pro Image (Recommended)</option>
                   <option value="gemini-3.1-flash-image">Gemini 3.1 Flash Image (Fast)</option>
                   <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Fast)</option>
+                  {geminiModel && !['latest', 'gemini-nano-banana-2.1', 'gemini-3-pro-image', 'gemini-3.1-flash-image', 'gemini-2.5-flash-image'].includes(geminiModel) && (
+                    <option value={geminiModel}>{geminiModel}</option>
+                  )}
                 </select>
                 <p className="text-xs text-slate-600 mt-2">
-                  Select which Gemini model to use for AI image generation
+                  Select which Gemini model to use for AI image generation. Latest uses Nano Banana 2.1. An event can override this.
                 </p>
               </div>
 

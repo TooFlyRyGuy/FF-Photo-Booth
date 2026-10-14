@@ -1943,6 +1943,23 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   />
                 </div>
 
+                <div className="pt-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingEvent.isActive !== false}
+                      onChange={(e) => setEditingEvent({...editingEvent, isActive: e.target.checked})}
+                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                    />
+                    <div>
+                      <span className="text-black font-medium">Event is active</span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        When unchecked, the kiosk for this event is immediately disabled. Guests cannot start a session until you re-enable it.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
                 {/* Event Pass Selector */}
                 <div className="pt-6">
                   <EventPassSelector
@@ -1962,8 +1979,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </CollapsibleSection>
 
-              {/* Branding Collapsible Section */}
-              <CollapsibleSection title="Branding" defaultOpen={false}>
+              {/* Photo Settings Collapsible Section */}
+              <CollapsibleSection title="Photo Settings" defaultOpen={false}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1994,30 +2011,105 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-4">
-                  <label className="text-sm font-medium text-slate-700">Image Resolution</label>
-                  <select
-                    value={editingEvent.imageResolution || ''}
-                    onChange={(e) => setEditingEvent({...editingEvent, imageResolution: (e.target.value || null) as '1K' | '2K' | '4K' | null})}
-                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
-                  >
-                    <option value="">Use Global Default</option>
-                    <option value="1K">1K - Standard (1 credit per photo)</option>
-                    <option value="2K">2K - High Quality (2 credits per photo)</option>
-                    <option value="4K">4K - Ultra Quality (4 credits per photo)</option>
-                  </select>
-                  <p className="text-xs text-slate-500">
-                    Controls the AI image resolution for this event. When set to "Use Global Default", the resolution from your global settings applies.
-                  </p>
-                  {editingEvent.imageResolution && editingEvent.imageResolution !== '1K' && (
-                    <div className="p-3 bg-amber-50 border-2 border-amber-400/50 rounded-lg">
-                      <p className="text-sm text-amber-800">
-                        <strong>Warning:</strong> {editingEvent.imageResolution === '2K' ? '2K' : '4K'} resolution costs {editingEvent.imageResolution === '2K' ? '2' : '4'} credits per photo instead of 1. This will consume credits {editingEvent.imageResolution === '2K' ? '2x' : '4x'} faster. Make sure the event owner has enough credits.
-                      </p>
-                    </div>
-                  )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Image Resolution</label>
+                    <select
+                      value={editingEvent.imageResolution || ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, imageResolution: (e.target.value || null) as '1K' | '2K' | '4K' | null})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                    >
+                      <option value="">Use Global Default</option>
+                      <option value="1K">1K - Standard (1 credit per photo)</option>
+                      <option value="2K">2K - High Quality (2 credits per photo)</option>
+                      <option value="4K">4K - Ultra Quality (4 credits per photo)</option>
+                    </select>
+                    <p className="text-xs text-slate-500">
+                      Controls the AI image resolution for this event. When set to "Use Global Default", the resolution from your global settings applies.
+                    </p>
+                    {editingEvent.imageResolution && editingEvent.imageResolution !== '1K' && (
+                      <div className="p-3 bg-amber-50 border-2 border-amber-400/50 rounded-lg">
+                        <p className="text-sm text-amber-800">
+                          <strong>Warning:</strong> {editingEvent.imageResolution === '2K' ? '2K' : '4K'} resolution costs {editingEvent.imageResolution === '2K' ? '2' : '4'} credits per photo instead of 1. This will consume credits {editingEvent.imageResolution === '2K' ? '2x' : '4x'} faster. Make sure the event owner has enough credits.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Gemini Model</label>
+                    <select
+                      value={editingEvent.geminiModel || ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, geminiModel: e.target.value || null})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                    >
+                      <option value="">Account default</option>
+                      <option value="latest">Latest</option>
+                      <option value="gemini-nano-banana-2.1">Nano Banana 2.1</option>
+                      <option value="gemini-3.1-flash-image">Nano Banana 2</option>
+                      <option value="gemini-3-pro-image">Gemini 3 Pro Image</option>
+                      <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+                      {editingEvent.geminiModel && !['latest', 'gemini-nano-banana-2.1', 'gemini-3.1-flash-image', 'gemini-3-pro-image', 'gemini-2.5-flash-image'].includes(editingEvent.geminiModel) && (
+                        <option value={editingEvent.geminiModel}>{editingEvent.geminiModel}</option>
+                      )}
+                    </select>
+                    <p className="text-xs text-slate-500">
+                      Account default saves no model and uses Global Settings. Latest uses Nano Banana 2.1 when a photo is generated.
+                    </p>
+                  </div>
                 </div>
 
+                <div className="pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <ImageIcon size={16} />
+                      Photo Overlay Image (Transparent PNG)
+                    </label>
+                    {editingEvent.overlayImageUrl && (editingEvent.overlayImageUrl.startsWith('data:') || editingEvent.overlayImageUrl.startsWith('http')) ? (
+                      <div className="relative">
+                        <img
+                          src={editingEvent.overlayImageUrl}
+                          alt="Overlay"
+                          className="w-full h-32 object-contain rounded-lg border-2 border-slate-300 bg-slate-50"
+                        />
+                        <button
+                          onClick={() => setEditingEvent({...editingEvent, overlayImageUrl: ''})}
+                          className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                          title="Remove image"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer block">
+                        <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                          <Upload size={32} className="text-slate-400 mb-2" />
+                          <span className="text-sm text-slate-600">Click to Upload</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleEventImageUpload(e, 'overlayImageUrl')}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    <input
+                      type="text"
+                      value={!editingEvent.overlayImageUrl?.startsWith('data:') ? (editingEvent.overlayImageUrl || '') : ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, overlayImageUrl: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      placeholder="Or enter URL: https://example.com/overlay.png"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Applied on top of generated images. Should match the event's aspect ratio ({editingEvent.aspectRatio || 'square'})
+                    </p>
+                  </div>
+                </div>
+              </CollapsibleSection>
+
+              {/* Kiosk Display Collapsible Section */}
+              <CollapsibleSection title="Kiosk Display" defaultOpen={false}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
@@ -2131,52 +2223,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         <option value="extra-large">Extra Large</option>
                       </select>
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                      <ImageIcon size={16} />
-                      Photo Overlay Image (Transparent PNG)
-                    </label>
-                    {editingEvent.overlayImageUrl && (editingEvent.overlayImageUrl.startsWith('data:') || editingEvent.overlayImageUrl.startsWith('http')) ? (
-                      <div className="relative">
-                        <img
-                          src={editingEvent.overlayImageUrl}
-                          alt="Overlay"
-                          className="w-full h-32 object-contain rounded-lg border-2 border-slate-300 bg-slate-50"
-                        />
-                        <button
-                          onClick={() => setEditingEvent({...editingEvent, overlayImageUrl: ''})}
-                          className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
-                          title="Remove image"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer block">
-                        <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
-                          <Upload size={32} className="text-slate-400 mb-2" />
-                          <span className="text-sm text-slate-600">Click to Upload</span>
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleEventImageUpload(e, 'overlayImageUrl')}
-                          className="hidden"
-                        />
-                      </label>
-                    )}
-                    <input
-                      type="text"
-                      value={!editingEvent.overlayImageUrl?.startsWith('data:') ? (editingEvent.overlayImageUrl || '') : ''}
-                      onChange={(e) => setEditingEvent({...editingEvent, overlayImageUrl: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
-                      placeholder="Or enter URL: https://example.com/overlay.png"
-                    />
-                    <p className="text-xs text-slate-500">
-                      Applied on top of generated images. Should match the event's aspect ratio ({editingEvent.aspectRatio || 'square'})
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Primary Color</label>
@@ -2878,6 +2924,27 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                                 labelClassName="block text-xs font-medium text-slate-700 mb-1"
                                 textareaClassName="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none min-h-[100px] font-mono text-xs"
                               />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Gemini Model</label>
+                              <select
+                                value={editingPromptData?.geminiModel || ''}
+                                onChange={(e) => setEditingPromptData({ ...editingPromptData, geminiModel: e.target.value || null })}
+                                className="w-full px-3 py-2 border-2 border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-green-700 focus:outline-none"
+                              >
+                                <option value="">Event / Account default</option>
+                                <option value="latest">Latest</option>
+                                <option value="gemini-nano-banana-2.1">Nano Banana 2.1</option>
+                                <option value="gemini-3.1-flash-image">Nano Banana 2</option>
+                                <option value="gemini-3-pro-image">Gemini 3 Pro Image</option>
+                                <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+                                {editingPromptData?.geminiModel && !['latest', 'gemini-nano-banana-2.1', 'gemini-3.1-flash-image', 'gemini-3-pro-image', 'gemini-2.5-flash-image'].includes(editingPromptData.geminiModel) && (
+                                  <option value={editingPromptData.geminiModel}>{editingPromptData.geminiModel}</option>
+                                )}
+                              </select>
+                              <p className="text-xs text-slate-500 mt-1">
+                                Overrides the event and account model for this specific prompt only.
+                              </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
