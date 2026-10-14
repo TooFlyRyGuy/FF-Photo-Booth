@@ -1962,8 +1962,8 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                 </div>
               </CollapsibleSection>
 
-              {/* Branding Collapsible Section */}
-              <CollapsibleSection title="Branding" defaultOpen={false}>
+              {/* Photo Settings Collapsible Section */}
+              <CollapsibleSection title="Photo Settings" defaultOpen={false}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Photo Aspect Ratio</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -2042,6 +2042,57 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   </div>
                 </div>
 
+                <div className="pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <ImageIcon size={16} />
+                      Photo Overlay Image (Transparent PNG)
+                    </label>
+                    {editingEvent.overlayImageUrl && (editingEvent.overlayImageUrl.startsWith('data:') || editingEvent.overlayImageUrl.startsWith('http')) ? (
+                      <div className="relative">
+                        <img
+                          src={editingEvent.overlayImageUrl}
+                          alt="Overlay"
+                          className="w-full h-32 object-contain rounded-lg border-2 border-slate-300 bg-slate-50"
+                        />
+                        <button
+                          onClick={() => setEditingEvent({...editingEvent, overlayImageUrl: ''})}
+                          className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
+                          title="Remove image"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer block">
+                        <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
+                          <Upload size={32} className="text-slate-400 mb-2" />
+                          <span className="text-sm text-slate-600">Click to Upload</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleEventImageUpload(e, 'overlayImageUrl')}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    <input
+                      type="text"
+                      value={!editingEvent.overlayImageUrl?.startsWith('data:') ? (editingEvent.overlayImageUrl || '') : ''}
+                      onChange={(e) => setEditingEvent({...editingEvent, overlayImageUrl: e.target.value})}
+                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                      placeholder="Or enter URL: https://example.com/overlay.png"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Applied on top of generated images. Should match the event's aspect ratio ({editingEvent.aspectRatio || 'square'})
+                    </p>
+                  </div>
+                </div>
+              </CollapsibleSection>
+
+              {/* Kiosk Display Collapsible Section */}
+              <CollapsibleSection title="Kiosk Display" defaultOpen={false}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
@@ -2155,52 +2206,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         <option value="extra-large">Extra Large</option>
                       </select>
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                      <ImageIcon size={16} />
-                      Photo Overlay Image (Transparent PNG)
-                    </label>
-                    {editingEvent.overlayImageUrl && (editingEvent.overlayImageUrl.startsWith('data:') || editingEvent.overlayImageUrl.startsWith('http')) ? (
-                      <div className="relative">
-                        <img
-                          src={editingEvent.overlayImageUrl}
-                          alt="Overlay"
-                          className="w-full h-32 object-contain rounded-lg border-2 border-slate-300 bg-slate-50"
-                        />
-                        <button
-                          onClick={() => setEditingEvent({...editingEvent, overlayImageUrl: ''})}
-                          className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg"
-                          title="Remove image"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer block">
-                        <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center hover:border-green-700 hover:bg-green-50 transition-colors">
-                          <Upload size={32} className="text-slate-400 mb-2" />
-                          <span className="text-sm text-slate-600">Click to Upload</span>
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleEventImageUpload(e, 'overlayImageUrl')}
-                          className="hidden"
-                        />
-                      </label>
-                    )}
-                    <input
-                      type="text"
-                      value={!editingEvent.overlayImageUrl?.startsWith('data:') ? (editingEvent.overlayImageUrl || '') : ''}
-                      onChange={(e) => setEditingEvent({...editingEvent, overlayImageUrl: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
-                      placeholder="Or enter URL: https://example.com/overlay.png"
-                    />
-                    <p className="text-xs text-slate-500">
-                      Applied on top of generated images. Should match the event's aspect ratio ({editingEvent.aspectRatio || 'square'})
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Primary Color</label>
