@@ -211,6 +211,8 @@ export interface Prompt {
   userId?: string;
   tags?: string[];
   customFields?: PromptCustomField[];
+  /** NULL/undefined = use event-level or account-level model */
+  geminiModel?: string | null;
 }
 
 export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5';

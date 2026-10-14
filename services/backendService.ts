@@ -664,6 +664,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
               promptText: p.prompt_text,
               category: p.category,
               customFields: (p as any).custom_fields || undefined,
+              geminiModel: (p as any).gemini_model || null,
             }));
         }
       }
@@ -854,6 +855,7 @@ const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
       promptText: p.prompt_text,
       category: p.category,
       customFields: (p as any).custom_fields || undefined,
+      geminiModel: (p as any).gemini_model || null,
     }));
 };
 
@@ -911,6 +913,7 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
     promptText: p.prompt_text,
     category: p.category,
     customFields: (p as any).custom_fields || undefined,
+    geminiModel: (p as any).gemini_model || null,
   }));
 
   cachedPrompts = prompts;
@@ -943,6 +946,7 @@ export const getPromptById = async (promptId: string): Promise<Prompt> => {
     promptText: promptData.prompt_text,
     category: promptData.category,
     customFields: (promptData as any).custom_fields || undefined,
+    geminiModel: (promptData as any).gemini_model || null,
   };
 };
 
@@ -1149,6 +1153,7 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
     user_id: userId,
     updated_at: new Date().toISOString(),
     custom_fields: prompt.customFields || null,
+    gemini_model: prompt.geminiModel || null,
   };
 
   const { data: newPrompt, error } = await supabase
@@ -1201,6 +1206,7 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
   if (prompt.isActive !== undefined) updateData.is_active = prompt.isActive;
   if (prompt.isPublic !== undefined) updateData.is_public = prompt.isPublic;
   if (prompt.customFields !== undefined) updateData.custom_fields = prompt.customFields.length > 0 ? prompt.customFields : null;
+  if (prompt.geminiModel !== undefined) updateData.gemini_model = prompt.geminiModel || null;
   updateData.updated_at = new Date().toISOString();
 
   const { error } = await supabase

@@ -399,7 +399,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         finalPromptText,
         referenceImageUrl,
         event.aspectRatio,
-        undefined,
+        selectedPrompt.geminiModel || event.geminiModel || undefined,
         event.imageResolution || globalSettings.geminiResolution,
         referenceImages,
         event.id
