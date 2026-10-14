@@ -1943,6 +1943,23 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   />
                 </div>
 
+                <div className="pt-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingEvent.isActive !== false}
+                      onChange={(e) => setEditingEvent({...editingEvent, isActive: e.target.checked})}
+                      className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                    />
+                    <div>
+                      <span className="text-black font-medium">Event is active</span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        When unchecked, the kiosk for this event is immediately disabled. Guests cannot start a session until you re-enable it.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
                 {/* Event Pass Selector */}
                 <div className="pt-6">
                   <EventPassSelector
