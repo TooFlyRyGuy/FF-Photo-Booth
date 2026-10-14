@@ -8,7 +8,8 @@ export const generateBoothImage = async (
   aspectRatio?: AspectRatio,
   modelName?: string,
   resolution?: '1K' | '2K' | '4K',
-  referenceImages?: ReferenceImage[]
+  referenceImages?: ReferenceImage[],
+  eventId?: string
 ): Promise<string> => {
   try {
     const isImageUrl = imageUrlOrBase64.startsWith('http://') || imageUrlOrBase64.startsWith('https://');
@@ -17,9 +18,16 @@ export const generateBoothImage = async (
     const body: any = {
       promptTemplate,
       aspectRatio,
-      modelName,
       resolution
     };
+
+    // Omit modelName when unset so the function can use the event model, then the account model.
+    if (modelName) {
+      body.modelName = modelName;
+    }
+    if (eventId) {
+      body.eventId = eventId;
+    }
 
     if (isImageUrl) {
       body.imageUrl = imageUrlOrBase64;

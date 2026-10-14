@@ -23,6 +23,7 @@ interface GenerateImageRequest {
   aspectRatio?: '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5' | 'square';
   modelName?: string;
   resolution?: '1K' | '2K' | '4K';
+  eventId?: string;
 }
 
 interface GeminiPart {
@@ -68,7 +69,8 @@ Deno.serve(async (req: Request) => {
       referenceImages,
       aspectRatio,
       modelName,
-      resolution
+      resolution,
+      eventId
     }: GenerateImageRequest = await req.json();
 
     // Validate required parameters
@@ -271,7 +273,61 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const model = modelName || gemini_model || 'gemini-3.1-flash-image';
+    const NANO_BANANA_21 = 'gemini-nano-banana-2.1';
+    const NANO_BANANA_2 = 'gemini-3.1-flash-image';
+
+    const normalizeModelName = (name: string | null | undefined): string | null => {
+      if (name == null) return null;
+      const trimmed = String(name).trim();
+      if (!trimmed) return null;
+      if (trimmed.toLowerCase() === 'latest') return NANO_BANANA_21;
+      return trimmed;
+    };
+
+    const isMissingOrUnsupportedModel = (status: number, body: string): boolean => {
+      if (status === 404) return true;
+      const text = body.toLowerCase();
+      return (
+        text.includes('model-not-found') ||
+        text.includes('model not found') ||
+        text.includes('unsupported-model') ||
+        text.includes('unsupported model') ||
+        (text.includes('not_found') && text.includes('model')) ||
+        (text.includes('is not found') && text.includes('model')) ||
+        text.includes('not supported for generatecontent')
+      );
+    };
+
+    let eventGeminiModel: string | null = null;
+    const eventIdValue = typeof eventId === 'string' ? eventId.trim() : '';
+    if (eventIdValue && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdValue)) {
+      const eventResponse = await fetch(
+        `${supabaseUrl}/rest/v1/events?id=eq.${eventIdValue}&select=gemini_model&limit=1`,
+        {
+          headers: {
+            'apikey': supabaseServiceKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          }
+        }
+      );
+
+      if (!eventResponse.ok) {
+        const errorText = await eventResponse.text();
+        console.error('Failed to load event gemini_model:', eventResponse.status, errorText);
+      } else {
+        const eventRows = await eventResponse.json();
+        const stored = eventRows?.[0]?.gemini_model;
+        eventGeminiModel = typeof stored === 'string' && stored.trim() ? stored.trim() : null;
+      }
+    } else if (eventIdValue) {
+      console.warn('Ignoring invalid eventId for gemini_model lookup:', eventIdValue);
+    }
+
+    const requestModel = normalizeModelName(modelName);
+    const eventModel = normalizeModelName(eventGeminiModel);
+    const globalModel = normalizeModelName(gemini_model);
+    const model = requestModel || eventModel || globalModel || NANO_BANANA_21;
+    const modelSource = requestModel ? 'request' : eventModel ? 'event' : globalModel ? 'global' : 'default';
     const imageResolution = resolution || gemini_resolution || '2K';
     const geminiAspectRatio = mapAspectRatioToGemini(aspectRatio);
     const aspectRatioSpec = getAspectRatioSpec(aspectRatio);
@@ -378,7 +434,12 @@ Deno.serve(async (req: Request) => {
       parts[1] = { text: finalPrompt };
     }
 
-    console.log('Calling Gemini API with model:', model);
+    console.log('Calling Gemini API with model:', model, 'source:', modelSource, {
+      requestModel: modelName ?? null,
+      eventModel: eventGeminiModel,
+      globalModel: gemini_model ?? null,
+      eventId: eventIdValue || null,
+    });
     console.log('Aspect ratio:', geminiAspectRatio);
     console.log('Resolution:', imageResolution);
     console.log('Prompt:', finalPrompt);
@@ -387,7 +448,8 @@ Deno.serve(async (req: Request) => {
     const imageConfigObj: Record<string, string> = {
       aspectRatio: geminiAspectRatio,
     };
-    // imageSize must be exactly "512", "1K", "2K", or "4K" (uppercase K required)
+    // imageSize must be exactly "512", "1K", "2K", or "4K" (uppercase K required).
+    // Sent for every model, including gemini-nano-banana-2.1. No model-name allowlist.
     if (imageResolution && ['512', '1K', '2K', '4K'].includes(imageResolution)) {
       imageConfigObj.imageSize = imageResolution;
     }
@@ -415,9 +477,8 @@ Deno.serve(async (req: Request) => {
       }]
     }));
 
-    // Call Gemini API for image editing
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    const callGenerateContent = (modelToCall: string) => fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelToCall)}:generateContent`,
       {
         method: 'POST',
         headers: {
@@ -428,22 +489,55 @@ Deno.serve(async (req: Request) => {
       }
     );
 
+    // Call Gemini API for image editing
+    let activeModel = model;
+    let geminiResponse = await callGenerateContent(activeModel);
+
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
       console.error('Gemini API Error Status:', geminiResponse.status);
       console.error('Gemini API Error Body:', errorText);
-      return new Response(
-        JSON.stringify({
-          error: `Gemini API error (${geminiResponse.status})`,
-          detail: errorText,
-          model,
-          success: false
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+
+      const canFallback = activeModel !== NANO_BANANA_2 && isMissingOrUnsupportedModel(geminiResponse.status, errorText);
+      if (!canFallback) {
+        return new Response(
+          JSON.stringify({
+            error: `Gemini API error (${geminiResponse.status})`,
+            detail: errorText,
+            model: activeModel,
+            success: false
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      console.warn(
+        `Gemini model fallback: "${activeModel}" returned ${geminiResponse.status} (model not found or unsupported). Retrying once with ${NANO_BANANA_2}.`
       );
+      activeModel = NANO_BANANA_2;
+      geminiResponse = await callGenerateContent(activeModel);
+
+      if (!geminiResponse.ok) {
+        const fallbackErrorText = await geminiResponse.text();
+        console.error('Gemini fallback error status:', geminiResponse.status);
+        console.error('Gemini fallback error body:', fallbackErrorText);
+        return new Response(
+          JSON.stringify({
+            error: `Gemini API error (${geminiResponse.status})`,
+            detail: fallbackErrorText,
+            model: activeModel,
+            fallbackFrom: model,
+            success: false
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
     }
 
     const geminiResult = await geminiResponse.json();
@@ -471,6 +565,10 @@ Deno.serve(async (req: Request) => {
       const finishReason = geminiResult.candidates?.[0]?.finishReason;
       console.error('No image in response. Full result:', JSON.stringify(geminiResult).substring(0, 2000));
       throw new Error(`No image generated. Finish reason: ${finishReason || 'unknown'}`);
+    }
+
+    if (activeModel !== model) {
+      console.log(`Gemini model fallback succeeded. Requested ${model}, generated with ${activeModel}.`);
     }
 
     return new Response(

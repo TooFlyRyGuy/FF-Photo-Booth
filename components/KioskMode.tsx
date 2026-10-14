@@ -379,7 +379,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setUploadProgress('Generating AI image...');
       console.log('🎨 Starting Gemini image generation...', {
         geminiEnabled: globalSettings.geminiEnabled,
-        model: globalSettings.geminiModel,
+        eventId: event.id,
+        eventModel: event.geminiModel || null,
         resolution: event.imageResolution || globalSettings.geminiResolution,
       });
 
@@ -398,9 +399,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         finalPromptText,
         referenceImageUrl,
         event.aspectRatio,
-        globalSettings.geminiModel,
+        undefined,
         event.imageResolution || globalSettings.geminiResolution,
-        referenceImages
+        referenceImages,
+        event.id
       );
 
       const isPrivateMode = event.privateSharingMode === true;

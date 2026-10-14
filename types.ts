@@ -267,6 +267,8 @@ export interface Event {
   kioskPasscode?: string;
   timezone?: string;
   imageResolution?: '1K' | '2K' | '4K' | null;
+  /** NULL / omitted = use global_settings.gemini_model. 'latest' maps to Nano Banana 2.1 at generation time. */
+  geminiModel?: string | null;
   disclaimerEnabled?: boolean;
   disclaimerText?: string;
   privateSharingMode?: boolean;
