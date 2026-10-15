@@ -299,12 +299,12 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
   };
 
   const launchSlideshow = (event: Event) => {
-    const url = `https://display.funframephoto.com/?kiosk=${event.passcode}&autoplay=1`;
+    const url = `https://slideshow.funframephoto.com/?kiosk=${event.passcode}&autoplay=1`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const getSlideshowUrl = (passcode: string | undefined) => {
-    return `https://display.funframephoto.com/?kiosk=${passcode || ''}`;
+    return `https://slideshow.funframephoto.com/?kiosk=${passcode || ''}`;
   };
 
   const copySlideshowLink = (passcode: string | undefined) => {
