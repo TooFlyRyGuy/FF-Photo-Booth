@@ -1738,6 +1738,29 @@ export const duplicateEvent = async (eventId: string): Promise<Event> => {
   const savedEvent = await saveEvent(duplicatedEvent);
   clearEventsCache();
 
+  try {
+    const overrides = await getKioskTextOverrides(eventId);
+    if (overrides.length > 0) {
+      const newOverrides = overrides.map(o => ({
+        event_id: savedEvent.id,
+        language_code: o.languageCode,
+        text_key: o.textKey,
+        text_value: o.textValue,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { error: overridesError } = await supabase
+        .from('kiosk_text_overrides')
+        .insert(newOverrides);
+
+      if (overridesError) {
+        console.error('Failed to copy kiosk text overrides:', overridesError);
+      }
+    }
+  } catch (overridesError) {
+    console.error('Failed to copy kiosk text overrides:', overridesError);
+  }
+
   return savedEvent;
 };
 
