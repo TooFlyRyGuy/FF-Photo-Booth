@@ -661,6 +661,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
               description: p.description || '',
               previewImage: p.preview_image_url,
               referenceImage: p.reference_image_url,
+              referenceImages: (p as any).reference_images || undefined,
+              referenceStrength: (p as any).reference_strength ?? undefined,
               promptText: p.prompt_text,
               category: p.category,
               customFields: (p as any).custom_fields || undefined,
@@ -852,6 +854,8 @@ const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
       description: p.description || '',
       previewImage: p.preview_image_url,
       referenceImage: p.reference_image_url,
+      referenceImages: (p as any).reference_images || undefined,
+      referenceStrength: (p as any).reference_strength ?? undefined,
       promptText: p.prompt_text,
       category: p.category,
       customFields: (p as any).custom_fields || undefined,
@@ -910,6 +914,8 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
     description: p.description || '',
     previewImage: p.preview_image_url,
     referenceImage: p.reference_image_url,
+    referenceImages: (p as any).reference_images || undefined,
+    referenceStrength: (p as any).reference_strength ?? undefined,
     promptText: p.prompt_text,
     category: p.category,
     customFields: (p as any).custom_fields || undefined,
@@ -943,6 +949,8 @@ export const getPromptById = async (promptId: string): Promise<Prompt> => {
     description: promptData.description || '',
     previewImage: promptData.preview_image_url,
     referenceImage: promptData.reference_image_url,
+    referenceImages: (promptData as any).reference_images || undefined,
+    referenceStrength: (promptData as any).reference_strength ?? undefined,
     promptText: promptData.prompt_text,
     category: promptData.category,
     customFields: (promptData as any).custom_fields || undefined,
@@ -1149,6 +1157,8 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
     prompt_text: prompt.promptText,
     preview_image_url: previewImageUrl || '',
     reference_image_url: referenceImageUrl,
+    reference_images: prompt.referenceImages || null,
+    reference_strength: prompt.referenceStrength ?? 50,
     is_active: true,
     user_id: userId,
     updated_at: new Date().toISOString(),
@@ -1207,6 +1217,8 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
   if (prompt.isPublic !== undefined) updateData.is_public = prompt.isPublic;
   if (prompt.customFields !== undefined) updateData.custom_fields = prompt.customFields.length > 0 ? prompt.customFields : null;
   if (prompt.geminiModel !== undefined) updateData.gemini_model = prompt.geminiModel || null;
+  if (prompt.referenceImages !== undefined) updateData.reference_images = prompt.referenceImages || null;
+  if (prompt.referenceStrength !== undefined) updateData.reference_strength = prompt.referenceStrength ?? 50;
   updateData.updated_at = new Date().toISOString();
 
   const { error } = await supabase
