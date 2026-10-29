@@ -739,7 +739,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       privateSharingMode: event.private_sharing_mode || false,
       skipCleanVersion: event.skip_clean_version || false,
       photoRetentionDays: event.photo_retention_days ?? 30,
-      sharingScreenTimeout: event.sharing_screen_timeout ?? 15,
+      sharingScreenTimeout: event.sharing_screen_timeout ?? 30,
     });
   }
 
@@ -819,7 +819,7 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
     privateSharingMode: eventData.private_sharing_mode || false,
     skipCleanVersion: eventData.skip_clean_version || false,
     photoRetentionDays: eventData.photo_retention_days ?? 30,
-    sharingScreenTimeout: eventData.sharing_screen_timeout ?? 15,
+    sharingScreenTimeout: eventData.sharing_screen_timeout ?? 30,
   };
 };
 
@@ -1028,7 +1028,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     private_sharing_mode: event.privateSharingMode || false,
     skip_clean_version: event.skipCleanVersion || false,
     photo_retention_days: event.photoRetentionDays ?? 30,
-    sharing_screen_timeout: event.sharingScreenTimeout ?? 15,
+    sharing_screen_timeout: event.sharingScreenTimeout ?? 30,
     event_source: isUpdate ? undefined : eventSource,
   };
 

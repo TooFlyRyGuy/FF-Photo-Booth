@@ -2586,12 +2586,12 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       type="number"
                       min={5}
                       max={120}
-                      value={editingEvent.sharingScreenTimeout ?? 15}
+                      value={editingEvent.sharingScreenTimeout ?? 30}
                       onChange={(e) => {
                         const val = parseInt(e.target.value, 10);
                         setEditingEvent({
                           ...editingEvent,
-                          sharingScreenTimeout: isNaN(val) ? 15 : Math.min(120, Math.max(5, val)),
+                          sharingScreenTimeout: isNaN(val) ? 30 : Math.min(120, Math.max(5, val)),
                         });
                       }}
                       className="w-24 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
