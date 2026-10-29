@@ -40,6 +40,12 @@ export const getAspectRatioDimensions = (ratio: AspectRatio = 'square'): { width
       return { width: 576, height: 1024 };
     case '16:9':
       return { width: 1024, height: 576 };
+    case '2:3':
+      return { width: 683, height: 1024 };
+    case '3:2':
+      return { width: 1024, height: 683 };
+    case '4:5':
+      return { width: 819, height: 1024 };
     case 'square':
     default:
       return { width: baseSize, height: baseSize };
