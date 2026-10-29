@@ -425,7 +425,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
     try {
       let query = supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, is_public, is_active, user_id, created_at, custom_fields')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, reference_images, reference_strength, is_public, is_active, user_id, created_at, custom_fields')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -442,6 +442,8 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         description: p.description || '',
         previewImage: p.preview_image_url,
         referenceImage: p.reference_image_url,
+        referenceImages: (p as any).reference_images || undefined,
+        referenceStrength: (p as any).reference_strength ?? undefined,
         promptText: '',
         category: p.category,
         isPublic: p.is_public,
@@ -502,6 +504,8 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         prompt_text: updated.promptText,
         preview_image_url: updated.previewImage || null,
         reference_image_url: updated.referenceImage || null,
+        reference_images: updated.referenceImages || null,
+        reference_strength: updated.referenceStrength ?? 50,
         is_public: updated.isPublic,
         tags: updated.tags || [],
         custom_fields: updated.customFields && updated.customFields.length > 0 ? updated.customFields : null,
@@ -564,6 +568,8 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         prompt_text: newPrompt.promptText,
         preview_image_url: newPrompt.previewImage || null,
         reference_image_url: newPrompt.referenceImage || null,
+        reference_images: newPrompt.referenceImages || null,
+        reference_strength: newPrompt.referenceStrength ?? 50,
         is_public: newPrompt.isPublic,
         is_active: true,
         tags: newPrompt.tags || [],
