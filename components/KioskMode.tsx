@@ -54,7 +54,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
   const [eventTimeStatus, setEventTimeStatus] = useState<'before' | 'active' | 'after'>('active');
-  const [deliveryCountdown, setDeliveryCountdown] = useState<number>(15);
+  const [deliveryCountdown, setDeliveryCountdown] = useState<number>(event.sharingScreenTimeout ?? 15);
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const [deviceLimitRemaining, setDeviceLimitRemaining] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -667,7 +667,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     try {
       await sendSms(phoneNumber, shareUrl, generatedImageId, event.id);
       setPhoneNumber('');
-      setDeliveryCountdown(15);
+      setDeliveryCountdown(event.sharingScreenTimeout ?? 15);
       setView('delivery');
     } catch (error) {
       console.error('SMS send failed:', error);
@@ -685,7 +685,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       .replace(/\{event_name\}/g, event.name)
       .replace(/\{image_url\}/g, shareUrl);
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-    setDeliveryCountdown(15);
+    setDeliveryCountdown(event.sharingScreenTimeout ?? 15);
     setView('delivery');
   };
 
@@ -697,7 +697,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     try {
       await sendEmail(emailAddress, shareUrl, generatedImageId, event.id);
       setEmailAddress('');
-      setDeliveryCountdown(15);
+      setDeliveryCountdown(event.sharingScreenTimeout ?? 15);
       setView('delivery');
     } catch (error) {
       console.error('Email send failed:', error);
@@ -867,7 +867,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           if (prev <= 1) {
             clearInterval(interval);
             resetKiosk();
-            return 15;
+            return event.sharingScreenTimeout ?? 15;
           }
           return prev - 1;
         });
@@ -875,7 +875,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       return () => clearInterval(interval);
     }
-  }, [view]);
+  }, [view, event.sharingScreenTimeout]);
 
   // Preload prompt images for faster display
   useEffect(() => {

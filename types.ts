@@ -276,6 +276,7 @@ export interface Event {
   privateSharingMode?: boolean;
   skipCleanVersion?: boolean;
   photoRetentionDays?: number | null;
+  sharingScreenTimeout?: number | null;
 }
 
 export interface EventAccessCode {

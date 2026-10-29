@@ -2576,6 +2576,28 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       When enabled, the sharing screen shows a "Get Your Own Account Now" link at the bottom. Turn this off for a cleaner, fully branded experience.
                     </p>
                   </div>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Sharing screen timeout</label>
+                    <p className="text-xs text-slate-500 mb-2">
+                      How long the sharing/delivery screen stays visible before the kiosk automatically returns to the start screen. Set between 5 and 120 seconds.
+                    </p>
+                    <input
+                      type="number"
+                      min={5}
+                      max={120}
+                      value={editingEvent.sharingScreenTimeout ?? 15}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setEditingEvent({
+                          ...editingEvent,
+                          sharingScreenTimeout: isNaN(val) ? 15 : Math.min(120, Math.max(5, val)),
+                        });
+                      }}
+                      className="w-24 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                    />
+                    <span className="text-sm text-slate-500 ml-2">seconds</span>
+                  </div>
                 </div>
               </CollapsibleSection>
 
