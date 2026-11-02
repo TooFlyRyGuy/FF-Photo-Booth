@@ -419,6 +419,7 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [deletingPrompt, setDeletingPrompt] = useState<Prompt | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [privateCategories, setPrivateCategories] = useState<Set<string>>(new Set());
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -436,7 +437,15 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
       const promptsRes = await query;
       if (promptsRes.error) throw promptsRes.error;
 
-      const mapped: Prompt[] = (promptsRes.data || []).map(p => ({
+      const catRes = await supabase
+        .from('prompt_categories')
+        .select('category, is_private')
+        .eq('is_private', true);
+      if (catRes.error) throw catRes.error;
+      const privateCats = new Set((catRes.data || []).map(c => c.category));
+      setPrivateCategories(privateCats);
+
+      let mapped: Prompt[] = (promptsRes.data || []).map(p => ({
         id: p.id,
         name: p.name,
         description: p.description || '',
@@ -452,11 +461,16 @@ const PublicLibrary: React.FC<PublicLibraryProps> = ({ isAdmin = false }) => {
         customFields: (p as any).custom_fields || undefined,
       }));
 
+      if (!isAdmin) {
+        mapped = mapped.filter(p => !privateCats.has(p.category));
+      }
+
       setPrompts(mapped);
 
-      const allCats = [...new Set(mapped.map(p => p.category).filter(Boolean))].sort() as string[];
+      const visible = isAdmin ? mapped : mapped.filter(p => !privateCats.has(p.category));
+      const allCats = [...new Set(visible.map(p => p.category).filter(Boolean))].sort() as string[];
       const tagSet = new Set<string>();
-      mapped.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
+      visible.forEach(p => (p.tags || []).forEach((t: string) => tagSet.add(t)));
       setAllCategories(allCats);
       setAllTags([...tagSet].sort());
     } catch (err: any) {

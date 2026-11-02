@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp, Languages } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Tag, X, Save, Image as ImageIcon, Search, Upload, Check, Globe, Lock, Sparkles, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp, Languages, EyeOff } from 'lucide-react';
 import { generateBoothImage } from '../services/geminiService';
 import { compressBase64Image } from '../services/imageCompression';
 import { checkCreditAvailability, consumeCredit, getTotalCredits } from '../services/creditService';
@@ -81,6 +81,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
   const [showTranslations, setShowTranslations] = useState(false);
   const [isTranslatingPrompt, setIsTranslatingPrompt] = useState(false);
   const [isSavingTranslations, setIsSavingTranslations] = useState(false);
+  const [privateCategories, setPrivateCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!hasLoadedRef.current) {
@@ -147,10 +148,53 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       const catSet = new Set<string>();
       allPrompts.forEach(p => { if (p.category) catSet.add(p.category); });
       setAllCategories(Array.from(catSet).sort());
+
+      const { data: catPrivacy } = await supabase
+        .from('prompt_categories')
+        .select('category, is_private')
+        .eq('is_private', true);
+      setPrivateCategories(new Set((catPrivacy || []).map(c => c.category)));
     } catch (error) {
       console.error('Error loading prompts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleCategoryPrivacy = async (category: string) => {
+    const isCurrentlyPrivate = privateCategories.has(category);
+    setPrivateCategories(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyPrivate) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+    try {
+      if (isCurrentlyPrivate) {
+        const { data: existing } = await supabase
+          .from('prompt_categories')
+          .select('id')
+          .eq('category', category)
+          .maybeSingle();
+        if (existing) {
+          await supabase
+            .from('prompt_categories')
+            .update({ is_private: false })
+            .eq('id', existing.id);
+        }
+      } else {
+        await supabase
+          .from('prompt_categories')
+          .upsert({ category, is_private: true }, { onConflict: 'category' });
+      }
+    } catch (err) {
+      console.error('Failed to update category privacy:', err);
+      setPrivateCategories(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyPrivate) next.add(category);
+        else next.delete(category);
+        return next;
+      });
     }
   };
 
@@ -1330,18 +1374,43 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                   <span className="font-bold text-slate-900 text-base">{totalCount}</span> prompts in your library. Select a category or tag to browse, or search above.
                 </p>
               </div>
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <EyeOff size={16} className="text-amber-700 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    Click the lock icon on a category to hide it from the public library. Private categories are still available for use in events.
+                  </p>
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {allCategories.map(cat => {
                   const count = prompts.filter(p => p.category === cat).length;
+                  const isPrivate = privateCategories.has(cat);
                   return (
-                    <button
+                    <div
                       key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className="flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-green-700 hover:shadow-sm transition-all text-left"
+                      className="flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-green-700 hover:shadow-sm transition-all"
                     >
-                      <span className="font-semibold text-slate-900 truncate">{cat}</span>
-                      <span className="ml-2 text-sm font-medium text-slate-500 shrink-0">{count}</span>
-                    </button>
+                      <button
+                        onClick={() => setSelectedCategory(cat)}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                      >
+                        <span className={`font-semibold truncate ${isPrivate ? 'text-slate-400' : 'text-slate-900'}`}>{cat}</span>
+                        {isPrivate && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium shrink-0">
+                            <Lock size={10} /> Private
+                          </span>
+                        )}
+                        <span className="ml-1 text-sm font-medium text-slate-500 shrink-0">{count}</span>
+                      </button>
+                      <button
+                        onClick={() => toggleCategoryPrivacy(cat)}
+                        className={`ml-2 p-1.5 rounded-lg shrink-0 transition-colors ${isPrivate ? 'text-amber-600 hover:bg-amber-100' : 'text-slate-300 hover:bg-slate-100 hover:text-slate-500'}`}
+                        title={isPrivate ? 'Make category public' : 'Make category private (hide from public library)'}
+                      >
+                        {isPrivate ? <Lock size={16} /> : <EyeOff size={16} />}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
