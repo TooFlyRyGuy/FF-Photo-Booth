@@ -31,7 +31,7 @@ const KIOSK_TEXT_GROUPS: KioskTextGroup[] = [
   },
   {
     label: 'Prompt Selection',
-    keys: ['kiosk.chooseYourStyle', 'kiosk.cancel'],
+    keys: ['kiosk.chooseYourStyle', 'kiosk.tellUsAboutYou', 'kiosk.cancel'],
   },
   {
     label: 'Camera',

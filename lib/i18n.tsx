@@ -147,7 +147,7 @@ const enUS: TranslationDict = {
   'promptLibrary.translationsSaved': 'Translations saved.',
 
   // Kiosk - Prompt Customize (Guest Input)
-  'kiosk.tellUsAboutYou': 'Tell Us About You',
+  'kiosk.tellUsAboutYou': 'Customize Your Image',
   'kiosk.continue': 'Continue',
   'kiosk.requiredField': 'This field is required',
   'kiosk.aiGenerating': 'AI is writing this for you...',
