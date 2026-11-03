@@ -1232,6 +1232,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             <h2 className="text-xl md:text-2xl font-bold text-slate-900 truncate">
               {eventId ? 'Browse Prompt Library' : 'Prompt Library'}
               <span className="ml-2 text-sm font-normal text-slate-500">{totalCount} total</span>
+              {!eventId && privateCategories.size > 0 && (
+                <span className="ml-2 text-xs font-normal text-amber-600">
+                  ({prompts.filter(p => p.isPublic && !privateCategories.has(p.category)).length} public)
+                </span>
+              )}
             </h2>
             <p className="text-sm md:text-base text-slate-600 mt-1">
               {eventId ? 'Select prompts to add to your event' : 'Manage AI prompts for your events'}
@@ -1371,7 +1376,11 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             <div className="space-y-4">
               <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4">
                 <p className="text-sm text-slate-600">
-                  <span className="font-bold text-slate-900 text-base">{totalCount}</span> prompts in your library. Select a category or tag to browse, or search above.
+                  <span className="font-bold text-slate-900 text-base">{totalCount}</span> prompts in your library.
+                  {privateCategories.size > 0 && (
+                    <span className="text-amber-600 font-medium"> {prompts.filter(p => p.isPublic && !privateCategories.has(p.category)).length} visible to the public.</span>
+                  )}
+                  {' '}Select a category or tag to browse, or search above.
                 </p>
               </div>
               <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 mb-4">
