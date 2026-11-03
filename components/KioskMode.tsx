@@ -155,20 +155,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       return;
     }
     setSelectedMode(enabledModes[0] || 'photo');
-    const modePrompts = (event.prompts || []).filter(p => !p.mode || p.mode === (enabledModes[0] || 'photo'));
-    if (modePrompts.length === 1) {
-      const p = modePrompts[0];
-      setSelectedPrompt(p);
-      if (p.customFields && p.customFields.some(f => !f.aiGenerated)) {
-        setGuestAnswers({});
-        setCustomizeErrors({});
-        setView('prompt-customize');
-      } else {
-        setView('camera');
-      }
-    } else {
-      setView('prompt-select');
-    }
+    setView('prompt-select');
   };
 
   const handleTapToStart = async () => {
@@ -1353,20 +1340,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
     const handleModeSelect = (modeKey: string) => {
       setSelectedMode(modeKey);
-      const modePrompts = (event.prompts || []).filter(p => !p.mode || p.mode === modeKey);
-      if (modePrompts.length === 1) {
-        const p = modePrompts[0];
-        setSelectedPrompt(p);
-        if (p.customFields && p.customFields.some(f => !f.aiGenerated)) {
-          setGuestAnswers({});
-          setCustomizeErrors({});
-          setView('prompt-customize');
-        } else {
-          setView('camera');
-        }
-      } else {
-        setView('prompt-select');
-      }
+      setView('prompt-select');
     };
 
     return (
