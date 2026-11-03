@@ -9,7 +9,8 @@ export const generateBoothImage = async (
   modelName?: string,
   resolution?: '1K' | '2K' | '4K',
   referenceImages?: ReferenceImage[],
-  eventId?: string
+  eventId?: string,
+  stickerMode?: boolean
 ): Promise<string> => {
   try {
     const isImageUrl = imageUrlOrBase64.startsWith('http://') || imageUrlOrBase64.startsWith('https://');
@@ -27,6 +28,9 @@ export const generateBoothImage = async (
     }
     if (eventId) {
       body.eventId = eventId;
+    }
+    if (stickerMode) {
+      body.stickerMode = true;
     }
 
     if (isImageUrl) {

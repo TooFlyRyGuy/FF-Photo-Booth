@@ -27,6 +27,8 @@ interface Prompt {
   userId?: string | null;
   isPublic?: boolean;
   customFields?: PromptCustomField[];
+  mode?: 'photo' | 'sticker' | 'video';
+  subcategory?: string;
 }
 
 interface PromptLibraryProps {
@@ -116,7 +118,7 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     try {
       const { data, error } = await supabase
         .from('prompts')
-        .select('id, name, description, category, tags, preview_image_url, reference_image_url, reference_images, reference_strength, usage_count, user_id, is_active, is_public, custom_fields')
+        .select('id, name, description, category, tags, preview_image_url, reference_image_url, reference_images, reference_strength, usage_count, user_id, is_active, is_public, custom_fields, mode, subcategory')
         .eq('is_active', true)
         .order('category')
         .order('name');
@@ -139,6 +141,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
         userId: prompt.user_id,
         isPublic: prompt.is_public,
         customFields: (prompt as any).custom_fields || undefined,
+        mode: (prompt as any).mode || 'photo',
+        subcategory: (prompt as any).subcategory || '',
       }));
 
       setPrompts(allPrompts);
@@ -262,6 +266,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
       tags: [],
       isActive: true,
       usageCount: 0,
+      mode: 'photo',
+      subcategory: '',
     });
     setIsCreating(true);
     setIsPublic(false);
@@ -280,12 +286,12 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
     if (!prompt.promptText) {
       const { data, error } = await supabase
         .from('prompts')
-        .select('prompt_text, custom_fields')
+        .select('prompt_text, custom_fields, mode, subcategory')
         .eq('id', prompt.id)
         .maybeSingle();
 
       if (data && !error) {
-        const fullPrompt = mergeLegacyRef({ ...prompt, promptText: data.prompt_text || '', customFields: (data as any).custom_fields || prompt.customFields || undefined });
+        const fullPrompt = mergeLegacyRef({ ...prompt, promptText: data.prompt_text || '', customFields: (data as any).custom_fields || prompt.customFields || undefined, mode: (data as any).mode || prompt.mode || 'photo', subcategory: (data as any).subcategory || prompt.subcategory || '' });
         setEditingPrompt(fullPrompt);
         setPrompts(prev => prev.map(p => p.id === prompt.id ? fullPrompt : p));
       } else {
@@ -528,6 +534,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
           is_public: isPublic,
           user_id: userId,
           custom_fields: editingPrompt.customFields || null,
+          mode: editingPrompt.mode || 'photo',
+          subcategory: editingPrompt.subcategory || null,
           updated_at: new Date().toISOString(),
         });
 
@@ -548,6 +556,8 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
             is_active: editingPrompt.isActive,
             is_public: isPublic,
             custom_fields: editingPrompt.customFields || null,
+            mode: editingPrompt.mode || 'photo',
+            subcategory: editingPrompt.subcategory || null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingPrompt.id);
@@ -807,6 +817,34 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ userId, onClose, eventId,
                 className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
                 placeholder="Candycane portrait Studio"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Mode</label>
+                <select
+                  value={editingPrompt.mode || 'photo'}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, mode: e.target.value as 'photo' | 'sticker' | 'video' })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700 bg-white"
+                >
+                  <option value="photo">Photo</option>
+                  <option value="sticker">Sticker</option>
+                  <option value="video">Video (coming soon)</option>
+                </select>
+                <p className="text-xs text-slate-500 mt-1">Determines which kiosk mode this prompt appears in. Sticker prompts produce transparent PNGs with no background.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-2">Subcategory (Optional)</label>
+                <input
+                  type="text"
+                  value={editingPrompt.subcategory || ''}
+                  onChange={(e) => setEditingPrompt({ ...editingPrompt, subcategory: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-green-700"
+                  placeholder="e.g. Holiday, Portrait, Abstract"
+                />
+                <p className="text-xs text-slate-500 mt-1">Free-text subcategory for further grouping within a mode</p>
+              </div>
             </div>
 
             <div>

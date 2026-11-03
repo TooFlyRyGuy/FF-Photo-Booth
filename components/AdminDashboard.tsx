@@ -2598,6 +2598,47 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                     />
                     <span className="text-sm text-slate-500 ml-2">seconds</span>
                   </div>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Enabled modes</label>
+                    <p className="text-xs text-slate-500 mb-2">
+                      Choose which capture modes guests can select at the kiosk. If only one mode is enabled, the mode selection screen is skipped. Sticker mode produces transparent PNG files with no background. Video mode is coming soon.
+                    </p>
+                    <div className="flex flex-wrap gap-4">
+                      {[
+                        { key: 'photo', label: 'Photo' },
+                        { key: 'sticker', label: 'Sticker' },
+                        { key: 'video', label: 'Video (coming soon)' },
+                      ].map(mode => {
+                        const currentModes = editingEvent.enabledModes || ['photo'];
+                        const isChecked = currentModes.includes(mode.key);
+                        const isVideo = mode.key === 'video';
+                        return (
+                          <label
+                            key={mode.key}
+                            className={`flex items-center gap-2 cursor-pointer ${isVideo ? 'opacity-50' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              disabled={isVideo}
+                              onChange={(e) => {
+                                let modes = currentModes;
+                                if (e.target.checked) {
+                                  if (!modes.includes(mode.key)) modes = [...modes, mode.key];
+                                } else {
+                                  if (modes.length > 1) modes = modes.filter(m => m !== mode.key);
+                                }
+                                setEditingEvent({ ...editingEvent, enabledModes: modes });
+                              }}
+                              className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                            />
+                            <span className="text-black font-medium">{mode.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </CollapsibleSection>
 

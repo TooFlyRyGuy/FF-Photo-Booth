@@ -617,7 +617,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model, sharing_screen_timeout')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model, sharing_screen_timeout, enabled_modes')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -667,6 +667,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
               category: p.category,
               customFields: (p as any).custom_fields || undefined,
               geminiModel: (p as any).gemini_model || null,
+              mode: (p as any).mode || 'photo',
+              subcategory: (p as any).subcategory || '',
             }));
         }
       }
@@ -740,6 +742,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       skipCleanVersion: event.skip_clean_version || false,
       photoRetentionDays: event.photo_retention_days ?? 30,
       sharingScreenTimeout: event.sharing_screen_timeout ?? 30,
+      enabledModes: (event as any).enabled_modes || ['photo'],
     });
   }
 
@@ -820,6 +823,7 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
     skipCleanVersion: eventData.skip_clean_version || false,
     photoRetentionDays: eventData.photo_retention_days ?? 30,
     sharingScreenTimeout: eventData.sharing_screen_timeout ?? 30,
+    enabledModes: eventData.enabled_modes || ['photo'],
   };
 };
 
@@ -862,6 +866,8 @@ const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
       category: p.category,
       customFields: (p as any).custom_fields || undefined,
       geminiModel: (p as any).gemini_model || null,
+      mode: (p as any).mode || 'photo',
+      subcategory: (p as any).subcategory || '',
     }));
 };
 
@@ -922,6 +928,8 @@ export const getPrompts = async (skipCache: boolean = false): Promise<Prompt[]> 
     category: p.category,
     customFields: (p as any).custom_fields || undefined,
     geminiModel: (p as any).gemini_model || null,
+    mode: (p as any).mode || 'photo',
+    subcategory: (p as any).subcategory || '',
   }));
 
   cachedPrompts = prompts;
@@ -957,6 +965,8 @@ export const getPromptById = async (promptId: string): Promise<Prompt> => {
     category: promptData.category,
     customFields: (promptData as any).custom_fields || undefined,
     geminiModel: (promptData as any).gemini_model || null,
+    mode: (promptData as any).mode || 'photo',
+    subcategory: (promptData as any).subcategory || '',
   };
 };
 
@@ -1029,6 +1039,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     skip_clean_version: event.skipCleanVersion || false,
     photo_retention_days: event.photoRetentionDays ?? 30,
     sharing_screen_timeout: event.sharingScreenTimeout ?? 30,
+    enabled_modes: event.enabledModes || ['photo'],
     event_source: isUpdate ? undefined : eventSource,
   };
 
@@ -1167,6 +1178,8 @@ export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
     updated_at: new Date().toISOString(),
     custom_fields: prompt.customFields || null,
     gemini_model: prompt.geminiModel || null,
+    mode: prompt.mode || 'photo',
+    subcategory: prompt.subcategory || null,
   };
 
   const { data: newPrompt, error } = await supabase
@@ -1220,6 +1233,8 @@ export const updatePrompt = async (promptId: string, prompt: Partial<Prompt>): P
   if (prompt.isPublic !== undefined) updateData.is_public = prompt.isPublic;
   if (prompt.customFields !== undefined) updateData.custom_fields = prompt.customFields.length > 0 ? prompt.customFields : null;
   if (prompt.geminiModel !== undefined) updateData.gemini_model = prompt.geminiModel || null;
+  if (prompt.mode !== undefined) updateData.mode = prompt.mode || 'photo';
+  if (prompt.subcategory !== undefined) updateData.subcategory = prompt.subcategory || null;
   if (prompt.referenceImages !== undefined) updateData.reference_images = prompt.referenceImages || null;
   if (prompt.referenceStrength !== undefined) updateData.reference_strength = prompt.referenceStrength ?? 50;
   updateData.updated_at = new Date().toISOString();

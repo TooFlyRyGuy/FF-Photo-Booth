@@ -24,6 +24,7 @@ interface GenerateImageRequest {
   modelName?: string;
   resolution?: '1K' | '2K' | '4K';
   eventId?: string;
+  stickerMode?: boolean;
 }
 
 interface GeminiPart {
@@ -70,7 +71,8 @@ Deno.serve(async (req: Request) => {
       aspectRatio,
       modelName,
       resolution,
-      eventId
+      eventId,
+      stickerMode
     }: GenerateImageRequest = await req.json();
 
     // Validate required parameters
@@ -340,6 +342,10 @@ Deno.serve(async (req: Request) => {
     finalPrompt += `You MUST preserve the exact face, facial features, and identity of the person in Image 1. The output face must match Image 1. `;
     finalPrompt += `Change the clothing, background, and artistic style to match the description, but never alter the face. `;
     finalPrompt += `If you cannot determine which image is the source, default to using the first image provided. Never use any face except the one in the first image. `;
+
+    if (stickerMode) {
+      finalPrompt += `STICKER MODE: Create a die-cut sticker with a transparent background (alpha channel). The output MUST be a PNG with transparency — no solid background, no border, no white or black fill behind the subject. Crop closely around the subject leaving a small white die-cut border outline typical of vinyl stickers. The image should look like a peelable sticker with clean edges. `;
+    }
     finalPrompt += `Output format: ${aspectRatioSpec}.`;
 
     // Build parts array for multimodal request
@@ -555,7 +561,8 @@ Deno.serve(async (req: Request) => {
     if (resultParts) {
       for (const part of resultParts) {
         if (part.inlineData && part.inlineData.data) {
-          generatedImage = `data:image/jpeg;base64,${part.inlineData.data}`;
+          const mimeType = part.inlineData.mimeType || 'image/jpeg';
+          generatedImage = `data:${mimeType};base64,${part.inlineData.data}`;
           break;
         }
       }

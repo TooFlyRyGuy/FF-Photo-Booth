@@ -19,7 +19,7 @@ interface KioskProps {
   onLoaded?: () => void;
 }
 
-type KioskState = 'attract' | 'disclaimer' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
+type KioskState = 'attract' | 'mode-select' | 'disclaimer' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const eventLanguages: LanguageCode[] = (event.kioskLanguages && event.kioskLanguages.length > 0
@@ -38,6 +38,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [kioskTextOverrides, setKioskTextOverrides] = useState<Record<string, string>>({});
   const [view, setView] = useState<KioskState>('attract');
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const [selectedMode, setSelectedMode] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedImageBlob, setCapturedImageBlob] = useState<Blob | null>(null);
   const [capturedImageStorageUrl, setCapturedImageStorageUrl] = useState<string | null>(null);
@@ -145,9 +146,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
   };
 
+  const enabledModes = (event.enabledModes && event.enabledModes.length > 0) ? event.enabledModes : ['photo'];
+  const isStickerMode = selectedMode === 'sticker';
+
   const proceedToPrompts = () => {
-    if (event.prompts && event.prompts.length === 1) {
-      const p = event.prompts[0];
+    if (enabledModes.length > 1) {
+      setView('mode-select');
+      return;
+    }
+    setSelectedMode(enabledModes[0] || 'photo');
+    const modePrompts = (event.prompts || []).filter(p => !p.mode || p.mode === (enabledModes[0] || 'photo'));
+    if (modePrompts.length === 1) {
+      const p = modePrompts[0];
       setSelectedPrompt(p);
       if (p.customFields && p.customFields.some(f => !f.aiGenerated)) {
         setGuestAnswers({});
@@ -402,7 +412,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         selectedPrompt.geminiModel || event.geminiModel || undefined,
         event.imageResolution || globalSettings.geminiResolution,
         referenceImages,
-        event.id
+        event.id,
+        isStickerMode
       );
 
       const isPrivateMode = event.privateSharingMode === true;
@@ -440,8 +451,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         setBucketPhotoId(photoRecordId);
       }
 
-      // Apply overlay
-      if (event.overlayImageUrl) {
+      // Apply overlay (skip for sticker mode — stickers must remain transparent)
+      if (event.overlayImageUrl && !isStickerMode) {
         try {
           setUploadProgress('Applying finishing touches...');
           genImage = await applyOverlayToImage(genImage, event.overlayImageUrl);
@@ -558,10 +569,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
       if (event.smugmugGalleryKey) {
-        const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.jpg`;
+        const genExt = isStickerMode ? 'png' : 'jpg';
+        const fileName = `${event.name}-${selectedPrompt.name}-generated-${timestamp}.${genExt}`;
         backgroundPromises.push(
           (async () => {
-            const compressedImage = await compressForUpload(genImage);
+            const compressedImage = await compressForUpload(genImage, 1920, 0.85, isStickerMode);
             return uploadToSmugMug(
               event.smugmugGalleryKey,
               compressedImage,
@@ -719,6 +731,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setShareUrl(null);
     setBucketPhotoId(null);
     setSelectedPrompt(null);
+    setSelectedMode(null);
     setPhoneNumber('');
     setEmailAddress('');
     setUploadProgress('');
@@ -731,7 +744,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     const downloadUrl = finalImage || generatedImageUrl;
     if (!downloadUrl) return;
 
-    const filename = `${event.name.replace(/\s+/g, '_')}_${selectedPrompt?.name.replace(/\s+/g, '_')}_${Date.now()}.jpg`;
+    const ext = isStickerMode ? 'png' : 'jpg';
+    const filename = `${event.name.replace(/\s+/g, '_')}_${selectedPrompt?.name.replace(/\s+/g, '_')}_${Date.now()}.${ext}`;
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -739,7 +753,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       try {
         const response = await fetch(downloadUrl);
         const blob = await response.blob();
-        const file = new File([blob], filename, { type: 'image/jpeg' });
+        const fileType = isStickerMode ? 'image/png' : 'image/jpeg';
+        const file = new File([blob], filename, { type: fileType });
 
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
@@ -1327,15 +1342,81 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     );
   }
 
+  // 2c. MODE SELECT
+  if (view === 'mode-select') {
+    const colors = getBrandingColors();
+    const modeCards = [
+      { key: 'photo', label: 'Photo', icon: '\u{1F4F7}', desc: 'AI-enhanced photos', enabled: enabledModes.includes('photo') },
+      { key: 'sticker', label: 'Sticker', icon: '\u{1F389}', desc: 'Die-cut stickers with transparent background', enabled: enabledModes.includes('sticker') },
+      { key: 'video', label: 'Video', icon: '\u{1F3AC}', desc: 'Coming soon', enabled: false },
+    ];
+
+    const handleModeSelect = (modeKey: string) => {
+      setSelectedMode(modeKey);
+      const modePrompts = (event.prompts || []).filter(p => !p.mode || p.mode === modeKey);
+      if (modePrompts.length === 1) {
+        const p = modePrompts[0];
+        setSelectedPrompt(p);
+        if (p.customFields && p.customFields.some(f => !f.aiGenerated)) {
+          setGuestAnswers({});
+          setCustomizeErrors({});
+          setView('prompt-customize');
+        } else {
+          setView('camera');
+        }
+      } else {
+        setView('prompt-select');
+      }
+    };
+
+    return (
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
+        <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">Choose Your Mode</h2>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8 w-full max-w-4xl mx-auto justify-items-center">
+            {modeCards.map(card => (
+              <button
+                key={card.key}
+                onClick={() => card.enabled && handleModeSelect(card.key)}
+                disabled={!card.enabled}
+                className={`relative group rounded-2xl overflow-hidden border-2 transition-all transform w-full max-w-[300px] aspect-square flex flex-col items-center justify-center gap-3 p-6 ${
+                  card.enabled
+                    ? 'border-slate-300 hover:scale-105 active:scale-95 cursor-pointer'
+                    : 'border-slate-200 cursor-not-allowed opacity-60'
+                }`}
+                style={{ borderColor: card.enabled ? '#cbd5e1' : '#e2e8f0' }}
+                onMouseEnter={(e) => { if (card.enabled) e.currentTarget.style.borderColor = colors.accent; }}
+                onMouseLeave={(e) => { if (card.enabled) e.currentTarget.style.borderColor = '#cbd5e1'; }}
+              >
+                <span className="text-5xl md:text-6xl">{card.icon}</span>
+                <h3 className="text-xl md:text-2xl font-bold text-slate-900">{card.label}</h3>
+                <p className="text-sm md:text-base text-slate-600 text-center">{card.desc}</p>
+                {!card.enabled && (
+                  <span className="absolute top-3 right-3 bg-slate-200 text-slate-600 text-xs font-semibold px-2 py-1 rounded-full">Soon</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-shrink-0 text-center pt-2">
+          <button onClick={() => setView('attract')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">{t('kiosk.cancel')}</button>
+        </div>
+      </div>
+    );
+  }
+
   // 3. PROMPT SELECT
   if (view === 'prompt-select') {
+    const modePrompts = (event.prompts || []).filter(p => !p.mode || p.mode === (selectedMode || 'photo'));
     return (
       <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col p-4 md:p-8 overflow-hidden">
         <h2 className="text-2xl md:text-4xl font-display text-slate-900 mb-4 md:mb-6 text-center flex-shrink-0">{t('kiosk.chooseYourStyle')}</h2>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 w-full max-w-7xl mx-auto justify-items-center">
-            {event.prompts.map(prompt => (
+            {modePrompts.map(prompt => (
               <button
                 key={prompt.id}
                 onClick={() => {

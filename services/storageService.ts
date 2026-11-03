@@ -141,15 +141,19 @@ export async function uploadGeneratedPhoto(
   try {
     const blob = await base64ToBlob(base64Image);
 
+    const isPng = base64Image.startsWith('data:image/png');
+    const ext = isPng ? 'png' : 'jpg';
+    const contentType = isPng ? 'image/png' : 'image/jpeg';
+
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
-    const finalFileName = fileName || `photo-${timestamp}-${randomStr}.jpg`;
+    const finalFileName = fileName || `photo-${timestamp}-${randomStr}.${ext}`;
     const filePath = `${eventId}/${finalFileName}`;
 
     const { data, error } = await supabase.storage
       .from('event-photos')
       .upload(filePath, blob, {
-        contentType: 'image/jpeg',
+        contentType,
         upsert: false,
       });
 
