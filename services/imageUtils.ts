@@ -40,6 +40,12 @@ export const getAspectRatioDimensions = (ratio: AspectRatio = 'square'): { width
       return { width: 576, height: 1024 };
     case '16:9':
       return { width: 1024, height: 576 };
+    case '2:3':
+      return { width: 683, height: 1024 };
+    case '3:2':
+      return { width: 1024, height: 683 };
+    case '4:5':
+      return { width: 819, height: 1024 };
     case 'square':
     default:
       return { width: baseSize, height: baseSize };
@@ -48,7 +54,8 @@ export const getAspectRatioDimensions = (ratio: AspectRatio = 'square'): { width
 
 export const resizeImageToAspectRatio = async (
   imageBase64: string,
-  aspectRatio: AspectRatio = 'square'
+  aspectRatio: AspectRatio = 'square',
+  preserveTransparency: boolean = false
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -80,8 +87,10 @@ export const resizeImageToAspectRatio = async (
         sourceY = (img.height - sourceHeight) / 2;
       }
 
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!preserveTransparency) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
 
       ctx.drawImage(
         img,
@@ -95,7 +104,9 @@ export const resizeImageToAspectRatio = async (
         targetDimensions.height
       );
 
-      const resizedBase64 = canvas.toDataURL('image/jpeg', 0.95);
+      const outputFormat = preserveTransparency ? 'image/png' : 'image/jpeg';
+      const quality = preserveTransparency ? 1.0 : 0.95;
+      const resizedBase64 = canvas.toDataURL(outputFormat, quality);
       resolve(resizedBase64);
     };
 

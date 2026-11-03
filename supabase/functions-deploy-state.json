@@ -1,0 +1,105 @@
+{
+  "projectId": "63225271",
+  "functions": {
+    "cancel-subscription": {
+      "hasChanged": false,
+      "hash": "e00c10d6c9cf1e526e3c517f67ed48fd6dd821011bebf07b3f56a8d47e8dcd7f"
+    },
+    "check-device-limit": {
+      "hasChanged": false,
+      "hash": "3592b5759de38f05e60f21992633687660526664f7dbe88c3c5695dadee3f9c9"
+    },
+    "compress-prompt-images": {
+      "hasChanged": false,
+      "hash": "2a6be93ddd4e3d4476872d3d23b54f5416d1733db035d20ff167e82da5718465"
+    },
+    "dropbox-oauth-callback": {
+      "hasChanged": false,
+      "hash": "4735d7c75a2581d2336285d215af8900606761b9c4b6053255099b5e476a328c"
+    },
+    "dropbox-oauth-initiate": {
+      "hasChanged": false,
+      "hash": "824b638573a67ecb3456022ec6661fdad9948f485c3df56b555f4638fc247b6e"
+    },
+    "dropbox-upload": {
+      "hasChanged": false,
+      "hash": "478e1a516c3bf38e12df113d238b4b904b469ab478597f5fb7f8504019f5642e"
+    },
+    "gemini-file-upload": {
+      "hasChanged": false,
+      "hash": "f225c00e99cc5cc3de304b58ca2f5f856e56baabbc750db3b88d8b0cbd4fa42f"
+    },
+    "gemini-generate-image": {
+      "hasChanged": false,
+      "hash": "a25941cb795925b1fc213942b3c4354500a57a62e401c56716cc802c79af5049"
+    },
+    "gemini-generate-text": {
+      "hasChanged": false,
+      "hash": "102c7abba65ea438285bba6b22fcabf854b60c3331e61b1bcce349ede54cc88c"
+    },
+    "library-checkout": {
+      "hasChanged": false,
+      "hash": "47ec11d9611a939df45cbc2dc757bad70d182c968c201fa9aff7494c8f248766"
+    },
+    "low-credit-warning": {
+      "hasChanged": false,
+      "hash": "2e9f7f09bc09b89732d457d0ff47e4e00f5680d4d148db3dfccfaf28eda8978d"
+    },
+    "redeem-access-code": {
+      "hasChanged": false,
+      "hash": "2c037aed5cf8145f944adaab54263686bdf386fb9e9185744af95127cef338ff"
+    },
+    "send-email": {
+      "hasChanged": false,
+      "hash": "419c809fc29e2b3b414bd95f1bbd9c5c86a13b1b3bbe7bf7bfad3f0315d36f3c"
+    },
+    "send-welcome-email": {
+      "hasChanged": false,
+      "hash": "7b480b3710faf7b84338fac9d36d894136bf41d3508be7ca7ad1bcbc858d345d"
+    },
+    "send-whatsapp": {
+      "hasChanged": false,
+      "hash": "f8351083dd44c1a5bda7ef719a90cc09db86767d25140de3c7abc345a34c9015"
+    },
+    "smugmug-api": {
+      "hasChanged": false,
+      "hash": "48f071d1e741b4a7b0839bbf44090cbb2cec50b7a80f5f7967ec198daf97bebe"
+    },
+    "smugmug-oauth-callback": {
+      "hasChanged": false,
+      "hash": "9c621566df6dbd81eff860c804434461886217ca2b89bbc32624085a6f66ed89"
+    },
+    "smugmug-oauth-initiate": {
+      "hasChanged": false,
+      "hash": "ed9fb6fd47c7e6777ab1af850415e9008261446f77b6171a80b5ba515dad0486"
+    },
+    "storage-cleanup": {
+      "hasChanged": false,
+      "hash": "c1a58cf2d91ea659865170bbb44f6cae1075f2de846c8c36cc88496d8a608345"
+    },
+    "stripe-checkout": {
+      "hasChanged": false,
+      "hash": "cea1ceb79d3c515a72e231c0f52e7637e2d8e183a1b2748c3631e8e9397bfee7"
+    },
+    "stripe-webhook": {
+      "hasChanged": false,
+      "hash": "869212ae5e7c525d2c69c41ddec95366202d98c00fd5f907e151d277d74cf476"
+    },
+    "sync-stripe-products": {
+      "hasChanged": false,
+      "hash": "6e2e98cbcae3470be1e7446198206a7d8520fc56f1386d51edb4cdf0b8999169"
+    },
+    "translate-kiosk-text": {
+      "hasChanged": false,
+      "hash": "e0dc6e1af5d36c868476a1a59113727724b7eb259f12668cb8a1602bb6ff60ae"
+    },
+    "translate-prompts": {
+      "hasChanged": false,
+      "hash": "ce2a165d26c07426bb7c0b5651737c7981caa9a65340bd4c273418d1bb01192b"
+    },
+    "twilio-send-sms": {
+      "hasChanged": false,
+      "hash": "069256ba0bfd98ca016a2ddaddf5b0f9cd52ab994d79bc22ee1371810b0179f9"
+    }
+  }
+}

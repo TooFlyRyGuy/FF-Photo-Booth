@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, Mail, Search, Edit, Save, X, Calendar, CreditCard, Shield, UserX, UserPlus } from 'lucide-react';
+import { User, Mail, Search, CreditCard as Edit, Save, X, Calendar, CreditCard, Shield, UserX, UserPlus, RotateCcw } from 'lucide-react';
 
 interface UserData {
   id: string;
@@ -50,6 +50,7 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [subscriptionTiers, setSubscriptionTiers] = useState<SubscriptionTier[]>([]);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [resettingTour, setResettingTour] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [newUser, setNewUser] = useState<NewUserData>({
@@ -227,6 +228,24 @@ const UserManagement: React.FC = () => {
       alert(`Failed to send email: ${error.message}`);
     } finally {
       setSendingEmail(null);
+    }
+  };
+
+  const handleResetTour = async (user: UserData) => {
+    setResettingTour(user.id);
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ onboarding_completed: false, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      alert('Guided tour reset. The user will see the tour next time they log in.');
+    } catch (error: any) {
+      console.error('Error resetting guided tour:', error);
+      alert(`Failed to reset guided tour: ${error.message}`);
+    } finally {
+      setResettingTour(null);
     }
   };
 
@@ -562,6 +581,30 @@ const UserManagement: React.FC = () => {
                     />
                     <p className="text-xs text-slate-500 mt-1">For creating/managing events</p>
                   </div>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-slate-300 pt-6">
+                <h4 className="text-lg font-bold text-slate-900 mb-4">Guided Tour</h4>
+                <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Reset new user tutorial</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      The user will see the guided tour again next time they log in.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleResetTour(editingUser)}
+                    disabled={resettingTour === editingUser.id}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resettingTour === editingUser.id ? (
+                      <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <RotateCcw size={16} />
+                    )}
+                    Reset Tour
+                  </button>
                 </div>
               </div>
 

@@ -93,6 +93,8 @@ export type Database = {
           prompt_text: string;
           preview_image_url: string;
           reference_image_url: string | null;
+          reference_images: { url: string; strength?: number }[] | null;
+          reference_strength: number | null;
           is_active: boolean;
           is_public: boolean;
           tags: string[];
