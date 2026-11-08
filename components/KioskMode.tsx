@@ -11,6 +11,7 @@ import { checkCreditAvailability, consumeCredit, getTotalCredits } from '../serv
 import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
+import { routeAfterGuestContinues, routeAfterModeSelected, routeBackFromPromptStep } from '../lib/kioskPromptFlow';
 import { getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface KioskProps {
@@ -149,13 +150,21 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const enabledModes = (event.enabledModes && event.enabledModes.length > 0) ? event.enabledModes : ['photo'];
   const isStickerMode = selectedMode === 'sticker';
 
-  const proceedToPrompts = () => {
-    if (enabledModes.length > 1) {
-      setView('mode-select');
-      return;
+  const applyPromptRoute = (route: ReturnType<typeof routeAfterGuestContinues<Prompt>>) => {
+    if (route.mode) setSelectedMode(route.mode);
+    setSelectedPrompt(route.prompt);
+    if (route.view === 'prompt-customize') {
+      setGuestAnswers({});
+      setCustomizeErrors({});
     }
-    setSelectedMode(enabledModes[0] || 'photo');
-    setView('prompt-select');
+    setView(route.view);
+  };
+
+  const proceedToPrompts = () => {
+    applyPromptRoute(routeAfterGuestContinues({
+      prompts: event.prompts,
+      enabledModes,
+    }));
   };
 
   const handleTapToStart = async () => {
@@ -1339,8 +1348,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     ];
 
     const handleModeSelect = (modeKey: string) => {
-      setSelectedMode(modeKey);
-      setView('prompt-select');
+      applyPromptRoute(routeAfterModeSelected({
+        prompts: event.prompts,
+        mode: modeKey,
+      }));
     };
 
     return (
@@ -1586,7 +1597,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         </div>
 
         <div className="flex-shrink-0 flex justify-center gap-4 pt-2">
-          <button onClick={() => setView('prompt-select')} className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]">
+          <button
+            onClick={() => setView(routeBackFromPromptStep({
+              prompts: event.prompts,
+              mode: selectedMode || enabledModes[0] || 'photo',
+              enabledModes,
+              from: 'customize',
+            }))}
+            className="text-slate-600 hover:text-slate-900 py-2 px-4 min-h-[44px]"
+          >
             {t('kiosk.back')}
           </button>
           <button
@@ -1671,7 +1690,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         </div>
 
         <div className="fixed bottom-20 md:bottom-24 left-0 right-0 z-40 flex justify-center gap-4 md:gap-8 items-center px-4">
-           <button onClick={() => setView('prompt-select')} className="bg-white/90 backdrop-blur text-slate-900 px-4 py-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 text-sm md:text-base min-h-[44px] font-semibold">
+           <button
+             onClick={() => {
+               stopCamera();
+               setView(routeBackFromPromptStep({
+                 prompts: event.prompts,
+                 mode: selectedMode || enabledModes[0] || 'photo',
+                 enabledModes,
+                 from: 'camera',
+               }));
+             }}
+             className="bg-white/90 backdrop-blur text-slate-900 px-4 py-3 md:p-4 rounded-full hover:bg-white border-2 border-slate-300 text-sm md:text-base min-h-[44px] font-semibold"
+           >
              {t('kiosk.back')}
            </button>
            <button
