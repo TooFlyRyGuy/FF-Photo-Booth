@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Check, CreditCard, Crown, Zap, AlertCircle, Ticket, Package, DollarSign } from 'lucide-react';
+import { Check, CreditCard, Crown, Zap, AlertCircle, Ticket, Package, DollarSign, Mail, UserCircle } from 'lucide-react';
 
 interface SubscriptionTier {
   id: string;
@@ -80,9 +80,22 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'eventPasses' | 'addOns' | 'credits'>('subscriptions');
 
+  const isEnterpriseUser = React.useMemo(() => {
+    if (!userProfile?.subscription_tier_id || tiers.length === 0) return false;
+    const userTier = tiers.find(t => t.id === userProfile.subscription_tier_id);
+    if (!userTier) return false;
+    return userTier.price_cents === -1 || userTier.name.toLowerCase() === 'enterprise';
+  }, [userProfile, tiers]);
+
   useEffect(() => {
     loadData();
   }, [billingCycle]);
+
+  useEffect(() => {
+    if (isEnterpriseUser && activeTab !== 'credits') {
+      setActiveTab('credits');
+    }
+  }, [isEnterpriseUser, activeTab]);
 
   const loadData = async () => {
     try {
@@ -268,6 +281,125 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ onClose }) =>
   }
 
   const isAdmin = userProfile?.role === 'admin';
+
+  if (isEnterpriseUser && !isAdmin) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center overflow-y-auto">
+        <div className="bg-white border-0 sm:border-2 sm:border-slate-300 rounded-none sm:rounded-2xl w-full sm:max-w-4xl min-h-screen sm:min-h-0 sm:max-h-[90vh] sm:my-4 overflow-y-auto">
+          <div className="p-4 sm:p-6 border-b-2 border-slate-200 sticky top-0 bg-white z-10">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Manage Your Credits</h2>
+                <p className="text-sm sm:text-base text-slate-600 mt-1">Purchase additional credits anytime</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-slate-600 hover:text-slate-900 text-2xl w-10 h-10 flex items-center justify-center"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-6">
+            <div className="bg-green-700/10 border-2 border-green-700/30 rounded-xl p-4 sm:p-6 mb-6">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <Crown size={28} className="text-green-800 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">Enterprise Account</h3>
+                  <p className="text-sm sm:text-base text-slate-700 mb-3">
+                    Your subscription plan and event pass pricing are managed through your dedicated account representative.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <UserCircle size={18} className="text-green-700" />
+                      <span>Contact your account representative for plan changes or additional event passes.</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <Mail size={18} className="text-green-700" />
+                      <span>
+                        Email us at{' '}
+                        <a href="mailto:support@funframephoto.com" className="font-semibold text-green-700 hover:text-green-800 underline underline-offset-2">
+                          support@funframephoto.com
+                        </a>{' '}
+                        for any pricing inquiries.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-green-700/10 border border-green-700/30 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 flex items-start gap-2 sm:gap-3">
+              <AlertCircle size={18} className="sm:w-5 sm:h-5 text-green-800 flex-shrink-0 mt-0.5" />
+              <div className="text-xs sm:text-sm text-slate-900">
+                <p className="font-medium mb-1">Credit Top-Ups</p>
+                <p className="text-slate-700">
+                  Need more credits? Purchase additional credits anytime to generate more photos.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+              {creditTopups.map((topup) => (
+                <div
+                  key={topup.id}
+                  className="border-2 border-green-700/30 rounded-xl p-4 sm:p-5 lg:p-6 flex flex-col min-h-[380px]"
+                >
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <DollarSign size={20} className="sm:w-6 sm:h-6 text-green-700" />
+                    <span className="text-xs bg-green-100 text-green-800 px-2.5 sm:px-3 py-1 rounded-full font-medium">
+                      {topup.credits} Credits
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1 sm:mb-2">{topup.name}</h3>
+
+                  <div className="mb-4 sm:mb-6 pb-4 border-b border-slate-200">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl sm:text-3xl font-bold text-slate-900">
+                        {formatPrice(topup.price_cents)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600 mt-1">
+                      ${(topup.price_cents / topup.credits / 100).toFixed(2)} per credit
+                    </p>
+                  </div>
+
+                  <ul className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6 flex-grow">
+                    <li className="flex items-start gap-2 text-sm text-slate-700">
+                      <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                      <span className="leading-snug">{topup.credits} image credits</span>
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-slate-700">
+                      <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                      <span className="leading-snug">{topup.sms_credits} SMS credits</span>
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-slate-700">
+                      <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                      <span className="leading-snug">Never expires</span>
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-slate-700">
+                      <Check size={16} className="text-green-700 flex-shrink-0 mt-0.5" />
+                      <span className="leading-snug">Use across all events</span>
+                    </li>
+                  </ul>
+
+                  <button
+                    onClick={() => handleSubscribe(topup.id)}
+                    className="w-full py-3 sm:py-3.5 rounded-lg font-medium text-sm sm:text-base transition-all bg-green-700 hover:bg-green-800 text-white active:bg-green-900 min-h-[48px]"
+                  >
+                    Buy Credits
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isAdmin) {
     return (
