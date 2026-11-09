@@ -19,22 +19,94 @@ export function applyStickerPrompt(promptTemplate: string, stickerMode: boolean)
   return wrapStickerKeyPrompt(promptTemplate);
 }
 
+export interface BoothImageRequestInput {
+  imageUrlOrBase64: string;
+  promptTemplate: string;
+  referenceImageUrlOrBase64?: string;
+  aspectRatio?: string;
+  modelName?: string;
+  resolution?: '1K' | '2K' | '4K';
+  referenceImages?: Array<{ url: string; strength?: number }>;
+  eventId?: string;
+  stickerMode?: boolean;
+}
+
+/**
+ * Body sent to gemini-generate-image.
+ * The stickerMode flag is intentionally omitted. The deployed function appends
+ * a "transparent background" sentence when that flag is set, and the model
+ * paints a checkerboard. The key-screen line is appended after the theme
+ * inside promptTemplate instead.
+ */
+export function buildBoothImageRequest(input: BoothImageRequestInput): Record<string, unknown> {
+  const {
+    imageUrlOrBase64,
+    promptTemplate,
+    referenceImageUrlOrBase64,
+    aspectRatio,
+    modelName,
+    resolution,
+    referenceImages,
+    eventId,
+    stickerMode,
+  } = input;
+
+  const isImageUrl = imageUrlOrBase64.startsWith('http://') || imageUrlOrBase64.startsWith('https://');
+  const isReferenceUrl = referenceImageUrlOrBase64?.startsWith('http://') || referenceImageUrlOrBase64?.startsWith('https://');
+
+  const body: Record<string, unknown> = {
+    promptTemplate: applyStickerPrompt(promptTemplate, !!stickerMode),
+    aspectRatio,
+    resolution,
+  };
+
+  if (modelName) {
+    body.modelName = modelName;
+  }
+  if (eventId) {
+    body.eventId = eventId;
+  }
+
+  if (isImageUrl) {
+    body.imageUrl = imageUrlOrBase64;
+  } else {
+    body.imageBase64 = imageUrlOrBase64;
+  }
+
+  if (referenceImages && referenceImages.length > 0) {
+    body.referenceImages = referenceImages.map(ref => ({
+      url: ref.url,
+      strength: ref.strength,
+    }));
+  } else if (referenceImageUrlOrBase64) {
+    if (isReferenceUrl) {
+      body.referenceImageUrl = referenceImageUrlOrBase64;
+    } else {
+      body.referenceImageBase64 = referenceImageUrlOrBase64;
+    }
+  }
+
+  return body;
+}
+
 export function wrapStickerKeyPrompt(promptTemplate: string): string {
+  const theme = promptTemplate.trimEnd();
   return [
-    'STICKER KEY SCREEN: Render one die-cut vinyl sticker of the subject, cropped close, with a thin white sticker outline around the subject.',
-    `The entire background must be one flat solid color: pure green ${STICKER_KEY_HEX}, exactly RGB(0, 255, 0).`,
-    'Every background pixel must be that same flat green. No gradient, no shadow on the background, no floor, and no scene.',
-    'Do not use a transparent background. Do not draw a checkerboard, grid, grey and white squares, or any fake transparency pattern.',
-    'Do not use white, black, grey, or any color other than pure green behind the sticker.',
-    'Do not add a frame, border, or photo overlay. The green is a chroma-key screen and will be removed.',
+    theme,
     '',
-    `Subject and style: ${promptTemplate}`,
+    'STICKER KEY SCREEN, applied after the style above: Keep the wardrobe, hair, pose, props, and theme from that style text. Do not leave the guest in their original clothes, and do not replace the style with a generic portrait.',
+    `Change only the background, to one flat solid color: pure green ${STICKER_KEY_HEX}, exactly RGB(0, 255, 0).`,
+    'Every background pixel must be that same flat green. No gradient, no shadow on the background, no floor, and no extra scene behind the styled subject.',
+    'Do not use a transparent background. Do not draw a checkerboard, grid, grey and white squares, or any fake transparency pattern.',
+    'Add a thin white die-cut outline around the styled subject. Do not add a frame or photo overlay. The green is a chroma-key screen and will be removed.',
   ].join('\n');
 }
 
 export interface ChromaKeyOptions {
   despill?: number;
   soften?: boolean;
+  /** Pixels to eat off the matte so a green rim does not survive. */
+  choke?: number;
 }
 
 /**
@@ -49,22 +121,32 @@ export function keyChromaGreen(
   height: number,
   options: ChromaKeyOptions = {}
 ): Uint8ClampedArray {
-  const despill = options.despill ?? 0.9;
+  const despill = options.despill ?? 1;
   const soften = options.soften ?? true;
+  const choke = options.choke ?? 1;
   const out = new Uint8ClampedArray(rgba.length);
+  const rawAlpha = new Uint8Array(width * height);
 
-  for (let i = 0; i < rgba.length; i += 4) {
+  for (let p = 0; p < rawAlpha.length; p++) {
+    const i = p * 4;
+    rawAlpha[p] = stickerAlpha(rgba[i], rgba[i + 1], rgba[i + 2]);
+  }
+
+  const choked = choke > 0 ? chokeAlpha(rawAlpha, width, height, choke) : rawAlpha;
+  const edge = nearLowAlpha(choked, width, height, 2);
+
+  for (let p = 0; p < rawAlpha.length; p++) {
+    const i = p * 4;
     const r = rgba[i];
     const g = rgba[i + 1];
     const b = rgba[i + 2];
     const srcAlpha = rgba[i + 3];
-    let alpha = stickerAlpha(r, g, b);
+    const alpha = choked[p];
 
     let nextG = g;
-    if (despill > 0 && g > r && g > b && alpha < 255) {
+    if (despill > 0 && g > r && g > b && (alpha < 255 || edge[p] === 1)) {
       const maxRB = Math.max(r, b);
-      const edge = 1 - alpha / 255;
-      nextG = Math.round(g + (maxRB - g) * Math.min(1, despill * Math.max(edge, 0.35)));
+      nextG = Math.round(maxRB + (g - maxRB) * (1 - despill));
     }
 
     const outAlpha = Math.round((alpha * srcAlpha) / 255);
@@ -101,6 +183,46 @@ export function stickerAlpha(r: number, g: number, b: number): number {
   const t = (signal - TRANSPARENT_SIGNAL) / (OPAQUE_SIGNAL - TRANSPARENT_SIGNAL);
   const smooth = t * t * (3 - 2 * t);
   return Math.round(smooth * 255);
+}
+
+function chokeAlpha(alphas: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+  const out = new Uint8Array(alphas.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let minA = 255;
+      for (let dy = -radius; dy <= radius; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= width) continue;
+          const sample = alphas[ny * width + nx];
+          if (sample < minA) minA = sample;
+        }
+      }
+      out[y * width + x] = minA;
+    }
+  }
+  return out;
+}
+
+function nearLowAlpha(alphas: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+  const marks = new Uint8Array(alphas.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (alphas[y * width + x] >= 250) continue;
+      for (let dy = -radius; dy <= radius; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= width) continue;
+          marks[ny * width + nx] = 1;
+        }
+      }
+    }
+  }
+  return marks;
 }
 
 function softenAlpha(rgba: Uint8ClampedArray, width: number, height: number): void {
