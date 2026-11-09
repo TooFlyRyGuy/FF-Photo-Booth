@@ -1,6 +1,11 @@
 import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult, PromptTranslation, KioskTextOverride } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
+import {
+  aggregateDocumentedChartData,
+  aggregateDocumentedEventAnalytics,
+  filterImageIdsForDocumentedStats,
+} from '../lib/eventAnalytics';
 
 let cachedUserId: string | null = null;
 let cacheTimestamp: number | null = null;
@@ -824,6 +829,7 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
     photoRetentionDays: eventData.photo_retention_days ?? 30,
     sharingScreenTimeout: eventData.sharing_screen_timeout ?? 30,
     enabledModes: eventData.enabled_modes || ['photo'],
+    analyticsResetAt: eventData.analytics_reset_at ?? null,
   };
 };
 
@@ -1468,72 +1474,94 @@ export interface EventAnalytics {
     count: number;
     percentage: number;
   }>;
+  analyticsResetAt: string | null;
 }
 
+const getAnalyticsResetAt = async (eventId: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('events')
+    .select('analytics_reset_at')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch analytics baseline: ${error.message}`);
+  }
+
+  return data?.analytics_reset_at ?? null;
+};
+
+export const clearEventDocumentationStats = async (eventId: string): Promise<string> => {
+  const { data, error } = await supabase.rpc('clear_event_documentation_stats', {
+    p_event_id: eventId,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to clear event statistics');
+  }
+
+  if (!data) {
+    throw new Error('Failed to clear event statistics');
+  }
+
+  return data;
+};
+
 export const getEventAnalytics = async (eventId: string): Promise<EventAnalytics> => {
-  const { data: images, error } = await supabase
+  const analyticsResetAt = await getAnalyticsResetAt(eventId);
+
+  let query = supabase
     .from('generated_images')
-    .select('*, prompts(id, name)')
+    .select('created_at, prompts(id, name)')
     .eq('event_id', eventId);
+
+  if (analyticsResetAt) {
+    query = query.gt('created_at', analyticsResetAt);
+  }
+
+  const { data: images, error } = await query;
 
   if (error) {
     throw new Error(`Failed to fetch analytics: ${error.message}`);
   }
 
-  const totalPhotos = images?.length || 0;
-
-  const promptCounts = new Map<string, { promptId: string; promptName: string; count: number }>();
-  images?.forEach(img => {
-    const promptId = (img.prompts as any)?.id || 'unknown';
-    const promptName = (img.prompts as any)?.name || 'Unknown';
-    const key = promptId;
-    const existing = promptCounts.get(key);
-    if (existing) {
-      existing.count++;
-    } else {
-      promptCounts.set(key, { promptId, promptName, count: 1 });
-    }
-  });
-
-  const promptStats = Array.from(promptCounts.values())
-    .map(({ promptId, promptName, count }) => ({
-      promptId,
-      promptName,
-      count,
-      percentage: totalPhotos > 0 ? Math.round((count / totalPhotos) * 100) : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  return {
-    totalPhotos,
-    promptStats,
-  };
+  return aggregateDocumentedEventAnalytics(
+    (images || []).map((img) => ({
+      createdAt: img.created_at,
+      promptId: (img.prompts as any)?.id || 'unknown',
+      promptName: (img.prompts as any)?.name || 'Unknown',
+    })),
+    analyticsResetAt
+  );
 };
 
 export const getEventChartData = async (eventId: string): Promise<ChartDataPoint[]> => {
+  const analyticsResetAt = await getAnalyticsResetAt(eventId);
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const { data: images, error } = await supabase
+  let query = supabase
     .from('generated_images')
     .select('created_at')
-    .eq('event_id', eventId)
-    .gte('created_at', thirtyDaysAgo.toISOString());
+    .eq('event_id', eventId);
+
+  const baselineMs = analyticsResetAt ? Date.parse(analyticsResetAt) : NaN;
+  if (analyticsResetAt && !Number.isNaN(baselineMs) && baselineMs > thirtyDaysAgo.getTime()) {
+    query = query.gt('created_at', analyticsResetAt);
+  } else {
+    query = query.gte('created_at', thirtyDaysAgo.toISOString());
+  }
+
+  const { data: images, error } = await query;
 
   if (error) {
     throw new Error(`Failed to fetch chart data: ${error.message}`);
   }
 
-  const dateCounts = new Map<string, number>();
-
-  images?.forEach(img => {
-    const date = new Date(img.created_at).toISOString().split('T')[0];
-    dateCounts.set(date, (dateCounts.get(date) || 0) + 1);
-  });
-
-  return Array.from(dateCounts.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, generations]) => ({ date, generations }));
+  return aggregateDocumentedChartData(
+    (images || []).map((img) => img.created_at),
+    analyticsResetAt
+  );
 };
 
 export interface EventPhoneEntry {
@@ -1546,15 +1574,26 @@ export interface EventPhoneEntry {
 const SMS_BATCH_SIZE = 100;
 
 export const getEventPhoneNumbers = async (eventId: string): Promise<EventPhoneEntry[]> => {
-  const { data: images, error: imgError } = await supabase
+  const analyticsResetAt = await getAnalyticsResetAt(eventId);
+  let imageQuery = supabase
     .from('generated_images')
-    .select('id')
+    .select('id, created_at')
     .eq('event_id', eventId);
+
+  if (analyticsResetAt) {
+    imageQuery = imageQuery.gt('created_at', analyticsResetAt);
+  }
+
+  const { data: images, error: imgError } = await imageQuery;
 
   if (imgError) throw new Error(`Failed to fetch images: ${imgError.message}`);
   if (!images || images.length === 0) return [];
 
-  const imageIds = images.map(i => i.id);
+  const imageIds = filterImageIdsForDocumentedStats(
+    images.map((image) => ({ id: image.id, createdAt: image.created_at })),
+    analyticsResetAt
+  );
+  if (imageIds.length === 0) return [];
   const allRows: any[] = [];
 
   for (let i = 0; i < imageIds.length; i += SMS_BATCH_SIZE) {

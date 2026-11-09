@@ -1033,12 +1033,16 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button. Right side so it does not cover the Dashboard title. */}
       <button
+        type="button"
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-white border-2 border-slate-300 rounded-lg flex items-center justify-center text-slate-600 hover:text-green-700 hover:border-green-700 transition-colors shadow-lg"
+        aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={mobileMenuOpen}
+        aria-controls="admin-sidebar"
+        className="md:hidden fixed top-3 right-3 z-50 h-14 w-14 bg-white border-2 border-slate-300 rounded-xl flex items-center justify-center text-slate-700 hover:text-green-700 hover:border-green-700 transition-colors shadow-lg"
       >
-        <Menu size={20} />
+        {mobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
       </button>
 
       {/* Mobile Overlay */}
@@ -1050,10 +1054,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       )}
 
       {/* Sidebar */}
-      <aside className={`w-64 bg-white border-r border-slate-300 flex flex-col transition-all duration-300 ease-in-out
-        fixed inset-y-0 left-0 z-40 overflow-y-auto
-        md:relative md:overflow-hidden ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
-        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      <aside
+        id="admin-sidebar"
+        className={`w-64 bg-white flex flex-col transition-all duration-300 ease-in-out
+        fixed inset-y-0 right-0 z-40 overflow-y-auto max-md:border-l max-md:pt-20 border-slate-300
+        md:relative md:inset-auto md:left-auto md:overflow-hidden md:border-l-0 md:border-r md:pt-0
+        ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}
+        ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
       `}>
         {/* Collapse/Expand Bar - Desktop Only */}
         <button
@@ -1065,14 +1072,6 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
             ? <ChevronRight size={16} className="mx-auto" />
             : <><ChevronLeft size={16} /> <span>Collapse</span></>
           }
-        </button>
-
-        {/* Close Button - Mobile Only */}
-        <button
-          onClick={() => setMobileMenuOpen(false)}
-          className="md:hidden absolute right-4 top-4 z-10 w-8 h-8 flex items-center justify-center text-slate-600 hover:text-green-700 transition-colors"
-        >
-          <X size={20} />
         </button>
 
         <div className={`p-6 ${sidebarCollapsed ? 'px-2' : ''}`}>
@@ -1243,7 +1242,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto p-4 pt-16 md:p-8 md:pt-8 relative">
+      <main className="flex-1 overflow-auto px-4 pb-4 pt-20 md:px-8 md:pb-8 md:pt-8 relative">
         
         {/* DASHBOARD VIEW */}
         {activeTab === 'dashboard' && (
@@ -3193,7 +3192,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
               </div>
             </header>
 
-            <EventAnalytics eventId={analyticsEvent.id} eventName={analyticsEvent.name} limitPhotosPerDevice={analyticsEvent.limitPhotosPerDevice} maxPhotosPerDevice={analyticsEvent.maxPhotosPerDevice} />
+            <EventAnalytics eventId={analyticsEvent.id} eventName={analyticsEvent.name} limitPhotosPerDevice={analyticsEvent.limitPhotosPerDevice} maxPhotosPerDevice={analyticsEvent.maxPhotosPerDevice} isAdmin={isAdmin} />
           </div>
         )}
 
