@@ -1,5 +1,6 @@
 import { AspectRatio, PromptCustomField, ReferenceImage } from '../types';
 import { supabase } from '../lib/supabase';
+import { applyStickerPrompt } from '../lib/stickerKey';
 
 export const generateBoothImage = async (
   imageUrlOrBase64: string,
@@ -30,7 +31,10 @@ export const generateBoothImage = async (
       body.eventId = eventId;
     }
     if (stickerMode) {
-      body.stickerMode = true;
+      // Do not send stickerMode. The deployed function appends "transparent
+      // background / alpha channel", and the model paints a checkerboard.
+      // The client wrapper asks for flat #00FF00, which the booth keys out.
+      body.promptTemplate = applyStickerPrompt(promptTemplate, true);
     }
 
     if (isImageUrl) {
