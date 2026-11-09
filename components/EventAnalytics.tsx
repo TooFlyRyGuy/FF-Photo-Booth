@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Camera, TrendingUp, Image as ImageIcon, Phone, Download, MessageSquare, CircleCheck as CheckCircle, Circle as XCircle, Clock, Smartphone } from 'lucide-react';
-import { getEventAnalytics, EventAnalytics as Analytics, getEventChartData, ChartDataPoint, getEventPhoneNumbers, EventPhoneEntry, getEventDeviceUsage, DeviceUsageEntry } from '../services/backendService';
+import { getEventAnalytics, EventAnalytics as Analytics, getEventChartData, ChartDataPoint, getEventPhoneNumbers, EventPhoneEntry, getEventDeviceUsage, DeviceUsageEntry, clearEventDocumentationStats } from '../services/backendService';
+import { ClearEventStatsButton, ClearEventStatsDialog } from './ClearEventStatsDialog';
 
 interface EventAnalyticsProps {
   eventId: string;
   eventName: string;
   limitPhotosPerDevice?: boolean;
   maxPhotosPerDevice?: number;
+  isAdmin?: boolean;
 }
 
 const COLORS = ['#15803d', '#166534', '#14532d', '#16a34a', '#22c55e', '#4ade80', '#86efac'];
 
 type ReportTab = 'overview' | 'phones';
 
-const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName, limitPhotosPerDevice, maxPhotosPerDevice }) => {
+const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName, limitPhotosPerDevice, maxPhotosPerDevice, isAdmin = false }) => {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [dateChartData, setDateChartData] = useState<ChartDataPoint[]>([]);
   const [phoneEntries, setPhoneEntries] = useState<EventPhoneEntry[]>([]);
@@ -22,6 +24,10 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName, lim
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<ReportTab>('overview');
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState('');
+  const [clearNotice, setClearNotice] = useState('');
 
   useEffect(() => {
     loadAnalytics();
@@ -58,6 +64,21 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName, lim
       setError(err.message || 'Failed to load analytics');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearStats = async () => {
+    setClearing(true);
+    setClearError('');
+    try {
+      await clearEventDocumentationStats(eventId);
+      setClearOpen(false);
+      setClearNotice(`Documented statistics for ${eventName} now start from this reset.`);
+      await loadAnalytics();
+    } catch (err: any) {
+      setClearError(err?.message || 'Failed to clear statistics');
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -118,6 +139,35 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName, lim
 
   return (
     <div className="space-y-6">
+      {(isAdmin || analytics.analyticsResetAt || clearNotice) && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            {analytics.analyticsResetAt && (
+              <p className="text-sm text-slate-600">
+                Documented statistics include generations after {formatDate(analytics.analyticsResetAt)}. Earlier photos remain in galleries and on live displays.
+              </p>
+            )}
+            {clearNotice && (
+              <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                {clearNotice}
+              </p>
+            )}
+          </div>
+          {isAdmin && (
+            <ClearEventStatsButton onClick={() => { setClearError(''); setClearOpen(true); }} disabled={clearing} />
+          )}
+        </div>
+      )}
+
+      <ClearEventStatsDialog
+        eventName={eventName}
+        open={clearOpen}
+        busy={clearing}
+        error={clearError}
+        onClose={() => { if (!clearing) setClearOpen(false); }}
+        onConfirm={handleClearStats}
+      />
+
       {/* Tab Nav */}
       <div className="flex border-b-2 border-slate-200">
         <button
