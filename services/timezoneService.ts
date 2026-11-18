@@ -174,8 +174,10 @@ export function createDateTimeInTimezone(
   timeStr: string,
   timezone: string
 ): Date {
-  const combined = `${dateStr}T${timeStr}`;
-  const localDate = new Date(combined);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute] = timeStr.split(':').map(Number);
+
+  const pseudoUtc = new Date(Date.UTC(year, month - 1, day, hour || 0, minute || 0, 0));
 
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -188,20 +190,16 @@ export function createDateTimeInTimezone(
     hour12: false,
   });
 
-  const parts = formatter.formatToParts(localDate);
-  const values: Record<string, string> = {};
-
+  const parts = formatter.formatToParts(pseudoUtc);
+  const v: Record<string, number> = {};
   parts.forEach(part => {
-    if (part.type !== 'literal') {
-      values[part.type] = part.value;
-    }
+    if (part.type !== 'literal') v[part.type] = Number(part.value);
   });
 
-  const utcDate = new Date(
-    `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}Z`
-  );
+  const targetAsUtc = Date.UTC(v.year, v.month - 1, v.day, v.hour % 24, v.minute, v.second);
+  const offset = pseudoUtc.getTime() - targetAsUtc;
 
-  return utcDate;
+  return new Date(pseudoUtc.getTime() + offset);
 }
 
 export function dateToLocalInputValue(date: Date | string, timezone: string): string {
