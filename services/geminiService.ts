@@ -1,5 +1,6 @@
 import { AspectRatio, PromptCustomField, ReferenceImage } from '../types';
 import { supabase } from '../lib/supabase';
+import { buildBoothImageRequest } from '../lib/stickerKey';
 
 export const generateBoothImage = async (
   imageUrlOrBase64: string,
@@ -13,44 +14,17 @@ export const generateBoothImage = async (
   stickerMode?: boolean
 ): Promise<string> => {
   try {
-    const isImageUrl = imageUrlOrBase64.startsWith('http://') || imageUrlOrBase64.startsWith('https://');
-    const isReferenceUrl = referenceImageUrlOrBase64?.startsWith('http://') || referenceImageUrlOrBase64?.startsWith('https://');
-
-    const body: any = {
+    const body = buildBoothImageRequest({
+      imageUrlOrBase64,
       promptTemplate,
+      referenceImageUrlOrBase64,
       aspectRatio,
-      resolution
-    };
-
-    // Omit modelName when unset so the function can use the event model, then the account model.
-    if (modelName) {
-      body.modelName = modelName;
-    }
-    if (eventId) {
-      body.eventId = eventId;
-    }
-    if (stickerMode) {
-      body.stickerMode = true;
-    }
-
-    if (isImageUrl) {
-      body.imageUrl = imageUrlOrBase64;
-    } else {
-      body.imageBase64 = imageUrlOrBase64;
-    }
-
-    if (referenceImages && referenceImages.length > 0) {
-      body.referenceImages = referenceImages.map(ref => ({
-        url: ref.url,
-        strength: ref.strength
-      }));
-    } else if (referenceImageUrlOrBase64) {
-      if (isReferenceUrl) {
-        body.referenceImageUrl = referenceImageUrlOrBase64;
-      } else {
-        body.referenceImageBase64 = referenceImageUrlOrBase64;
-      }
-    }
+      modelName,
+      resolution,
+      referenceImages,
+      eventId,
+      stickerMode,
+    });
 
     const { data, error } = await supabase.functions.invoke('gemini-generate-image', {
       body

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { storageSpecForDataUrl } from '../lib/stickerKey';
 
 export interface UploadImageResult {
   url: string;
@@ -141,9 +142,7 @@ export async function uploadGeneratedPhoto(
   try {
     const blob = await base64ToBlob(base64Image);
 
-    const isPng = base64Image.startsWith('data:image/png');
-    const ext = isPng ? 'png' : 'jpg';
-    const contentType = isPng ? 'image/png' : 'image/jpeg';
+    const { ext, contentType } = storageSpecForDataUrl(base64Image);
 
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);

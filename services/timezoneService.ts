@@ -169,14 +169,16 @@ export function formatTimeInTimezone(
   return `${formattedTime} ${abbreviation}`;
 }
 
-export function createDateTimeInTimezone(
-  dateStr: string,
-  timeStr: string,
-  timezone: string
-): Date {
-  const combined = `${dateStr}T${timeStr}`;
-  const localDate = new Date(combined);
+interface ZonedParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}
 
+function readZonedParts(instant: Date, timezone: string): ZonedParts {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     year: 'numeric',
@@ -188,45 +190,69 @@ export function createDateTimeInTimezone(
     hour12: false,
   });
 
-  const parts = formatter.formatToParts(localDate);
   const values: Record<string, string> = {};
-
-  parts.forEach(part => {
+  formatter.formatToParts(instant).forEach(part => {
     if (part.type !== 'literal') {
       values[part.type] = part.value;
     }
   });
 
-  const utcDate = new Date(
-    `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}Z`
-  );
+  // Some engines report midnight as hour "24" on that same calendar date.
+  const hour = Number(values.hour) === 24 ? 0 : Number(values.hour);
 
-  return utcDate;
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour,
+    minute: Number(values.minute),
+    second: Number(values.second),
+  };
+}
+
+/** Offset of `timezone` at `instant`, in milliseconds east of UTC. */
+function timezoneOffsetMs(instant: Date, timezone: string): number {
+  const parts = readZonedParts(instant, timezone);
+  const wallAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+  return wallAsUtc - instant.getTime();
+}
+
+export function createDateTimeInTimezone(
+  dateStr: string,
+  timeStr: string,
+  timezone: string
+): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute, second = 0] = timeStr.split(':').map(Number);
+
+  // The entered date and time are a wall clock in `timezone`. Start from
+  // that clock labeled as UTC, subtract the zone offset at that instant,
+  // then look up the offset once more so a DST transition between the
+  // guess and the result is corrected.
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
+  const offset = timezoneOffsetMs(new Date(utcGuess), timezone);
+  let utcMs = utcGuess - offset;
+  const offsetAtResult = timezoneOffsetMs(new Date(utcMs), timezone);
+  if (offsetAtResult !== offset) {
+    utcMs = utcGuess - offsetAtResult;
+  }
+
+  return new Date(utcMs);
 }
 
 export function dateToLocalInputValue(date: Date | string, timezone: string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const parts = readZonedParts(dateObj, timezone);
+  const pad = (value: number) => String(value).padStart(2, '0');
 
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
-  const parts = formatter.formatToParts(dateObj);
-  const values: Record<string, string> = {};
-
-  parts.forEach(part => {
-    if (part.type !== 'literal') {
-      values[part.type] = part.value;
-    }
-  });
-
-  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}`;
 }
 
 export function addHours(date: Date, hours: number): Date {
