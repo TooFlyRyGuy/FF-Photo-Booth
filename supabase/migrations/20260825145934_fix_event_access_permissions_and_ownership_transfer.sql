@@ -67,6 +67,8 @@ user_id/created_by columns on events.
 
 DROP POLICY IF EXISTS "Users can view own, shared, active, or all if admin" ON events;
 
+DROP POLICY IF EXISTS "Users can view own, shared, or all if admin" ON events;
+
 CREATE POLICY "Users can view own, shared, or all if admin"
 ON events FOR SELECT
 TO authenticated
