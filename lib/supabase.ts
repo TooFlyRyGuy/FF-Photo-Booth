@@ -79,8 +79,9 @@ export type Database = {
           upload_originals_to_gallery: boolean;
           created_at: string;
           updated_at: string;
+          analytics_reset_at: string | null;
         };
-        Insert: Omit<Database['public']['Tables']['events']['Row'], 'id' | 'created_at' | 'updated_at' | 'total_generations'>;
+        Insert: Omit<Database['public']['Tables']['events']['Row'], 'id' | 'created_at' | 'updated_at' | 'total_generations' | 'analytics_reset_at'>;
         Update: Partial<Database['public']['Tables']['events']['Insert']>;
       };
       prompts: {

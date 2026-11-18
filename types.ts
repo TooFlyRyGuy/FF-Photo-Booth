@@ -280,6 +280,8 @@ export interface Event {
   photoRetentionDays?: number | null;
   sharingScreenTimeout?: number | null;
   enabledModes?: string[];
+  /** Documentation baseline. Analytics ignore generations at or before this time. */
+  analyticsResetAt?: string | null;
 }
 
 export interface EventAccessCode {

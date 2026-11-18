@@ -453,6 +453,7 @@ const ARTICLES: Article[] = [
           'See a breakdown of which AI prompts were most popular',
           'Track daily usage trends throughout the event',
           'Export or review data to report back to clients',
+          'Admins can clear documented statistics for one event before launch. Photos, displays, device limits, and billing stay unchanged',
         ],
         type: 'steps',
       },
