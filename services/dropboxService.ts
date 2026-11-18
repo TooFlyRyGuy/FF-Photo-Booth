@@ -7,6 +7,7 @@ interface UploadToDropboxParams {
   imageBase64: string;
   imageType: 'original' | 'generated';
   promptName?: string;
+  fileExtension?: 'png' | 'jpg';
 }
 
 interface DropboxUploadResponse {

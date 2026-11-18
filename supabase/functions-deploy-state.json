@@ -22,7 +22,7 @@
       "hash": "824b638573a67ecb3456022ec6661fdad9948f485c3df56b555f4638fc247b6e"
     },
     "dropbox-upload": {
-      "hasChanged": false,
+      "hasChanged": true,
       "hash": "478e1a516c3bf38e12df113d238b4b904b469ab478597f5fb7f8504019f5642e"
     },
     "gemini-file-upload": {

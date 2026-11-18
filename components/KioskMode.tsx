@@ -6,7 +6,7 @@ import { generateBoothImage, substitutePromptVariables, resolveCustomFields } fr
 import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEventPhotoSmugmugUrl, updateEventPhotoOverlayUrl, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch, getKioskTextOverrides, saveDisclaimerAcknowledgment } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
-import { applyOverlayToImage, convertImageUrlToBase64 } from '../services/imageUtils';
+import { applyOverlayToImage, convertImageUrlToBase64, keyOutStickerBackground, limitPngDataUrl } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit, getTotalCredits } from '../services/creditService';
 import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
@@ -148,7 +148,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   };
 
   const enabledModes = (event.enabledModes && event.enabledModes.length > 0) ? event.enabledModes : ['photo'];
-  const isStickerMode = selectedMode === 'sticker';
+  const isStickerMode = selectedMode === 'sticker' || selectedPrompt?.mode === 'sticker';
 
   const applyPromptRoute = (route: ReturnType<typeof routeAfterGuestContinues<Prompt>>) => {
     if (route.mode) setSelectedMode(route.mode);
@@ -412,6 +412,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         isStickerMode
       );
 
+      if (isStickerMode) {
+        setUploadProgress('Cutting out your sticker...');
+        try {
+          genImage = await keyOutStickerBackground(genImage);
+          genImage = await limitPngDataUrl(genImage);
+        } catch (keyErr) {
+          console.error('Sticker background removal failed:', keyErr);
+        }
+      }
+
       const isPrivateMode = event.privateSharingMode === true;
       const shouldSkipClean = isPrivateMode && event.skipCleanVersion === true;
       const retentionDays = event.photoRetentionDays ?? 30;
@@ -625,6 +635,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             imageBase64: genImage,
             imageType: 'generated',
             promptName: selectedPrompt.name,
+            ...(isStickerMode && genImage.startsWith('data:image/png') ? { fileExtension: 'png' as const } : {}),
           })
             .then((dropboxUrl) => {
               console.log('✅ Uploaded generated to Dropbox:', dropboxUrl);
@@ -1791,7 +1802,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     return (
       <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
         {/* Image Side */}
-        <div className="lg:w-2/3 h-[35vh] lg:h-full bg-white p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0">
+        <div
+          className={`lg:w-2/3 h-[35vh] lg:h-full p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0 ${isStickerMode ? '' : 'bg-white'}`}
+          style={isStickerMode ? {
+            backgroundColor: '#ffffff',
+            backgroundImage: 'linear-gradient(45deg, #d4d4d8 25%, transparent 25%), linear-gradient(-45deg, #d4d4d8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d4d4d8 75%), linear-gradient(-45deg, transparent 75%, #d4d4d8 75%)',
+            backgroundSize: '24px 24px',
+            backgroundPosition: '0 0, 0 12px, 12px -12px, -12px 0',
+          } : undefined}
+        >
           <img
             src={finalImage || ''}
             className="max-h-full max-w-full rounded-lg md:rounded-xl shadow-2xl border-2 border-slate-300 touch-auto select-auto"
