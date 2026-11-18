@@ -4,6 +4,7 @@ import {
   getTimezoneAbbreviation,
   dateToLocalInputValue,
   formatDateTimeInTimezone,
+  createDateTimeInTimezone,
 } from '../services/timezoneService';
 
 interface TimezoneDateTimePickerProps {
@@ -50,34 +51,7 @@ export function TimezoneDateTimePicker({
 
     if (newLocalValue) {
       const [datePart, timePart] = newLocalValue.split('T');
-      const localDateStr = `${datePart}T${timePart}:00`;
-
-      const tempDate = new Date(localDateStr);
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      });
-
-      const parts = formatter.formatToParts(tempDate);
-      const values: Record<string, string> = {};
-
-      parts.forEach(part => {
-        if (part.type !== 'literal') {
-          values[part.type] = part.value;
-        }
-      });
-
-      const tzOffset = tempDate.getTimezoneOffset();
-      const adjusted = new Date(tempDate.getTime() - tzOffset * 60000);
-
-      const utcDate = new Date(localDateStr);
-
+      const utcDate = createDateTimeInTimezone(datePart, timePart, timezone);
       onChange(utcDate.toISOString());
     }
   };

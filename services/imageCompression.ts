@@ -1,7 +1,8 @@
 export async function compressBase64Image(
   base64: string,
   maxDimension: number = 400,
-  quality: number = 0.6
+  quality: number = 0.6,
+  preserveTransparency: boolean = false
 ): Promise<string> {
   if (!base64 || !base64.startsWith('data:image')) {
     return base64;
@@ -34,7 +35,9 @@ export async function compressBase64Image(
 
           ctx.drawImage(img, 0, 0, width, height);
 
-          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+          const outputFormat = preserveTransparency ? 'image/png' : 'image/jpeg';
+          const outputQuality = preserveTransparency ? 1.0 : quality;
+          const compressedBase64 = canvas.toDataURL(outputFormat, outputQuality);
 
           console.log(
             `Compressed image from ${img.width}x${img.height} to ${width}x${height}: ${base64.length} bytes -> ${compressedBase64.length} bytes (${Math.round((compressedBase64.length / base64.length) * 100)}%)`
@@ -63,7 +66,8 @@ export async function compressBase64Image(
 export async function compressForUpload(
   base64: string,
   maxDimension: number = 1920,
-  quality: number = 0.85
+  quality: number = 0.85,
+  preserveTransparency: boolean = false
 ): Promise<string> {
   if (!base64 || !base64.startsWith('data:image')) {
     return base64;
@@ -96,7 +100,9 @@ export async function compressForUpload(
 
           ctx.drawImage(img, 0, 0, width, height);
 
-          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+          const outputFormat = preserveTransparency ? 'image/png' : 'image/jpeg';
+          const outputQuality = preserveTransparency ? 1.0 : quality;
+          const compressedBase64 = canvas.toDataURL(outputFormat, outputQuality);
 
           const originalSize = (base64.length * 0.75) / 1024;
           const compressedSize = (compressedBase64.length * 0.75) / 1024;

@@ -1,24 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Camera, TrendingUp, Image as ImageIcon, Phone, Download, MessageSquare, CircleCheck as CheckCircle, Circle as XCircle, Clock } from 'lucide-react';
-import { getEventAnalytics, EventAnalytics as Analytics, getEventChartData, ChartDataPoint, getEventPhoneNumbers, EventPhoneEntry } from '../services/backendService';
+import { Camera, TrendingUp, Image as ImageIcon, Phone, Download, MessageSquare, CircleCheck as CheckCircle, Circle as XCircle, Clock, Smartphone } from 'lucide-react';
+import { getEventAnalytics, EventAnalytics as Analytics, getEventChartData, ChartDataPoint, getEventPhoneNumbers, EventPhoneEntry, getEventDeviceUsage, DeviceUsageEntry, clearEventDocumentationStats } from '../services/backendService';
+import { ClearEventStatsButton, ClearEventStatsDialog } from './ClearEventStatsDialog';
 
 interface EventAnalyticsProps {
   eventId: string;
   eventName: string;
+  limitPhotosPerDevice?: boolean;
+  maxPhotosPerDevice?: number;
+  isAdmin?: boolean;
 }
 
 const COLORS = ['#15803d', '#166534', '#14532d', '#16a34a', '#22c55e', '#4ade80', '#86efac'];
 
 type ReportTab = 'overview' | 'phones';
 
-const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName }) => {
+const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName, limitPhotosPerDevice, maxPhotosPerDevice, isAdmin = false }) => {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [dateChartData, setDateChartData] = useState<ChartDataPoint[]>([]);
   const [phoneEntries, setPhoneEntries] = useState<EventPhoneEntry[]>([]);
+  const [deviceUsage, setDeviceUsage] = useState<DeviceUsageEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<ReportTab>('overview');
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState('');
+  const [clearNotice, setClearNotice] = useState('');
 
   useEffect(() => {
     loadAnalytics();
@@ -28,18 +37,48 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName }) =
     setLoading(true);
     setError('');
     try {
-      const [analyticsData, chartDataResult, phoneData] = await Promise.all([
+      const [analyticsData, chartDataResult] = await Promise.all([
         getEventAnalytics(eventId),
         getEventChartData(eventId),
-        getEventPhoneNumbers(eventId),
       ]);
       setAnalytics(analyticsData);
       setDateChartData(chartDataResult);
-      setPhoneEntries(phoneData);
+
+      try {
+        const phoneData = await getEventPhoneNumbers(eventId);
+        setPhoneEntries(phoneData);
+      } catch (phoneErr) {
+        console.error('Failed to load phone numbers:', phoneErr);
+        setPhoneEntries([]);
+      }
+
+      if (limitPhotosPerDevice) {
+        try {
+          const deviceData = await getEventDeviceUsage(eventId);
+          setDeviceUsage(deviceData);
+        } catch (err) {
+          console.error('Failed to load device usage:', err);
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load analytics');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearStats = async () => {
+    setClearing(true);
+    setClearError('');
+    try {
+      await clearEventDocumentationStats(eventId);
+      setClearOpen(false);
+      setClearNotice(`Documented statistics for ${eventName} now start from this reset.`);
+      await loadAnalytics();
+    } catch (err: any) {
+      setClearError(err?.message || 'Failed to clear statistics');
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -100,6 +139,35 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName }) =
 
   return (
     <div className="space-y-6">
+      {(isAdmin || analytics.analyticsResetAt || clearNotice) && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            {analytics.analyticsResetAt && (
+              <p className="text-sm text-slate-600">
+                Documented statistics include generations after {formatDate(analytics.analyticsResetAt)}. Earlier photos remain in galleries and on live displays.
+              </p>
+            )}
+            {clearNotice && (
+              <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                {clearNotice}
+              </p>
+            )}
+          </div>
+          {isAdmin && (
+            <ClearEventStatsButton onClick={() => { setClearError(''); setClearOpen(true); }} disabled={clearing} />
+          )}
+        </div>
+      )}
+
+      <ClearEventStatsDialog
+        eventName={eventName}
+        open={clearOpen}
+        busy={clearing}
+        error={clearError}
+        onClose={() => { if (!clearing) setClearOpen(false); }}
+        onConfirm={handleClearStats}
+      />
+
       {/* Tab Nav */}
       <div className="flex border-b-2 border-slate-200">
         <button
@@ -175,6 +243,69 @@ const EventAnalytics: React.FC<EventAnalyticsProps> = ({ eventId, eventName }) =
               </div>
             </div>
           </div>
+
+          {/* Per-Device Limit Stats */}
+          {limitPhotosPerDevice && (
+            <div className="bg-white border-2 border-slate-300 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-amber-100 p-3 rounded-lg">
+                  <Smartphone className="text-amber-700" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Per-Device Usage</h3>
+                  <p className="text-sm text-slate-500">
+                    Limit: {maxPhotosPerDevice} {maxPhotosPerDevice === 1 ? 'photo' : 'photos'} per device
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <p className="text-sm text-slate-500 mb-1">Unique Devices</p>
+                  <p className="text-2xl font-bold text-slate-900">{deviceUsage.length}</p>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <p className="text-sm text-slate-500 mb-1">Total Photos (Tracked)</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {deviceUsage.reduce((sum, d) => sum + d.photoCount, 0)}
+                  </p>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <p className="text-sm text-slate-500 mb-1">Avg Photos / Device</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {deviceUsage.length > 0
+                      ? (deviceUsage.reduce((sum, d) => sum + d.photoCount, 0) / deviceUsage.length).toFixed(1)
+                      : '0'}
+                  </p>
+                </div>
+              </div>
+
+              {deviceUsage.length > 0 && (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {deviceUsage.map(entry => (
+                    <div key={entry.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-800 font-mono truncate">
+                          {entry.deviceToken.substring(0, 18)}...
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {entry.ipAddress || 'IP unknown'} | Last used: {new Date(entry.lastInteractionAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="ml-3 text-right flex-shrink-0">
+                        <p className="text-sm font-bold text-slate-900">
+                          {entry.photoCount} / {maxPhotosPerDevice}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {entry.photoCount >= (maxPhotosPerDevice || 0) ? 'Limit reached' : 'Active'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {dateChartData.length > 0 && (
             <div className="bg-white rounded-xl border-2 border-slate-300 p-6">
