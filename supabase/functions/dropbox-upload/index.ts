@@ -14,6 +14,7 @@ interface UploadRequest {
   imageType?: 'original' | 'generated';
   promptName?: string;
   createFolderOnly?: boolean;
+  fileExtension?: 'png' | 'jpg';
 }
 
 Deno.serve(async (req: Request) => {
@@ -29,7 +30,7 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { userId, eventId, eventName, imageBase64, imageType, promptName, createFolderOnly }: UploadRequest = await req.json();
+    const { userId, eventId, eventName, imageBase64, imageType, promptName, createFolderOnly, fileExtension }: UploadRequest = await req.json();
 
     const { data: userSettings, error: settingsError } = await supabase
       .from('user_settings')
@@ -112,7 +113,8 @@ Deno.serve(async (req: Request) => {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const suffix = promptName ? `_${promptName.replace(/[^a-zA-Z0-9-_]/g, '_')}` : '';
-    const fileName = `${imageType}_${timestamp}${suffix}.jpg`;
+    const fileExt = fileExtension === 'png' ? 'png' : 'jpg';
+    const fileName = `${imageType}_${timestamp}${suffix}.${fileExt}`;
     const filePath = `${folderPath}/${fileName}`;
 
     const imageBuffer = base64ToArrayBuffer(imageBase64.replace(/^data:image\/\w+;base64,/, ''));
