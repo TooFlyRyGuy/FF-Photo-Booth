@@ -1,0 +1,27 @@
+-- Minimal Supabase-like environment for validating the baseline migration
+CREATE ROLE anon NOLOGIN NOINHERIT; CREATE ROLE authenticated NOLOGIN NOINHERIT; CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
+CREATE ROLE authenticator LOGIN NOINHERIT; GRANT anon, authenticated, service_role TO authenticator;
+CREATE ROLE supabase_admin SUPERUSER; CREATE ROLE supabase_auth_admin NOLOGIN; CREATE ROLE supabase_storage_admin NOLOGIN; CREATE ROLE dashboard_user NOLOGIN;
+CREATE SCHEMA extensions; CREATE SCHEMA auth AUTHORIZATION supabase_auth_admin; CREATE SCHEMA storage AUTHORIZATION supabase_storage_admin;
+CREATE SCHEMA vault; CREATE SCHEMA realtime; CREATE SCHEMA graphql_public;
+GRANT USAGE ON SCHEMA public, extensions, auth, storage TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
+ALTER DATABASE postgres SET search_path = "$user", public, extensions;
+SET search_path = "$user", public, extensions;
+CREATE TABLE auth.users (instance_id uuid, id uuid PRIMARY KEY, aud character varying(255), role character varying(255), email character varying(255), encrypted_password character varying(255), email_confirmed_at timestamp with time zone, invited_at timestamp with time zone, confirmation_token character varying(255), confirmation_sent_at timestamp with time zone, recovery_token character varying(255), recovery_sent_at timestamp with time zone, email_change_token_new character varying(255), email_change character varying(255), email_change_sent_at timestamp with time zone, last_sign_in_at timestamp with time zone, raw_app_meta_data jsonb, raw_user_meta_data jsonb, is_super_admin boolean, created_at timestamp with time zone, updated_at timestamp with time zone, phone text, phone_confirmed_at timestamp with time zone, phone_change text, phone_change_token character varying(255), phone_change_sent_at timestamp with time zone, confirmed_at timestamp with time zone, email_change_token_current character varying(255), email_change_confirm_status smallint, banned_until timestamp with time zone, reauthentication_token character varying(255), reauthentication_sent_at timestamp with time zone, is_sso_user boolean, deleted_at timestamp with time zone, is_anonymous boolean);
+CREATE TYPE storage.buckettype AS ENUM ('STANDARD','ANALYTICS','VECTOR');
+CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, owner uuid, created_at timestamp with time zone default now(), updated_at timestamp with time zone default now(), public boolean default false, avif_autodetection boolean default false, file_size_limit bigint, allowed_mime_types text[], owner_id text, type storage.buckettype default 'STANDARD', versioning_status text, lifecycle_configuration jsonb, lifecycle_configuration_generation uuid);
+CREATE TABLE storage.objects (id uuid PRIMARY KEY default gen_random_uuid(), bucket_id text references storage.buckets(id), name text, owner uuid, created_at timestamp with time zone, updated_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb, path_tokens text[], version text, owner_id text, user_metadata jsonb, archived_at timestamp with time zone, is_delete_marker boolean, is_versioned boolean);
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY; ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $f$ select coalesce(nullif(current_setting('request.jwt.claim.sub', true), ''),(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'))::uuid $f$;
+CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $f$ select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''),(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'))::text $f$;
+CREATE OR REPLACE FUNCTION auth.email() RETURNS text LANGUAGE sql STABLE AS $f$ select coalesce(nullif(current_setting('request.jwt.claim.email', true), ''),(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email'))::text $f$;
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $f$ select coalesce(nullif(current_setting('request.jwt.claim', true), ''),nullif(current_setting('request.jwt.claims', true), ''))::jsonb $f$;
+CREATE OR REPLACE FUNCTION storage.filename(name text) RETURNS text LANGUAGE plpgsql IMMUTABLE AS $f$ DECLARE _parts text[]; BEGIN SELECT string_to_array(name, '/') INTO _parts; RETURN _parts[array_length(_parts, 1)]; END $f$;
+CREATE OR REPLACE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE plpgsql IMMUTABLE AS $f$ DECLARE _parts text[]; BEGIN SELECT string_to_array(name, '/') INTO _parts; RETURN _parts[1 : array_length(_parts,1) - 1]; END $f$;
+CREATE OR REPLACE FUNCTION storage.extension(name text) RETURNS text LANGUAGE plpgsql IMMUTABLE AS $f$ DECLARE _parts text[]; _filename text; BEGIN SELECT string_to_array(name, '/') INTO _parts; SELECT _parts[array_length(_parts, 1)] INTO _filename; RETURN reverse(split_part(reverse(_filename), '.', 1)); END $f$;
+GRANT ALL ON storage.buckets, storage.objects TO anon, authenticated, service_role;
+GRANT ALL ON auth.users TO service_role;
+CREATE PUBLICATION supabase_realtime;

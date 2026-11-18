@@ -65,7 +65,10 @@ This application uses Supabase for:
 - Edge Functions for serverless operations
 - Storage for image assets
 
-All database migrations are in `supabase/migrations/`.
+Database migrations live in `supabase/migrations/`. As of 2026-11-18 the history was squashed into a single
+baseline (`20261118213000_baseline_live_schema.sql`), a faithful snapshot of the live production schema; add new
+migrations after it with `supabase migration new <name>`. The pre-baseline files are kept for reference in
+`supabase/migrations_archive/` (not read by the Supabase CLI). Dev/branch reference data is in `supabase/seed.sql`.
 
 ## Credit System
 

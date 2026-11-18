@@ -84,7 +84,7 @@ test('typed confirmation must match the event name', () => {
 
 test('migration only baselines one event and does not delete photos or credits', () => {
   const sql = readFileSync(
-    new URL('../supabase/migrations/20261109120000_add_event_analytics_reset_at.sql', import.meta.url),
+    new URL('../supabase/migrations_archive/20261109120000_add_event_analytics_reset_at.sql', import.meta.url),
     'utf8'
   );
   const executable = sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--.*$/gm, '');
