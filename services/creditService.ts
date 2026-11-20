@@ -129,7 +129,7 @@ export const consumeCredit = async (userId: string, amount: number = 1): Promise
   return data;
 };
 
-// Adding credits is server-only (Stripe webhook, service role); see migration 20261120190000_credit_security_fix.
+// Adding credits is server-only (Stripe webhook, service role); see migration 20261120150000_credit_security_fix.
 
 export const getCreditLedger = async (
   userId: string,
