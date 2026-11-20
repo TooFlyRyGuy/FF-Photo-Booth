@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount, uploadEventPromptOverlay } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount, uploadEventPromptOverlay, resetEventCreditsUsed } from '../services/backendService';
 import { normalizeOverlayMode, PromptOverlayMode } from '../lib/overlayResolve';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay, AlertCircle, FileText } from 'lucide-react';
@@ -2552,6 +2552,53 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       )}
                     </>
                   )}
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Event Credit Limit (Optional)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editingEvent.creditLimit ?? ''}
+                        onChange={(e) => setEditingEvent({...editingEvent, creditLimit: e.target.value === '' ? null : parseInt(e.target.value, 10)})}
+                        className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                        placeholder="No limit"
+                      />
+                      <p className="text-xs text-slate-500">
+                        Caps the total credits this event can use. Leave empty for unlimited. Photos still charge the event owner's balance as usual.
+                      </p>
+                      {editingEvent.creditLimit !== null && editingEvent.creditLimit !== undefined && (
+                        <div className="p-3 bg-slate-50 border-2 border-slate-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-slate-700">
+                              <strong>Usage:</strong> {editingEvent.creditsUsed ?? 0} / {editingEvent.creditLimit} credits
+                            </span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!editingEvent.id) return;
+                                try {
+                                  await resetEventCreditsUsed(editingEvent.id);
+                                  setEditingEvent({...editingEvent, creditsUsed: 0});
+                                } catch (err) {
+                                  alert('Failed to reset event credits.');
+                                }
+                              }}
+                              className="text-xs px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium flex items-center gap-1"
+                            >
+                              <RotateCcw size={12} /> Reset
+                            </button>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-green-700 rounded-full transition-all"
+                              style={{ width: `${Math.min(100, ((editingEvent.creditsUsed ?? 0) / editingEvent.creditLimit) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   <div className="pt-4 border-t border-slate-200">
                     <label className="flex items-center gap-3 cursor-pointer">

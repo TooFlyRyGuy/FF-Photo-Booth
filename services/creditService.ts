@@ -211,3 +211,59 @@ export const getTotalCredits = async (userId: string): Promise<number> => {
 
   return data || 0;
 };
+
+export interface EventCreditStatus {
+  creditLimit: number | null;
+  creditsUsed: number;
+  remaining: number | null;
+}
+
+export const getEventCreditStatus = async (eventId: string): Promise<EventCreditStatus> => {
+  const { data, error } = await supabase
+    .rpc('get_event_credit_status', { p_event_id: eventId })
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to fetch event credit status:', error);
+    return { creditLimit: null, creditsUsed: 0, remaining: null };
+  }
+
+  if (!data) {
+    return { creditLimit: null, creditsUsed: 0, remaining: null };
+  }
+
+  return {
+    creditLimit: data.credit_limit,
+    creditsUsed: data.credits_used || 0,
+    remaining: data.remaining,
+  };
+};
+
+export const reserveEventCredits = async (eventId: string, amount: number): Promise<string | null> => {
+  const { data, error } = await supabase.rpc('reserve_event_credits', {
+    p_event_id: eventId,
+    p_amount: amount,
+  });
+
+  if (error) {
+    console.error('Failed to reserve event credits:', error);
+    return null;
+  }
+
+  return data;
+};
+
+export const finishEventCreditReservation = async (reservationId: string): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('finish_event_credit_reservation', {
+    p_reservation_id: reservationId,
+  });
+
+  if (error) {
+    console.error('Failed to finish event credit reservation:', error);
+    return false;
+  }
+
+  return data === true;
+};
+
+export { eventLimitBlocks } from '../lib/eventCredits';

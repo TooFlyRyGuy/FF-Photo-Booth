@@ -623,7 +623,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model, sharing_screen_timeout, enabled_modes')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model, sharing_screen_timeout, enabled_modes, credit_limit, credits_used')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -750,6 +750,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       photoRetentionDays: event.photo_retention_days ?? 30,
       sharingScreenTimeout: event.sharing_screen_timeout ?? 30,
       enabledModes: (event as any).enabled_modes || ['photo'],
+      creditLimit: (event as any).credit_limit ?? null,
+      creditsUsed: (event as any).credits_used ?? 0,
     });
   }
 
@@ -832,6 +834,8 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
     sharingScreenTimeout: eventData.sharing_screen_timeout ?? 30,
     enabledModes: eventData.enabled_modes || ['photo'],
     analyticsResetAt: eventData.analytics_reset_at ?? null,
+    creditLimit: eventData.credit_limit ?? null,
+    creditsUsed: eventData.credits_used ?? 0,
   };
 };
 
@@ -1050,6 +1054,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     sharing_screen_timeout: event.sharingScreenTimeout ?? 30,
     enabled_modes: event.enabledModes || ['photo'],
     event_source: isUpdate ? undefined : eventSource,
+    credit_limit: event.creditLimit ?? null,
   };
 
   let eventId = event.id;
@@ -1150,6 +1155,19 @@ export const saveEvent = async (event: Event): Promise<Event> => {
 
   clearEventsCache();
   return getEventById(eventId);
+};
+
+export const resetEventCreditsUsed = async (eventId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('events')
+    .update({ credits_used: 0 })
+    .eq('id', eventId);
+
+  if (error) {
+    throw new Error(`Failed to reset event credits: ${error.message}`);
+  }
+
+  clearEventsCache();
 };
 
 /**
@@ -2274,7 +2292,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model, credit_limit, credits_used')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -2371,6 +2389,8 @@ export const getAllEvents = async (): Promise<Event[]> => {
       privateSharingMode: e.private_sharing_mode || false,
       skipCleanVersion: e.skip_clean_version || false,
       photoRetentionDays: e.photo_retention_days ?? 30,
+      creditLimit: e.credit_limit ?? null,
+      creditsUsed: e.credits_used ?? 0,
     };
   });
 };

@@ -80,8 +80,10 @@ export type Database = {
           created_at: string;
           updated_at: string;
           analytics_reset_at: string | null;
+          credit_limit: number | null;
+          credits_used: number;
         };
-        Insert: Omit<Database['public']['Tables']['events']['Row'], 'id' | 'created_at' | 'updated_at' | 'total_generations' | 'analytics_reset_at'>;
+        Insert: Omit<Database['public']['Tables']['events']['Row'], 'id' | 'created_at' | 'updated_at' | 'total_generations' | 'analytics_reset_at' | 'credits_used'>;
         Update: Partial<Database['public']['Tables']['events']['Insert']>;
       };
       prompts: {

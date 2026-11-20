@@ -289,6 +289,8 @@ export interface Event {
   enabledModes?: string[];
   /** Documentation baseline. Analytics ignore generations at or before this time. */
   analyticsResetAt?: string | null;
+  creditLimit?: number | null;
+  creditsUsed?: number;
 }
 
 export interface EventAccessCode {

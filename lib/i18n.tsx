@@ -50,6 +50,8 @@ const enUS: TranslationDict = {
   'kiosk.photoPerDevice': 'photo per device',
   'kiosk.photosPerDevice': 'photos per device',
   'kiosk.askOrganizer': 'Please ask the event organizer if you need assistance.',
+  'kiosk.eventLimitReached': 'EVENT CREDIT LIMIT REACHED',
+  'kiosk.eventLimitReachedDesc': 'This event has reached its photo credit limit.',
 
   // Kiosk - Prompt Select
   'kiosk.chooseYourStyle': 'Choose Your Style',
@@ -174,6 +176,8 @@ const es: TranslationDict = {
   'kiosk.photoPerDevice': 'foto por dispositivo',
   'kiosk.photosPerDevice': 'fotos por dispositivo',
   'kiosk.askOrganizer': 'Pide ayuda al organizador del evento si la necesitas.',
+  'kiosk.eventLimitReached': 'LÍMITE DE CRÉDITOS DEL EVENTO ALCANZADO',
+  'kiosk.eventLimitReachedDesc': 'Este evento ha alcanzado su límite de créditos de fotos.',
 
   'kiosk.chooseYourStyle': 'Elige Tu Estilo',
   'kiosk.cancel': 'Cancelar',
@@ -286,6 +290,8 @@ const fr: TranslationDict = {
   'kiosk.photoPerDevice': 'photo par appareil',
   'kiosk.photosPerDevice': 'photos par appareil',
   'kiosk.askOrganizer': 'Demandez à l\'organisateur de l\'événement si vous avez besoin d\'aide.',
+  'kiosk.eventLimitReached': 'LIMITE DE CRÉDITS DE L\'ÉVÉNEMENT ATTEINTE',
+  'kiosk.eventLimitReachedDesc': 'Cet événement a atteint sa limite de crédits de photos.',
 
   'kiosk.chooseYourStyle': 'Choisissez Votre Style',
   'kiosk.cancel': 'Annuler',
@@ -398,6 +404,8 @@ const de: TranslationDict = {
   'kiosk.photoPerDevice': 'Foto pro Gerät',
   'kiosk.photosPerDevice': 'Fotos pro Gerät',
   'kiosk.askOrganizer': 'Bitte wenden Sie sich an den Event-Organisator, wenn Sie Hilfe benötigen.',
+  'kiosk.eventLimitReached': 'EVENT-GUTHABENLIMIT ERREICHT',
+  'kiosk.eventLimitReachedDesc': 'Dieses Event hat sein Foto-Guthabenlimit erreicht.',
 
   'kiosk.chooseYourStyle': 'Wählen Sie Ihren Stil',
   'kiosk.cancel': 'Abbrechen',
@@ -510,6 +518,8 @@ const pt: TranslationDict = {
   'kiosk.photoPerDevice': 'foto por dispositivo',
   'kiosk.photosPerDevice': 'fotos por dispositivo',
   'kiosk.askOrganizer': 'Peça ajuda ao organizador do evento se precisar.',
+  'kiosk.eventLimitReached': 'LIMITE DE CRÉDITOS DO EVENTO ATINGIDO',
+  'kiosk.eventLimitReachedDesc': 'Este evento atingiu o seu limite de créditos de fotos.',
 
   'kiosk.chooseYourStyle': 'Escolha o Seu Estilo',
   'kiosk.cancel': 'Cancelar',
@@ -622,6 +632,8 @@ const zh: TranslationDict = {
   'kiosk.photoPerDevice': '张照片/设备',
   'kiosk.photosPerDevice': '张照片/设备',
   'kiosk.askOrganizer': '如需帮助，请联系活动组织者。',
+  'kiosk.eventLimitReached': '活动额度限制已达到',
+  'kiosk.eventLimitReachedDesc': '此活动已达到其照片额度限制。',
 
   'kiosk.chooseYourStyle': '选择您的风格',
   'kiosk.cancel': '取消',
@@ -734,6 +746,8 @@ const ja: TranslationDict = {
   'kiosk.photoPerDevice': 'デバイスあたり1枚',
   'kiosk.photosPerDevice': 'デバイスあたり枚',
   'kiosk.askOrganizer': 'サポートが必要な場合はイベント主催者にお尋ねください。',
+  'kiosk.eventLimitReached': 'イベントクレジット制限に達しました',
+  'kiosk.eventLimitReachedDesc': 'このイベントは写真クレジットの制限に達しました。',
 
   'kiosk.chooseYourStyle': 'スタイルを選択',
   'kiosk.cancel': 'キャンセル',
@@ -846,6 +860,8 @@ const ko: TranslationDict = {
   'kiosk.photoPerDevice': '기기당 사진 1장',
   'kiosk.photosPerDevice': '기기당 사진',
   'kiosk.askOrganizer': '도움이 필요하시면 이벤트 주최자에게 문의하세요.',
+  'kiosk.eventLimitReached': '이벤트 크레딧 한도 도달',
+  'kiosk.eventLimitReachedDesc': '이 이벤트가 사진 크레딧 한도에 도달했습니다.',
 
   'kiosk.chooseYourStyle': '스타일 선택',
   'kiosk.cancel': '취소',

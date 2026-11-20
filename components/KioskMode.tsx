@@ -8,7 +8,8 @@ import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
 import { resolveOverlayForPrompt } from '../lib/overlayResolve';
 import { applyOverlayToImage, convertImageUrlToBase64, keyOutStickerBackground, limitPngDataUrl } from '../services/imageUtils';
-import { checkCreditAvailability, consumeCredit, getTotalCredits } from '../services/creditService';
+import { checkCreditAvailability, consumeCredit, getTotalCredits, getEventCreditStatus, reserveEventCredits, finishEventCreditReservation } from '../services/creditService';
+import { eventLimitBlocks } from '../lib/eventCredits';
 import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
@@ -21,7 +22,7 @@ interface KioskProps {
   onLoaded?: () => void;
 }
 
-type KioskState = 'attract' | 'mode-select' | 'disclaimer' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached';
+type KioskState = 'attract' | 'mode-select' | 'disclaimer' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached' | 'event-limit-reached';
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const eventLanguages: LanguageCode[] = (event.kioskLanguages && event.kioskLanguages.length > 0
@@ -78,6 +79,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [isCheckingCredits, setIsCheckingCredits] = useState(false);
   const [guestAnswers, setGuestAnswers] = useState<Record<string, string>>({});
   const [customizeErrors, setCustomizeErrors] = useState<Record<string, boolean>>({});
+  const [eventCreditReservationId, setEventCreditReservationId] = useState<string | null>(null);
 
   const requestFullscreen = useCallback(async () => {
     try {
@@ -195,6 +197,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       const effectiveResolution = event.imageResolution || globalSettings?.geminiResolution || '1K';
       const creditCost = effectiveResolution === '4K' ? 4 : effectiveResolution === '2K' ? 2 : 1;
 
+      let eventStatus: { creditLimit: number | null; creditsUsed: number; remaining: number | null } | null = null;
+      if (event.creditLimit !== null && event.creditLimit !== undefined) {
+        try {
+          eventStatus = await getEventCreditStatus(event.id);
+        } catch (err) {
+          console.error('Event credit status check failed, allowing through:', err);
+        }
+        if (eventStatus && eventLimitBlocks(eventStatus.creditLimit, eventStatus.creditsUsed, creditCost)) {
+          setView('event-limit-reached');
+          return;
+        }
+      }
+
       const creditCheck = await checkCreditAvailability(event.userId, 'image');
 
       if (!creditCheck.available || (creditCheck.remaining !== undefined && creditCheck.remaining < creditCost)) {
@@ -202,6 +217,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       } else if (event.disclaimerEnabled && event.disclaimerText) {
         setView('disclaimer');
       } else {
+        if (event.creditLimit !== null && event.creditLimit !== undefined) {
+          const reservationId = await reserveEventCredits(event.id, creditCost);
+          if (!reservationId) {
+            setView('event-limit-reached');
+            return;
+          }
+          setEventCreditReservationId(reservationId);
+        }
         proceedToPrompts();
       }
     } finally {
@@ -523,6 +546,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         console.error('Failed to consume credit, but image was generated');
       }
 
+      if (eventCreditReservationId) {
+        try {
+          await finishEventCreditReservation(eventCreditReservationId);
+        } catch (err) {
+          console.error('Failed to finish event credit reservation:', err);
+        }
+        setEventCreditReservationId(null);
+      }
+
       try {
         const remaining = await getTotalCredits(event.userId);
         const thresholds = [
@@ -747,6 +779,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setUploadProgress('');
     setGuestAnswers({});
     setCustomizeErrors({});
+    setEventCreditReservationId(null);
     stopCamera();
   };
 
@@ -1305,6 +1338,49 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           <div className="mt-6 p-4 md:p-5 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
             <p className="text-sm md:text-base text-slate-700">
               <strong>{t('kiosk.limit')}</strong> {event.maxPhotosPerDevice} {event.maxPhotosPerDevice === 1 ? t('kiosk.photoPerDevice') : t('kiosk.photosPerDevice')}<br />
+              {t('kiosk.askOrganizer')}
+            </p>
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 left-4 md:bottom-10 md:left-10 z-50">
+          <button onClick={(e) => { e.stopPropagation(); handleExitKiosk(); }} className="text-slate-400 hover:text-slate-900 text-xs md:text-sm p-2 md:p-4">
+            {t('kiosk.exitKiosk')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // EVENT LIMIT REACHED SCREEN
+  if (view === 'event-limit-reached') {
+    const colors = getBrandingColors();
+    return (
+      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 relative flex flex-col items-center overflow-y-auto overflow-x-hidden px-4 pt-6 md:pt-8 pb-16">
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="w-full h-full bg-gradient-to-br from-amber-600 to-amber-800"></div>
+        </div>
+
+        {event.logoUrl && !event.hideLogo && (
+          <div className="relative z-20 flex-shrink-0 mb-6 md:mb-8">
+            <img src={event.logoUrl} alt={event.name} className={`${getLogoSizeClass()} object-contain`} />
+          </div>
+        )}
+
+        <div className="relative z-10 text-center space-y-4 md:space-y-6 max-w-2xl flex-1 flex flex-col justify-center">
+          <h1
+            className="text-2xl md:text-4xl lg:text-5xl font-display font-bold"
+            style={{ color: colors.secondary }}
+          >
+            {t('kiosk.eventLimitReached')}
+          </h1>
+
+          <p className="text-base md:text-xl text-slate-900 font-light">
+            {t('kiosk.eventLimitReachedDesc')}
+          </p>
+
+          <div className="mt-6 p-4 md:p-5 bg-white/80 backdrop-blur-sm rounded-xl border-2 border-slate-300 max-w-md mx-auto">
+            <p className="text-sm md:text-base text-slate-700">
               {t('kiosk.askOrganizer')}
             </p>
           </div>
