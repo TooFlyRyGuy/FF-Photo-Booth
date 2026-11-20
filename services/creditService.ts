@@ -129,34 +129,7 @@ export const consumeCredit = async (userId: string, amount: number = 1): Promise
   return data;
 };
 
-export const addPurchasedCredits = async (
-  userId: string,
-  credits: number,
-  stripeSessionId?: string,
-  stripePaymentIntentId?: string
-): Promise<{
-  success: boolean;
-  credits_added?: number;
-  new_balance?: number;
-  error?: string;
-}> => {
-  const { data, error } = await supabase.rpc('add_purchased_credits', {
-    p_user_id: userId,
-    p_credits: credits,
-    p_stripe_session_id: stripeSessionId || null,
-    p_stripe_payment_intent_id: stripePaymentIntentId || null,
-  });
-
-  if (error) {
-    console.error('Failed to add purchased credits:', error);
-    return {
-      success: false,
-      error: 'Failed to add purchased credits',
-    };
-  }
-
-  return data;
-};
+// Adding credits is server-only (Stripe webhook, service role); see migration 20261120190000_credit_security_fix.
 
 export const getCreditLedger = async (
   userId: string,
