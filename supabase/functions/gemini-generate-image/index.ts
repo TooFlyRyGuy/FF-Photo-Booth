@@ -468,7 +468,13 @@ Deno.serve(async (req: Request) => {
       generationConfig: {
         responseModalities: ["TEXT", "IMAGE"],
         imageConfig: imageConfigObj
-      }
+      },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
     };
 
     console.log('Request body (without image data):', JSON.stringify({
@@ -570,8 +576,9 @@ Deno.serve(async (req: Request) => {
 
     if (!generatedImage) {
       const finishReason = geminiResult.candidates?.[0]?.finishReason;
+      const blockReason = geminiResult.promptFeedback?.blockReason;
       console.error('No image in response. Full result:', JSON.stringify(geminiResult).substring(0, 2000));
-      throw new Error(`No image generated. Finish reason: ${finishReason || 'unknown'}`);
+      throw new Error(`No image generated. Finish reason: ${finishReason || 'unknown'}${blockReason ? `, Block reason: ${blockReason}` : ''}`);
     }
 
     if (activeModel !== model) {
