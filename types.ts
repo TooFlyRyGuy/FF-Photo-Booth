@@ -215,6 +215,13 @@ export interface Prompt {
   geminiModel?: string | null;
   mode?: 'photo' | 'sticker' | 'video';
   subcategory?: string;
+  /**
+   * Event-scoped overlay override (event_prompts.overlay_mode / overlay_url).
+   * Only set when the prompt was loaded through an event; never written to the shared prompts row.
+   * 'event' (default) = use the event overlay, 'custom' = use eventOverlayUrl, 'none' = no overlay.
+   */
+  eventOverlayMode?: 'event' | 'custom' | 'none';
+  eventOverlayUrl?: string | null;
 }
 
 export type AspectRatio = 'square' | '3:4' | '4:3' | '9:16' | '16:9' | '2:3' | '3:2' | '4:5';
