@@ -1,6 +1,7 @@
 import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult, PromptTranslation, KioskTextOverride } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
+import { buildEventPromptRows, promptOverlayFieldsFromRow } from '../lib/overlayResolve';
 import {
   aggregateDocumentedChartData,
   aggregateDocumentedEventAnalytics,
@@ -642,7 +643,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
     if (includePrompts) {
       const { data: eventPromptsData } = await supabase
         .from('event_prompts')
-        .select('prompt_id, display_order')
+        .select('prompt_id, display_order, overlay_mode, overlay_url')
         .eq('event_id', event.id)
         .order('display_order', { ascending: true });
 
@@ -658,9 +659,9 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
         if (promptsData) {
           const promptsMap = new Map(promptsData.map(p => [p.id, p]));
           prompts = eventPromptsData
-            .map(ep => promptsMap.get(ep.prompt_id))
-            .filter((p): p is any => p !== undefined)
-            .map(p => ({
+            .map(ep => ({ ep, p: promptsMap.get(ep.prompt_id) }))
+            .filter((x): x is { ep: any; p: any } => x.p !== undefined)
+            .map(({ ep, p }) => ({
               id: p.id,
               name: p.name,
               description: p.description || '',
@@ -674,6 +675,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
               geminiModel: (p as any).gemini_model || null,
               mode: (p as any).mode || 'photo',
               subcategory: (p as any).subcategory || '',
+              ...promptOverlayFieldsFromRow(ep),
             }));
         }
       }
@@ -836,7 +838,7 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
 const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
   const { data: eventPromptsData } = await supabase
     .from('event_prompts')
-    .select('prompt_id, display_order')
+    .select('prompt_id, display_order, overlay_mode, overlay_url')
     .eq('event_id', eventId)
     .order('display_order', { ascending: true });
 
@@ -858,9 +860,9 @@ const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
 
   const promptsMap = new Map(promptsData.map(p => [p.id, p]));
   return eventPromptsData
-    .map(ep => promptsMap.get(ep.prompt_id))
-    .filter((p): p is any => p !== undefined)
-    .map(p => ({
+    .map(ep => ({ ep, p: promptsMap.get(ep.prompt_id) }))
+    .filter((x): x is { ep: any; p: any } => x.p !== undefined)
+    .map(({ ep, p }) => ({
       id: p.id,
       name: p.name,
       description: p.description || '',
@@ -874,6 +876,7 @@ const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
       geminiModel: (p as any).gemini_model || null,
       mode: (p as any).mode || 'photo',
       subcategory: (p as any).subcategory || '',
+      ...promptOverlayFieldsFromRow(ep),
     }));
 };
 
@@ -1133,11 +1136,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
       console.error('Error removing old event prompts:', deleteError);
     }
 
-    const eventPrompts = event.prompts.map((prompt, index) => ({
-      event_id: eventId,
-      prompt_id: prompt.id,
-      display_order: index,
-    }));
+    // Carry each prompt's overlay choice through the delete + re-insert so saves don't wipe it.
+    const eventPrompts = buildEventPromptRows(eventId, event.prompts);
 
     const { error: insertError } = await supabase
       .from('event_prompts')
@@ -1150,6 +1150,42 @@ export const saveEvent = async (event: Event): Promise<Event> => {
 
   clearEventsCache();
   return getEventById(eventId);
+};
+
+/**
+ * Upload a per-prompt overlay PNG for an event to the existing public prompt-images bucket
+ * (authenticated users may upload there). Falls back to an inline data URL, like the event overlay,
+ * if the upload fails. Returns the URL to store in event_prompts.overlay_url.
+ */
+export const uploadEventPromptOverlay = async (
+  file: File,
+  promptId: string,
+  eventId?: string
+): Promise<string> => {
+  const readAsDataUrl = () =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  try {
+    const userId = await getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+    const filePath = `${userId}/event-overlays/${eventId || 'new'}_${promptId}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from('prompt-images')
+      .upload(filePath, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'image/png' });
+    if (error) throw error;
+    const { data } = supabase.storage.from('prompt-images').getPublicUrl(filePath);
+    if (!data?.publicUrl) throw new Error('No public URL returned');
+    return data.publicUrl;
+  } catch (err) {
+    console.error('Prompt overlay upload failed, storing inline instead:', err);
+    return readAsDataUrl();
+  }
 };
 
 export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {

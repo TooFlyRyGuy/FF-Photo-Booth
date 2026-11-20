@@ -216,7 +216,7 @@ test('the booth does not ask the shared Gemini function for a transparent backgr
   const keyAt = kiosk.indexOf('keyOutStickerBackground');
   const uploadAt = kiosk.indexOf('uploadGeneratedPhoto');
   assert.ok(keyAt > 0 && uploadAt > keyAt, 'keying runs before the storage upload');
-  assert.match(kiosk, /overlayImageUrl && !isStickerMode/);
+  assert.match(kiosk, /resolveOverlayForPrompt\(event, selectedPrompt, isStickerMode\)/);
   assert.match(kiosk, /fileExtension: 'png'/);
   assert.match(kiosk, /toDataURL\('image\/png'\)|keyOutStickerBackground/);
 });

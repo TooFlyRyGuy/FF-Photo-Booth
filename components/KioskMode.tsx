@@ -6,6 +6,7 @@ import { generateBoothImage, substitutePromptVariables, resolveCustomFields } fr
 import { sendSms, sendEmail, saveGeneratedImage, saveEventPhotoRecord, updateEventPhotoSmugmugUrl, updateEventPhotoOverlayUrl, getUserSettingsByUserId, getGlobalSettings, checkDeviceLimit, incrementDeviceUsage, getPromptTranslationsBatch, getKioskTextOverrides, saveDisclaimerAcknowledgment } from '../services/backendService';
 import { uploadImageToDropbox } from '../services/dropboxService';
 import { uploadToSmugMug } from '../services/smugmugService';
+import { resolveOverlayForPrompt } from '../lib/overlayResolve';
 import { applyOverlayToImage, convertImageUrlToBase64, keyOutStickerBackground, limitPngDataUrl } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit, getTotalCredits } from '../services/creditService';
 import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
@@ -457,11 +458,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         setBucketPhotoId(photoRecordId);
       }
 
-      // Apply overlay (skip for sticker mode — stickers must remain transparent)
-      if (event.overlayImageUrl && !isStickerMode) {
+      // Apply overlay: the prompt's own overlay (custom), none, or the event overlay (default).
+      // Sticker mode never gets an overlay — stickers must remain transparent.
+      const promptOverlayUrl = resolveOverlayForPrompt(event, selectedPrompt, isStickerMode);
+      if (promptOverlayUrl) {
         try {
           setUploadProgress('Applying finishing touches...');
-          genImage = await applyOverlayToImage(genImage, event.overlayImageUrl);
+          genImage = await applyOverlayToImage(genImage, promptOverlayUrl);
         } catch (overlayErr) {
           console.error('Failed to apply overlay:', overlayErr);
         }
