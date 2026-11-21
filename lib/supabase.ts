@@ -80,8 +80,10 @@ export type Database = {
           created_at: string;
           updated_at: string;
           analytics_reset_at: string | null;
+          credit_limit: number | null;
+          credits_used: number;
         };
-        Insert: Omit<Database['public']['Tables']['events']['Row'], 'id' | 'created_at' | 'updated_at' | 'total_generations' | 'analytics_reset_at'>;
+        Insert: Omit<Database['public']['Tables']['events']['Row'], 'id' | 'created_at' | 'updated_at' | 'total_generations' | 'analytics_reset_at' | 'credits_used'>;
         Update: Partial<Database['public']['Tables']['events']['Insert']>;
       };
       prompts: {
@@ -130,9 +132,14 @@ export type Database = {
           event_id: string;
           prompt_id: string;
           display_order: number;
+          overlay_mode: 'event' | 'custom' | 'none';
+          overlay_url: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['event_prompts']['Row'], 'id' | 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['event_prompts']['Row'], 'id' | 'created_at' | 'overlay_mode' | 'overlay_url'> & {
+          overlay_mode?: 'event' | 'custom' | 'none';
+          overlay_url?: string | null;
+        };
         Update: Partial<Database['public']['Tables']['event_prompts']['Insert']>;
       };
       sms_logs: {

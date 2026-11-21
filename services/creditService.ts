@@ -129,34 +129,7 @@ export const consumeCredit = async (userId: string, amount: number = 1): Promise
   return data;
 };
 
-export const addPurchasedCredits = async (
-  userId: string,
-  credits: number,
-  stripeSessionId?: string,
-  stripePaymentIntentId?: string
-): Promise<{
-  success: boolean;
-  credits_added?: number;
-  new_balance?: number;
-  error?: string;
-}> => {
-  const { data, error } = await supabase.rpc('add_purchased_credits', {
-    p_user_id: userId,
-    p_credits: credits,
-    p_stripe_session_id: stripeSessionId || null,
-    p_stripe_payment_intent_id: stripePaymentIntentId || null,
-  });
-
-  if (error) {
-    console.error('Failed to add purchased credits:', error);
-    return {
-      success: false,
-      error: 'Failed to add purchased credits',
-    };
-  }
-
-  return data;
-};
+// Adding credits is server-only (Stripe webhook, service role); see migration 20261120150000_credit_security_fix.
 
 export const getCreditLedger = async (
   userId: string,
@@ -238,3 +211,61 @@ export const getTotalCredits = async (userId: string): Promise<number> => {
 
   return data || 0;
 };
+
+export interface EventCreditStatus {
+  creditLimit: number | null;
+  creditsUsed: number;
+  remaining: number | null;
+}
+
+export const getEventCreditStatus = async (eventId: string): Promise<EventCreditStatus> => {
+  const { data, error } = await supabase
+    .rpc('get_event_credit_status', { p_event_id: eventId })
+    .maybeSingle();
+
+  if (error) {
+    console.error('Failed to fetch event credit status:', error);
+    return { creditLimit: null, creditsUsed: 0, remaining: null };
+  }
+
+  if (!data) {
+    return { creditLimit: null, creditsUsed: 0, remaining: null };
+  }
+
+  return {
+    creditLimit: data.credit_limit,
+    creditsUsed: data.credits_used || 0,
+    remaining: data.remaining,
+  };
+};
+
+export const reserveEventCredits = async (eventId: string, amount: number): Promise<string | null> => {
+  const { data, error } = await supabase.rpc('reserve_event_credits', {
+    p_event_id: eventId,
+    p_amount: amount,
+  });
+
+  if (error) {
+    console.error('Failed to reserve event credits:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// success = true keeps the credits on the event; false refunds them (failed generation).
+export const finishEventCreditReservation = async (reservationId: string, success: boolean = true): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('finish_event_credit_reservation', {
+    p_reservation_id: reservationId,
+    p_success: success,
+  });
+
+  if (error) {
+    console.error('Failed to finish event credit reservation:', error);
+    return false;
+  }
+
+  return data === true;
+};
+
+export { eventLimitBlocks } from '../lib/eventCredits';

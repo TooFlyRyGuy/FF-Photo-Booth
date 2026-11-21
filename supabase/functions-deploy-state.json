@@ -22,8 +22,8 @@
       "hash": "824b638573a67ecb3456022ec6661fdad9948f485c3df56b555f4638fc247b6e"
     },
     "dropbox-upload": {
-      "hasChanged": true,
-      "hash": "478e1a516c3bf38e12df113d238b4b904b469ab478597f5fb7f8504019f5642e"
+      "hasChanged": false,
+      "hash": "362e49813e119e1a67e3aa9add8ad0631a6b11eb6939e2c3dd3c1ea85c769fce"
     },
     "gemini-file-upload": {
       "hasChanged": false,
@@ -31,7 +31,7 @@
     },
     "gemini-generate-image": {
       "hasChanged": false,
-      "hash": "a25941cb795925b1fc213942b3c4354500a57a62e401c56716cc802c79af5049"
+      "hash": "11874deac222b7a1ddc1340b4f7c29f504547c18927f46afeff6a258ecc9777f"
     },
     "gemini-generate-text": {
       "hasChanged": false,

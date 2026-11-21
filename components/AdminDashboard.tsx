@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount } from '../services/backendService';
+import { parseCreditLimitInput } from '../lib/eventCredits';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount, uploadEventPromptOverlay, resetEventCreditsUsed } from '../services/backendService';
+import { normalizeOverlayMode, PromptOverlayMode } from '../lib/overlayResolve';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
 import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay, AlertCircle, FileText } from 'lucide-react';
 import Settings from './Settings';
@@ -97,6 +99,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   // Event Editor State
   const [editingEvent, setEditingEvent] = useState<Partial<Event>>({});
+  const [uploadingOverlayPromptId, setUploadingOverlayPromptId] = useState<string | null>(null);
 
   // Analytics State
   const [analyticsEvent, setAnalyticsEvent] = useState<Event | null>(null);
@@ -907,6 +910,30 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     setEditingEvent({ ...editingEvent, prompts: newPrompts });
   };
 
+  // Per-prompt overlay override (event-scoped; stored on event_prompts, not on the shared prompt)
+  const updateEventPromptOverlay = (promptId: string, changes: Pick<Prompt, 'eventOverlayMode' | 'eventOverlayUrl'>) => {
+    setEditingEvent(prev => ({
+      ...prev,
+      prompts: (prev.prompts || []).map(p => (p.id === promptId ? { ...p, ...changes } : p)),
+    }));
+  };
+
+  const handlePromptOverlayUpload = async (e: React.ChangeEvent<HTMLInputElement>, promptId: string) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingOverlayPromptId(promptId);
+    try {
+      const url = await uploadEventPromptOverlay(file, promptId, editingEvent.id || undefined);
+      updateEventPromptOverlay(promptId, { eventOverlayMode: 'custom', eventOverlayUrl: url });
+    } catch (err) {
+      console.error('Failed to upload prompt overlay:', err);
+      alert('Failed to upload the overlay. Please try again.');
+    } finally {
+      setUploadingOverlayPromptId(null);
+    }
+  };
+
   const handleDragStart = (index: number) => {
     setDraggedPromptIndex(index);
   };
@@ -940,7 +967,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       await updatePrompt(editingPromptId, editingPromptData);
 
       const updatedPrompts = (editingEvent.prompts || []).map(p =>
-        p.id === editingPromptId ? { ...p, ...editingPromptData } : p
+        p.id === editingPromptId
+          ? { ...p, ...editingPromptData, eventOverlayMode: p.eventOverlayMode, eventOverlayUrl: p.eventOverlayUrl }
+          : p
       );
 
       setEditingEvent({ ...editingEvent, prompts: updatedPrompts });
@@ -2526,6 +2555,53 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                   )}
 
                   <div className="pt-4 border-t border-slate-200">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Event Credit Limit (Optional)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editingEvent.creditLimit ?? ''}
+                        onChange={(e) => setEditingEvent({...editingEvent, creditLimit: parseCreditLimitInput(e.target.value)})}
+                        className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                        placeholder="No limit"
+                      />
+                      <p className="text-xs text-slate-500">
+                        Caps the total credits this event can use. Leave empty for unlimited. Photos still charge the event owner's balance as usual.
+                      </p>
+                      {editingEvent.creditLimit !== null && editingEvent.creditLimit !== undefined && (
+                        <div className="p-3 bg-slate-50 border-2 border-slate-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-slate-700">
+                              <strong>Usage:</strong> {editingEvent.creditsUsed ?? 0} / {editingEvent.creditLimit} credits
+                            </span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!editingEvent.id) return;
+                                try {
+                                  await resetEventCreditsUsed(editingEvent.id);
+                                  setEditingEvent({...editingEvent, creditsUsed: 0});
+                                } catch (err) {
+                                  alert('Failed to reset event credits.');
+                                }
+                              }}
+                              className="text-xs px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium flex items-center gap-1"
+                            >
+                              <RotateCcw size={12} /> Reset
+                            </button>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-green-700 rounded-full transition-all"
+                              style={{ width: `${Math.min(100, ((editingEvent.creditsUsed ?? 0) / editingEvent.creditLimit) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -3128,6 +3204,77 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                             <div className="flex-1 min-w-0">
                               <h4 className="font-bold text-xs sm:text-sm text-black break-words">{prompt.name}</h4>
                               <p className="text-[10px] sm:text-xs text-slate-500 break-words">{prompt.description || prompt.category}</p>
+                              {prompt.mode !== 'sticker' && (() => {
+                                const overlayMode = normalizeOverlayMode(prompt.eventOverlayMode);
+                                const isUploading = uploadingOverlayPromptId === prompt.id;
+                                return (
+                                  <div
+                                    className="mt-2 space-y-1.5 cursor-default"
+                                    draggable
+                                    onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                  >
+                                    <label className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-xs font-medium text-slate-700">
+                                      <ImageIcon size={12} /> Overlay:
+                                      <select
+                                        value={overlayMode}
+                                        onChange={(e) => {
+                                          const mode = e.target.value as PromptOverlayMode;
+                                          updateEventPromptOverlay(prompt.id, {
+                                            eventOverlayMode: mode,
+                                            eventOverlayUrl: mode === 'custom' ? (prompt.eventOverlayUrl || null) : null,
+                                          });
+                                        }}
+                                        className="px-2 py-1 border-2 border-slate-300 rounded text-[10px] sm:text-xs bg-white focus:ring-2 focus:ring-green-700 focus:outline-none"
+                                        aria-label={`Overlay for ${prompt.name}`}
+                                      >
+                                        <option value="event">Event default</option>
+                                        <option value="custom">Custom</option>
+                                        <option value="none">None</option>
+                                      </select>
+                                      {overlayMode === 'custom' && prompt.eventOverlayUrl && (
+                                        <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-800 text-[10px] font-bold">Custom overlay</span>
+                                      )}
+                                    </label>
+                                    {overlayMode === 'custom' && (
+                                      prompt.eventOverlayUrl ? (
+                                        <div className="flex items-center gap-2">
+                                          <img
+                                            src={prompt.eventOverlayUrl}
+                                            alt={`${prompt.name} overlay`}
+                                            className="h-16 w-16 sm:h-20 sm:w-20 object-contain rounded border-2 border-slate-300 bg-slate-100"
+                                          />
+                                          <label className="cursor-pointer px-2 py-1 rounded border-2 border-slate-300 text-[10px] sm:text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-1">
+                                            <Upload size={12} /> {isUploading ? 'Uploading…' : 'Replace'}
+                                            <input type="file" accept="image/png,image/*" className="hidden" disabled={isUploading} onChange={(e) => handlePromptOverlayUpload(e, prompt.id)} />
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() => updateEventPromptOverlay(prompt.id, { eventOverlayMode: 'custom', eventOverlayUrl: null })}
+                                            className="px-2 py-1 rounded border-2 border-red-300 text-[10px] sm:text-xs text-red-700 hover:bg-red-50 flex items-center gap-1"
+                                            title="Remove custom overlay"
+                                          >
+                                            <Trash2 size={12} /> Remove
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <label className="cursor-pointer block">
+                                          <div className="w-full max-w-xs h-16 border-2 border-dashed border-slate-300 rounded flex items-center justify-center gap-2 hover:border-green-700 hover:bg-green-50 transition-colors text-[10px] sm:text-xs text-slate-600">
+                                            <Upload size={14} className="text-slate-400" />
+                                            {isUploading ? 'Uploading…' : 'Upload overlay (transparent PNG)'}
+                                          </div>
+                                          <input type="file" accept="image/png,image/*" className="hidden" disabled={isUploading} onChange={(e) => handlePromptOverlayUpload(e, prompt.id)} />
+                                        </label>
+                                      )
+                                    )}
+                                    {overlayMode === 'custom' && !prompt.eventOverlayUrl && !isUploading && (
+                                      <p className="text-[10px] text-amber-700">No custom overlay yet — the event overlay is used until you upload one.</p>
+                                    )}
+                                    {overlayMode === 'none' && (
+                                      <p className="text-[10px] text-slate-500">Photos from this prompt get no overlay.</p>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                             <button
                               onClick={() => handleStartEditingPrompt(prompt)}

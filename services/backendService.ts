@@ -1,6 +1,7 @@
 import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult, PromptTranslation, KioskTextOverride } from '../types';
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
+import { buildEventPromptRows, promptOverlayFieldsFromRow } from '../lib/overlayResolve';
 import {
   aggregateDocumentedChartData,
   aggregateDocumentedEventAnalytics,
@@ -622,7 +623,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
 
   const { data: eventsData, error } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model, sharing_screen_timeout, enabled_modes')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model, sharing_screen_timeout, enabled_modes, credit_limit, credits_used')
     .order('event_date', { ascending: false });
 
   if (error) {
@@ -642,7 +643,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
     if (includePrompts) {
       const { data: eventPromptsData } = await supabase
         .from('event_prompts')
-        .select('prompt_id, display_order')
+        .select('prompt_id, display_order, overlay_mode, overlay_url')
         .eq('event_id', event.id)
         .order('display_order', { ascending: true });
 
@@ -658,9 +659,9 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
         if (promptsData) {
           const promptsMap = new Map(promptsData.map(p => [p.id, p]));
           prompts = eventPromptsData
-            .map(ep => promptsMap.get(ep.prompt_id))
-            .filter((p): p is any => p !== undefined)
-            .map(p => ({
+            .map(ep => ({ ep, p: promptsMap.get(ep.prompt_id) }))
+            .filter((x): x is { ep: any; p: any } => x.p !== undefined)
+            .map(({ ep, p }) => ({
               id: p.id,
               name: p.name,
               description: p.description || '',
@@ -674,6 +675,7 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
               geminiModel: (p as any).gemini_model || null,
               mode: (p as any).mode || 'photo',
               subcategory: (p as any).subcategory || '',
+              ...promptOverlayFieldsFromRow(ep),
             }));
         }
       }
@@ -748,6 +750,8 @@ export const getEvents = async (skipCache: boolean = false, includePrompts: bool
       photoRetentionDays: event.photo_retention_days ?? 30,
       sharingScreenTimeout: event.sharing_screen_timeout ?? 30,
       enabledModes: (event as any).enabled_modes || ['photo'],
+      creditLimit: (event as any).credit_limit ?? null,
+      creditsUsed: (event as any).credits_used ?? 0,
     });
   }
 
@@ -830,13 +834,15 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
     sharingScreenTimeout: eventData.sharing_screen_timeout ?? 30,
     enabledModes: eventData.enabled_modes || ['photo'],
     analyticsResetAt: eventData.analytics_reset_at ?? null,
+    creditLimit: eventData.credit_limit ?? null,
+    creditsUsed: eventData.credits_used ?? 0,
   };
 };
 
 const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
   const { data: eventPromptsData } = await supabase
     .from('event_prompts')
-    .select('prompt_id, display_order')
+    .select('prompt_id, display_order, overlay_mode, overlay_url')
     .eq('event_id', eventId)
     .order('display_order', { ascending: true });
 
@@ -858,9 +864,9 @@ const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
 
   const promptsMap = new Map(promptsData.map(p => [p.id, p]));
   return eventPromptsData
-    .map(ep => promptsMap.get(ep.prompt_id))
-    .filter((p): p is any => p !== undefined)
-    .map(p => ({
+    .map(ep => ({ ep, p: promptsMap.get(ep.prompt_id) }))
+    .filter((x): x is { ep: any; p: any } => x.p !== undefined)
+    .map(({ ep, p }) => ({
       id: p.id,
       name: p.name,
       description: p.description || '',
@@ -874,6 +880,7 @@ const loadEventPrompts = async (eventId: string): Promise<Prompt[]> => {
       geminiModel: (p as any).gemini_model || null,
       mode: (p as any).mode || 'photo',
       subcategory: (p as any).subcategory || '',
+      ...promptOverlayFieldsFromRow(ep),
     }));
 };
 
@@ -1047,6 +1054,7 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     sharing_screen_timeout: event.sharingScreenTimeout ?? 30,
     enabled_modes: event.enabledModes || ['photo'],
     event_source: isUpdate ? undefined : eventSource,
+    credit_limit: event.creditLimit ?? null,
   };
 
   let eventId = event.id;
@@ -1133,11 +1141,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
       console.error('Error removing old event prompts:', deleteError);
     }
 
-    const eventPrompts = event.prompts.map((prompt, index) => ({
-      event_id: eventId,
-      prompt_id: prompt.id,
-      display_order: index,
-    }));
+    // Carry each prompt's overlay choice through the delete + re-insert so saves don't wipe it.
+    const eventPrompts = buildEventPromptRows(eventId, event.prompts);
 
     const { error: insertError } = await supabase
       .from('event_prompts')
@@ -1150,6 +1155,55 @@ export const saveEvent = async (event: Event): Promise<Event> => {
 
   clearEventsCache();
   return getEventById(eventId);
+};
+
+export const resetEventCreditsUsed = async (eventId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('events')
+    .update({ credits_used: 0 })
+    .eq('id', eventId);
+
+  if (error) {
+    throw new Error(`Failed to reset event credits: ${error.message}`);
+  }
+
+  clearEventsCache();
+};
+
+/**
+ * Upload a per-prompt overlay PNG for an event to the existing public prompt-images bucket
+ * (authenticated users may upload there). Falls back to an inline data URL, like the event overlay,
+ * if the upload fails. Returns the URL to store in event_prompts.overlay_url.
+ */
+export const uploadEventPromptOverlay = async (
+  file: File,
+  promptId: string,
+  eventId?: string
+): Promise<string> => {
+  const readAsDataUrl = () =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  try {
+    const userId = await getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+    const filePath = `${userId}/event-overlays/${eventId || 'new'}_${promptId}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from('prompt-images')
+      .upload(filePath, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'image/png' });
+    if (error) throw error;
+    const { data } = supabase.storage.from('prompt-images').getPublicUrl(filePath);
+    if (!data?.publicUrl) throw new Error('No public URL returned');
+    return data.publicUrl;
+  } catch (err) {
+    console.error('Prompt overlay upload failed, storing inline instead:', err);
+    return readAsDataUrl();
+  }
 };
 
 export const savePrompt = async (prompt: Prompt): Promise<Prompt> => {
@@ -2238,7 +2292,7 @@ export const getAllUsers = async (): Promise<any[]> => {
 export const getAllEvents = async (): Promise<Event[]> => {
   const { data: eventsData, error: eventsError } = await supabase
     .from('events')
-    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model')
+    .select('id, name, event_date, city, is_active, passcode, user_id, aspect_ratio, primary_color, secondary_color, accent_color, hide_logo, hide_event_name, logo_url, logo_position, logo_size, start_datetime, end_datetime, sms_message, smugmug_gallery_key, smugmug_gallery_url, upload_originals_to_gallery, limit_photos_per_device, max_photos_per_device, qr_access_enabled, gallery_enabled, show_account_promo, sms_enabled, whatsapp_enabled, email_enabled, email_subject, email_body, download_enabled, qr_sharing_enabled, kiosk_language, kiosk_languages, hide_language_selector, default_kiosk_language, fullscreen_enabled, kiosk_passcode, timezone, disclaimer_enabled, disclaimer_text, private_sharing_mode, skip_clean_version, photo_retention_days, gemini_model, credit_limit, credits_used')
     .order('created_at', { ascending: false });
 
   if (eventsError) {
@@ -2335,6 +2389,8 @@ export const getAllEvents = async (): Promise<Event[]> => {
       privateSharingMode: e.private_sharing_mode || false,
       skipCleanVersion: e.skip_clean_version || false,
       photoRetentionDays: e.photo_retention_days ?? 30,
+      creditLimit: e.credit_limit ?? null,
+      creditsUsed: e.credits_used ?? 0,
     };
   });
 };
