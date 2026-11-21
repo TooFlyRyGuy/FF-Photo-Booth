@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 const root = new URL('..', import.meta.url).pathname;
 const migration = readFileSync(
-  join(root, 'supabase/migrations/20261120150000_credit_security_fix.sql'),
+  join(root, 'supabase/migrations/20261120192946_20261120150000_credit_security_fix.sql.sql'),
   'utf8'
 );
 
