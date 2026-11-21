@@ -9,7 +9,7 @@ import { uploadToSmugMug } from '../services/smugmugService';
 import { resolveOverlayForPrompt } from '../lib/overlayResolve';
 import { applyOverlayToImage, convertImageUrlToBase64, keyOutStickerBackground, limitPngDataUrl } from '../services/imageUtils';
 import { checkCreditAvailability, consumeCredit, getTotalCredits, getEventCreditStatus, reserveEventCredits, finishEventCreditReservation } from '../services/creditService';
-import { eventLimitBlocks } from '../lib/eventCredits';
+import { eventLimitBlocks, hasEventCreditLimit, creditCostForResolution } from '../lib/eventCredits';
 import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageService';
 import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
@@ -79,7 +79,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [isCheckingCredits, setIsCheckingCredits] = useState(false);
   const [guestAnswers, setGuestAnswers] = useState<Record<string, string>>({});
   const [customizeErrors, setCustomizeErrors] = useState<Record<string, boolean>>({});
-  const [eventCreditReservationId, setEventCreditReservationId] = useState<string | null>(null);
 
   const requestFullscreen = useCallback(async () => {
     try {
@@ -194,11 +193,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         }
       }
 
-      const effectiveResolution = event.imageResolution || globalSettings?.geminiResolution || '1K';
-      const creditCost = effectiveResolution === '4K' ? 4 : effectiveResolution === '2K' ? 2 : 1;
+      const creditCost = creditCostForResolution(event.imageResolution || globalSettings?.geminiResolution);
 
       let eventStatus: { creditLimit: number | null; creditsUsed: number; remaining: number | null } | null = null;
-      if (event.creditLimit !== null && event.creditLimit !== undefined) {
+      if (hasEventCreditLimit(event.creditLimit)) {
         try {
           eventStatus = await getEventCreditStatus(event.id);
         } catch (err) {
@@ -217,14 +215,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       } else if (event.disclaimerEnabled && event.disclaimerText) {
         setView('disclaimer');
       } else {
-        if (event.creditLimit !== null && event.creditLimit !== undefined) {
-          const reservationId = await reserveEventCredits(event.id, creditCost);
-          if (!reservationId) {
-            setView('event-limit-reached');
-            return;
-          }
-          setEventCreditReservationId(reservationId);
-        }
         proceedToPrompts();
       }
     } finally {
@@ -363,6 +353,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setView('processing');
     setErrorMsg('');
 
+    // Event credit limit: each generation (retakes included) reserves its own credits right before
+    // generating; success keeps them, any failure gives them back to the event.
+    const creditCost = creditCostForResolution(event.imageResolution || globalSettings.geminiResolution);
+    let eventCreditReservationId: string | null = null;
+
     try {
       console.log('🎯 Event userId being checked:', event.userId);
 
@@ -422,6 +417,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         setUploadProgress('Personalizing your prompt...');
         const resolved = await resolveCustomFields(selectedPrompt.customFields, guestAnswers);
         finalPromptText = substitutePromptVariables(selectedPrompt.promptText, resolved);
+      }
+
+      if (hasEventCreditLimit(event.creditLimit)) {
+        eventCreditReservationId = await reserveEventCredits(event.id, creditCost);
+        if (!eventCreditReservationId) {
+          setUploadProgress('');
+          setView('event-limit-reached');
+          return;
+        }
       }
 
       let genImage = await generateBoothImage(
@@ -538,21 +542,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         'completed'
       );
 
-      const effectiveResolution = event.imageResolution || globalSettings?.geminiResolution || '1K';
-      const creditCost = effectiveResolution === '4K' ? 4 : effectiveResolution === '2K' ? 2 : 1;
-
       const consumed = await consumeCredit(event.userId, creditCost);
       if (!consumed) {
         console.error('Failed to consume credit, but image was generated');
       }
 
       if (eventCreditReservationId) {
-        try {
-          await finishEventCreditReservation(eventCreditReservationId);
-        } catch (err) {
-          console.error('Failed to finish event credit reservation:', err);
-        }
-        setEventCreditReservationId(null);
+        const reservationId = eventCreditReservationId;
+        eventCreditReservationId = null;
+        await finishEventCreditReservation(reservationId, true).catch(() => false);
       }
 
       try {
@@ -707,6 +705,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         });
       }
     } catch (err: any) {
+      if (eventCreditReservationId) {
+        const reservationId = eventCreditReservationId;
+        eventCreditReservationId = null;
+        await finishEventCreditReservation(reservationId, false).catch(() => false);
+      }
       setErrorMsg(err.message || "AI Generation Failed");
       setView('review');
     }
@@ -779,7 +782,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setUploadProgress('');
     setGuestAnswers({});
     setCustomizeErrors({});
-    setEventCreditReservationId(null);
     stopCamera();
   };
 

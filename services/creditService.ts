@@ -253,9 +253,11 @@ export const reserveEventCredits = async (eventId: string, amount: number): Prom
   return data;
 };
 
-export const finishEventCreditReservation = async (reservationId: string): Promise<boolean> => {
+// success = true keeps the credits on the event; false refunds them (failed generation).
+export const finishEventCreditReservation = async (reservationId: string, success: boolean = true): Promise<boolean> => {
   const { data, error } = await supabase.rpc('finish_event_credit_reservation', {
     p_reservation_id: reservationId,
+    p_success: success,
   });
 
   if (error) {

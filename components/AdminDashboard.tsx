@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseCreditLimitInput } from '../lib/eventCredits';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount, uploadEventPromptOverlay, resetEventCreditsUsed } from '../services/backendService';
 import { normalizeOverlayMode, PromptOverlayMode } from '../lib/overlayResolve';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
@@ -2560,7 +2561,7 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                         type="number"
                         min="0"
                         value={editingEvent.creditLimit ?? ''}
-                        onChange={(e) => setEditingEvent({...editingEvent, creditLimit: e.target.value === '' ? null : parseInt(e.target.value, 10)})}
+                        onChange={(e) => setEditingEvent({...editingEvent, creditLimit: parseCreditLimitInput(e.target.value)})}
                         className="w-full bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
                         placeholder="No limit"
                       />
