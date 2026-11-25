@@ -1838,6 +1838,30 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         <p className="text-sm md:text-base text-slate-600 text-center">
           {uploadProgress || t('kiosk.applyingStyle', { style: getPromptDisplayName(selectedPrompt!) })}
         </p>
+        {event.smsEnabled !== false && (
+          <div className="w-full max-w-sm space-y-2 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-lg">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center justify-center gap-2">
+              <Smartphone size={14} />
+              {t('kiosk.sms')}
+            </label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="(555) 123-4567"
+              aria-label={t('kiosk.sms')}
+              className="w-full bg-white border-2 border-slate-300 rounded-xl px-4 py-3 text-base md:text-lg text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
+              style={{ borderColor: phoneNumber ? colors.accent : undefined }}
+              onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+              onBlur={(e) => {
+                if (!phoneNumber) e.currentTarget.style.borderColor = '';
+              }}
+            />
+            <p className="text-xs text-slate-500 text-center">
+              Enter your number while your photo is being created. It will still be here when your photo is ready.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
