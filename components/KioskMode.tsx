@@ -70,7 +70,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const hasPasscode = !!(event.kioskPasscode && event.kioskPasscode.trim().length > 0);
   const fullscreenEnabled = event.fullscreenEnabled === true;
   const intentionalExitRef = useRef(false);
-  const smsQueuedRef = useRef(false);
+  const [smsQueued, setSmsQueued] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -712,7 +712,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         await finishEventCreditReservation(reservationId, false).catch(() => false);
       }
       setErrorMsg(err.message || "AI Generation Failed");
-      smsQueuedRef.current = false;
+      setSmsQueued(false);
       setView('review');
     }
   };
@@ -784,7 +784,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setUploadProgress('');
     setGuestAnswers({});
     setCustomizeErrors({});
-    smsQueuedRef.current = false;
+    setSmsQueued(false);
     stopCamera();
   };
 
@@ -942,12 +942,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
   // Auto-send SMS when image becomes ready and guest queued a send during processing
   useEffect(() => {
-    if (!smsQueuedRef.current) return;
+    if (!smsQueued) return;
     if (shareUrl && generatedImageId && phoneNumber.length >= 10 && !isSending && view !== 'delivery') {
-      smsQueuedRef.current = false;
+      setSmsQueued(false);
       handleSendSms();
     }
-  }, [shareUrl, generatedImageId, phoneNumber, isSending, view]);
+  }, [smsQueued, shareUrl, generatedImageId, phoneNumber, isSending, view]);
 
   // Preload prompt images for faster display
   useEffect(() => {
@@ -1859,7 +1859,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             <input
               type="tel"
               value={phoneNumber}
-              onChange={(e) => { setPhoneNumber(e.target.value); if (smsQueuedRef.current) smsQueuedRef.current = false; }}
+              onChange={(e) => { setPhoneNumber(e.target.value); setSmsQueued(false); }}
               placeholder="(555) 123-4567"
               aria-label={t('kiosk.sms')}
               className="w-full bg-white border-2 border-slate-300 rounded-xl px-4 py-3 text-base md:text-lg text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
@@ -1869,14 +1869,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 if (!phoneNumber) e.currentTarget.style.borderColor = '';
               }}
             />
-            {smsQueuedRef.current ? (
+            {smsQueued ? (
               <div className="flex items-center justify-center gap-2 rounded-xl py-3 px-4 bg-green-50 border-2 border-green-200 text-green-700 font-bold text-sm">
                 <Check size={16} />
                 Queued! We'll text you the moment your photo is ready.
               </div>
             ) : (
               <button
-                onClick={() => { smsQueuedRef.current = true; }}
+                onClick={() => { setSmsQueued(true); }}
                 disabled={phoneNumber.length < 10}
                 className="w-full bg-slate-900 text-white font-bold text-sm md:text-base py-3 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
               >
@@ -1994,6 +1994,38 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendToAnother')}
                   </button>
                 </div>
+
+                {shareUrl && shareUrl.length < 500 && event.qrSharingEnabled !== false && (
+                  (() => {
+                    const otherMethodsEnabled = event.downloadEnabled !== false || event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled;
+                    const qrIsPrimary = !otherMethodsEnabled;
+                    return (
+                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-4 md:pt-8' : 'pt-2 md:pt-8'}`}>
+                          <div className={`bg-slate-50 rounded-xl border-2 border-slate-300 ${
+                            qrIsPrimary
+                              ? 'flex flex-col items-center text-center p-4 md:p-8 gap-3 md:gap-4'
+                              : 'flex items-center gap-2 md:gap-4 p-2 md:p-4'
+                          }`}>
+                              <div className={`bg-white rounded-lg flex-shrink-0 border border-slate-300 ${
+                                qrIsPrimary ? 'p-3 md:p-4' : 'p-1 md:p-2'
+                              }`}>
+                                  <QRCodeSVG
+                                    value={shareUrl}
+                                    size={qrIsPrimary ? 180 : 50}
+                                    level="M"
+                                    includeMargin={false}
+                                    className={qrIsPrimary ? '' : 'md:w-20 md:h-20'}
+                                  />
+                              </div>
+                              <div className={qrIsPrimary ? 'text-center' : ''}>
+                                  <p className={`text-slate-900 font-bold ${qrIsPrimary ? 'text-lg md:text-2xl' : 'text-xs md:text-base'}`}>{t('kiosk.scanForInstantAccess')}</p>
+                                  <p className={`text-slate-600 ${qrIsPrimary ? 'text-sm md:text-base mt-1' : 'text-xs'}`}>{t('kiosk.noPhoneRequired')}</p>
+                              </div>
+                          </div>
+                      </div>
+                    );
+                  })()
+                )}
 
                 {event.galleryEnabled && !event.privateSharingMode && event.smugmugGalleryUrl && (
                   <button
