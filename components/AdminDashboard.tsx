@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { parseCreditLimitInput } from '../lib/eventCredits';
+import { PRINT_PAPER_SIZES, cutForPaperSize, parsePrintEventLimit, parsePrintMaxCopies } from '../lib/printStation';
 import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount, uploadEventPromptOverlay, resetEventCreditsUsed } from '../services/backendService';
 import { normalizeOverlayMode, PromptOverlayMode } from '../lib/overlayResolve';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
@@ -18,6 +19,7 @@ import { TimezoneDateTimePicker } from './TimezoneDateTimePicker';
 import { CollapsibleSection } from './CollapsibleSection';
 import { AddOnShowcase } from './AddOnShowcase';
 import HelpCenter from './HelpCenter';
+import PrintStations from './PrintStations';
 import OnboardingTutorial from './OnboardingTutorial';
 import PromptEditor from './PromptEditor';
 import { User } from '@supabase/supabase-js';
@@ -37,7 +39,7 @@ interface AdminProps {
   user: User | null;
 }
 
-type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'plans' | 'reports' | 'profile' | 'help';
+type Tab = 'dashboard' | 'events' | 'create_event' | 'edit_event' | 'analytics' | 'settings' | 'prompts' | 'users' | 'plans' | 'reports' | 'profile' | 'help' | 'print_stations';
 
 const getEventStatus = (event: Event): { status: 'upcoming' | 'active' | 'ended'; label: string; colorClass: string } => {
   const now = new Date();
@@ -689,6 +691,12 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       emailBody: '',
       downloadEnabled: true,
       qrSharingEnabled: true,
+      printEnabled: false,
+      printPaperSize: '4x6',
+      printCut: 'none',
+      printDelivery: 'button',
+      printMaxCopies: 1,
+      printEventLimit: null,
       timezone: defaultTz,
     });
     setActiveTab('create_event');
@@ -1145,6 +1153,17 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
           >
             <Calendar size={20} />
             {!sidebarCollapsed && 'Events'}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('print_stations');
+              setMobileMenuOpen(false);
+            }}
+            className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} w-full px-4 py-3 rounded-lg transition-colors ${activeTab === 'print_stations' ? 'bg-green-700/10 text-green-800' : 'hover:bg-slate-100 text-slate-600'}`}
+            title={sidebarCollapsed ? 'Print Stations' : ''}
+          >
+            <Printer size={20} />
+            {!sidebarCollapsed && 'Print Stations'}
           </button>
           <button
             id="onboarding-prompts-nav"
@@ -2937,6 +2956,110 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                       </div>
                     )}
                   </div>
+
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingEvent.printEnabled === true}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          const paperSize = editingEvent.printPaperSize || '4x6';
+                          setEditingEvent({
+                            ...editingEvent,
+                            printEnabled: enabled,
+                            printPaperSize: paperSize,
+                            printCut: cutForPaperSize(paperSize),
+                            printDelivery: editingEvent.printDelivery || 'button',
+                            printMaxCopies: editingEvent.printMaxCopies || 1,
+                          });
+                        }}
+                        className="w-5 h-5 rounded border-slate-300 bg-slate-50 text-green-700 focus:ring-2 focus:ring-green-700"
+                      />
+                      <div>
+                        <span className="text-black font-medium">Enable printing</span>
+                        <p className="text-xs text-slate-500">Guests can print the finished photo on the office DNP printer. Off by default. Pair the PC under Print Stations. Glossy or matte stays on the printer.</p>
+                      </div>
+                    </label>
+
+                    {editingEvent.printEnabled === true && (
+                      <div className="ml-8 pt-2 border-l-2 border-slate-200 pl-4 space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700" htmlFor="event-print-size">Print size</label>
+                          <select
+                            id="event-print-size"
+                            value={editingEvent.printPaperSize || '4x6'}
+                            onChange={(e) => {
+                              const paperSize = e.target.value as NonNullable<typeof editingEvent.printPaperSize>;
+                              setEditingEvent({
+                                ...editingEvent,
+                                printPaperSize: paperSize,
+                                printCut: cutForPaperSize(paperSize),
+                              });
+                            }}
+                            className="w-full max-w-xs bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                          >
+                            {PRINT_PAPER_SIZES.map((size) => (
+                              <option key={size.id} value={size.id}>{size.label}</option>
+                            ))}
+                          </select>
+                          {(editingEvent.printPaperSize || '4x6') === '2x6' && (
+                            <p className="text-xs text-slate-500">One copy is one 2×6 strip. The printer cuts a 4×6 sheet into two strips, so an odd count prints one extra strip.</p>
+                          )}
+                        </div>
+
+                        <fieldset className="space-y-2">
+                          <legend className="text-sm font-medium text-slate-700">When to print</legend>
+                          <label className="flex items-center gap-2 text-sm text-slate-800">
+                            <input
+                              type="radio"
+                              name="print-delivery"
+                              checked={(editingEvent.printDelivery || 'button') === 'button'}
+                              onChange={() => setEditingEvent({ ...editingEvent, printDelivery: 'button' })}
+                            />
+                            Guest taps a Print button
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-slate-800">
+                            <input
+                              type="radio"
+                              name="print-delivery"
+                              checked={editingEvent.printDelivery === 'auto'}
+                              onChange={() => setEditingEvent({ ...editingEvent, printDelivery: 'auto' })}
+                            />
+                            Print automatically when the photo is ready
+                          </label>
+                        </fieldset>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700" htmlFor="event-print-copies">Max copies per guest</label>
+                          <input
+                            id="event-print-copies"
+                            type="number"
+                            min={1}
+                            max={20}
+                            value={editingEvent.printMaxCopies ?? 1}
+                            onChange={(e) => setEditingEvent({ ...editingEvent, printMaxCopies: parsePrintMaxCopies(e.target.value) })}
+                            className="w-28 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                          />
+                          <p className="text-xs text-slate-500">How many copies one photo can send. Auto-print sends one copy.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700" htmlFor="event-print-limit">Event print limit</label>
+                          <input
+                            id="event-print-limit"
+                            type="number"
+                            min={1}
+                            value={editingEvent.printEventLimit ?? ''}
+                            onChange={(e) => setEditingEvent({ ...editingEvent, printEventLimit: parsePrintEventLimit(e.target.value) })}
+                            placeholder="No limit"
+                            className="w-40 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"
+                          />
+                          <p className="text-xs text-slate-500">Optional cap on copies for the whole event. Leave empty for no limit. Failed and cancelled jobs do not count.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CollapsibleSection>
 
@@ -3518,6 +3641,10 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
         {activeTab === 'help' && (
           <HelpCenter />
+        )}
+
+        {activeTab === 'print_stations' && (
+          <PrintStations events={events} />
         )}
 
       </main>

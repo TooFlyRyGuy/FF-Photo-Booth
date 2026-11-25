@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail, Lock, X } from 'lucide-react';
+import { RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail, Lock, X, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings, PromptCustomField } from '../types';
 import { generateBoothImage, substitutePromptVariables, resolveCustomFields } from '../services/geminiService';
@@ -14,6 +14,8 @@ import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageS
 import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
 import { routeAfterGuestContinues, routeAfterModeSelected, routeBackFromPromptStep } from '../lib/kioskPromptFlow';
+import { cutForPaperSize, printEnqueueDecision, readEventPrintSettings, shouldAutoPrint, showGuestPrintButton } from '../lib/printStation';
+import { enqueuePrintJob, resolvePrintableImageUrl } from '../services/printStationService';
 import { getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface KioskProps {
@@ -71,6 +73,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const fullscreenEnabled = event.fullscreenEnabled === true;
   const intentionalExitRef = useRef(false);
   const [smsQueued, setSmsQueued] = useState(false);
+  const [printCopies, setPrintCopies] = useState(1);
+  const [copiesSent, setCopiesSent] = useState(0);
+  const [printFeedback, setPrintFeedback] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [printFeedbackText, setPrintFeedbackText] = useState('');
+  const copiesSentRef = useRef(0);
+  const handlePrintRef = useRef<(copies: number, imageId?: string) => Promise<void>>(async () => {});
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -489,6 +497,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       // Apply overlay: the prompt's own overlay (custom), none, or the event overlay (default).
       // Sticker mode never gets an overlay — stickers must remain transparent.
       const promptOverlayUrl = resolveOverlayForPrompt(event, selectedPrompt, isStickerMode);
+      let compositedHttpsUrl: string | null = null;
       if (promptOverlayUrl) {
         try {
           setUploadProgress('Applying finishing touches...');
@@ -509,6 +518,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         } else {
           overlayUrl = overlayResult.url;
           overlayPath = overlayResult.path;
+          compositedHttpsUrl = overlayResult.url;
           console.log('✅ Uploaded overlaid image to event-photos bucket:', overlayUrl);
         }
         setGeneratedImageUrl(overlayUrl);
@@ -533,12 +543,30 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       setFinalImage(genImage);
 
-      // Save analytics record
+      const printSettings = readEventPrintSettings(event);
+      let printableUrl: string | null = null;
+      if (printSettings.printEnabled) {
+        try {
+          printableUrl = await resolvePrintableImageUrl({
+            printEnabled: true,
+            overlayApplied: !!promptOverlayUrl,
+            compositedImage: genImage,
+            existingHttpsUrl: compositedHttpsUrl,
+            cleanHttpsUrl: bucketUrl,
+            eventId: event.id,
+          });
+        } catch (printPrepErr) {
+          console.error('Could not prepare the photo for printing:', printPrepErr);
+        }
+      }
+
+      // Save analytics record. The print URL is the composited photo the guest is looking at.
+      // Events with printing off still store a null URL, same as before.
       const imageId = await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
         null,
-        null,
+        printSettings.printEnabled ? printableUrl : null,
         null,
         'completed'
       );
@@ -601,8 +629,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setGeneratedImageId(imageId);
       setFinalImage(genImage);
       setUploadProgress('');
+      copiesSentRef.current = 0;
+      setCopiesSent(0);
+      setPrintCopies(1);
+      setPrintFeedback(shouldAutoPrint(printSettings) && printableUrl ? 'sending' : 'idle');
+      setPrintFeedbackText('');
 
       setView('result');
+      if (shouldAutoPrint(printSettings) && imageId && printableUrl) {
+        void handlePrintRef.current(1, imageId);
+      } else if (shouldAutoPrint(printSettings) && imageId && !printableUrl) {
+        setPrintFeedback('error');
+        setPrintFeedbackText(t('kiosk.printNotReady'));
+      }
 
       // Background uploads (SmugMug, Dropbox) - do not block the user
       const backgroundPromises: Promise<any>[] = [];
@@ -785,6 +824,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setGuestAnswers({});
     setCustomizeErrors({});
     setSmsQueued(false);
+    setPrintCopies(1);
+    setCopiesSent(0);
+    copiesSentRef.current = 0;
+    setPrintFeedback('idle');
+    setPrintFeedbackText('');
     stopCamera();
   };
 
@@ -1019,6 +1063,124 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
     return translateText(key, kioskLanguage, params);
   }, [kioskTextOverrides, kioskLanguage]);
+
+  const handlePrint = async (copies: number, imageId?: string) => {
+    const settings = readEventPrintSettings(event);
+    if (!settings.printEnabled) return;
+    const id = imageId || generatedImageId;
+    if (!id) {
+      setPrintFeedback('error');
+      setPrintFeedbackText(t('kiosk.printNotReady'));
+      return;
+    }
+
+    const decision = printEnqueueDecision({
+      printEnabled: true,
+      maxCopies: settings.printMaxCopies,
+      eventLimit: settings.printEventLimit,
+      requested: copies,
+      imageCopiesUsed: copiesSentRef.current,
+      eventCopiesUsed: 0,
+    });
+    if (decision.ok === false) {
+      const limitMessage = decision.reason === 'guest'
+        ? t('kiosk.printGuestLimit')
+        : decision.reason === 'event'
+          ? t('kiosk.printEventLimit')
+          : t('kiosk.printNotReady');
+      setPrintFeedback('error');
+      setPrintFeedbackText(limitMessage);
+      return;
+    }
+
+    setPrintFeedback('sending');
+    setPrintFeedbackText('');
+    const result = await enqueuePrintJob({
+      eventId: event.id,
+      eventPasscode: event.passcode,
+      generatedImageId: id,
+      paperSize: settings.printPaperSize,
+      cut: cutForPaperSize(settings.printPaperSize),
+      copies: decision.copies,
+    });
+    if (result.ok) {
+      copiesSentRef.current += decision.copies;
+      setCopiesSent(copiesSentRef.current);
+      setPrintFeedback('sent');
+      setPrintFeedbackText(t('kiosk.sentToPrinter'));
+      return;
+    }
+    setPrintFeedback('error');
+    setPrintFeedbackText(result.message || t('kiosk.printFailed'));
+  };
+  handlePrintRef.current = handlePrint;
+
+  const renderPrintControls = () => {
+    const settings = readEventPrintSettings(event);
+    if (!settings.printEnabled) return null;
+    const showButton = showGuestPrintButton(settings);
+    const guestBlocked = copiesSent >= settings.printMaxCopies;
+    return (
+      <div className="space-y-2">
+        {printFeedback === 'sent' && (
+          <div className="w-full p-2 md:p-3 bg-green-100 border-2 border-green-300 rounded-lg text-green-800 text-center text-xs md:text-sm font-bold">
+            {printFeedbackText || t('kiosk.sentToPrinter')}
+          </div>
+        )}
+        {printFeedback === 'error' && printFeedbackText && (
+          <div className="w-full p-2 md:p-3 bg-red-100 border-2 border-red-300 rounded-lg text-red-800 text-center text-xs md:text-sm">
+            {printFeedbackText}
+          </div>
+        )}
+        {showButton && !guestBlocked && (
+          <>
+            {settings.printMaxCopies > 1 && (
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPrintCopies((n) => Math.max(1, n - 1))}
+                  className="h-11 w-11 rounded-full border-2 border-slate-300 text-slate-900 font-bold"
+                  aria-label={t('kiosk.printFewer')}
+                >
+                  −
+                </button>
+                <span className="text-sm md:text-base font-bold text-slate-800">
+                  {t('kiosk.printCopies', { count: printCopies })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPrintCopies((n) => Math.min(settings.printMaxCopies, n + 1))}
+                  className="h-11 w-11 rounded-full border-2 border-slate-300 text-slate-900 font-bold"
+                  aria-label={t('kiosk.printMore')}
+                >
+                  +
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => { void handlePrint(settings.printMaxCopies > 1 ? printCopies : 1); }}
+              disabled={printFeedback === 'sending' || !generatedImageId}
+              className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
+            >
+              <Printer size={18} className="md:w-6 md:h-6" />
+              {printFeedback === 'sending' ? t('kiosk.printing') : t('kiosk.print')}
+            </button>
+          </>
+        )}
+        {!showButton && printFeedback === 'error' && (
+          <button
+            type="button"
+            onClick={() => { void handlePrint(1); }}
+            disabled={printFeedback === 'sending'}
+            className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px] disabled:opacity-50"
+          >
+            <Printer size={18} className="md:w-6 md:h-6" /> {t('kiosk.printAgain')}
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const getPromptDisplayName = (prompt: Prompt): string => {
     if (promptTranslationsMap[prompt.id]?.name) {
@@ -1987,6 +2149,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </button>
                   )}
 
+                  {renderPrintControls()}
+
                   <button
                     onClick={() => setView('result')}
                     className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
@@ -2082,6 +2246,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     <Download size={18} className="md:w-6 md:h-6" /> {t('kiosk.downloadNowBtn')}
                 </button>
                 )}
+
+                {renderPrintControls()}
 
                 {shareUrl && (event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled) && (
                   <div className="relative py-1">
