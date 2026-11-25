@@ -70,6 +70,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const hasPasscode = !!(event.kioskPasscode && event.kioskPasscode.trim().length > 0);
   const fullscreenEnabled = event.fullscreenEnabled === true;
   const intentionalExitRef = useRef(false);
+  const smsQueuedRef = useRef(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -711,6 +712,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         await finishEventCreditReservation(reservationId, false).catch(() => false);
       }
       setErrorMsg(err.message || "AI Generation Failed");
+      smsQueuedRef.current = false;
       setView('review');
     }
   };
@@ -782,6 +784,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setUploadProgress('');
     setGuestAnswers({});
     setCustomizeErrors({});
+    smsQueuedRef.current = false;
     stopCamera();
   };
 
@@ -936,6 +939,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       return () => clearInterval(interval);
     }
   }, [view, event.sharingScreenTimeout]);
+
+  // Auto-send SMS when image becomes ready and guest queued a send during processing
+  useEffect(() => {
+    if (!smsQueuedRef.current) return;
+    if (shareUrl && generatedImageId && phoneNumber.length >= 10 && !isSending && view !== 'delivery') {
+      smsQueuedRef.current = false;
+      handleSendSms();
+    }
+  }, [shareUrl, generatedImageId, phoneNumber, isSending, view]);
 
   // Preload prompt images for faster display
   useEffect(() => {
@@ -1847,7 +1859,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             <input
               type="tel"
               value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
+              onChange={(e) => { setPhoneNumber(e.target.value); if (smsQueuedRef.current) smsQueuedRef.current = false; }}
               placeholder="(555) 123-4567"
               aria-label={t('kiosk.sms')}
               className="w-full bg-white border-2 border-slate-300 rounded-xl px-4 py-3 text-base md:text-lg text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
@@ -1857,6 +1869,20 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 if (!phoneNumber) e.currentTarget.style.borderColor = '';
               }}
             />
+            {smsQueuedRef.current ? (
+              <div className="flex items-center justify-center gap-2 rounded-xl py-3 px-4 bg-green-50 border-2 border-green-200 text-green-700 font-bold text-sm">
+                <Check size={16} />
+                Queued! We'll text you the moment your photo is ready.
+              </div>
+            ) : (
+              <button
+                onClick={() => { smsQueuedRef.current = true; }}
+                disabled={phoneNumber.length < 10}
+                className="w-full bg-slate-900 text-white font-bold text-sm md:text-base py-3 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
+              >
+                <Send size={16} /> {t('kiosk.sendSms')}
+              </button>
+            )}
             <p className="text-xs text-slate-500 text-center">
               Enter your number while your photo is being created. It will still be here when your photo is ready.
             </p>
