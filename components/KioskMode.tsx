@@ -2093,10 +2093,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'result' || view === 'delivery') {
     const colors = getBrandingColors();
     return (
-      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
+      <div className="h-[100dvh] w-full min-h-0 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
         {/* Image Side */}
         <div
-          className={`lg:w-2/3 h-[35vh] lg:h-full p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0 ${isStickerMode ? '' : 'bg-white'}`}
+          className={`lg:w-3/5 h-[35vh] lg:h-full p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0 ${isStickerMode ? '' : 'bg-white'}`}
           style={isStickerMode ? {
             backgroundColor: '#ffffff',
             backgroundImage: 'linear-gradient(45deg, #d4d4d8 25%, transparent 25%), linear-gradient(-45deg, #d4d4d8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d4d4d8 75%), linear-gradient(-45deg, transparent 75%, #d4d4d8 75%)',
@@ -2117,10 +2117,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         </div>
 
         {/* Input Side */}
-        <div className="lg:w-1/3 flex-1 lg:h-full bg-white p-3 md:p-6 lg:p-12 flex flex-col justify-center space-y-3 md:space-y-6 lg:space-y-8 relative overflow-y-auto border-l-2 border-slate-300">
+        <div className="lg:w-2/5 flex-1 min-h-0 lg:h-full bg-white p-3 md:p-6 lg:p-8 flex flex-col justify-start space-y-3 md:space-y-5 lg:space-y-5 relative overflow-y-auto overscroll-contain border-l-2 border-slate-300">
 
            {view === 'delivery' ? (
-             <div className="text-center space-y-3 md:space-y-6">
+             <div className="text-center space-y-2 md:space-y-4 pb-2">
                 <div
                   className="h-12 w-12 md:h-24 md:w-24 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-lg"
                   style={{
@@ -2133,7 +2133,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 <h2 className="text-xl md:text-4xl text-slate-900 font-bold">{t('kiosk.sent')}</h2>
                 <p className="text-sm md:text-base text-slate-600">{t('kiosk.checkYourPhone')}</p>
 
-                <div className="pt-3 md:pt-6 space-y-2 md:space-y-4">
+                <div className="pt-2 md:pt-4 space-y-2 md:space-y-3">
                   <button
                     onClick={() => setView('result')}
                     className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
@@ -2164,7 +2164,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     const otherMethodsEnabled = event.downloadEnabled !== false || event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled;
                     const qrIsPrimary = !otherMethodsEnabled;
                     return (
-                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-4 md:pt-8' : 'pt-2 md:pt-8'}`}>
+                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-3 md:pt-5' : 'pt-2 md:pt-4'}`}>
                           <div className={`bg-slate-50 rounded-xl border-2 border-slate-300 ${
                             qrIsPrimary
                               ? 'flex flex-col items-center text-center p-4 md:p-8 gap-3 md:gap-4'
@@ -2200,13 +2200,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </button>
                 )}
 
-                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-8">{t('kiosk.startingOverIn', { seconds: deliveryCountdown })}</p>
+                <p className="text-xs md:text-sm text-slate-500 mt-2 md:mt-4">{t('kiosk.startingOverIn', { seconds: deliveryCountdown })}</p>
                 <button onClick={resetKiosk} className="text-xs md:text-sm text-slate-600 hover:text-slate-900 py-2">
                   {t('kiosk.startOverNow')}
                 </button>
 
                 {event.showAccountPromo !== false && (
-                  <div className="mt-6 pt-6 border-t border-slate-300">
+                  <div className="mt-3 pt-3 md:mt-4 md:pt-4 border-t border-slate-300">
                     <p className="text-xs md:text-sm text-slate-600 mb-3">{t('kiosk.wantToCreate')}</p>
                     <a
                       href="/"
@@ -2338,7 +2338,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     const otherMethodsEnabled = event.downloadEnabled !== false || event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled;
                     const qrIsPrimary = !otherMethodsEnabled;
                     return (
-                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-4 md:pt-8' : 'pt-2 md:pt-8'}`}>
+                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-3 md:pt-5' : 'pt-2 md:pt-4'}`}>
                           <div className={`bg-slate-50 rounded-xl border-2 border-slate-300 ${
                             qrIsPrimary
                               ? 'flex flex-col items-center text-center p-4 md:p-8 gap-3 md:gap-4'
@@ -2379,7 +2379,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 </button>
 
                 {event.showAccountPromo !== false && (
-                  <div className="mt-6 pt-6 border-t border-slate-300">
+                  <div className="mt-3 pt-3 md:mt-4 md:pt-4 border-t border-slate-300">
                     <p className="text-xs md:text-sm text-slate-600 mb-3">{t('kiosk.wantToCreate')}</p>
                     <a
                       href="/"
