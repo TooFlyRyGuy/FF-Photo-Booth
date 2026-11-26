@@ -16,6 +16,7 @@ import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
 import { routeAfterGuestContinues, routeAfterModeSelected, routeBackFromPromptStep } from '../lib/kioskPromptFlow';
 import { cutForPaperSize, printEnqueueDecision, readEventPrintSettings, shouldAutoPrint, showGuestPrintButton } from '../lib/printStation';
 import { smugmugDirectImageUrl } from '../lib/smugmugImage';
+import { isValidGuestEmail, queuedSendChannels } from '../lib/kioskSend';
 import { enqueuePrintJob, resolvePrintableImageUrl } from '../services/printStationService';
 import { getTimezoneAbbreviation } from '../services/timezoneService';
 
@@ -26,12 +27,6 @@ interface KioskProps {
 }
 
 type KioskState = 'attract' | 'mode-select' | 'disclaimer' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached' | 'event-limit-reached';
-
-const GUEST_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function isValidGuestEmail(value: string): boolean {
-  return GUEST_EMAIL_PATTERN.test(value.trim());
-}
 
 function maskPhoneNumber(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -68,7 +63,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
 
   const [emailAddress, setEmailAddress] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
@@ -95,7 +91,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const autoSendStartedRef = useRef<Set<string>>(new Set());
   const smsInFlightRef = useRef(false);
   const emailInFlightRef = useRef(false);
-  const sendingCountRef = useRef(0);
   const [printCopies, setPrintCopies] = useState(1);
   const [copiesSent, setCopiesSent] = useState(0);
   const [printFeedback, setPrintFeedback] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -373,14 +368,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
   };
 
-  const beginSending = () => {
-    sendingCountRef.current += 1;
-    setIsSending(true);
+  const beginSending = (channel: 'sms' | 'email') => {
+    if (channel === 'sms') setSmsSending(true);
+    else setEmailSending(true);
   };
 
-  const endSending = () => {
-    sendingCountRef.current = Math.max(0, sendingCountRef.current - 1);
-    if (sendingCountRef.current === 0) setIsSending(false);
+  const endSending = (channel: 'sms' | 'email') => {
+    if (channel === 'sms') setSmsSending(false);
+    else setEmailSending(false);
   };
 
   // Drops queued and sent flags. Typed phone and email stay so a retake can reuse them.
@@ -389,8 +384,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     autoSendStartedRef.current.clear();
     smsInFlightRef.current = false;
     emailInFlightRef.current = false;
-    sendingCountRef.current = 0;
-    setIsSending(false);
+    setSmsSending(false);
+    setEmailSending(false);
     setSmsQueued(false);
     setEmailQueued(false);
     setSmsSent(false);
@@ -825,7 +820,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     autoSendStartedRef.current.add(`${imageId}:sms:${phone}`);
     smsInFlightRef.current = true;
     setSmsQueued(false);
-    beginSending();
+    beginSending('sms');
     setErrorMsg('');
     try {
       const ok = await sendSms(phone, shareUrl, imageId, event.id);
@@ -846,7 +841,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setErrorMsg(t('kiosk.smsFailed'));
     } finally {
       smsInFlightRef.current = false;
-      if (deliveryEpochRef.current === epochAtSend) endSending();
+      if (deliveryEpochRef.current === epochAtSend) endSending('sms');
     }
   };
 
@@ -872,7 +867,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     autoSendStartedRef.current.add(`${imageId}:email:${email}`);
     emailInFlightRef.current = true;
     setEmailQueued(false);
-    beginSending();
+    beginSending('email');
     setErrorMsg('');
     try {
       const ok = await sendEmail(emailAddress.trim(), smugmugDirectImageUrl(shareUrl), generatedImageId, event.id);
@@ -893,7 +888,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setErrorMsg(t('kiosk.emailFailed'));
     } finally {
       emailInFlightRef.current = false;
-      if (deliveryEpochRef.current === epochAtSend) endSending();
+      if (deliveryEpochRef.current === epochAtSend) endSending('email');
     }
   };
 
@@ -1157,8 +1152,16 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     const pageUrl = shareUrl;
     const epochAtSend = deliveryEpochRef.current;
     const jobs: Array<{ channel: 'sms' | 'email'; destination: string; run: () => Promise<boolean> }> = [];
+    const wanted = queuedSendChannels({
+      smsEnabled: event.smsEnabled !== false,
+      emailEnabled: !!event.emailEnabled,
+      smsQueued,
+      emailQueued,
+      phone: phoneNumber,
+      email: emailAddress,
+    });
 
-    if (event.smsEnabled !== false && smsQueued && phoneNumber.length >= 10 && !smsInFlightRef.current) {
+    if (wanted.includes('sms') && !smsInFlightRef.current) {
       const phone = phoneNumber;
       const key = `${imageId}:sms:${phone}`;
       if (!autoSendStartedRef.current.has(key)) {
@@ -1171,7 +1174,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       }
     }
 
-    if (event.emailEnabled && emailQueued && isValidGuestEmail(emailAddress) && !emailInFlightRef.current) {
+    if (wanted.includes('email') && !emailInFlightRef.current) {
       const email = emailAddress.trim();
       const key = `${imageId}:email:${email}`;
       if (!autoSendStartedRef.current.has(key)) {
@@ -1194,7 +1197,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       emailInFlightRef.current = true;
       setEmailQueued(false);
     }
-    jobs.forEach(() => beginSending());
+    jobs.forEach((job) => beginSending(job.channel));
 
     Promise.allSettled(jobs.map(async (job) => {
       try {
@@ -1209,7 +1212,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       if (jobs.some((job) => job.channel === 'email')) emailInFlightRef.current = false;
       if (deliveryEpochRef.current !== epochAtSend) return;
 
-      jobs.forEach(() => endSending());
+      jobs.forEach((job) => endSending(job.channel));
 
       const failures: string[] = [];
       let anySuccess = false;
@@ -2226,7 +2229,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   <button
                     type="button"
                     onClick={() => { setSmsQueued(true); }}
-                    disabled={smsQueued || isSending || phoneNumber.length < 10}
+                    disabled={smsQueued || smsSending || phoneNumber.length < 10}
                     aria-label={t('kiosk.sendSms')}
                     className="shrink-0 bg-slate-900 text-white font-bold text-sm px-4 py-3 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
                   >
@@ -2263,7 +2266,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   <button
                     type="button"
                     onClick={() => { setEmailQueued(true); }}
-                    disabled={emailQueued || isSending || !isValidGuestEmail(emailAddress)}
+                    disabled={emailQueued || emailSending || !isValidGuestEmail(emailAddress)}
                     aria-label={t('kiosk.sendViaEmail')}
                     className="shrink-0 bg-blue-600 text-white font-bold text-sm px-4 py-3 rounded-xl hover:bg-blue-700 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
                   >
@@ -2524,11 +2527,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                       </p>
                     )}
                     <button
+                        type="button"
                         onClick={handleSendSms}
-                        disabled={isSending || phoneNumber.length < 10 || !shareUrl}
+                        disabled={smsSending || phoneNumber.length < 10 || !shareUrl}
                         className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!shareUrl ? t('kiosk.preparingLink') : isSending ? t('kiosk.sending') : <><Send size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendSms')}</>}
+                        {!shareUrl ? t('kiosk.preparingLink') : smsSending ? t('kiosk.sending') : <><Send size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendSms')}</>}
                     </button>
                   </div>
                 )}
@@ -2536,6 +2540,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 {shareUrl && event.whatsappEnabled && (
                   <div className="space-y-1.5 md:space-y-4">
                     <button
+                        type="button"
                         onClick={handleSendWhatsApp}
                         disabled={!shareUrl}
                         className="w-full bg-green-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-green-700 active:bg-green-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
@@ -2576,11 +2581,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                       </p>
                     )}
                     <button
+                        type="button"
                         onClick={handleSendEmail}
-                        disabled={isSending || !isValidGuestEmail(emailAddress) || !shareUrl}
+                        disabled={emailSending || !isValidGuestEmail(emailAddress) || !shareUrl}
                         className="w-full bg-blue-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-blue-700 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!shareUrl ? t('kiosk.preparingLink') : isSending ? t('kiosk.sending') : <><Mail size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendViaEmail')}</>}
+                        {!shareUrl ? t('kiosk.preparingLink') : emailSending ? t('kiosk.sending') : <><Mail size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendViaEmail')}</>}
                     </button>
                   </div>
                 )}
