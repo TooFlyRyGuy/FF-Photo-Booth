@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail, Lock, X } from 'lucide-react';
+import { RefreshCw, Smartphone, Send, Download, Check, ArrowRight, SwitchCamera, Maximize, Minimize, Images, MessageCircle, Mail, Lock, X, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, Prompt, GeneratedImage, UserSettings, GlobalSettings, PromptCustomField } from '../types';
 import { generateBoothImage, substitutePromptVariables, resolveCustomFields } from '../services/geminiService';
@@ -14,6 +14,8 @@ import { uploadImageWithRetry, uploadGeneratedPhoto } from '../services/storageS
 import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
 import { routeAfterGuestContinues, routeAfterModeSelected, routeBackFromPromptStep } from '../lib/kioskPromptFlow';
+import { cutForPaperSize, printEnqueueDecision, readEventPrintSettings, shouldAutoPrint, showGuestPrintButton } from '../lib/printStation';
+import { enqueuePrintJob, resolvePrintableImageUrl } from '../services/printStationService';
 import { getTimezoneAbbreviation } from '../services/timezoneService';
 
 interface KioskProps {
@@ -70,6 +72,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const hasPasscode = !!(event.kioskPasscode && event.kioskPasscode.trim().length > 0);
   const fullscreenEnabled = event.fullscreenEnabled === true;
   const intentionalExitRef = useRef(false);
+  const [smsQueued, setSmsQueued] = useState(false);
+  const [printCopies, setPrintCopies] = useState(1);
+  const [copiesSent, setCopiesSent] = useState(0);
+  const [printFeedback, setPrintFeedback] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [printFeedbackText, setPrintFeedbackText] = useState('');
+  const copiesSentRef = useRef(0);
+  const handlePrintRef = useRef<(copies: number, imageId?: string) => Promise<void>>(async () => {});
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -488,6 +497,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       // Apply overlay: the prompt's own overlay (custom), none, or the event overlay (default).
       // Sticker mode never gets an overlay — stickers must remain transparent.
       const promptOverlayUrl = resolveOverlayForPrompt(event, selectedPrompt, isStickerMode);
+      let compositedHttpsUrl: string | null = null;
       if (promptOverlayUrl) {
         try {
           setUploadProgress('Applying finishing touches...');
@@ -508,6 +518,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         } else {
           overlayUrl = overlayResult.url;
           overlayPath = overlayResult.path;
+          compositedHttpsUrl = overlayResult.url;
           console.log('✅ Uploaded overlaid image to event-photos bucket:', overlayUrl);
         }
         setGeneratedImageUrl(overlayUrl);
@@ -532,12 +543,30 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
       setFinalImage(genImage);
 
-      // Save analytics record
+      const printSettings = readEventPrintSettings(event);
+      let printableUrl: string | null = null;
+      if (printSettings.printEnabled) {
+        try {
+          printableUrl = await resolvePrintableImageUrl({
+            printEnabled: true,
+            overlayApplied: !!promptOverlayUrl,
+            compositedImage: genImage,
+            existingHttpsUrl: compositedHttpsUrl,
+            cleanHttpsUrl: bucketUrl,
+            eventId: event.id,
+          });
+        } catch (printPrepErr) {
+          console.error('Could not prepare the photo for printing:', printPrepErr);
+        }
+      }
+
+      // Save analytics record. The print URL is the composited photo the guest is looking at.
+      // Events with printing off still store a null URL, same as before.
       const imageId = await saveGeneratedImage(
         event.id,
         selectedPrompt.id,
         null,
-        null,
+        printSettings.printEnabled ? printableUrl : null,
         null,
         'completed'
       );
@@ -600,8 +629,19 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       setGeneratedImageId(imageId);
       setFinalImage(genImage);
       setUploadProgress('');
+      copiesSentRef.current = 0;
+      setCopiesSent(0);
+      setPrintCopies(1);
+      setPrintFeedback(shouldAutoPrint(printSettings) && printableUrl ? 'sending' : 'idle');
+      setPrintFeedbackText('');
 
       setView('result');
+      if (shouldAutoPrint(printSettings) && imageId && printableUrl) {
+        void handlePrintRef.current(1, imageId);
+      } else if (shouldAutoPrint(printSettings) && imageId && !printableUrl) {
+        setPrintFeedback('error');
+        setPrintFeedbackText(t('kiosk.printNotReady'));
+      }
 
       // Background uploads (SmugMug, Dropbox) - do not block the user
       const backgroundPromises: Promise<any>[] = [];
@@ -711,6 +751,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         await finishEventCreditReservation(reservationId, false).catch(() => false);
       }
       setErrorMsg(err.message || "AI Generation Failed");
+      setSmsQueued(false);
       setView('review');
     }
   };
@@ -782,6 +823,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setUploadProgress('');
     setGuestAnswers({});
     setCustomizeErrors({});
+    setSmsQueued(false);
+    setPrintCopies(1);
+    setCopiesSent(0);
+    copiesSentRef.current = 0;
+    setPrintFeedback('idle');
+    setPrintFeedbackText('');
     stopCamera();
   };
 
@@ -937,6 +984,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
   }, [view, event.sharingScreenTimeout]);
 
+  // Auto-send SMS when image becomes ready and guest queued a send during processing
+  useEffect(() => {
+    if (!smsQueued) return;
+    if (shareUrl && generatedImageId && phoneNumber.length >= 10 && !isSending && view !== 'delivery') {
+      setSmsQueued(false);
+      handleSendSms();
+    }
+  }, [smsQueued, shareUrl, generatedImageId, phoneNumber, isSending, view]);
+
   // Preload prompt images for faster display
   useEffect(() => {
     if (event.prompts && event.prompts.length > 0) {
@@ -1007,6 +1063,124 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
     return translateText(key, kioskLanguage, params);
   }, [kioskTextOverrides, kioskLanguage]);
+
+  const handlePrint = async (copies: number, imageId?: string) => {
+    const settings = readEventPrintSettings(event);
+    if (!settings.printEnabled) return;
+    const id = imageId || generatedImageId;
+    if (!id) {
+      setPrintFeedback('error');
+      setPrintFeedbackText(t('kiosk.printNotReady'));
+      return;
+    }
+
+    const decision = printEnqueueDecision({
+      printEnabled: true,
+      maxCopies: settings.printMaxCopies,
+      eventLimit: settings.printEventLimit,
+      requested: copies,
+      imageCopiesUsed: copiesSentRef.current,
+      eventCopiesUsed: 0,
+    });
+    if (decision.ok === false) {
+      const limitMessage = decision.reason === 'guest'
+        ? t('kiosk.printGuestLimit')
+        : decision.reason === 'event'
+          ? t('kiosk.printEventLimit')
+          : t('kiosk.printNotReady');
+      setPrintFeedback('error');
+      setPrintFeedbackText(limitMessage);
+      return;
+    }
+
+    setPrintFeedback('sending');
+    setPrintFeedbackText('');
+    const result = await enqueuePrintJob({
+      eventId: event.id,
+      eventPasscode: event.passcode,
+      generatedImageId: id,
+      paperSize: settings.printPaperSize,
+      cut: cutForPaperSize(settings.printPaperSize),
+      copies: decision.copies,
+    });
+    if (result.ok) {
+      copiesSentRef.current += decision.copies;
+      setCopiesSent(copiesSentRef.current);
+      setPrintFeedback('sent');
+      setPrintFeedbackText(t('kiosk.sentToPrinter'));
+      return;
+    }
+    setPrintFeedback('error');
+    setPrintFeedbackText(result.message || t('kiosk.printFailed'));
+  };
+  handlePrintRef.current = handlePrint;
+
+  const renderPrintControls = () => {
+    const settings = readEventPrintSettings(event);
+    if (!settings.printEnabled) return null;
+    const showButton = showGuestPrintButton(settings);
+    const guestBlocked = copiesSent >= settings.printMaxCopies;
+    return (
+      <div className="space-y-2">
+        {printFeedback === 'sent' && (
+          <div className="w-full p-2 md:p-3 bg-green-100 border-2 border-green-300 rounded-lg text-green-800 text-center text-xs md:text-sm font-bold">
+            {printFeedbackText || t('kiosk.sentToPrinter')}
+          </div>
+        )}
+        {printFeedback === 'error' && printFeedbackText && (
+          <div className="w-full p-2 md:p-3 bg-red-100 border-2 border-red-300 rounded-lg text-red-800 text-center text-xs md:text-sm">
+            {printFeedbackText}
+          </div>
+        )}
+        {showButton && !guestBlocked && (
+          <>
+            {settings.printMaxCopies > 1 && (
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPrintCopies((n) => Math.max(1, n - 1))}
+                  className="h-11 w-11 rounded-full border-2 border-slate-300 text-slate-900 font-bold"
+                  aria-label={t('kiosk.printFewer')}
+                >
+                  −
+                </button>
+                <span className="text-sm md:text-base font-bold text-slate-800">
+                  {t('kiosk.printCopies', { count: printCopies })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPrintCopies((n) => Math.min(settings.printMaxCopies, n + 1))}
+                  className="h-11 w-11 rounded-full border-2 border-slate-300 text-slate-900 font-bold"
+                  aria-label={t('kiosk.printMore')}
+                >
+                  +
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => { void handlePrint(settings.printMaxCopies > 1 ? printCopies : 1); }}
+              disabled={printFeedback === 'sending' || !generatedImageId}
+              className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
+            >
+              <Printer size={18} className="md:w-6 md:h-6" />
+              {printFeedback === 'sending' ? t('kiosk.printing') : t('kiosk.print')}
+            </button>
+          </>
+        )}
+        {!showButton && printFeedback === 'error' && (
+          <button
+            type="button"
+            onClick={() => { void handlePrint(1); }}
+            disabled={printFeedback === 'sending'}
+            className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px] disabled:opacity-50"
+          >
+            <Printer size={18} className="md:w-6 md:h-6" /> {t('kiosk.printAgain')}
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const getPromptDisplayName = (prompt: Prompt): string => {
     if (promptTranslationsMap[prompt.id]?.name) {
@@ -1838,6 +2012,44 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         <p className="text-sm md:text-base text-slate-600 text-center">
           {uploadProgress || t('kiosk.applyingStyle', { style: getPromptDisplayName(selectedPrompt!) })}
         </p>
+        {event.smsEnabled !== false && (
+          <div className="w-full max-w-sm space-y-2 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-lg">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center justify-center gap-2">
+              <Smartphone size={14} />
+              {t('kiosk.sms')}
+            </label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => { setPhoneNumber(e.target.value); setSmsQueued(false); }}
+              placeholder="(555) 123-4567"
+              aria-label={t('kiosk.sms')}
+              className="w-full bg-white border-2 border-slate-300 rounded-xl px-4 py-3 text-base md:text-lg text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
+              style={{ borderColor: phoneNumber ? colors.accent : undefined }}
+              onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+              onBlur={(e) => {
+                if (!phoneNumber) e.currentTarget.style.borderColor = '';
+              }}
+            />
+            {smsQueued ? (
+              <div className="flex items-center justify-center gap-2 rounded-xl py-3 px-4 bg-green-50 border-2 border-green-200 text-green-700 font-bold text-sm">
+                <Check size={16} />
+                Queued! We'll text you the moment your photo is ready.
+              </div>
+            ) : (
+              <button
+                onClick={() => { setSmsQueued(true); }}
+                disabled={phoneNumber.length < 10}
+                className="w-full bg-slate-900 text-white font-bold text-sm md:text-base py-3 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
+              >
+                <Send size={16} /> {t('kiosk.sendSms')}
+              </button>
+            )}
+            <p className="text-xs text-slate-500 text-center">
+              Enter your number while your photo is being created. It will still be here when your photo is ready.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -1881,10 +2093,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   if (view === 'result' || view === 'delivery') {
     const colors = getBrandingColors();
     return (
-      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
+      <div className="h-[100dvh] w-full min-h-0 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
         {/* Image Side */}
         <div
-          className={`lg:w-2/3 h-[35vh] lg:h-full p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0 ${isStickerMode ? '' : 'bg-white'}`}
+          className={`lg:w-3/5 h-[35vh] lg:h-full p-2 md:p-6 lg:p-8 flex items-center justify-center relative flex-shrink-0 ${isStickerMode ? '' : 'bg-white'}`}
           style={isStickerMode ? {
             backgroundColor: '#ffffff',
             backgroundImage: 'linear-gradient(45deg, #d4d4d8 25%, transparent 25%), linear-gradient(-45deg, #d4d4d8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d4d4d8 75%), linear-gradient(-45deg, transparent 75%, #d4d4d8 75%)',
@@ -1905,10 +2117,10 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         </div>
 
         {/* Input Side */}
-        <div className="lg:w-1/3 flex-1 lg:h-full bg-white p-3 md:p-6 lg:p-12 flex flex-col justify-center space-y-3 md:space-y-6 lg:space-y-8 relative overflow-y-auto border-l-2 border-slate-300">
+        <div className="lg:w-2/5 flex-1 min-h-0 lg:h-full bg-white p-3 md:p-6 lg:p-8 flex flex-col justify-start space-y-3 md:space-y-5 lg:space-y-5 relative overflow-y-auto overscroll-contain border-l-2 border-slate-300">
 
            {view === 'delivery' ? (
-             <div className="text-center space-y-3 md:space-y-6">
+             <div className="text-center space-y-2 md:space-y-4 pb-2">
                 <div
                   className="h-12 w-12 md:h-24 md:w-24 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-6 shadow-lg"
                   style={{
@@ -1921,7 +2133,14 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 <h2 className="text-xl md:text-4xl text-slate-900 font-bold">{t('kiosk.sent')}</h2>
                 <p className="text-sm md:text-base text-slate-600">{t('kiosk.checkYourPhone')}</p>
 
-                <div className="pt-3 md:pt-6 space-y-2 md:space-y-4">
+                <div className="pt-2 md:pt-4 space-y-2 md:space-y-3">
+                  <button
+                    onClick={() => setView('result')}
+                    className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
+                  >
+                    <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendToAnother')}
+                  </button>
+
                   {event.downloadEnabled !== false && (
                   <button
                     onClick={handleDownload}
@@ -1937,13 +2156,40 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </button>
                   )}
 
-                  <button
-                    onClick={() => setView('result')}
-                    className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
-                  >
-                    <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendToAnother')}
-                  </button>
+                  {renderPrintControls()}
                 </div>
+
+                {shareUrl && shareUrl.length < 500 && event.qrSharingEnabled !== false && (
+                  (() => {
+                    const otherMethodsEnabled = event.downloadEnabled !== false || event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled;
+                    const qrIsPrimary = !otherMethodsEnabled;
+                    return (
+                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-3 md:pt-5' : 'pt-2 md:pt-4'}`}>
+                          <div className={`bg-slate-50 rounded-xl border-2 border-slate-300 ${
+                            qrIsPrimary
+                              ? 'flex flex-col items-center text-center p-4 md:p-8 gap-3 md:gap-4'
+                              : 'flex items-center gap-2 md:gap-4 p-2 md:p-4'
+                          }`}>
+                              <div className={`bg-white rounded-lg flex-shrink-0 border border-slate-300 ${
+                                qrIsPrimary ? 'p-3 md:p-4' : 'p-1 md:p-2'
+                              }`}>
+                                  <QRCodeSVG
+                                    value={shareUrl}
+                                    size={qrIsPrimary ? 180 : 50}
+                                    level="M"
+                                    includeMargin={false}
+                                    className={qrIsPrimary ? '' : 'md:w-20 md:h-20'}
+                                  />
+                              </div>
+                              <div className={qrIsPrimary ? 'text-center' : ''}>
+                                  <p className={`text-slate-900 font-bold ${qrIsPrimary ? 'text-lg md:text-2xl' : 'text-xs md:text-base'}`}>{t('kiosk.scanForInstantAccess')}</p>
+                                  <p className={`text-slate-600 ${qrIsPrimary ? 'text-sm md:text-base mt-1' : 'text-xs'}`}>{t('kiosk.noPhoneRequired')}</p>
+                              </div>
+                          </div>
+                      </div>
+                    );
+                  })()
+                )}
 
                 {event.galleryEnabled && !event.privateSharingMode && event.smugmugGalleryUrl && (
                   <button
@@ -1954,13 +2200,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   </button>
                 )}
 
-                <p className="text-xs md:text-sm text-slate-500 mt-4 md:mt-8">{t('kiosk.startingOverIn', { seconds: deliveryCountdown })}</p>
+                <p className="text-xs md:text-sm text-slate-500 mt-2 md:mt-4">{t('kiosk.startingOverIn', { seconds: deliveryCountdown })}</p>
                 <button onClick={resetKiosk} className="text-xs md:text-sm text-slate-600 hover:text-slate-900 py-2">
                   {t('kiosk.startOverNow')}
                 </button>
 
                 {event.showAccountPromo !== false && (
-                  <div className="mt-6 pt-6 border-t border-slate-300">
+                  <div className="mt-3 pt-3 md:mt-4 md:pt-4 border-t border-slate-300">
                     <p className="text-xs md:text-sm text-slate-600 mb-3">{t('kiosk.wantToCreate')}</p>
                     <a
                       href="/"
@@ -2000,6 +2246,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     <Download size={18} className="md:w-6 md:h-6" /> {t('kiosk.downloadNowBtn')}
                 </button>
                 )}
+
+                {renderPrintControls()}
 
                 {shareUrl && (event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled) && (
                   <div className="relative py-1">
@@ -2090,7 +2338,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                     const otherMethodsEnabled = event.downloadEnabled !== false || event.smsEnabled !== false || event.whatsappEnabled || event.emailEnabled;
                     const qrIsPrimary = !otherMethodsEnabled;
                     return (
-                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-4 md:pt-8' : 'pt-2 md:pt-8'}`}>
+                      <div className={`border-t border-slate-300 ${qrIsPrimary ? 'pt-3 md:pt-5' : 'pt-2 md:pt-4'}`}>
                           <div className={`bg-slate-50 rounded-xl border-2 border-slate-300 ${
                             qrIsPrimary
                               ? 'flex flex-col items-center text-center p-4 md:p-8 gap-3 md:gap-4'
@@ -2131,7 +2379,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 </button>
 
                 {event.showAccountPromo !== false && (
-                  <div className="mt-6 pt-6 border-t border-slate-300">
+                  <div className="mt-3 pt-3 md:mt-4 md:pt-4 border-t border-slate-300">
                     <p className="text-xs md:text-sm text-slate-600 mb-3">{t('kiosk.wantToCreate')}</p>
                     <a
                       href="/"

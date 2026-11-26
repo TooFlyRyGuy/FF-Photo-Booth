@@ -2,6 +2,7 @@ import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass,
 import { supabase } from '../lib/supabase';
 import { addHours } from './timezoneService';
 import { buildEventPromptRows, promptOverlayFieldsFromRow } from '../lib/overlayResolve';
+import { eventPrintColumns, isMissingPrintSchema, readEventPrintSettings } from '../lib/printStation';
 import {
   aggregateDocumentedChartData,
   aggregateDocumentedEventAnalytics,
@@ -836,6 +837,7 @@ const mapEventDataToEvent = (eventData: any, prompts: Prompt[] = []): Event => {
     analyticsResetAt: eventData.analytics_reset_at ?? null,
     creditLimit: eventData.credit_limit ?? null,
     creditsUsed: eventData.credits_used ?? 0,
+    ...readEventPrintSettings(eventData),
   };
 };
 
@@ -1057,6 +1059,8 @@ export const saveEvent = async (event: Event): Promise<Event> => {
     credit_limit: event.creditLimit ?? null,
   };
 
+  const printColumns = eventPrintColumns(readEventPrintSettings(event));
+
   let eventId = event.id;
 
   if (isUpdate) {
@@ -1150,6 +1154,20 @@ export const saveEvent = async (event: Event): Promise<Event> => {
 
     if (insertError) {
       throw new Error(`Failed to link prompts to event: ${insertError.message}`);
+    }
+  }
+
+  const { error: printError } = await supabase
+    .from('events')
+    .update(printColumns)
+    .eq('id', eventId);
+
+  if (printError) {
+    if (!(isMissingPrintSchema(printError) && !printColumns.print_enabled)) {
+      const message = isMissingPrintSchema(printError)
+        ? 'Printing could not be saved because the print columns are not in the database yet. Apply the print station migration, then save the event again.'
+        : `Failed to save print settings: ${printError.message}`;
+      throw new Error(message);
     }
   }
 

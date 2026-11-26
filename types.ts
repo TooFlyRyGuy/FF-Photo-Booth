@@ -291,6 +291,13 @@ export interface Event {
   analyticsResetAt?: string | null;
   creditLimit?: number | null;
   creditsUsed?: number;
+  /** Guest printing. Absent or false until the print columns exist and an operator turns it on. */
+  printEnabled?: boolean;
+  printPaperSize?: '4x6' | '6x4' | '2x6' | '5x7' | '6x8' | '6x6' | '6x9';
+  printCut?: 'none' | '2inch';
+  printDelivery?: 'button' | 'auto';
+  printMaxCopies?: number;
+  printEventLimit?: number | null;
 }
 
 export interface EventAccessCode {
