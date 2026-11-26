@@ -1,5 +1,6 @@
 import { Event, Prompt, UserProfile, UserCredits, GlobalSettings, UserEventPass, UserSubscriptionType, EventTimeValidation, ConcurrentEventLimit, DeviceUsageEntry, DeviceLimitCheckResult, EventAccessCode, AccessCodeRedemptionResult, PromptTranslation, KioskTextOverride } from '../types';
 import { supabase } from '../lib/supabase';
+import { eventPhotoEmailImageUrl } from '../lib/smugmugImage';
 import { addHours } from './timezoneService';
 import { buildEventPromptRows, promptOverlayFieldsFromRow } from '../lib/overlayResolve';
 import { eventPrintColumns, isMissingPrintSchema, readEventPrintSettings } from '../lib/printStation';
@@ -1416,6 +1417,42 @@ export const sendEmail = async (emailAddress: string, imageUrl: string, imageId:
   }
 
   return true;
+};
+
+const TEST_EMAIL_IMAGE_FALLBACK_ID = '00000000-0000-0000-0000-000000000000';
+
+/** Latest booth photo for an admin test email, or a public sample image. */
+export const getEventEmailTestSample = async (
+  eventId: string,
+): Promise<{ imageUrl: string; imageId: string }> => {
+  const [photoResult, imageResult] = await Promise.all([
+    supabase
+      .from('event_photos')
+      .select('smugmug_url, public_url')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('generated_images')
+      .select('id')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (photoResult.error) {
+    console.error('Failed to load latest event photo for test email:', photoResult.error);
+  }
+  if (imageResult.error) {
+    console.error('Failed to load latest generated image for test email:', imageResult.error);
+  }
+
+  return {
+    imageUrl: eventPhotoEmailImageUrl(photoResult.data),
+    imageId: imageResult.data?.id || TEST_EMAIL_IMAGE_FALLBACK_ID,
+  };
 };
 
 export const getEventByPasscode = async (passcode: string): Promise<Event | null> => {
