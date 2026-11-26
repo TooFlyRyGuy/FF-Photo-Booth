@@ -2134,6 +2134,13 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 <p className="text-sm md:text-base text-slate-600">{t('kiosk.checkYourPhone')}</p>
 
                 <div className="pt-3 md:pt-6 space-y-2 md:space-y-4">
+                  <button
+                    onClick={() => setView('result')}
+                    className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
+                  >
+                    <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendToAnother')}
+                  </button>
+
                   {event.downloadEnabled !== false && (
                   <button
                     onClick={handleDownload}
@@ -2150,13 +2157,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                   )}
 
                   {renderPrintControls()}
-
-                  <button
-                    onClick={() => setView('result')}
-                    className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg py-3 md:py-4 rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 min-h-[44px]"
-                  >
-                    <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendToAnother')}
-                  </button>
                 </div>
 
                 {shareUrl && shareUrl.length < 500 && event.qrSharingEnabled !== false && (

@@ -187,6 +187,16 @@ test('printing controls live in Sharing Settings, behind Enable printing', () =>
   assert.ok(sharing.includes('Event print limit'));
 });
 
+test('after SMS, Send to Another sits under Sent and above the print controls', () => {
+  const kiosk = readFileSync(new URL('../components/KioskMode.tsx', import.meta.url), 'utf8');
+  const delivery = between(kiosk, "view === 'delivery'", "kiosk.getYourPhoto");
+  const sent = delivery.indexOf("t('kiosk.sent')");
+  const sendAnother = delivery.indexOf("t('kiosk.sendToAnother')");
+  const print = delivery.indexOf('{renderPrintControls()}');
+  assert.ok(sent >= 0 && sendAnother > sent, 'Send to Another stays under the Sent confirmation');
+  assert.ok(print > sendAnother, 'print controls stay below Send to Another');
+});
+
 test('the kiosk print button is gated on printing and calls enqueue_print_job', () => {
   const kiosk = readFileSync(new URL('../components/KioskMode.tsx', import.meta.url), 'utf8');
   const controls = between(kiosk, 'const renderPrintControls', 'const renderView');
