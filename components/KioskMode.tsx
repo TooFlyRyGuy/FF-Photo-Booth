@@ -15,6 +15,8 @@ import { compressForUpload } from '../services/imageCompression';
 import { LanguageCode, SUPPORTED_LANGUAGES, translateText } from '../lib/i18n';
 import { routeAfterGuestContinues, routeAfterModeSelected, routeBackFromPromptStep } from '../lib/kioskPromptFlow';
 import { cutForPaperSize, printEnqueueDecision, readEventPrintSettings, shouldAutoPrint, showGuestPrintButton } from '../lib/printStation';
+import { smugmugDirectImageUrl } from '../lib/smugmugImage';
+import { isValidGuestEmail, queuedSendChannels } from '../lib/kioskSend';
 import { enqueuePrintJob, resolvePrintableImageUrl } from '../services/printStationService';
 import { getTimezoneAbbreviation } from '../services/timezoneService';
 
@@ -25,6 +27,12 @@ interface KioskProps {
 }
 
 type KioskState = 'attract' | 'mode-select' | 'disclaimer' | 'prompt-select' | 'prompt-customize' | 'camera' | 'review' | 'processing' | 'result' | 'delivery' | 'no-credits' | 'device-limit-reached' | 'event-limit-reached';
+
+function maskPhoneNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length <= 4) return phone;
+  return `${'•'.repeat(Math.max(digits.length - 4, 3))}${digits.slice(-4)}`;
+}
 
 const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const eventLanguages: LanguageCode[] = (event.kioskLanguages && event.kioskLanguages.length > 0
@@ -55,7 +63,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
 
   const [emailAddress, setEmailAddress] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
@@ -73,6 +82,15 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   const fullscreenEnabled = event.fullscreenEnabled === true;
   const intentionalExitRef = useRef(false);
   const [smsQueued, setSmsQueued] = useState(false);
+  const [emailQueued, setEmailQueued] = useState(false);
+  const [smsSent, setSmsSent] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [smsSentTo, setSmsSentTo] = useState('');
+  const [emailSentTo, setEmailSentTo] = useState('');
+  const deliveryEpochRef = useRef(0);
+  const autoSendStartedRef = useRef<Set<string>>(new Set());
+  const smsInFlightRef = useRef(false);
+  const emailInFlightRef = useRef(false);
   const [printCopies, setPrintCopies] = useState(1);
   const [copiesSent, setCopiesSent] = useState(0);
   const [printFeedback, setPrintFeedback] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -350,6 +368,34 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
   };
 
+  const beginSending = (channel: 'sms' | 'email') => {
+    if (channel === 'sms') setSmsSending(true);
+    else setEmailSending(true);
+  };
+
+  const endSending = (channel: 'sms' | 'email') => {
+    if (channel === 'sms') setSmsSending(false);
+    else setEmailSending(false);
+  };
+
+  // Drops queued and sent flags. Typed phone and email stay so a retake can reuse them.
+  const clearSendFlags = () => {
+    deliveryEpochRef.current += 1;
+    autoSendStartedRef.current.clear();
+    smsInFlightRef.current = false;
+    emailInFlightRef.current = false;
+    setSmsSending(false);
+    setEmailSending(false);
+    setSmsQueued(false);
+    setEmailQueued(false);
+    setSmsSent(false);
+    setEmailSent(false);
+    setSmsSentTo('');
+    setEmailSentTo('');
+    setShareUrl(null);
+    setGeneratedImageId(null);
+  };
+
   // --- GENERATION LOGIC ---
   const handleGenerate = async () => {
     if (!capturedImage || !selectedPrompt) return;
@@ -361,6 +407,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
 
     setView('processing');
     setErrorMsg('');
+    clearSendFlags();
+    const sendEpoch = deliveryEpochRef.current;
 
     // Event credit limit: each generation (retakes included) reserves its own credits right before
     // generating; success keeps them, any failure gives them back to the event.
@@ -432,6 +480,8 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         eventCreditReservationId = await reserveEventCredits(event.id, creditCost);
         if (!eventCreditReservationId) {
           setUploadProgress('');
+          setSmsQueued(false);
+          setEmailQueued(false);
           setView('event-limit-reached');
           return;
         }
@@ -478,7 +528,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           console.log('✅ Uploaded clean AI image (no overlay) to event-photos bucket:', bucketUrl);
         }
         setGeneratedImageUrl(bucketUrl);
-        if (!isPrivateMode && !event.smugmugGalleryKey) {
+        if (!isPrivateMode && !event.smugmugGalleryKey && deliveryEpochRef.current === sendEpoch) {
           setShareUrl(bucketUrl);
         }
         photoRecordId = await saveEventPhotoRecord(
@@ -522,7 +572,9 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           console.log('✅ Uploaded overlaid image to event-photos bucket:', overlayUrl);
         }
         setGeneratedImageUrl(overlayUrl);
-        setShareUrl(overlayUrl);
+        if (deliveryEpochRef.current === sendEpoch) {
+          setShareUrl(overlayUrl);
+        }
 
         if (shouldSkipClean || !photoRecordId) {
           photoRecordId = await saveEventPhotoRecord(
@@ -662,7 +714,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
           })()
             .then((result) => {
               console.log('✅ Uploaded generated to SmugMug:', result.imageUrl);
-              if (!isPrivateMode) {
+              if (!isPrivateMode && deliveryEpochRef.current === sendEpoch) {
                 setShareUrl(result.imageUrl);
               }
               if (photoRecordId) {
@@ -671,7 +723,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
             })
             .catch((smugmugErr) => {
               console.error('SmugMug upload failed for generated:', smugmugErr);
-              if (!isPrivateMode) {
+              if (!isPrivateMode && deliveryEpochRef.current === sendEpoch) {
                 setShareUrl(bucketUrl);
               }
             })
@@ -752,6 +804,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
       }
       setErrorMsg(err.message || "AI Generation Failed");
       setSmsQueued(false);
+      setEmailQueued(false);
       setView('review');
     }
   };
@@ -759,19 +812,36 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   // --- SMS LOGIC ---
   const handleSendSms = async () => {
     if (phoneNumber.length < 10 || !shareUrl || !generatedImageId) return;
+    if (smsInFlightRef.current) return;
 
-    setIsSending(true);
+    const phone = phoneNumber;
+    const imageId = generatedImageId;
+    const epochAtSend = deliveryEpochRef.current;
+    autoSendStartedRef.current.add(`${imageId}:sms:${phone}`);
+    smsInFlightRef.current = true;
+    setSmsQueued(false);
+    beginSending('sms');
     setErrorMsg('');
     try {
-      await sendSms(phoneNumber, shareUrl, generatedImageId, event.id);
-      setPhoneNumber('');
+      const ok = await sendSms(phone, shareUrl, imageId, event.id);
+      if (deliveryEpochRef.current !== epochAtSend) return;
+      if (!ok) {
+        autoSendStartedRef.current.delete(`${imageId}:sms:${phone}`);
+        setErrorMsg(t('kiosk.smsFailed'));
+        return;
+      }
+      setSmsSent(true);
+      setSmsSentTo(phone);
       setDeliveryCountdown(event.sharingScreenTimeout ?? 30);
       setView('delivery');
     } catch (error) {
       console.error('SMS send failed:', error);
-      setErrorMsg('Failed to send SMS. Please try again.');
+      if (deliveryEpochRef.current !== epochAtSend) return;
+      autoSendStartedRef.current.delete(`${imageId}:sms:${phone}`);
+      setErrorMsg(t('kiosk.smsFailed'));
     } finally {
-      setIsSending(false);
+      smsInFlightRef.current = false;
+      if (deliveryEpochRef.current === epochAtSend) endSending('sms');
     }
   };
 
@@ -788,20 +858,37 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   };
 
   const handleSendEmail = async () => {
-    if (!emailAddress || !emailAddress.includes('@') || !shareUrl || !generatedImageId) return;
+    if (!isValidGuestEmail(emailAddress) || !shareUrl || !generatedImageId) return;
+    if (emailInFlightRef.current) return;
 
-    setIsSending(true);
+    const email = emailAddress.trim();
+    const imageId = generatedImageId;
+    const epochAtSend = deliveryEpochRef.current;
+    autoSendStartedRef.current.add(`${imageId}:email:${email}`);
+    emailInFlightRef.current = true;
+    setEmailQueued(false);
+    beginSending('email');
     setErrorMsg('');
     try {
-      await sendEmail(emailAddress, shareUrl, generatedImageId, event.id);
-      setEmailAddress('');
+      const ok = await sendEmail(emailAddress.trim(), smugmugDirectImageUrl(shareUrl), generatedImageId, event.id);
+      if (deliveryEpochRef.current !== epochAtSend) return;
+      if (!ok) {
+        autoSendStartedRef.current.delete(`${imageId}:email:${email}`);
+        setErrorMsg(t('kiosk.emailFailed'));
+        return;
+      }
+      setEmailSent(true);
+      setEmailSentTo(email);
       setDeliveryCountdown(event.sharingScreenTimeout ?? 30);
       setView('delivery');
     } catch (error) {
       console.error('Email send failed:', error);
-      setErrorMsg('Failed to send email. Please try again.');
+      if (deliveryEpochRef.current !== epochAtSend) return;
+      autoSendStartedRef.current.delete(`${imageId}:email:${email}`);
+      setErrorMsg(t('kiosk.emailFailed'));
     } finally {
-      setIsSending(false);
+      emailInFlightRef.current = false;
+      if (deliveryEpochRef.current === epochAtSend) endSending('email');
     }
   };
 
@@ -820,10 +907,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     setSelectedMode(null);
     setPhoneNumber('');
     setEmailAddress('');
+    setErrorMsg('');
     setUploadProgress('');
     setGuestAnswers({});
     setCustomizeErrors({});
-    setSmsQueued(false);
+    clearSendFlags();
     setPrintCopies(1);
     setCopiesSent(0);
     copiesSentRef.current = 0;
@@ -984,15 +1072,6 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
   }, [view, event.sharingScreenTimeout]);
 
-  // Auto-send SMS when image becomes ready and guest queued a send during processing
-  useEffect(() => {
-    if (!smsQueued) return;
-    if (shareUrl && generatedImageId && phoneNumber.length >= 10 && !isSending && view !== 'delivery') {
-      setSmsQueued(false);
-      handleSendSms();
-    }
-  }, [smsQueued, shareUrl, generatedImageId, phoneNumber, isSending, view]);
-
   // Preload prompt images for faster display
   useEffect(() => {
     if (event.prompts && event.prompts.length > 0) {
@@ -1063,6 +1142,115 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
     }
     return translateText(key, kioskLanguage, params);
   }, [kioskTextOverrides, kioskLanguage]);
+
+  // Once the share link and image record exist, send every channel queued during processing.
+  useEffect(() => {
+    if (!shareUrl || !generatedImageId) return;
+    if (view !== 'processing' && view !== 'result') return;
+
+    const imageId = generatedImageId;
+    const pageUrl = shareUrl;
+    const epochAtSend = deliveryEpochRef.current;
+    const jobs: Array<{ channel: 'sms' | 'email'; destination: string; run: () => Promise<boolean> }> = [];
+    const wanted = queuedSendChannels({
+      smsEnabled: event.smsEnabled !== false,
+      emailEnabled: !!event.emailEnabled,
+      smsQueued,
+      emailQueued,
+      phone: phoneNumber,
+      email: emailAddress,
+    });
+
+    if (wanted.includes('sms') && !smsInFlightRef.current) {
+      const phone = phoneNumber;
+      const key = `${imageId}:sms:${phone}`;
+      if (!autoSendStartedRef.current.has(key)) {
+        autoSendStartedRef.current.add(key);
+        jobs.push({
+          channel: 'sms',
+          destination: phone,
+          run: () => sendSms(phone, pageUrl, imageId, event.id),
+        });
+      }
+    }
+
+    if (wanted.includes('email') && !emailInFlightRef.current) {
+      const email = emailAddress.trim();
+      const key = `${imageId}:email:${email}`;
+      if (!autoSendStartedRef.current.has(key)) {
+        autoSendStartedRef.current.add(key);
+        jobs.push({
+          channel: 'email',
+          destination: email,
+          run: () => sendEmail(email, smugmugDirectImageUrl(pageUrl), imageId, event.id),
+        });
+      }
+    }
+
+    if (jobs.length === 0) return;
+
+    if (jobs.some((job) => job.channel === 'sms')) {
+      smsInFlightRef.current = true;
+      setSmsQueued(false);
+    }
+    if (jobs.some((job) => job.channel === 'email')) {
+      emailInFlightRef.current = true;
+      setEmailQueued(false);
+    }
+    jobs.forEach((job) => beginSending(job.channel));
+
+    Promise.allSettled(jobs.map(async (job) => {
+      try {
+        const ok = await job.run();
+        return { channel: job.channel, destination: job.destination, ok: ok === true };
+      } catch (error) {
+        console.error(`${job.channel} send failed:`, error);
+        return { channel: job.channel, destination: job.destination, ok: false };
+      }
+    })).then((results) => {
+      if (jobs.some((job) => job.channel === 'sms')) smsInFlightRef.current = false;
+      if (jobs.some((job) => job.channel === 'email')) emailInFlightRef.current = false;
+      if (deliveryEpochRef.current !== epochAtSend) return;
+
+      jobs.forEach((job) => endSending(job.channel));
+
+      const failures: string[] = [];
+      let anySuccess = false;
+      for (const result of results) {
+        if (result.status !== 'fulfilled') {
+          failures.push(t('kiosk.smsFailed'));
+          continue;
+        }
+        const { channel, destination, ok } = result.value;
+        if (ok) {
+          anySuccess = true;
+          if (channel === 'sms') {
+            setSmsSent(true);
+            setSmsSentTo(destination);
+          } else {
+            setEmailSent(true);
+            setEmailSentTo(destination);
+          }
+        } else if (channel === 'sms') {
+          autoSendStartedRef.current.delete(`${imageId}:sms:${destination}`);
+          failures.push(t('kiosk.smsFailed'));
+        } else {
+          autoSendStartedRef.current.delete(`${imageId}:email:${destination}`);
+          failures.push(t('kiosk.emailFailed'));
+        }
+      }
+
+      if (failures.length > 0) setErrorMsg(failures.join(' '));
+      else if (anySuccess) setErrorMsg('');
+
+      if (anySuccess) {
+        setDeliveryCountdown(event.sharingScreenTimeout ?? 30);
+        setView('delivery');
+      } else {
+        setView((current) => (current === 'processing' ? 'result' : current));
+      }
+    });
+  }, [smsQueued, emailQueued, shareUrl, generatedImageId, phoneNumber, emailAddress, view, event.id, event.smsEnabled, event.emailEnabled, event.sharingScreenTimeout, t]);
 
   const handlePrint = async (copies: number, imageId?: string) => {
     const settings = readEventPrintSettings(event);
@@ -1988,8 +2176,12 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
   // 5. PROCESSING (AI)
   if (view === 'processing') {
     const colors = getBrandingColors();
+    const smsOn = event.smsEnabled !== false;
+    const emailOn = !!event.emailEnabled;
+    const emailInvalid = emailAddress.trim().length > 0 && !isValidGuestEmail(emailAddress);
     return (
-      <div className="h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex flex-col items-center justify-center text-slate-900 space-y-4 md:space-y-8 px-4">
+      <div className="h-[100dvh] w-full overflow-y-auto bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 text-slate-900">
+      <div className="min-h-full flex flex-col items-center justify-center space-y-4 md:space-y-8 px-4 py-6">
         <div className="relative h-32 w-32 md:h-48 md:w-48">
           <div
             className="absolute inset-0 rounded-full border-4 animate-spin"
@@ -2012,44 +2204,89 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
         <p className="text-sm md:text-base text-slate-600 text-center">
           {uploadProgress || t('kiosk.applyingStyle', { style: getPromptDisplayName(selectedPrompt!) })}
         </p>
-        {event.smsEnabled !== false && (
-          <div className="w-full max-w-sm space-y-2 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-lg">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center justify-center gap-2">
-              <Smartphone size={14} />
-              {t('kiosk.sms')}
-            </label>
-            <input
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => { setPhoneNumber(e.target.value); setSmsQueued(false); }}
-              placeholder="(555) 123-4567"
-              aria-label={t('kiosk.sms')}
-              className="w-full bg-white border-2 border-slate-300 rounded-xl px-4 py-3 text-base md:text-lg text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
-              style={{ borderColor: phoneNumber ? colors.accent : undefined }}
-              onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
-              onBlur={(e) => {
-                if (!phoneNumber) e.currentTarget.style.borderColor = '';
-              }}
-            />
-            {smsQueued ? (
-              <div className="flex items-center justify-center gap-2 rounded-xl py-3 px-4 bg-green-50 border-2 border-green-200 text-green-700 font-bold text-sm">
-                <Check size={16} />
-                Queued! We'll text you the moment your photo is ready.
+        {(smsOn || emailOn) && (
+          <div className="w-full max-w-md space-y-4 rounded-2xl border-2 border-slate-300 bg-white p-4 shadow-lg">
+            {smsOn && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                  <Smartphone size={14} />
+                  {t('kiosk.sms')}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => { setPhoneNumber(e.target.value); setSmsQueued(false); }}
+                    placeholder="(555) 123-4567"
+                    aria-label={t('kiosk.sms')}
+                    className="min-w-0 flex-1 bg-white border-2 border-slate-300 rounded-xl px-4 py-3 text-base text-slate-900 focus:outline-none placeholder-slate-400 font-mono min-h-[44px]"
+                    style={{ borderColor: phoneNumber ? colors.accent : undefined }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+                    onBlur={(e) => {
+                      if (!phoneNumber) e.currentTarget.style.borderColor = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setSmsQueued(true); }}
+                    disabled={smsQueued || smsSending || phoneNumber.length < 10}
+                    aria-label={t('kiosk.sendSms')}
+                    className="shrink-0 bg-slate-900 text-white font-bold text-sm px-4 py-3 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
+                  >
+                    <Send size={16} /> {t('kiosk.send')}
+                  </button>
+                </div>
+                {smsQueued && (
+                  <p className="text-sm font-semibold text-green-700">{t('kiosk.queuedSend')}</p>
+                )}
               </div>
-            ) : (
-              <button
-                onClick={() => { setSmsQueued(true); }}
-                disabled={phoneNumber.length < 10}
-                className="w-full bg-slate-900 text-white font-bold text-sm md:text-base py-3 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
-              >
-                <Send size={16} /> {t('kiosk.sendSms')}
-              </button>
+            )}
+            {emailOn && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                  <Mail size={14} />
+                  {t('kiosk.email')}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={emailAddress}
+                    onChange={(e) => { setEmailAddress(e.target.value); setEmailQueued(false); }}
+                    placeholder="your@email.com"
+                    aria-label={t('kiosk.email')}
+                    aria-invalid={emailInvalid}
+                    className="min-w-0 flex-1 bg-white border-2 border-slate-300 rounded-xl px-4 py-3 text-base text-slate-900 focus:outline-none placeholder-slate-400 min-h-[44px]"
+                    style={{ borderColor: emailInvalid ? '#dc2626' : emailAddress ? colors.accent : undefined }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
+                    onBlur={(e) => {
+                      if (!emailAddress) e.currentTarget.style.borderColor = '';
+                      else if (emailInvalid) e.currentTarget.style.borderColor = '#dc2626';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setEmailQueued(true); }}
+                    disabled={emailQueued || emailSending || !isValidGuestEmail(emailAddress)}
+                    aria-label={t('kiosk.sendViaEmail')}
+                    className="shrink-0 bg-blue-600 text-white font-bold text-sm px-4 py-3 rounded-xl hover:bg-blue-700 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
+                  >
+                    <Send size={16} /> {t('kiosk.send')}
+                  </button>
+                </div>
+                {emailInvalid && (
+                  <p className="text-xs font-medium text-red-600">{t('kiosk.invalidEmail')}</p>
+                )}
+                {emailQueued && (
+                  <p className="text-sm font-semibold text-green-700">{t('kiosk.queuedSend')}</p>
+                )}
+              </div>
             )}
             <p className="text-xs text-slate-500 text-center">
-              Enter your number while your photo is being created. It will still be here when your photo is ready.
+              {t('kiosk.queueWhileCreating')}
             </p>
           </div>
         )}
+      </div>
       </div>
     );
   }
@@ -2069,7 +2306,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 <img src={capturedImage || ''} className="w-full h-full object-contain" alt="captured" />
               </div>
               <div className="flex gap-2 md:gap-6 mt-3 md:mt-6 w-full max-w-2xl flex-shrink-0 pb-2">
-                  <button onClick={() => { setCapturedImage(null); setErrorMsg(''); setView('camera'); }} className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-50 active:bg-slate-50 font-bold text-sm md:text-lg min-h-[44px]">
+                  <button onClick={() => { setCapturedImage(null); setErrorMsg(''); clearSendFlags(); setView('camera'); }} className="flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 md:px-8 py-3 md:py-4 rounded-full bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-50 active:bg-slate-50 font-bold text-sm md:text-lg min-h-[44px]">
                     <RefreshCw size={18} className="md:w-6 md:h-6" /> {t('kiosk.retake')}
                   </button>
                   <button
@@ -2132,6 +2369,11 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 </div>
                 <h2 className="text-xl md:text-4xl text-slate-900 font-bold">{t('kiosk.sent')}</h2>
                 <p className="text-sm md:text-base text-slate-600">{t('kiosk.checkYourPhone')}</p>
+                {errorMsg && (
+                  <div className="w-full p-2 md:p-3 bg-red-100 border-2 border-red-300 rounded-lg text-red-800 text-center text-xs md:text-sm">
+                    {errorMsg}
+                  </div>
+                )}
 
                 <div className="pt-2 md:pt-4 space-y-2 md:space-y-3">
                   <button
@@ -2279,12 +2521,18 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                           if (!phoneNumber) e.currentTarget.style.borderColor = '';
                         }}
                     />
+                    {smsSent && (smsSentTo || phoneNumber) && (
+                      <p className="text-sm font-semibold text-green-700">
+                        ✓ {t('kiosk.sentTo', { value: maskPhoneNumber(smsSentTo || phoneNumber) })}
+                      </p>
+                    )}
                     <button
+                        type="button"
                         onClick={handleSendSms}
-                        disabled={isSending || phoneNumber.length < 3 || !shareUrl}
+                        disabled={smsSending || phoneNumber.length < 10 || !shareUrl}
                         className="w-full bg-slate-900 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-slate-800 active:bg-slate-800 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!shareUrl ? t('kiosk.preparingLink') : isSending ? t('kiosk.sending') : <><Send size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendSms')}</>}
+                        {!shareUrl ? t('kiosk.preparingLink') : smsSending ? t('kiosk.sending') : <><Send size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendSms')}</>}
                     </button>
                   </div>
                 )}
@@ -2292,6 +2540,7 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                 {shareUrl && event.whatsappEnabled && (
                   <div className="space-y-1.5 md:space-y-4">
                     <button
+                        type="button"
                         onClick={handleSendWhatsApp}
                         disabled={!shareUrl}
                         className="w-full bg-green-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-green-700 active:bg-green-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
@@ -2323,12 +2572,21 @@ const KioskMode: React.FC<KioskProps> = ({ event, onExit, onLoaded }) => {
                           if (!emailAddress) e.currentTarget.style.borderColor = '';
                         }}
                     />
+                    {emailAddress.trim().length > 0 && !isValidGuestEmail(emailAddress) && (
+                      <p className="text-xs font-medium text-red-600">{t('kiosk.invalidEmail')}</p>
+                    )}
+                    {emailSent && (emailSentTo || emailAddress) && (
+                      <p className="text-sm font-semibold text-green-700">
+                        ✓ {t('kiosk.sentTo', { value: emailSentTo || emailAddress.trim() })}
+                      </p>
+                    )}
                     <button
+                        type="button"
                         onClick={handleSendEmail}
-                        disabled={isSending || !emailAddress.includes('@') || !shareUrl}
+                        disabled={emailSending || !isValidGuestEmail(emailAddress) || !shareUrl}
                         className="w-full bg-blue-600 text-white font-bold text-sm md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-xl hover:bg-blue-700 active:bg-blue-700 transition-colors flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 min-h-[44px]"
                     >
-                        {!shareUrl ? t('kiosk.preparingLink') : isSending ? t('kiosk.sending') : <><Mail size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendViaEmail')}</>}
+                        {!shareUrl ? t('kiosk.preparingLink') : emailSending ? t('kiosk.sending') : <><Mail size={18} className="md:w-6 md:h-6" /> {t('kiosk.sendViaEmail')}</>}
                     </button>
                   </div>
                 )}

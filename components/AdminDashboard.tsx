@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { parseCreditLimitInput } from '../lib/eventCredits';
 import { PRINT_PAPER_SIZES, cutForPaperSize, parsePrintEventLimit, parsePrintMaxCopies } from '../lib/printStation';
-import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount, uploadEventPromptOverlay, resetEventCreditsUsed } from '../services/backendService';
+import { getUserProfile, getUserSettings, getUserCredits, updateUserSettings, updateGlobalSettings, getGlobalSettings, getEvents, getEventById, getPrompts, getPromptById, saveEvent, savePrompt, updatePrompt, deletePrompt, deleteEvent, duplicateEvent, grantEventAccess, revokeEventAccess, getEventAccessList, transferEventOwnership, getDashboardStats, getDashboardChartData, DashboardStats, ChartDataPoint, clearPromptsCache, clearGlobalSettingsCache, getAllUsers, getAllEvents, getAllPrompts, getAdminStats, getRevenueStats, getGenerationsByDateAndEvent, EventGenerationBreakdown, validateEventTimeRestrictions, syncSmugMugGallery, createSmugMugGalleryForEvent, updateSmugMugGalleryUrl, getConcurrentEventLimit, hasActivatedEventPass, completeOnboarding, getEventDeviceUsage, resetDeviceUsage, DeviceUsageEntry, generateAccessCodes, getEventAccessCodes, deleteAccessCode, deleteAllAccessCodes, getDisclaimerAcknowledgmentCount, uploadEventPromptOverlay, resetEventCreditsUsed, sendEmail, getEventEmailTestSample } from '../services/backendService';
 import { normalizeOverlayMode, PromptOverlayMode } from '../lib/overlayResolve';
 import { UserProfile, UserSettings, GlobalSettings, UserCredits, Event, Prompt, ConcurrentEventLimit, EventAccessCode } from '../types';
-import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay, AlertCircle, FileText } from 'lucide-react';
+import { LayoutDashboard, Calendar, Settings as SettingsIcon, LogOut, Zap, Camera, MessageSquare, Plus, Save, Send, X, Image as ImageIcon, Upload, Check, Link2, ExternalLink, ChartBar as BarChart3, Trash2, Pencil, CreditCard, Menu, ChevronLeft, ChevronRight, BookImage, GripVertical, RefreshCw, Images, Users, DollarSign, Search, User as UserIcon, Package, Printer, CircleUser as UserCircle, Copy, Crown, Ticket, Circle as HelpCircle, Smartphone, RotateCcw, QrCode, Download, Clock, MonitorPlay, AlertCircle, FileText } from 'lucide-react';
 import Settings from './Settings';
 import EventAnalytics from './EventAnalytics';
 import SubscriptionManager from './SubscriptionManager';
@@ -84,6 +84,8 @@ const EventTimeClock: React.FC<{ timezone: string }> = ({ timezone }) => {
   );
 };
 
+const TEST_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -101,6 +103,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
 
   // Event Editor State
   const [editingEvent, setEditingEvent] = useState<Partial<Event>>({});
+  const [emailTestBaseline, setEmailTestBaseline] = useState({ name: '', subject: '', body: '' });
+  const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [testEmailStatus, setTestEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
   const [uploadingOverlayPromptId, setUploadingOverlayPromptId] = useState<string | null>(null);
 
   // Analytics State
@@ -699,6 +704,9 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       printEventLimit: null,
       timezone: defaultTz,
     });
+    setEmailTestBaseline({ name: '', subject: '', body: '' });
+    setTestEmailAddress(user?.email || '');
+    setTestEmailStatus('idle');
     setActiveTab('create_event');
   };
 
@@ -714,6 +722,13 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
       setEventTimezone(eventTz);
 
       setEditingEvent({ ...eventWithPrompts });
+      setEmailTestBaseline({
+        name: eventWithPrompts.name || '',
+        subject: eventWithPrompts.emailSubject || '',
+        body: eventWithPrompts.emailBody || '',
+      });
+      setTestEmailAddress(user?.email || '');
+      setTestEmailStatus('idle');
       setActiveTab('edit_event');
     } catch (error) {
       console.error('Failed to load event details:', error);
@@ -782,6 +797,27 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
     } catch (error: any) {
       alert(`Failed to save event: ${error.message}`);
       console.error('Save event error:', error);
+    }
+  };
+
+  const emailTestDirty =
+    !editingEvent.id ||
+    (editingEvent.name || '') !== emailTestBaseline.name ||
+    (editingEvent.emailSubject || '') !== emailTestBaseline.subject ||
+    (editingEvent.emailBody || '') !== emailTestBaseline.body;
+  const testEmailValid = TEST_EMAIL_PATTERN.test(testEmailAddress.trim());
+
+  const handleSendTestEmail = async () => {
+    if (!editingEvent.id || emailTestDirty || !testEmailValid || testEmailStatus === 'sending') return;
+
+    setTestEmailStatus('sending');
+    try {
+      const sample = await getEventEmailTestSample(editingEvent.id);
+      const ok = await sendEmail(testEmailAddress.trim(), sample.imageUrl, sample.imageId, editingEvent.id);
+      setTestEmailStatus(ok ? 'sent' : 'failed');
+    } catch (error) {
+      console.error('Test email failed:', error);
+      setTestEmailStatus('failed');
     }
   };
 
@@ -2952,6 +2988,44 @@ const AdminDashboard: React.FC<AdminProps> = ({ onLogout, onLaunchKiosk, user })
                           <p className="text-xs text-slate-500">
                             Enter raw HTML for the email body. Available placeholders: <code className="bg-slate-200 px-1 py-0.5 rounded">{'{event_name}'}</code> and <code className="bg-slate-200 px-1 py-0.5 rounded">{'{image_url}'}</code>
                           </p>
+                        </div>
+                        <div className="space-y-2 pt-2 border-t border-slate-200">
+                          <label className="text-sm font-medium text-slate-700" htmlFor="event-test-email">Send Test Email</label>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              id="event-test-email"
+                              type="email"
+                              value={testEmailAddress}
+                              onChange={(e) => {
+                                setTestEmailAddress(e.target.value);
+                                setTestEmailStatus('idle');
+                              }}
+                              disabled={testEmailStatus === 'sending'}
+                              placeholder="you@email.com"
+                              className="min-w-0 flex-1 bg-slate-50 border-2 border-slate-300 rounded-lg px-4 py-2 text-black focus:ring-2 focus:ring-green-700 focus:outline-none disabled:opacity-60"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleSendTestEmail}
+                              disabled={testEmailStatus === 'sending' || emailTestDirty || !testEmailValid}
+                              className="shrink-0 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Send size={16} />
+                              {testEmailStatus === 'sending' ? 'Sending...' : 'Send Test Email'}
+                            </button>
+                          </div>
+                          {emailTestDirty && (
+                            <p className="text-xs text-amber-700">Save changes before testing</p>
+                          )}
+                          {!emailTestDirty && testEmailAddress.trim().length > 0 && !testEmailValid && (
+                            <p className="text-xs text-red-600">Enter a valid email address.</p>
+                          )}
+                          {testEmailStatus === 'sent' && (
+                            <p className="text-sm font-semibold text-green-700">Test email sent.</p>
+                          )}
+                          {testEmailStatus === 'failed' && (
+                            <p className="text-sm font-semibold text-red-700">Failed to send test email. Please try again.</p>
+                          )}
                         </div>
                       </div>
                     )}
